@@ -7,7 +7,7 @@ use super::argument::{Argument, Kind};
 use super::command::{Command, CommandPath};
 
 /// The column whose cells an inferred link starts from.
-const ID_COLUMN: &str = "id";
+pub(crate) const ID_COLUMN: &str = "id";
 
 /// The value name of the positional argument that an inferred link fills.
 const ID_VALUE: &str = "ID";

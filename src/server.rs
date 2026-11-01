@@ -19,6 +19,9 @@
 //!   runner's failure document and the status of `failure_status`.
 //! - `POST /api/runs/<id>/cancel` cancels a run, and answers 204, or 404
 //!   when the run is not running.
+//! - `POST /api/choices` takes a [`ChoicesRequest`], runs the read-only
+//!   source of an inferred link, and answers with its [`Choices`] as one
+//!   JSON document, or with the runner's failure document.
 //! - Any other `/api/` path gets 404.
 //! - `GET /` and the other asset paths serve the embedded page.
 //!
@@ -62,7 +65,7 @@ pub use self::session::{CODE_LIFETIME, Session};
 use self::stream::{Pacing, Stream};
 use crate::lock::lock;
 use crate::model::Tool;
-use crate::runner::{MOST_RUNS, Mode, RunFailure, RunRequest, Runner};
+use crate::runner::{Choices, ChoicesRequest, MOST_RUNS, Mode, RunFailure, RunRequest, Runner};
 
 /// How long the server runs without an authenticated request.
 pub const IDLE_LIMIT: Duration = Duration::from_secs(30 * 60);
@@ -602,6 +605,15 @@ impl Shared {
                     .map(|run| Stream::Run(Box::new(run)));
                 Ok(streamed(confirmed))
             }
+            Route::Choices => {
+                let body = request.body(connection)?;
+                let choices: ChoicesRequest =
+                    serde_json::from_slice(&body).map_err(|_| Refusal::Body)?;
+                Ok(Answer::Reply(match self.runner.choices(&choices) {
+                    Ok(found) => Reply::Json(choices_json(&found)),
+                    Err(failure) => failed(&failure),
+                }))
+            }
             Route::Cancel(id) => Ok(Answer::Reply(
                 match id.parse().and_then(|id| self.runner.cancel(id)) {
                     Ok(()) => Reply::Done,
@@ -636,6 +648,13 @@ fn run_request(request: &http::Request, connection: &mut TcpStream) -> Result<Ru
     serde_json::from_slice(&body).map_err(|_| Refusal::Body)
 }
 
+/// Returns `choices` as JSON.
+fn choices_json(choices: &Choices) -> Vec<u8> {
+    // serde_json fails only on a map key that is not a string, and the
+    // choices have no map.
+    serde_json::to_vec(choices).unwrap_or_default()
+}
+
 /// What a route answers: a reply of known length, or a run's stream.
 enum Answer {
     /// A reply of known length, which `Replies::write` writes.
@@ -664,7 +683,9 @@ fn failed(failure: &RunFailure) -> Reply {
 /// Returns the HTTP status of a runner's failure. A request that the runner
 /// refuses gets 422, a cancel that finds no run gets 404, a runner that is
 /// full or shutting down gets 503, and a tool that will not start or a
-/// system that gives no random bytes gets 500.
+/// system that gives no random bytes gets 500. A choices source that ends
+/// without a listing gets 502, and one that outlasts the choices time gets
+/// 504.
 fn failure_status(failure: &RunFailure) -> u16 {
     match failure {
         RunFailure::Refused { .. }
@@ -674,6 +695,8 @@ fn failure_status(failure: &RunFailure) -> u16 {
         RunFailure::NotRunning { .. } => 404,
         RunFailure::Busy { .. } | RunFailure::Closed => 503,
         RunFailure::Spawn { .. } | RunFailure::Random { .. } => 500,
+        RunFailure::NoListing { .. } => 502,
+        RunFailure::ChoicesTime { .. } => 504,
     }
 }
 
@@ -772,6 +795,8 @@ enum Route<'a> {
     Confirmation(&'a str),
     /// `POST /api/runs/<id>/cancel`, with the id as the page sent it.
     Cancel(&'a str),
+    /// `POST /api/choices`.
+    Choices,
     /// A `GET` of an embedded asset.
     Asset(&'static Asset),
     /// Another path under `/api/`, which needs the token before it gets 404.
@@ -799,6 +824,7 @@ impl<'a> Route<'a> {
             (Method::Get, "/api/model") => Self::Model,
             (Method::Post, "/api/runs") => Self::Runs,
             (Method::Post, "/api/previews") => Self::Previews,
+            (Method::Post, "/api/choices") => Self::Choices,
             _ if path.starts_with(API) => Self::ApiNotFound,
             (Method::Get, _) => assets::find(path).map_or(Self::NotFound, Self::Asset),
             _ => Self::NotFound,

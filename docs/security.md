@@ -61,6 +61,7 @@ neither of them.
 | The runner runs at most 8 commands at once, half the server's 16 connections, and the code asserts that bound when it compiles. Each stream holds one connection, so at least 8 stay free for the page's other requests, including a cancel. A run over the cap gets 503 with `flightdeck::run::busy`. A cancel of a run that is not running gets 404 with `flightdeck::run::not_running`. | A page whose streams fill every connection, so that it can no longer cancel them. | `with_every_run_streaming_a_cancel_ends_one_with_exit_130_and_keeps_the_rows_that_arrived` and `a_run_over_the_runners_cap_is_refused_with_503_and_busy` in `tests/routes.rs`. |
 | The run routes need the token, check the command and every value against the tool's model before anything runs, and refuse with 422 and a `flightdeck/failure/v1` document that names the path as a list of words and the argument at fault. A body that is not a run request gets 400. An option's value reaches the tool joined to its name, as `--limit=-1`, and every positional value follows `--`, so a value that starts with `-` is never read as a flag. | A request that runs a command the tool hides, passes an argument the tool does not declare, or smuggles a flag into a value. | `a_hidden_command_is_refused_with_422_and_the_path_as_words`, `an_unknown_argument_is_refused_with_its_name_for_the_page_to_mark`, `a_body_that_is_not_a_run_request_is_refused_with_400`, `a_value_that_starts_with_a_dash_reaches_the_tool_as_the_options_value` and `a_positional_value_that_starts_with_a_dash_reaches_the_tool_after_the_separator` in `tests/routes.rs`. |
 | A destructive command runs only with a confirmation id that a preview of the same command line issued. An id works once, for that command line alone. With `--read-only`, the server refuses a command that is not read-only at preview and with an id. | A page that runs a destructive command without showing its preview, or reuses one preview for another row. | `books_remove_without_a_confirmation_id_is_refused`, `a_preview_streams_its_dry_run_and_ends_with_the_confirmation_id`, `a_confirmation_id_for_books_remove_2_does_not_run_books_remove_3`, `a_confirmation_id_runs_its_command_once`, `read_only_refuses_books_remove_at_preview_and_with_an_id` and `a_preview_of_a_command_without_dry_run_is_one_started_line_with_the_id` in `tests/routes.rs`. |
+| The choices route runs only the source of a link that the model inferred, only when that source is read-only, and only with the vector that the runner builds from the model: the source's path, `--all` when it takes it, and flightdeck's own flags. It takes one of the runner's 8 places, prints at most 4 MiB, and is stopped after 8 seconds. | A page, or a holder of the token, that uses the route to run a command that changes data, to pass values to a command, or to hold the runner's places. | `the_choices_route_refuses_a_source_that_is_not_read_only_and_runs_nothing`, `the_choices_route_refuses_a_source_that_the_model_did_not_infer`, `a_body_that_is_not_a_choices_request_is_refused_with_400`, `a_choices_request_over_the_runners_cap_is_refused_with_503_and_busy` and `a_source_that_outlasts_the_choices_time_is_stopped_and_answered_with_504` in `tests/routes.rs`. |
 | A stream writes `{"event":"alive"}` after each 15 seconds without output. When a write fails because the client has gone, the server drops the run, which stops the child's process group. | A run that goes on after the page has closed, including a silent one that never writes the line whose failure would show that the client left. | `a_silent_run_streams_alive_lines_until_its_output` and `a_client_that_disconnects_stops_its_run` in `tests/routes.rs`. |
 | Every reply carries `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy: same-origin`, `Cross-Origin-Opener-Policy: same-origin` and a content security policy that allows only the server's own scripts, styles, fonts, images and connections, and no frames, forms or base URL. | A cached token reply, a reply read as another type, a leaked address, an embedding of the page or its files, and injected scripts. | `every_reply_carries_the_security_headers_and_no_cors_header` in `tests/server.rs`. |
 | No line that flightdeck prints and no reply holds the token or the launch code. | A secret in a terminal, a log or a refusal. | `open_prints_two_lines_and_no_secret_and_stops_on_sigterm_with_exit_0` in `tests/open.rs`. |
@@ -85,6 +86,7 @@ framing it. A navigation to an `/api/` path is refused.
 | `POST /api/previews` | the same | a stream, or a failure |
 | `POST /api/confirmations/<id>` | the same, which must match the preview's command line | a stream, or a failure |
 | `POST /api/runs/<id>/cancel` | none | 204, or 404 with `flightdeck::run::not_running` for a run that has ended or an id that is no run |
+| `POST /api/choices` | `{"source": [...], "target": [...], "argument": "<ID>"}` | the choices as one JSON document, or a failure |
 
 A failure is a `flightdeck/failure/v1` document, served as
 `application/problem+json`, with this status:
@@ -95,6 +97,8 @@ A failure is a `flightdeck/failure/v1` document, served as
 | 503 | `flightdeck::run::busy`, `closed` | The runner is full or is shutting down. A busy request may be sent again once a run ends. |
 | 500 | `flightdeck::run::spawn`, `random` | The tool would not start, or the system gave no random bytes for an id. |
 | 404 | `flightdeck::run::not_running` | A cancel found no running run with the id. |
+| 502 | `flightdeck::choices::no_listing` | A choices source ended without a listing. Its `outcome` field names how it ended, such as `tool_failure`, or `not_listing` for a result that is not one listing. |
+| 504 | `flightdeck::choices::time_limit` | A choices source had not ended within 8 seconds, and the runner stopped it. |
 
 A stream is a 200 reply of `application/x-ndjson`, one JSON object on each
 line, tagged by `event`:
@@ -123,6 +127,47 @@ A preview of a command without `--dry-run` runs nothing. Its stream is one
 `started` line with `run: null`, `preview: false` and the confirmation id,
 and has no `ended` line.
 
+## The choices route
+
+The page's IDs chooser lists the values that an argument can take, such as
+the ids of `books show`, without a Run press. `POST /api/choices` runs a
+command for it, so the route accepts much less than the run routes do.
+
+- **The request selects a link and passes no value.** Its body names a
+  source command, a target command and the target's argument, and the
+  server refuses any other field with 400. The runner looks for a link of
+  the model whose source, target and argument equal the three, and refuses
+  a request that names none with 422, `flightdeck::run::refused` and the
+  reason `not_inferred`. The model infers a link only from a command whose
+  rows have an `id` column to another command of the same resource that
+  takes a positional argument whose value name is `ID`.
+- **The source is read-only.** The runner refuses a source whose effects
+  are not read-only, or that declares itself destructive or declares no
+  effects, with the reason `not_read_only`, before it starts anything.
+  Read-only mode changes nothing for this route, because it runs only
+  read-only commands in either mode.
+- **The runner builds the vector from the model.** The vector is the
+  source's path as the model holds it, `--all` when the source takes it,
+  then `--json`, `--full`, `--no-input` and `--`. No word of it comes from
+  the request, and the source runs with no value of its own, so it reads
+  only what it reads when a person runs it bare.
+- **The run is an ordinary run of the runner.** It passes the token, the
+  `Host`, `Origin`, `Sec-Fetch-Site` and JSON content-type checks of every
+  `POST`, takes one of the runner's 8 places, gets 503 with
+  `flightdeck::run::busy` when they are full, and is stopped by a shutdown.
+- **The reply is bounded.** The source may print at most 4 MiB in all,
+  and a source that prints more ends with flightdeck's output limit, which
+  the route answers with 502 and `flightdeck::choices::no_listing`. The
+  route waits at most 8 seconds for the source to end, then stops it and
+  answers 504. The reply holds at most 1,000 choices. A source with more
+  rows gives its first 1,000 with `truncated: true`, and the page says so
+  and still takes a typed value. Each choice is the row's `id` as text and
+  the cells of the source's compact columns other than `id`, so the reply
+  is never larger than the listing it came from.
+
+The page asks for a link's choices when its chooser first shows, and keeps
+the choices it receives until it reloads.
+
 ## Known limits
 
 - **Another user can hold the server's connections.** A local process
@@ -137,6 +182,10 @@ and has no `ended` line.
   waiting for more. While a slow client takes the 503 reply, for at most
   the 10 seconds of a reply's write deadline, the server accepts no other
   connection.
+- **A choices request holds its connection while the source runs.** The
+  route answers once the source has ended, so its connection's thread
+  waits up to 8 seconds, and a client that leaves meanwhile does not stop
+  the source before then.
 - **A long stream does not restart the idle limit.** Only an authenticated
   request restarts it, so a run that streams for longer than 30 minutes
   while the page sends nothing else ends when the server stops.

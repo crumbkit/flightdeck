@@ -59,6 +59,8 @@ const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
     Unprovoked::new(&runner::RUN_NOT_RUNNING, NO_RUN),
     Unprovoked::new(&runner::RUN_RANDOM, NO_RUN),
     Unprovoked::new(&runner::RUN_CLOSED, NO_RUN),
+    Unprovoked::new(&runner::CHOICES_NO_LISTING, NO_RUN),
+    Unprovoked::new(&runner::CHOICES_TIME_LIMIT, NO_RUN),
 ];
 
 /// The codes that have no twin: the admitted twin of a refused `open`
@@ -88,6 +90,8 @@ const UNTWINNED: &[Unprovoked<'_>] = &[
     Unprovoked::new(&runner::RUN_NOT_RUNNING, NO_RUN),
     Unprovoked::new(&runner::RUN_RANDOM, NO_RUN),
     Unprovoked::new(&runner::RUN_CLOSED, NO_RUN),
+    Unprovoked::new(&runner::CHOICES_NO_LISTING, NO_RUN),
+    Unprovoked::new(&runner::CHOICES_TIME_LIMIT, NO_RUN),
 ];
 
 #[test]

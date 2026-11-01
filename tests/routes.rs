@@ -1,6 +1,7 @@
 //! The routes that run commands, through the page's server on a real
 //! socket: `POST /api/runs`, `POST /api/previews`,
-//! `POST /api/confirmations/<id>` and `POST /api/runs/<id>/cancel`. The
+//! `POST /api/confirmations/<id>`, `POST /api/runs/<id>/cancel` and
+//! `POST /api/choices`. The
 //! tests run shelf and reading, which `scripts/install-test-tools.sh`
 //! installs, and `unruly`, the runner tests' fake tool.
 
@@ -89,6 +90,12 @@ fn remove(id: &str) -> Value {
     json!({"path": ["books", "remove"], "values": {"<ID>": [id]}})
 }
 
+/// Returns the request for the choices of `argument` of `target` from the
+/// rows of `source`.
+fn choices(source: &[&str], target: &[&str], argument: &str) -> Value {
+    json!({"source": source, "target": target, "argument": argument})
+}
+
 /// Asserts that `reply` is a runner's refusal with `status` and `code`, and
 /// returns its failure document.
 fn refused(reply: &Reply, status: u16, code: &str) -> Value {
@@ -150,6 +157,10 @@ fn every_run_route_refuses_a_request_without_the_token_or_with_a_wrong_one_and_r
             ("/api/previews".to_owned(), remove("2")),
             (format!("/api/confirmations/{id}"), remove("2")),
             ("/api/runs/1/cancel".to_owned(), json!({})),
+            (
+                "/api/choices".to_owned(),
+                choices(&["books", "list"], &["books", "show"], "<ID>"),
+            ),
         ];
         let wrong = "0".repeat(64);
 
@@ -569,5 +580,151 @@ fn stopping_the_server_cancels_a_run_that_outlasts_the_shutdown_grace_and_ends_i
         assert_eq!(ended["outcome"]["kind"], "cancelled");
         assert!(gone(pid), "the child outlived the server");
         Then::Wait
+    });
+}
+
+#[test]
+fn the_choices_of_books_show_are_the_ids_of_the_six_books_of_books_list() {
+    serving(Setup::shelf(), |running| {
+        let page = Page::of(running);
+
+        let reply = page.send(
+            "/api/choices",
+            &choices(&["books", "list"], &["books", "show"], "<ID>"),
+        );
+
+        assert_eq!(reply.status, 200);
+        assert_eq!(reply.header("Content-Type"), Some("application/json"));
+        let document = reply.json();
+        assert_eq!(document["source"], json!(["books", "list"]));
+        assert_eq!(document["column"], "id");
+        assert_eq!(document["truncated"], false);
+        let values: Vec<&str> = document["choices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|choice| choice["value"].as_str().unwrap())
+            .collect();
+        assert_eq!(values, ["1", "2", "3", "4", "5", "6"]);
+        Then::Stop
+    });
+}
+
+#[test]
+fn the_choices_route_refuses_a_source_that_is_not_read_only_and_runs_nothing() {
+    serving(Setup::shelf(), |running| {
+        let page = Page::of(running);
+
+        let reply = page.send(
+            "/api/choices",
+            &choices(&["books", "remove"], &["books", "show"], "<ID>"),
+        );
+
+        let document = refused(&reply, 422, "flightdeck::run::refused");
+        assert_eq!(document["fields"]["reason"], "not_read_only");
+        assert_eq!(document["fields"]["path"], json!(["books", "remove"]));
+        assert_eq!(page.book_ids(), [1, 2, 3, 4, 5, 6]);
+        Then::Stop
+    });
+}
+
+#[test]
+fn the_choices_route_refuses_a_source_that_the_model_did_not_infer() {
+    serving(Setup::shelf(), |running| {
+        let page = Page::of(running);
+        let uninferred = [
+            // books summarize prints no id column.
+            choices(&["books", "summarize"], &["books", "show"], "<ID>"),
+            // --from is no positional whose value name is ID.
+            choices(&["books", "list"], &["books", "show"], "--from"),
+            // A link never goes from a command to itself.
+            choices(&["books", "show"], &["books", "show"], "<ID>"),
+            // A hidden command is no source.
+            choices(&["aliases", "list"], &["books", "show"], "<ID>"),
+        ];
+
+        for body in &uninferred {
+            let reply = page.send("/api/choices", body);
+
+            let document = refused(&reply, 422, "flightdeck::run::refused");
+            assert_eq!(document["fields"]["reason"], "not_inferred", "{body}");
+        }
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_body_that_is_not_a_choices_request_is_refused_with_400() {
+    serving(Setup::shelf(), |running| {
+        let page = Page::of(running);
+        let mut extra = choices(&["books", "list"], &["books", "show"], "<ID>");
+        extra["values"] = json!({"--limit": "1"});
+
+        let reply = page.send("/api/choices", &extra);
+
+        assert_eq!(reply.status, 400);
+        assert_eq!(reply.code(), "flightdeck::request::body");
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_choices_request_over_the_runners_cap_is_refused_with_503_and_busy() {
+    let setup = Setup::of(unruly()).runner(runner::Settings::new().most_runs(1));
+    serving(setup, |running| {
+        let page = Page::of(running);
+        let mut holding = page.stream("/api/runs", &json!({"path": ["child", "wait"]}));
+        holding.next_event().unwrap();
+
+        let reply = page.send(
+            "/api/choices",
+            &choices(&["child", "roster"], &["child", "visit"], "<ID>"),
+        );
+
+        refused(&reply, 503, "flightdeck::run::busy");
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_source_that_outlasts_the_choices_time_is_stopped_and_answered_with_504() {
+    let setup = Setup::of(unruly()).runner(
+        runner::Settings::new()
+            .choices_time(Duration::from_millis(200))
+            .escalation(runner::Escalation::new(
+                Duration::from_millis(200),
+                Duration::from_millis(200),
+            )),
+    );
+    serving(setup, |running| {
+        let page = Page::of(running);
+        let started = Instant::now();
+
+        let reply = page.send(
+            "/api/choices",
+            &choices(&["child", "roster"], &["child", "visit"], "<ID>"),
+        );
+
+        assert!(started.elapsed() < Duration::from_secs(5));
+        let document = refused(&reply, 504, "flightdeck::choices::time_limit");
+        assert_eq!(document["fields"]["path"], "child roster");
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_source_that_ends_without_a_listing_is_answered_with_502_and_how_it_ended() {
+    serving(Setup::of(unruly()), |running| {
+        let page = Page::of(running);
+
+        let reply = page.send(
+            "/api/choices",
+            &choices(&["child", "ledger"], &["child", "visit"], "<ID>"),
+        );
+
+        let document = refused(&reply, 502, "flightdeck::choices::no_listing");
+        assert_eq!(document["fields"]["path"], "child ledger");
+        assert_eq!(document["fields"]["outcome"], "failed");
+        Then::Stop
     });
 }

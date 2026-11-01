@@ -48,6 +48,13 @@ What works today:
   503, and a tool that will not start gets 500. A page that closes its
   connection cancels its run. [docs/security.md](docs/security.md) states
   the routes' shapes in full.
+- The page lists the values of an argument that an inferred link fills
+  with `POST /api/choices`. The request names a link of the model: its
+  source command, its target command and the target's argument. The server
+  runs the source only when the model inferred that link and the source is
+  read-only, with `--all` when the source takes it, and answers with at
+  most 1,000 choices, each the value of a row's `id` labelled by the row's
+  other compact columns.
 - `flightdeck commands list`, `flightdeck schemas list` and
   `flightdeck schemas show`, crumbkit's own commands, describe flightdeck
   itself. [docs/commands.md](docs/commands.md) is the reference.
@@ -66,7 +73,11 @@ What works today:
   runs that flightdeck makes to load the tool.
 - The page in `ui/` is a React application. It lists the tool's commands
   grouped by goal, finds a command with ⌘K, builds a run from a form, and
-  shows each run as a card with its result as a table or a record.
+  shows each run as a card with its result as a table or a record. An `id`
+  cell that an inferred link starts from has a dotted underline, and
+  pressing it fills the linked command's form without running it. A field
+  that an inferred link fills lists the source's rows as choices, and
+  still takes a typed value.
 
 - The library's `runner` module runs one of the tool's commands from a
   structured request: the command's path and a value for each argument by
@@ -88,7 +99,8 @@ What works today:
 A link is inferred from crumbkit's command grammar. A command whose rows
 have an `id` column links it to each other command of the same resource that
 takes a positional `<ID>` argument, so shelf's `books list` links its `id`
-column to `books show`.
+column to `books show`. The page marks every inferred link with the word
+"inferred".
 
 ## Install
 

@@ -21,9 +21,14 @@ pub(super) const COMMAND: [&str; 3] = ["self", "figures", "list"];
 /// beside the person's, one each per `flightdeck open`, so their counts
 /// would grow until they outranked the tool's own commands. The figures
 /// cannot tell the two apart, so these commands keep no runs, and the
-/// person's own runs of them are missed. A usage log that records which
-/// program ran each command, so the loader's runs can be left out, replaces
-/// this.
+/// person's own runs of them are missed. The IDs chooser's runs of a
+/// link's source, such as `books list`, are counted too, at most once per
+/// source each time the page loads, because the page keeps the choices
+/// until it reloads. Those counts are kept, because the source is one of
+/// the tool's own commands and leaving it out would drop the person's runs
+/// of it, so the chooser's runs raise its rank among palette matches of
+/// equal text. A usage log that records which program ran each command, so
+/// flightdeck's own runs can be left out, replaces this.
 const LOADER_QUERIES: [&str; 4] = [
     "commands list",
     "schemas list",

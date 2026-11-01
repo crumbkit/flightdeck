@@ -31,3 +31,9 @@ and one command for each way a real tool can misbehave or a test needs:
   it exits with 130.
 - `child spew` prints its process id, then prints documents until a
   signal ends it.
+- `child roster` lists rows with an `id` column, so the model infers a link
+  from it to `child visit`, but it prints nothing and waits until a signal
+  ends it.
+- `child ledger` lists rows with an `id` column too, but exits with 101
+  and prints no document.
+- `child visit` takes the `<ID>` of a roster row.

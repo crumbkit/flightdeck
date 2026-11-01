@@ -113,7 +113,15 @@ case "$1 $2" in
   echo "{\"schema\":\"unruly/child-spew/v1\",\"data\":{\"pid\":$$}}"
   while :; do echo '{"schema":"unruly/child-spew/v1","data":{}}'; done
   ;;
-"child both" | "child pair")
+"child roster")
+  # It lists nothing, and waits until a signal ends it.
+  while :; do sleep 0.01; done
+  ;;
+"child ledger")
+  echo "thread 'main' panicked at src/main.rs:9:5:" >&2
+  exit 101
+  ;;
+"child both" | "child pair" | "child visit")
   echo '{"schema":"unruly/child-both/v1","data":{}}'
   ;;
 *)

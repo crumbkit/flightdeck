@@ -21,6 +21,12 @@
 //! not read-only. A started [`Run`] yields each line of standard output as
 //! it arrives, then its [`Outcome`], and [`Runner::cancel`] stops it.
 //!
+//! [`Runner::choices`] runs a command without a Run press, to list the
+//! values of an argument that an inferred link fills. It runs only the
+//! source of a link that the model inferred, only when that source is
+//! read-only, and builds the vector from the model alone. It takes one of
+//! the runner's places like any other run.
+//!
 //! One runner serves the whole flightdeck process. Its limits, such as
 //! [`MOST_RUNS`] and the [`Limits`] of each run's output, are the caps on
 //! the memory and the children of every page that the process serves.
@@ -32,6 +38,7 @@
 //! the server keeps its token out of that environment, and the runner
 //! removes no variable.
 
+mod choices;
 mod clock;
 mod confirmations;
 mod end_failure;
@@ -42,19 +49,21 @@ mod runs;
 mod trace;
 mod vector;
 
+use std::cmp;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+pub use self::choices::{CHOICES_OUTPUT, Choice, Choices, ChoicesRequest, MOST_CHOICES};
 pub use self::clock::{Clock, SystemClock};
 pub use self::confirmations::ConfirmationId;
 use self::confirmations::Confirmations;
 pub use self::end_failure::EndFailure;
 pub use self::failure::{
-    ConfirmationProblem, RUN_BUSY, RUN_CLOSED, RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION,
-    RUN_NO_DOCUMENT, RUN_NOT_RUNNING, RUN_OUTPUT_LIMIT, RUN_RANDOM, RUN_READ_ONLY, RUN_REFUSED,
-    RUN_SPAWN, Reason, RunFailure, Takes,
+    CHOICES_NO_LISTING, CHOICES_TIME_LIMIT, ConfirmationProblem, RUN_BUSY, RUN_CLOSED,
+    RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION, RUN_NO_DOCUMENT, RUN_NOT_RUNNING, RUN_OUTPUT_LIMIT,
+    RUN_RANDOM, RUN_READ_ONLY, RUN_REFUSED, RUN_SPAWN, Reason, RunFailure, Takes,
 };
 use self::outcome::Ending;
 pub use self::outcome::Outcome;
@@ -73,6 +82,11 @@ pub const CONFIRMATION_LIFE: Duration = Duration::from_secs(10 * 60);
 /// How long a shutdown lets the runs in progress end by themselves before
 /// it cancels them.
 pub const SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
+
+/// How long [`Runner::choices`] waits for its source to end before it
+/// stops the source. The page gives each request other than a run ten
+/// seconds, so the runner answers before the page gives up.
+pub const CHOICES_TIME: Duration = Duration::from_secs(8);
 
 /// The most runs of one runner at once.
 ///
@@ -99,12 +113,13 @@ pub struct Settings {
     most_runs: usize,
     confirmation_life: Duration,
     shutdown_grace: Duration,
+    choices_time: Duration,
 }
 
 impl Settings {
     /// Returns the default settings: [`Limits::default`],
-    /// [`Escalation::default`], [`MOST_RUNS`], [`CONFIRMATION_LIFE`] and
-    /// [`SHUTDOWN_GRACE`].
+    /// [`Escalation::default`], [`MOST_RUNS`], [`CONFIRMATION_LIFE`],
+    /// [`SHUTDOWN_GRACE`] and [`CHOICES_TIME`].
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -113,6 +128,7 @@ impl Settings {
             most_runs: MOST_RUNS,
             confirmation_life: CONFIRMATION_LIFE,
             shutdown_grace: SHUTDOWN_GRACE,
+            choices_time: CHOICES_TIME,
         }
     }
 
@@ -150,6 +166,13 @@ impl Settings {
     #[must_use]
     pub const fn shutdown_grace(mut self, grace: Duration) -> Self {
         self.shutdown_grace = grace;
+        self
+    }
+
+    /// Returns the settings with a choices run that ends within `time`.
+    #[must_use]
+    pub const fn choices_time(mut self, time: Duration) -> Self {
+        self.choices_time = time;
         self
     }
 }
@@ -230,7 +253,9 @@ impl Runner {
                 path: command.path().to_string(),
             });
         }
-        self.start(command, &vector, Extra::None, || Ok(()))
+        self.start(command, &vector, Extra::None, self.settings.limits, || {
+            Ok(())
+        })
     }
 
     /// Previews the command of `request`. A command that takes `--dry-run`
@@ -247,7 +272,13 @@ impl Runner {
         let (command, vector) = self.check(request)?;
         let line = vector.line(Extra::None);
         if vector.takes_dry_run() {
-            let run = self.start(command, &vector, Extra::DryRun, || Ok(()))?;
+            let run = self.start(
+                command,
+                &vector,
+                Extra::DryRun,
+                self.settings.limits,
+                || Ok(()),
+            )?;
             return Ok(Preview {
                 line,
                 confirmation: None,
@@ -291,11 +322,86 @@ impl Runner {
         request: &RunRequest,
     ) -> Result<Run, RunFailure> {
         let (command, vector) = self.check(request)?;
-        self.start(command, &vector, Extra::Yes, || {
+        self.start(command, &vector, Extra::Yes, self.settings.limits, || {
             self.confirmations
                 .take(confirmation, &vector, self.clock.now())
                 .map_err(|problem| RunFailure::Confirmation { problem })
         })
+    }
+
+    /// Lists the choices of the argument that `request` names, from the
+    /// rows of the link's source, and waits at most the choices time of the
+    /// settings for them.
+    ///
+    /// The source runs as [`Runner::run`] runs a command, with `--all` when
+    /// it takes it and no other value, and within [`CHOICES_OUTPUT`] bytes
+    /// of output. The request only selects a link of the model: the vector
+    /// holds the model's own words for the source.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RunFailure::Refused`] when the model inferred no link from
+    /// the source to the target's argument, or when the source is not
+    /// read-only, [`RunFailure::Closed`], [`RunFailure::Busy`] and
+    /// [`RunFailure::Spawn`] as [`Runner::run`] does,
+    /// [`RunFailure::NoListing`] when the source ends without a listing,
+    /// and [`RunFailure::ChoicesTime`] when it has not ended within the
+    /// time. The source is then stopped.
+    pub fn choices(&self, request: &ChoicesRequest) -> Result<Choices, RunFailure> {
+        let refuse = |reason| RunFailure::refused(request.source(), None, reason);
+        let source = self
+            .tool
+            .links()
+            .iter()
+            .find(|link| request.names(link))
+            .and_then(|link| {
+                self.tool
+                    .commands()
+                    .iter()
+                    .find(|command| command.path() == link.source())
+            })
+            .ok_or_else(|| refuse(Reason::NotInferred))?;
+        if Class::of(source) != Class::ReadOnly {
+            return Err(refuse(Reason::NotReadOnly));
+        }
+        let (command, vector) = vector::build(&self.tool, &choices::source_request(source))?;
+        let limits = Limits::new(
+            cmp::min(self.settings.limits.line(), CHOICES_OUTPUT),
+            cmp::min(self.settings.limits.total(), CHOICES_OUTPUT),
+        );
+        let mut run = self.start(command, &vector, Extra::None, limits, || Ok(()))?;
+        let path = command.path().to_string();
+        let deadline = self.clock.now() + self.settings.choices_time;
+        let mut document = String::new();
+        loop {
+            let remaining = deadline.saturating_duration_since(self.clock.now());
+            if remaining.is_zero() {
+                // Dropping the run stops the source.
+                return Err(RunFailure::ChoicesTime { path });
+            }
+            let outcome = match run.next_timeout(remaining) {
+                Some(Waited::Event(RunEvent::Line(line))) => {
+                    document.push_str(&line);
+                    document.push('\n');
+                    continue;
+                }
+                Some(Waited::Silent) => continue,
+                Some(Waited::Event(RunEvent::Outcome(outcome))) => outcome,
+                // A run yields events until its outcome, which ends the loop.
+                None => Outcome::Cancelled,
+            };
+            return match outcome {
+                Outcome::Result | Outcome::ResultWithFailures => choices::read(command, &document)
+                    .ok_or(RunFailure::NoListing {
+                        path,
+                        outcome: "not_listing",
+                    }),
+                other => Err(RunFailure::NoListing {
+                    path,
+                    outcome: other.kind(),
+                }),
+            };
+        }
     }
 
     /// Stops the run `id`: SIGINT, then SIGTERM and SIGKILL after the
@@ -330,13 +436,14 @@ impl Runner {
         Ok((command, vector))
     }
 
-    /// Starts `vector` of `command` with `extra`, once the runner has room
-    /// for the run and `ready` allows it.
+    /// Starts `vector` of `command` with `extra` within `limits`, once the
+    /// runner has room for the run and `ready` allows it.
     fn start(
         &self,
         command: &Command,
         vector: &Vector,
         extra: Extra,
+        limits: Limits,
         ready: impl FnOnce() -> Result<(), RunFailure>,
     ) -> Result<Run, RunFailure> {
         let program = self
@@ -344,9 +451,7 @@ impl Runner {
             .clone()
             .env("TRACEPARENT", self.trace.next_parent());
         let argv = vector.argv(extra);
-        let Settings {
-            limits, escalation, ..
-        } = self.settings;
+        let escalation = self.settings.escalation;
         let (id, events) = self.runs.start(|| {
             ready()?;
             spawn::stream(&program, &argv, limits, escalation).map_err(|source| RunFailure::Spawn {

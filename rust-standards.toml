@@ -20,6 +20,7 @@ checks = [
   "the drain test in src/spawn/stream/drain/tests.rs",
   "the refusal, separator, cancel, spawn, other-session and other-group tests in tests/runner.rs",
   "the refusal, dash value, disconnect, write time and shutdown tests in tests/routes.rs",
+  "the choices refusal and time tests in tests/routes.rs",
 ]
 note = "spawn has three operations. spawn::describe runs one of the fixed queries of spawn::Query. spawn::stream runs a runner::Argv, which only the runner builds after it checks the command and each value against the tool's model. On Unix both kill the child's whole process group when the child exits, before they reap the child. describe also kills the group when its time limit passes, and stream also stops the group when a run is cancelled, dropped or past an output limit. stream also signals the child itself when it has moved to another group. A descendant that leaves the group, such as one that calls setsid, is not stopped. When it holds a pipe open, describe's reads end at its deadline, and stream's reads end spawn::DRAIN_GRACE after the child is reaped. spawn::open_browser runs the system's opener with the opener page's path as its one argument, and at its time limit stops the opener alone, never the browser it starts. Each module's documentation states the five items of PROC-2."
 
@@ -43,7 +44,7 @@ checks = [
   "the schema tests in src/server/document/tests.rs",
   "the refusal tests in tests/server.rs and tests/routes.rs",
 ]
-note = "flightdeck owns its error format. A refusal of the request itself, including a body that times out with 408, is an RFC 9457 problem document with type about:blank, a title, the status and flightdeck's stable code. A failure of the runner carries a flightdeck/failure/v1 document in the shape of crumbkit's failure document, with the runner's stable code and its fields, and the status of server::failure_status: 422 for a request the runner refuses, 404 for a cancel that finds no run, 503 for a full or stopping runner, and 500 for a tool that will not start or no random bytes."
+note = "flightdeck owns its error format. A refusal of the request itself, including a body that times out with 408, is an RFC 9457 problem document with type about:blank, a title, the status and flightdeck's stable code. A failure of the runner carries a flightdeck/failure/v1 document in the shape of crumbkit's failure document, with the runner's stable code and its fields, and the status of server::failure_status: 422 for a request the runner refuses, 404 for a cancel that finds no run, 503 for a full or stopping runner, 500 for a tool that will not start or no random bytes, 502 for a choices source that ends without a listing, and 504 for one that outlasts the choices time."
 
 [[binding]]
 rule = "SVC-5"
