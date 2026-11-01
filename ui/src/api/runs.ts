@@ -1,6 +1,6 @@
 import { z } from "@/api/zod";
 import { readLines } from "@/lib/ndjson";
-import { ApiError, FailureDocument, postStream } from "./client";
+import { ApiError, FailureDocument, postEmpty, postStream } from "./client";
 import type { CommandPath } from "./model";
 
 /**
@@ -81,12 +81,21 @@ export type RunCall = {
  * Sends the request to `route` and passes each event of its stream to
  * `onEvent` as it arrives. It resolves when the stream closes, whether or
  * not an `ended` line came, and throws ApiError when the server refuses the
- * request or the stream breaks.
+ * request or the stream breaks. A connection that breaks after the stream
+ * began is a `broken` failure, and an abort through `signal` is thrown as
+ * it came.
  */
 async function stream(route: string, { request, onEvent, signal }: RunCall): Promise<void> {
   const body = await postStream(route, request, signal);
-  for await (const line of readLines(body)) {
-    onEvent(parseEvent(line));
+  try {
+    for await (const line of readLines(body)) {
+      onEvent(parseEvent(line));
+    }
+  } catch (error) {
+    if (error instanceof ApiError || signal.aborted) {
+      throw error;
+    }
+    throw new ApiError({ kind: "broken" }, { cause: error });
   }
 }
 
@@ -106,4 +115,13 @@ export function streamPreview(call: RunCall): Promise<void> {
  */
 export function streamConfirmation(id: string, call: RunCall): Promise<void> {
   return stream(`/api/confirmations/${encodeURIComponent(id)}`, call);
+}
+
+/**
+ * Asks the server to cancel the run with the id that its `started` line
+ * gave. The server stops the run's process, and the run's stream then ends
+ * with the `cancelled` outcome.
+ */
+export async function cancelRun(id: string): Promise<void> {
+  await postEmpty(`/api/runs/${encodeURIComponent(id)}/cancel`);
 }

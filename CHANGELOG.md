@@ -52,6 +52,24 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `ui/dist`. The page lists the tool's commands grouped by goal, finds one
   with ⌘K, builds a run from a form and shows each run as a card with its
   result as a table or a record.
+- The page draws a stream's rows as they arrive, once per animation frame,
+  with the time since the run started and a count of its rows. Cancel and
+  ⌘. stop a run, which then reads "cancelled · exit 130 · N rows kept" and
+  keeps its rows; Esc never cancels. A failure card shows the failure's
+  message, cause, code, fields and labels, with its recovery as the
+  primary chip and its alternatives as quiet chips, each of which fills
+  the form and runs nothing. A batch's failures stand in their keys' places
+  among the rows, headed such as "7 (index 1)". A refusal of the line
+  underlines the word at fault and marks its field in the form with the
+  tool's message. A result's next steps follow its footer as chips, three
+  at first and the rest behind "+N more". A stream that breaks mid-run
+  keeps its rows and says that the connection to flightdeck broke.
+- The page's command line edits the same run as the form, in both
+  directions. It colours flags and positional values, fills the form from
+  each finished word, rewrites itself in the form's order when the person
+  leaves it, marks a word the tool would refuse with crumbkit's words and a
+  one-click fix, drops a pasted `$ ` and tool name, and takes out
+  `--json`, `--full`, `--no-input`, `--yes` and `--dry-run` with a note.
 - The page previews a destructive command, or one that declares no
   effects, and asks for confirmation in the preview's card, which names the
   verb and the count. Cancel has focus, ⌘↩ never confirms, and a change to

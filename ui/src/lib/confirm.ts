@@ -1,5 +1,5 @@
 import type { Command } from "@/api/model";
-import { resultOf } from "@/api/result";
+import { resultOf, rowsOf } from "@/api/result";
 import type { RunEvent } from "@/api/runs";
 
 /**
@@ -7,10 +7,11 @@ import type { RunEvent } from "@/api/runs";
  * of a listing, one for a record, or null when the result has no rows.
  */
 export function countOf(lines: string[]): number | null {
-  const { result } = resultOf(lines);
+  // A dry run prints one document, whatever form the command's own result takes.
+  const { result } = resultOf(lines, "document");
   switch (result.kind) {
     case "table":
-      return result.rows.length;
+      return rowsOf(result.entries).length;
     case "record":
       return 1;
     default:

@@ -1,7 +1,9 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Command, ModelReply } from "@/api/model";
+import { makeQueryClient } from "@/queryClient";
 import { shelfReply } from "../../tests/fixtures/shelf";
 import { ToolPage } from "./ToolPage";
 
@@ -33,6 +35,15 @@ function stubServer(answers: Record<string, Answer>): string[] {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+/** Renders the page of `reply` as the app does, inside a query client. */
+function renderPage(reply: ModelReply) {
+  render(
+    <QueryClientProvider client={makeQueryClient()}>
+      <ToolPage reply={reply} onSignedOut={() => undefined} />
+    </QueryClientProvider>,
+  );
+}
 
 /** shelf's model with `books remove` changed by `change`. */
 function withRemove(change: (command: Command) => Command): ModelReply {
@@ -80,7 +91,7 @@ describe("ToolPage", () => {
       ...command,
       arguments: command.arguments.filter((each) => each.crumbkit_flag !== "--dry-run"),
     }));
-    render(<ToolPage reply={reply} onSignedOut={() => undefined} />);
+    renderPage(reply);
 
     const user = await previewRemove2();
     const card = await screen.findByRole("region", { name: /^Run 1: .*awaiting confirmation/ });
@@ -120,7 +131,7 @@ describe("ToolPage", () => {
         },
       },
     });
-    render(<ToolPage reply={shelfReply} onSignedOut={() => undefined} />);
+    renderPage(shelfReply);
 
     const user = await previewRemove2();
     const card = await screen.findByRole("region", { name: /^Run 1: .*awaiting confirmation/ });
@@ -167,7 +178,7 @@ describe("ToolPage", () => {
       effects: { read_only: false, destructive: false, idempotent: true },
     }));
     const user = userEvent.setup();
-    render(<ToolPage reply={reply} onSignedOut={() => undefined} />);
+    renderPage(reply);
 
     const rail = screen.getByRole("navigation", { name: "Commands" });
     await user.click(within(rail).getByRole("button", { name: /books remove/ }));
@@ -190,7 +201,7 @@ describe("ToolPage", () => {
       ),
     }));
     const user = userEvent.setup();
-    render(<ToolPage reply={{ ...reply, read_only: true }} onSignedOut={() => undefined} />);
+    renderPage({ ...reply, read_only: true });
 
     const rail = screen.getByRole("navigation", { name: "Commands" });
     await user.click(within(rail).getByRole("button", { name: /books remove/ }));

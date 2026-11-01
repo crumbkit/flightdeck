@@ -14,22 +14,26 @@ export type FieldGroup = { choices: Argument[] };
 export type Form = { required: FieldGroup[]; more: FieldGroup[] };
 
 /**
- * Returns true when the form shows the argument: the tool's own arguments
- * and crumbkit's `--limit` and `--all`.
+ * Returns true when the form of `command` shows the argument: the tool's
+ * own arguments, crumbkit's `--limit` and `--all`, and `--long` when the
+ * command's rows have long columns, which the result's table then shows.
  *
  * A count argument, such as `-v -v`, is left out, because the run request
  * has no value for a count. It needs a count value in the request first.
  */
-function shown(argument: Argument): boolean {
+export function shows(command: Command, argument: Argument): boolean {
   if (argument.arity.kind === "count") {
     return false;
+  }
+  if (argument.crumbkit_flag === "--long") {
+    return command.result.columns.some((column) => column.long);
   }
   return argument.crumbkit_flag === null || pagingFlags.includes(argument.crumbkit_flag);
 }
 
 /** Returns the form of `command`. */
 export function formOf(command: Command): Form {
-  const candidates = command.arguments.filter(shown);
+  const candidates = command.arguments.filter((argument) => shows(command, argument));
   const placed = new Set<string>();
   const groups: FieldGroup[] = [];
   for (const argument of candidates) {
@@ -92,8 +96,8 @@ function isEmpty(value: Value | undefined): boolean {
   return value.length === 0;
 }
 
-/** Returns the run request of `draft`: the chosen argument of each field that has a value. */
-export function requestOf(command: Command, draft: Draft): RunRequest {
+/** Returns the value of the chosen argument of each field that has one, by the argument's name. */
+function fieldValues(command: Command, draft: Draft): Record<string, Value> {
   const form = formOf(command);
   const values: Record<string, Value> = {};
   for (const group of [...form.required, ...form.more]) {
@@ -103,7 +107,27 @@ export function requestOf(command: Command, draft: Draft): RunRequest {
       values[chosen.name] = value;
     }
   }
+  return values;
+}
+
+/**
+ * Returns the run request of `draft`: the chosen argument of each field
+ * that has a value. `--long` stays out of it, because it only chooses the
+ * columns of the result's table, which the page draws.
+ */
+export function requestOf(command: Command, draft: Draft): RunRequest {
+  const { "--long": _long, ...values } = fieldValues(command, draft);
   return { path: command.path, values };
+}
+
+/** Returns true when `draft` asks for the long columns of the result's table. */
+export function longOf(draft: Draft): boolean {
+  return draft.values["--long"] === true;
+}
+
+/** Returns the command line of `draft`, with `--long` when it asks for the long columns. */
+export function lineOfDraft(tool: string, command: Command, draft: Draft): string {
+  return lineOf(tool, command, { path: command.path, values: fieldValues(command, draft) });
 }
 
 /** Returns the names of the required fields whose chosen argument has no value. */

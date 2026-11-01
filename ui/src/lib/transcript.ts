@@ -5,7 +5,8 @@ import type { Draft } from "./form";
 /** Where one run is. */
 export type RunState =
   | { kind: "starting" }
-  | { kind: "running"; startedAt: string; lines: string[] }
+  /** `id` is the id that the cancel route takes, or null when the server gave none. */
+  | { kind: "running"; id: string | null; startedAt: string; lines: string[] }
   | {
       kind: "ended";
       startedAt: string | null;
@@ -35,21 +36,31 @@ export type Ask = { basis: Draft | null; confirmation: string | null; answer: An
 /**
  * One card of the transcript. `number` counts from 1 in the order the
  * person started the runs. `line` is the page's own line until the server sends the line it
- * ran. Only a preview card has `ask`.
+ * ran. `long` is true when the person asked for the long columns, which
+ * the card's table then shows first. Only a preview card has `ask`.
  */
 export type Run = {
   number: number;
   request: RunRequest;
   line: string;
+  long: boolean;
   state: RunState;
   ask?: Ask;
 };
 
 export type Action =
-  | { type: "add"; number: number; request: RunRequest; line: string }
-  | { type: "preview"; number: number; request: RunRequest; line: string; basis: Draft | null }
+  | { type: "add"; number: number; request: RunRequest; line: string; long: boolean }
+  | {
+      type: "preview";
+      number: number;
+      request: RunRequest;
+      line: string;
+      long: boolean;
+      basis: Draft | null;
+    }
   | { type: "answer"; number: number; answer: Exclude<Answer, "open"> }
-  | { type: "event"; number: number; event: RunEvent }
+  /** The events of one run that arrived during one animation frame, in order. */
+  | { type: "events"; number: number; events: RunEvent[] }
   | { type: "refused"; number: number; problem: FailureDocument | null; words: string }
   | { type: "broken"; number: number; words: string }
   | { type: "closed"; number: number };
@@ -60,13 +71,13 @@ export function transcript(runs: Run[], action: Action): Run[] {
     runs.map((run) => (run.number === number ? next(run) : run));
   switch (action.type) {
     case "add": {
-      const { number, request, line } = action;
-      return [...runs, { number, request, line, state: { kind: "starting" } }];
+      const { number, request, line, long } = action;
+      return [...runs, { number, request, line, long, state: { kind: "starting" } }];
     }
     case "preview": {
-      const { number, request, line, basis } = action;
+      const { number, request, line, long, basis } = action;
       const ask: Ask = { basis, confirmation: null, answer: "open" };
-      return [...runs, { number, request, line, state: { kind: "starting" }, ask }];
+      return [...runs, { number, request, line, long, state: { kind: "starting" }, ask }];
     }
     case "answer":
       return change(action.number, (run) => answered(run, action.answer));
@@ -88,8 +99,8 @@ export function transcript(runs: Run[], action: Action): Run[] {
           : { ...run, state: { kind: "broken", words } },
       );
     }
-    case "event":
-      return change(action.number, (run) => applyEvent(run, action.event));
+    case "events":
+      return change(action.number, (run) => action.events.reduce(applyEvent, run));
     case "closed":
       return change(action.number, closeRun);
   }
@@ -138,6 +149,7 @@ function applyRunEvent(run: Run, event: RunEvent): Run {
   const { state } = run;
   const lines = state.kind === "running" ? state.lines : [];
   const startedAt = state.kind === "running" ? state.startedAt : null;
+  const id = state.kind === "running" ? state.id : null;
   switch (event.event) {
     case "alive":
       return run;
@@ -148,12 +160,12 @@ function applyRunEvent(run: Run, event: RunEvent): Run {
       return {
         ...run,
         line: event.line,
-        state: { kind: "running", startedAt: event.started_at, lines: [] },
+        state: { kind: "running", id: event.run, startedAt: event.started_at, lines: [] },
       };
     case "line":
       return {
         ...run,
-        state: { kind: "running", startedAt: startedAt ?? "", lines: [...lines, event.text] },
+        state: { kind: "running", id, startedAt: startedAt ?? "", lines: [...lines, event.text] },
       };
     case "ended":
       return {

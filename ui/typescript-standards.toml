@@ -9,12 +9,12 @@ profiles = ["base", "app", "embedded"]
 
 [[binding]]
 rule = "BASE-7"
-owners = ["src/api/client.ts", "src/storage.ts"]
+owners = ["src/api/client.ts", "src/storage.ts", "src/clock.ts"]
 checks = [
   "Biome noRestrictedGlobals, with the baseline's override for src/api/client.ts",
   "a biome-ignore comment on each storage call in src/storage.ts",
 ]
-note = "client.ts is the only caller of fetch. storage.ts is the storage owner: it keeps the session's token in sessionStorage and the theme choice in localStorage, and nothing else touches storage. The page reads no clock: a run's start time and duration come from the server."
+note = "client.ts is the only caller of fetch. storage.ts is the storage owner: it keeps the session's token in sessionStorage and the theme choice in localStorage, and nothing else touches storage. clock.ts is the clock's owner: it reads the time for a running card's elapsed time, runs the timers that tick it and sample the card's live region, and queues a stream's events for the next animation frame. A run's start time and duration come from the server."
 
 [[binding]]
 rule = "EMB-5"
@@ -42,3 +42,9 @@ id = "theme"
 requirement = "src/index.css holds each colour role once, as a light-dark() pair, and the root's color-scheme picks the value: the system's appearance by default, or the person's choice of System, Light or Dark, which the topbar's control writes to data-theme on the root element. Tailwind's dark: variant follows the same choice."
 reason = "APP-9 places the dark values under a prefers-color-scheme query. The signed-off design has a theme control, and a forced choice would need the dark values written twice, once in the query and once under data-theme. A light-dark() pair keeps each role in one place."
 realizations = ["src/index.css", "src/components/ThemeControl.tsx", "src/storage.ts"]
+
+[[decision]]
+id = "streamed-runs"
+requirement = "src/routes/ToolPage.tsx calls streamRun from src/api/runs.ts for each run, and the transcript's reducer in src/lib/transcript.ts holds every run's state, including its lines. Each run has its own AbortController, which leaving the page aborts. A cancel goes through useMutation."
+reason = "APP-11 has a component read server data through TanStack Query. A run is a stream of events that the page draws as they arrive, and the page holds many runs at once, each with its own lines. A mutation holds the state of one call and has no place for events that arrive before the call ends, so a mutation per run would add a second copy of each run's state beside the reducer that draws it. The reducer is the one place that holds a run."
+realizations = ["src/routes/ToolPage.tsx", "src/lib/transcript.ts", "src/api/runs.ts"]

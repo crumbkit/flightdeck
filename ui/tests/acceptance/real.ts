@@ -6,6 +6,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
 import { test as checked } from "./checks";
+import { slowReading } from "./reading";
 
 /** The repository's root, which holds the built flightdeck and shelf. */
 const root = path.resolve(import.meta.dirname, "../../..");
@@ -13,10 +14,14 @@ const root = path.resolve(import.meta.dirname, "../../..");
 /** How long flightdeck may take to print its two lines. */
 const startLimitMs = 10_000;
 
-/** A running `flightdeck open shelf --no-browser`. */
+/** A running `flightdeck open <tool> --no-browser`. */
 export type Served = {
   /** The opener page, as a file URL. Opening it signs the page in. */
   opener: string;
+  /** The tool's data directory, `XDG_DATA_HOME`, which the test may fill. */
+  data: string;
+  /** Lets slow reading's stream print its next line. */
+  release: () => Promise<void>;
 };
 
 /**
@@ -60,20 +65,31 @@ async function openerOf(child: ChildProcess): Promise<string> {
 
 /**
  * The checked test, with `served`: flightdeck serving the debug build's
- * page for the shelf that scripts/install-test-tools.sh installs. Each test
- * starts its own flightdeck, because a launch code works once, and stops it
- * when the test ends. The Rust lane builds both before this lane runs.
- * `test.use({ readOnly: true })` starts it with `--read-only`.
+ * page for `tool`, shelf by default, or reading, as
+ * scripts/install-test-tools.sh installs them. "slow reading" is reading
+ * whose `entries stream` prints each line only when the test calls
+ * `release`. Each test starts its own flightdeck, because a launch code
+ * works once, and stops it when the test ends. The Rust lane builds both
+ * before this lane runs. `test.use({ readOnly: true })` starts it with
+ * `--read-only`.
  */
-export const test = checked.extend<{ readOnly: boolean; served: Served }>({
+export const test = checked.extend<{
+  tool: "shelf" | "reading" | "slow reading";
+  readOnly: boolean;
+  served: Served;
+}>({
+  tool: ["shelf", { option: true }],
   readOnly: [false, { option: true }],
-  served: async ({ readOnly }, use) => {
+  served: async ({ tool, readOnly }, use) => {
     const home = await mkdtemp(path.join(tmpdir(), "flightdeck-acceptance-"));
+    const data = path.join(home, "data");
+    const installed = (name: string) => path.join(root, "target/test-tools/bin", name);
+    const slow = tool === "slow reading" ? await slowReading(home, installed("reading")) : null;
     const child = spawn(
       path.join(root, "target/debug/flightdeck"),
       [
         "open",
-        path.join(root, "target/test-tools/bin/shelf"),
+        slow?.program ?? installed(tool),
         "--no-browser",
         ...(readOnly ? ["--read-only"] : []),
       ],
@@ -81,7 +97,7 @@ export const test = checked.extend<{ readOnly: boolean; served: Served }>({
         env: {
           ...process.env,
           XDG_CONFIG_HOME: path.join(home, "config"),
-          XDG_DATA_HOME: path.join(home, "data"),
+          XDG_DATA_HOME: data,
           XDG_STATE_HOME: path.join(home, "state"),
           XDG_CACHE_HOME: path.join(home, "cache"),
         },
@@ -89,8 +105,15 @@ export const test = checked.extend<{ readOnly: boolean; served: Served }>({
       },
     );
     try {
-      await use({ opener: await openerOf(child) });
+      const release = async () => {
+        if (slow === null) {
+          throw new Error(`${tool} has no stream to release`);
+        }
+        await slow.release();
+      };
+      await use({ opener: await openerOf(child), data, release });
     } finally {
+      await slow?.close();
       if (child.exitCode === null) {
         child.kill("SIGTERM");
         await once(child, "exit");

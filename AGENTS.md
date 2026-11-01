@@ -23,6 +23,10 @@
 - `ui/tests/fixtures/shelf-model.json` is the server's `/api/model` reply
   for shelf, and an acceptance test fails when they differ. Rewrite it with
   `FIXTURES=overwrite pnpm run acceptance`, then `pnpm run fix`.
+- A journey picks its tool with `test.use({ tool })`: shelf by default,
+  reading, or "slow reading", whose `entries stream` prints each line only
+  when the test calls `served.release()`, so a test can see rows arrive
+  and cancel a run while it is still going.
 - Every journey runs against the real server. A test of a tool without
   goal headings, such as one built on crumbkit 0.1.0, reads a model that
   has one heading named after the tool, as `shelfWithoutGoals` in
