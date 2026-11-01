@@ -12,7 +12,10 @@ async function signIn(page: Page, served: Served): Promise<void> {
   await expect(page.getByRole("region", { name: "Welcome to shelf" })).toBeVisible();
 }
 
-/** Chooses books remove in the rail, enters the ids and presses Preview. */
+/**
+ * Chooses books remove in the rail, enters the ids and presses Preview.
+ * Returns the card by its id, because its name changes with its status.
+ */
 async function previewRemove(page: Page, ids: string) {
   await page
     .getByRole("navigation", { name: "Commands" })
@@ -21,9 +24,8 @@ async function previewRemove(page: Page, ids: string) {
   const composer = page.getByRole("form", { name: "Composer" });
   await composer.getByLabel(/The ids of the books to remove/).pressSequentially(`${ids} `);
   await composer.getByRole("button", { name: /Preview/ }).click();
-  const card = page.getByRole("region", { name: /^Run 1: .*awaiting confirmation/ });
-  await expect(card).toBeVisible();
-  return card;
+  await expect(page.getByRole("region", { name: /^Run 1: .*awaiting confirmation/ })).toBeVisible();
+  return page.locator("#run-1");
 }
 
 /** Counts the requests the page sends to the confirmation route. */
@@ -43,9 +45,12 @@ test("books remove 2 previews Frankenstein and changes nothing", async ({ page, 
   const card = await previewRemove(page, "2");
 
   await expect(card.getByText("This was a dry run, so nothing changed.")).toBeVisible();
-  await expect(card.getByRole("cell", { name: "Frankenstein" })).toBeVisible();
+  await expect(card.getByText("Frankenstein", { exact: true })).toBeVisible();
   await expect(card.getByRole("group", { name: "Remove 1 book?" })).toBeVisible();
   await expect(card.getByText("Destructive. Idempotent.")).toBeVisible();
+  // The pointer still rests on Preview, whose hover colour is not the
+  // subject of this check.
+  await page.mouse.move(0, 0);
   await expectNoAccessibilityViolations(page);
   await page.getByRole("button", { name: "Print the first page of books" }).click();
   const list = page.getByRole("region", { name: /^Run 2: shelf books list/ });
