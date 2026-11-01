@@ -9,7 +9,7 @@
 
 use clap::CommandFactory as _;
 use crumbkit_flightdeck::{CODES, Cli, GUIDE};
-use crumbkit_test::{Allow, Budgets, Examples, Pages, PathBudgets, Recoveries, Twins};
+use crumbkit_test::{Allow, Budgets, Examples, Pages, PathBudgets, Recoveries, Twins, Unprovoked};
 
 /// flightdeck's opt-outs from crumbkit's conventions. It has none.
 const ALLOW: &[Allow] = &[];
@@ -25,6 +25,18 @@ const PATH_BUDGETS: PathBudgets<'_> = PathBudgets::new("tests/golden/examples");
 /// golden files.
 const EXAMPLES: Examples<'_> =
     Examples::new(env!("CARGO_BIN_EXE_flightdeck"), "tests/golden/examples").allow(ALLOW);
+
+/// The model's load failures, which no command of flightdeck returns yet.
+const UNPROVOKED: &[Unprovoked<'_>] = &[
+    Unprovoked::new(
+        &crumbkit_flightdeck::model::TOOL_NOT_FOUND,
+        "No flightdeck command loads a tool yet; tests/model.rs provokes the code through the model.",
+    ),
+    Unprovoked::new(
+        &crumbkit_flightdeck::model::TOOL_LOAD,
+        "No flightdeck command loads a tool yet; tests/model.rs provokes the code through the model.",
+    ),
+];
 
 #[test]
 fn every_command_and_argument_has_one_name() {
@@ -129,12 +141,12 @@ fn every_opt_out_matches_the_opt_out_report() {
 
 #[test]
 fn every_recovery_leads_to_a_command_that_runs() {
-    let recoveries = Recoveries::new(EXAMPLES, &[CODES]);
+    let recoveries = Recoveries::new(EXAMPLES, &[CODES]).unprovoked(UNPROVOKED);
     crumbkit_test::check_recoveries(&Cli::command(), &GUIDE, &recoveries, "tests/golden");
 }
 
 #[test]
 fn every_declared_code_has_a_twin_that_the_tool_accepts() {
-    let twins = Twins::new(EXAMPLES, &[CODES]);
+    let twins = Twins::new(EXAMPLES, &[CODES]).unprovoked(UNPROVOKED);
     crumbkit_test::check_twins(&Cli::command(), &GUIDE, &twins);
 }

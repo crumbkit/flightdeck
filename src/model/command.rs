@@ -1,0 +1,403 @@
+//! One runnable command of a tool and the parts it is made of.
+
+use std::fmt;
+
+use serde::Deserialize;
+
+use super::argument::{Argument, CrumbkitFlag};
+use super::wire::CommandRow;
+
+/// The words of a command below the tool's name, such as `books list`.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CommandPath {
+    words: Vec<String>,
+}
+
+impl CommandPath {
+    /// Returns the path of a `commands list` row, whose first word is the
+    /// tool's name.
+    pub(super) fn from_row(path: &str) -> Self {
+        Self {
+            words: path.split(' ').skip(1).map(str::to_owned).collect(),
+        }
+    }
+
+    /// Returns the path's words, such as `["books", "list"]`.
+    #[must_use]
+    pub fn words(&self) -> &[String] {
+        &self.words
+    }
+
+    /// Returns the words of the resource that the command acts on: every
+    /// word except the verb, such as `["books"]`.
+    #[must_use]
+    pub fn resource(&self) -> &[String] {
+        self.words
+            .split_last()
+            .map_or(&[], |(_, resource)| resource)
+    }
+
+    /// Returns true when this path is `other` or a command below it.
+    pub(super) fn starts_with(&self, other: &Self) -> bool {
+        self.words.starts_with(&other.words)
+    }
+
+    /// Returns true when the path is these words.
+    pub(super) fn is(&self, words: &[&str]) -> bool {
+        self.words
+            .iter()
+            .map(String::as_str)
+            .eq(words.iter().copied())
+    }
+
+    /// Returns this path with `words`, split at spaces, appended.
+    pub(super) fn join(&self, words: &str) -> Self {
+        let mut joined = self.words.clone();
+        joined.extend(words.split(' ').map(str::to_owned));
+        Self { words: joined }
+    }
+}
+
+/// Prints the words joined by spaces, such as `books list`.
+impl fmt::Display for CommandPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.words.join(" "))
+    }
+}
+
+/// One runnable command of a tool.
+#[derive(Clone, Debug)]
+pub struct Command {
+    path: CommandPath,
+    about: Option<String>,
+    long_about: Option<String>,
+    arguments: Vec<Argument>,
+    examples: Vec<Example>,
+    result: ResultSpec,
+    exits: Vec<ExitMeaning>,
+    effects: Effects,
+    writes: Option<Writes>,
+}
+
+impl Command {
+    /// Returns the command of a `commands list` row, with only the row's own
+    /// arguments.
+    pub(super) fn from_row(row: CommandRow) -> Self {
+        Self {
+            path: CommandPath::from_row(&row.path),
+            about: row.about,
+            long_about: row.long_about,
+            arguments: row.arguments.into_iter().map(Argument::from_row).collect(),
+            examples: row.examples,
+            result: ResultSpec {
+                document: None,
+                form: row.form,
+                columns: row.columns,
+            },
+            exits: row.exits,
+            effects: row.effects,
+            writes: row.writes,
+        }
+    }
+
+    /// Adds the global arguments of a group above the command, after the
+    /// command's own, and skips any the command already has.
+    pub(super) fn inherit<'a>(&mut self, globals: impl IntoIterator<Item = &'a Argument>) {
+        for global in globals {
+            if !self.arguments.iter().any(|own| own.name() == global.name()) {
+                self.arguments.push(global.clone());
+            }
+        }
+    }
+
+    /// Records the id of the document that the command prints.
+    pub(super) fn set_document(&mut self, id: String) {
+        self.result.document = Some(id);
+    }
+
+    /// Returns the command's path below the tool's name.
+    #[must_use]
+    pub const fn path(&self) -> &CommandPath {
+        &self.path
+    }
+
+    /// Returns the command's one-line about text.
+    #[must_use]
+    pub fn about(&self) -> Option<&str> {
+        self.about.as_deref()
+    }
+
+    /// Returns the command's long about text, which `--help` prints.
+    #[must_use]
+    pub fn long_about(&self) -> Option<&str> {
+        self.long_about.as_deref()
+    }
+
+    /// Returns every argument the command takes: its own, then the global
+    /// ones of the groups above it.
+    #[must_use]
+    pub fn arguments(&self) -> &[Argument] {
+        &self.arguments
+    }
+
+    /// Returns the arguments that belong to the tool, which a form shows as
+    /// fields.
+    pub fn tool_arguments(&self) -> impl Iterator<Item = &Argument> {
+        self.arguments
+            .iter()
+            .filter(|argument| argument.crumbkit_flag().is_none())
+    }
+
+    /// Returns crumbkit's own flags that the command takes, each with its
+    /// argument, which flightdeck sets itself.
+    pub fn crumbkit_flags(&self) -> impl Iterator<Item = (CrumbkitFlag, &Argument)> {
+        self.arguments
+            .iter()
+            .filter_map(|argument| argument.crumbkit_flag().map(|flag| (flag, argument)))
+    }
+
+    /// Returns the command's examples.
+    #[must_use]
+    pub fn examples(&self) -> &[Example] {
+        &self.examples
+    }
+
+    /// Returns what the command prints.
+    #[must_use]
+    pub const fn result(&self) -> &ResultSpec {
+        &self.result
+    }
+
+    /// Returns the exit codes that the tool declares for the command beyond
+    /// crumbkit's own 0, 1 and 2.
+    #[must_use]
+    pub fn exits(&self) -> &[ExitMeaning] {
+        &self.exits
+    }
+
+    /// Returns what the command changes.
+    #[must_use]
+    pub const fn effects(&self) -> &Effects {
+        &self.effects
+    }
+
+    /// Returns how the command guards its writes, or `None` for a command
+    /// without guards.
+    #[must_use]
+    pub const fn writes(&self) -> Option<&Writes> {
+        self.writes.as_ref()
+    }
+}
+
+/// What a command prints.
+#[derive(Clone, Debug)]
+pub struct ResultSpec {
+    document: Option<String>,
+    form: Option<Form>,
+    columns: Vec<Column>,
+}
+
+impl ResultSpec {
+    /// Returns the id of the document the command prints, such as
+    /// `shelf/books-list/v1`, from the tool's `schemas list`.
+    #[must_use]
+    pub fn document(&self) -> Option<&str> {
+        self.document.as_deref()
+    }
+
+    /// Returns the form of the output, or `None` for a command without a
+    /// document.
+    #[must_use]
+    pub const fn form(&self) -> Option<Form> {
+        self.form
+    }
+
+    /// Returns the columns of the rows the command prints.
+    #[must_use]
+    pub fn columns(&self) -> &[Column] {
+        &self.columns
+    }
+}
+
+/// The form of a command's output.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Form {
+    /// One JSON document.
+    Document,
+    /// One JSON document on each line.
+    Stream,
+    /// Bytes, such as a file's contents.
+    Bytes,
+    /// A header line followed by bytes.
+    Headed,
+}
+
+/// One example of a command, as a whole command line.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+pub struct Example {
+    command: String,
+    about: String,
+}
+
+impl Example {
+    /// Returns the command line, such as `shelf books show 2 5`.
+    #[must_use]
+    pub fn command(&self) -> &str {
+        &self.command
+    }
+
+    /// Returns what the example does.
+    #[must_use]
+    pub fn about(&self) -> &str {
+        &self.about
+    }
+}
+
+/// One column of the rows a command prints.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+pub struct Column {
+    name: String,
+    long: bool,
+    #[serde(default)]
+    description: Option<String>,
+}
+
+impl Column {
+    /// Returns the column's JSON field name, such as `id`.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns true when only `--long` prints the column.
+    #[must_use]
+    pub const fn long(&self) -> bool {
+        self.long
+    }
+
+    /// Returns the column's description.
+    #[must_use]
+    pub fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+}
+
+/// An exit code, or a range of them, that a tool declares for a command.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+pub struct ExitMeaning {
+    exit: u8,
+    last: u8,
+    meaning: String,
+}
+
+impl ExitMeaning {
+    /// Returns the first code of the range.
+    #[must_use]
+    pub const fn exit(&self) -> u8 {
+        self.exit
+    }
+
+    /// Returns the last code of the range, which equals the first for one
+    /// code.
+    #[must_use]
+    pub const fn last(&self) -> u8 {
+        self.last
+    }
+
+    /// Returns what the codes mean.
+    #[must_use]
+    pub fn meaning(&self) -> &str {
+        &self.meaning
+    }
+}
+
+/// What a command changes. `commands list` prints `null` for a command that
+/// declares nothing, and a caller treats such a command as one that may
+/// destroy data.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(from = "Option<KnownEffects>")]
+pub enum Effects {
+    /// The command declares its effects with MCP's four hints.
+    Known {
+        /// The command changes nothing.
+        read_only: bool,
+        /// The command may delete or overwrite data.
+        destructive: bool,
+        /// Running the command twice changes no more than running it once.
+        idempotent: bool,
+        /// The command reaches things outside the tool, such as a network.
+        open_world: bool,
+    },
+    /// The command declares no effects.
+    #[default]
+    Unknown,
+}
+
+/// The four hints of a command that declares its effects.
+#[derive(Clone, Copy, Debug, Deserialize)]
+struct KnownEffects {
+    read_only: bool,
+    destructive: bool,
+    idempotent: bool,
+    open_world: bool,
+}
+
+impl From<Option<KnownEffects>> for Effects {
+    fn from(effects: Option<KnownEffects>) -> Self {
+        match effects {
+            Some(KnownEffects {
+                read_only,
+                destructive,
+                idempotent,
+                open_world,
+            }) => Self::Known {
+                read_only,
+                destructive,
+                idempotent,
+                open_world,
+            },
+            None => Self::Unknown,
+        }
+    }
+}
+
+/// How a command guards its writes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+pub struct Writes {
+    replaces: bool,
+    expect: bool,
+    items: Option<Items>,
+}
+
+impl Writes {
+    /// Returns true when the command replaces a value that already exists.
+    #[must_use]
+    pub const fn replaces(&self) -> bool {
+        self.replaces
+    }
+
+    /// Returns true when the command takes `--expect` with the value it
+    /// expects to replace.
+    #[must_use]
+    pub const fn expect(&self) -> bool {
+        self.expect
+    }
+
+    /// Returns how a write of several items ends when one fails, or `None`
+    /// for a command that writes one item.
+    #[must_use]
+    pub const fn items(&self) -> Option<Items> {
+        self.items
+    }
+}
+
+/// How a write of several items ends when one of them fails.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Items {
+    /// The command writes every item or none.
+    AllOrNone,
+    /// The command writes each item that it can.
+    PerItem,
+}

@@ -26,8 +26,15 @@ clap = { version = "4.6.7", default-features = false, features = [
     "suggestions",
 ] }
 # crumbkit parses flightdeck's own command line and mounts `commands list`,
-# `schemas list` and `schemas show`.
-crumbkit = { version = "0.1.0", default-features = false }
+# `schemas list` and `schemas show`. The `derive` feature writes the `Failure`
+# impl of the model's load failures.
+crumbkit = { version = "0.1.0", default-features = false, features = ["derive"] }
+# serde reads the JSON documents that a crumbkit tool prints into the model's
+# own types.
+serde = { version = "1.0.229", default-features = false, features = ["std", "derive"] }
+# serde_json parses those documents and holds each result's JSON Schema as a
+# `Value`.
+serde_json = { version = "1.0.151", default-features = false, features = ["std"] }
 # wait-timeout waits for a child process with a time limit, so a tool that
 # never exits is stopped. It has no features.
 wait-timeout = { version = "0.2.1", default-features = false }
@@ -42,6 +49,12 @@ rustix = { version = "1.1.6", default-features = false, features = ["std", "proc
 # The convention tests check flightdeck's command tree, guide and codes with
 # crumbkit-test.
 crumbkit-test = { version = "0.1.0", default-features = false }
+# The schema tests validate real documents against crumbkit's checked-in
+# JSON Schemas, which use draft 2020-12.
+jsonschema = { version = "0.60.2", default-features = false }
+# Each test that runs a tool gives it XDG directories in a temporary
+# directory of its own, and the fake tools live in one too.
+tempfile = { version = "3.27.0", default-features = false }
 
 [workspace]
 resolver = "3"

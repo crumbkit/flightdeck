@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "crumbkit/schemas-list/v1",
+  "description": "The JSON documents that the tool prints, with a description of each.",
+  "type": "object",
+  "properties": {
+    "cut": {
+      "description": "Present when the output budget cut the result short, so data holds only its first rows.",
+      "type": "object",
+      "properties": {
+        "budget": {
+          "description": "The most bytes that the run printed on standard output.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "code": {
+          "description": "The over-budget code, in the tool's spelling.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "budget"
+      ]
+    },
+    "data": {
+      "description": "The rows of the page, up to the limit.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SchemaRow"
+      }
+    },
+    "dry_run": {
+      "description": "Present, and true, when the run was a dry run that changed nothing.",
+      "const": true
+    },
+    "schema": {
+      "description": "The id of this document.",
+      "const": "crumbkit/schemas-list/v1"
+    },
+    "total": {
+      "description": "The number of rows that matched, of which data holds one page. It is absent when the tool did not count the rows.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "truncated": {
+      "description": "True when the document leaves out rows that matched, because of the limit or the output budget, and false when data holds every row.",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema",
+    "data",
+    "truncated"
+  ],
+  "$defs": {
+    "SchemaRow": {
+      "description": "One JSON document that the tool prints, or a file format that users write.",
+      "type": "object",
+      "properties": {
+        "commands": {
+          "description": "The command lines that print the document. It is empty for the failure document, which every command prints when it fails with --json, and for a file format.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "description": "What the document holds, in one line.",
+          "type": "string"
+        },
+        "form": {
+          "description": "stream when a command prints the document as a stream, one document on each line as each row arrives, and document when a command prints it once or it is a file format.",
+          "enum": [
+            "document",
+            "stream"
+          ]
+        },
+        "id": {
+          "description": "The document's id, such as `shelf/books-list/v1`, which `schemas show` takes.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "output when a command prints the document with its schema id, unwrapped when a command prints it without the envelope that holds its schema id, and file when it is a file format that users write and no command prints.",
+          "enum": [
+            "output",
+            "unwrapped",
+            "file"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "form",
+        "description"
+      ]
+    }
+  }
+}

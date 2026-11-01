@@ -14,6 +14,7 @@ owners = ["src/spawn.rs"]
 checks = [
   "clippy disallowed_methods and disallowed_types (clippy.toml)",
   "the argument vector test in src/spawn/tests.rs",
+  "the not-found, not-a-document and time-limit tests in tests/model.rs",
 ]
 note = "spawn::describe runs one of the fixed queries of spawn::Query. The module's documentation states the five items of PROC-2. On Unix it stops the child's whole process group at the time limit; a descendant that leaves the group is not stopped."
 

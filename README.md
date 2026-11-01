@@ -20,6 +20,18 @@ What works today:
 - `flightdeck commands list`, `flightdeck schemas list` and
   `flightdeck schemas show`, crumbkit's own commands, describe flightdeck
   itself. [docs/commands.md](docs/commands.md) is the reference.
+- The library's `model` module loads a crumbkit tool by name or path. It
+  runs the tool's `--version`, `commands list`, `schemas list` and
+  `schemas show` and joins them into a model of the tool's runnable
+  commands, their arguments, the goal headings that group them, the
+  documents they print with their JSON Schemas, and the links between
+  them. It sets crumbkit's own flags, such as `--json` and `--limit`, apart
+  from the tool's own arguments.
+
+A link is inferred from crumbkit's command grammar. A command whose rows
+have an `id` column links it to each other command of the same resource that
+takes a positional `<ID>` argument, so shelf's `books list` links its `id`
+column to `books show`.
 
 ## Install
 
