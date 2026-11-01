@@ -17,7 +17,12 @@
 - The page lives in `ui/`. Before you push a change there, run `pnpm run
   lint`, `typecheck`, `knip`, `test`, `build`, `size` and `acceptance` in
   `ui/`, and commit the rebuilt `ui/dist`.
-- `ui/tests/fixtures/shelf-model.json` mirrors the server's `/api/model`
-  reply for shelf. Regenerate it from the server when the reply changes.
-- The page's tests run against a stub of the server's API in
-  `ui/tests/acceptance/stub.ts`, until the server serves the page.
+- `pnpm run acceptance` starts `target/debug/flightdeck` with the shelf
+  under `target/test-tools/bin`, so build flightdeck and install the test
+  tools first.
+- `ui/tests/fixtures/shelf-model.json` is the server's `/api/model` reply
+  for shelf, and an acceptance test fails when they differ. Rewrite it with
+  `FIXTURES=overwrite pnpm run acceptance`, then `pnpm run fix`.
+- The journeys that run a command, and the one with goal headings, use the
+  stub of the server's API in `ui/tests/acceptance/stub.ts`. The others run
+  against the real server.

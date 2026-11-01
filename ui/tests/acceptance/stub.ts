@@ -1,7 +1,6 @@
-import AxeBuilder from "@axe-core/playwright";
-import { test as base, expect, type Page } from "@playwright/test";
-import { ModelReply } from "@/api/model";
-import model from "../fixtures/shelf-model.json" with { type: "json" };
+import { expect, type Page } from "@playwright/test";
+import type { ModelReply } from "@/api/model";
+import { shelfReply } from "../fixtures/shelf";
 import runs from "../fixtures/shelf-runs.json" with { type: "json" };
 
 /**
@@ -10,10 +9,11 @@ import runs from "../fixtures/shelf-runs.json" with { type: "json" };
  * with shelf's real output for each request in `shelf-runs.json`, and
  * refuses any other run with the runner's failure document.
  *
- * The stub lets the page's journeys run before the server's run routes
- * exist. It misses the real server's checks and its content security
- * policy. Running the same tests against `flightdeck open shelf
- * --no-browser` replaces it.
+ * The stub serves the journeys that run a command, because the server has
+ * no run routes yet, and the journey with goal headings, because the shelf
+ * that the tests install prints none. It misses the real server's checks
+ * and its content security policy. The journeys that need only the session
+ * and the model run against the real server, in real.spec.ts.
  */
 export async function openShelf(page: Page, reply: ModelReply = shelfReply): Promise<void> {
   const code = "stub-launch-code";
@@ -49,35 +49,4 @@ export async function openShelf(page: Page, reply: ModelReply = shelfReply): Pro
   });
   await page.goto(`/#code=${code}`);
   await expect(page.getByRole("region", { name: `Welcome to ${reply.tool.name}` })).toBeVisible();
-}
-
-/** shelf's model from crumbkit 0.1.0, which prints no goal headings. */
-export const shelfReply: ModelReply = ModelReply.parse(model);
-
-/**
- * Playwright's test, which fails any test whose page logs an error,
- * including a Content-Security-Policy violation (APP-7).
- */
-export const test = base.extend<{ errors: string[] }>({
-  errors: [
-    async ({ page }, use) => {
-      const errors: string[] = [];
-      page.on("console", (message) => {
-        if (message.type() === "error") {
-          errors.push(message.text());
-        }
-      });
-      await use(errors);
-      expect(errors).toEqual([]);
-    },
-    { auto: true },
-  ],
-});
-
-/** Checks the page with axe against WCAG 2.0, 2.1 and 2.2 A and AA (APP-8). */
-export async function expectNoAccessibilityViolations(page: Page) {
-  const results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-    .analyze();
-  expect(results.violations).toEqual([]);
 }

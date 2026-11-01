@@ -22,9 +22,11 @@ describe("search", () => {
     expect(first?.example?.command).toBe("shelf books show 2 5");
   });
 
-  it("ranks an exact path first, then paths, then about text, then examples", () => {
-    expect(paths(shelf, "schemas list")).toEqual(["schemas list"]);
-    expect(paths(shelf, "list").slice(0, 4)).toEqual([
+  it("without runs, ranks an exact path first, then paths, then about text, then examples", () => {
+    const quiet = withRuns({});
+
+    expect(paths(quiet, "schemas list")).toEqual(["schemas list"]);
+    expect(paths(quiet, "list").slice(0, 4)).toEqual([
       "books list",
       "commands list",
       "schemas list",
@@ -57,10 +59,6 @@ describe("search", () => {
       "commands list",
       "schemas show",
     ]);
-  });
-
-  it("ranks by text alone when the tool gave no runs", () => {
-    expect(paths(shelf, "list").slice(0, 4)).toEqual(paths(withRuns({}), "list").slice(0, 4));
   });
 
   it("lists every command in the guide's order for an empty query", () => {

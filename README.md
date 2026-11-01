@@ -127,7 +127,7 @@ cd ui
 pnpm install --frozen-lockfile
 pnpm run lint && pnpm run typecheck && pnpm run knip && pnpm test
 pnpm run build && pnpm run size
-pnpm run acceptance
+cargo build && pnpm run acceptance
 ```
 
 Commit `ui/dist` with the change. CI's `gate` job fails when the committed

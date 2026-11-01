@@ -1,5 +1,7 @@
 import { expect } from "@playwright/test";
-import { expectNoAccessibilityViolations, openShelf, shelfReply, test } from "./stub";
+import { shelfReply } from "../fixtures/shelf";
+import { expectNoAccessibilityViolations, test } from "./checks";
+import { openShelf } from "./stub";
 
 // The column picker's test reads the copied line from the clipboard.
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
@@ -44,30 +46,6 @@ test("the rail shows the three goal headings of a newer shelf in help order", as
     "Review how shelf is used",
   ]);
   await expectNoAccessibilityViolations(page);
-});
-
-test("the rail of crumbkit 0.1.0's shelf lists its commands under no heading", async ({ page }) => {
-  await openShelf(page);
-  const rail = page.getByRole("navigation", { name: "Commands" });
-
-  await expect(rail.getByRole("heading")).toHaveCount(0);
-  await expect(rail.getByRole("button")).toHaveCount(9);
-  await expect(rail.getByRole("button", { name: "books remove destructive" })).toBeVisible();
-});
-
-test("⌘K finds books show by the caption of its example", async ({ page }) => {
-  await openShelf(page);
-
-  await page.keyboard.press("ControlOrMeta+k");
-  const palette = page.getByRole("dialog", { name: "Find a command" });
-  await palette.getByRole("combobox", { name: "Command" }).fill("Show books 2 and 5");
-
-  await expect(palette.getByRole("option").first()).toContainText("books show");
-  await expectNoAccessibilityViolations(page);
-  await page.keyboard.press("Enter");
-  await expect(palette).toBeHidden();
-  const composer = page.getByRole("form", { name: "Composer" });
-  await expect(composer.getByRole("button", { name: "Remove 5" })).toBeVisible();
 });
 
 test("an example chip appends a run card", async ({ page }) => {
