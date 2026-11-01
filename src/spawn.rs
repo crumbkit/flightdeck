@@ -128,6 +128,9 @@ pub enum Query<'a> {
     /// `schemas show` of these document ids, which crumbkit takes at most
     /// 100 at a time.
     SchemasShow(&'a [String]),
+    /// `self figures list`, with how often each command ran, from the
+    /// tool's usage log.
+    FiguresList,
 }
 
 impl<'a> Query<'a> {
@@ -153,6 +156,9 @@ impl<'a> Query<'a> {
                 let mut words = vec!["schemas", "show", "--json", "--no-input", "--"];
                 words.extend(ids.iter().map(String::as_str));
                 words
+            }
+            Self::FiguresList => {
+                vec!["self", "figures", "list", "--json", "--all", "--no-input"]
             }
         }
     }

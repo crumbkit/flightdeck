@@ -442,3 +442,93 @@ fn the_time_limit_covers_every_query_of_a_load_together() {
         Some(FieldValue::from("time_limit"))
     );
 }
+
+/// A fake tool like the one of [`fake_crumbkit_tool`] that also mounts
+/// `self figures list`, which runs `figures`, a shell command.
+#[cfg(unix)]
+fn fake_tool_with_figures(figures: &str) -> (TempDir, PathBuf) {
+    fake_tool(&format!(
+        r#"case "$1 $2 $3" in
+"--version  ") echo 'fake 0.1.0' ;;
+"commands list "*) echo '{{"schema":"fake/commands-list/v1","truncated":false,"data":[{{"path":"fake","about":"A fake tool"}},{{"path":"fake things","about":"Things"}},{{"path":"fake things list","about":"Lists things"}},{{"path":"fake things count","about":"Counts things"}},{{"path":"fake self","about":"Reviews the use of fake"}},{{"path":"fake self figures","about":"Figures"}},{{"path":"fake self figures list","about":"Lists the figures"}}]}}' ;;
+"schemas list "*) echo '{{"schema":"fake/schemas-list/v1","truncated":false,"data":[]}}' ;;
+"self figures list") {figures} ;;
+*) exit 2 ;;
+esac"#
+    ))
+}
+
+#[cfg(unix)]
+#[test]
+fn a_tool_that_mounts_self_figures_list_gives_each_listed_command_its_runs() {
+    let (_directory, path) = fake_tool_with_figures(
+        r#"echo '{"schema":"fake/self-figures-list/v1","data":[{"command":"fake","runs":3},{"command":"things list","runs":7}],"total":2,"truncated":false}'"#,
+    );
+    let (_dirs, program) = isolated(path);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    let runs: Vec<(String, u64)> = tool
+        .commands()
+        .iter()
+        .map(|command| (command.path().to_string(), command.runs()))
+        .collect();
+    assert_eq!(
+        runs,
+        [
+            ("things list".to_owned(), 7),
+            ("things count".to_owned(), 0),
+            ("self figures list".to_owned(), 0),
+        ]
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_failing_figures_call_loads_the_tool_with_no_runs() {
+    let (_directory, path) = fake_tool_with_figures("echo 'no figures' >&2; exit 1");
+    let (_dirs, program) = isolated(path);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    assert!(tool.commands().iter().all(|command| command.runs() == 0));
+}
+
+#[cfg(unix)]
+#[test]
+fn a_tool_without_self_figures_list_loads_with_no_runs_and_is_never_asked_for_figures() {
+    // The fake tool fails any query it does not answer with exit 2, and
+    // writes a mark when it is asked for figures.
+    let marks = tempfile::tempdir().unwrap();
+    let mark = marks.path().join("asked");
+    let (_directory, path) = fake_crumbkit_tool(
+        r#"{"schema":"fake/schemas-show/v1","data":[{"id":"fake/things-list/v1","schema":{}}]}"#,
+        "0",
+    );
+    let script = std::fs::read_to_string(&path).unwrap().replace(
+        "*) exit 2 ;;",
+        &format!(
+            "\"self figures\") touch '{}' ;;\n*) exit 2 ;;",
+            mark.display()
+        ),
+    );
+    std::fs::write(&path, script).unwrap();
+    let (_dirs, program) = isolated(path);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    assert!(tool.commands().iter().all(|command| command.runs() == 0));
+    assert!(
+        !mark.exists(),
+        "the loader asked a tool without figures for them"
+    );
+}
+
+#[test]
+fn shelf_counts_the_loaders_own_queries_among_its_runs() {
+    let shelf = load("shelf");
+
+    let runs = |words: &[&str]| shelf.command(words).unwrap().runs();
+    assert_eq!(runs(&["commands", "list"]), 1);
+    assert_eq!(runs(&["books", "list"]), 0);
+}
