@@ -3,7 +3,7 @@
 //! the failure document. Every type ignores the fields it leaves out, so a
 //! newer crumbkit that adds a field still loads.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::command::CommandPath;
@@ -199,7 +199,7 @@ pub(super) struct ShownSchema {
 }
 
 /// One document that a tool prints, with its JSON Schema.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Document {
     id: String,
     kind: DocumentKind,
@@ -264,7 +264,7 @@ impl Document {
 }
 
 /// What kind of document a tool lists.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DocumentKind {
     /// A document that a command prints in its envelope.
@@ -276,7 +276,7 @@ pub enum DocumentKind {
 }
 
 /// Whether a listed document prints once or once on each line.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DocumentForm {
     /// One JSON document.

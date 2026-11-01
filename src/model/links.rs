@@ -1,6 +1,8 @@
 //! Links from a cell of one command's rows to another command that takes
 //! the cell's value.
 
+use serde::Serialize;
+
 use super::argument::{Argument, Kind};
 use super::command::{Command, CommandPath};
 
@@ -13,7 +15,7 @@ const ID_VALUE: &str = "ID";
 /// A link from the `id` column of one command's rows to an argument of
 /// another command, which takes the column's value. flightdeck infers each
 /// link from crumbkit's command grammar.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Link {
     source: CommandPath,
     target: CommandPath,
