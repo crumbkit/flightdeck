@@ -1,10 +1,10 @@
-import { Play } from "lucide-react";
+import { Eye, Play } from "lucide-react";
 import { type KeyboardEvent, useEffect, useId, useRef } from "react";
 import type { Argument, Command } from "@/api/model";
 import type { Value } from "@/api/runs";
 import { Button } from "@/components/ui/button";
 import { chosenOf, type Draft, type FieldGroup, formOf, missing, setValue } from "@/lib/form";
-import { whyNotRunnable } from "@/lib/rail";
+import { needsConfirmation, whyNotRunnable } from "@/lib/rail";
 import { ChipsInput } from "./ChipsInput";
 import { CommandPathText } from "./Rail";
 
@@ -26,7 +26,10 @@ type Props = {
 /**
  * The composer, docked under the transcript: the command's required
  * fields, then its other options under "More options", and Run, which ⌘↩
- * or Ctrl-↩ presses from anywhere in the form. It sends structured values.
+ * or Ctrl-↩ presses from anywhere in the form. A command that needs a
+ * confirmation has Preview in place of Run, and `onRun` previews it. Under
+ * `--read-only` a command that is not read-only shows why in place of the
+ * button. It sends structured values.
  */
 export function Composer(props: Props) {
   const { command, draft, editing, readOnly, onRun, onStopEditing, onShowRun } = props;
@@ -102,12 +105,24 @@ export function Composer(props: Props) {
         </details>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button type="submit" size="sm" disabled={blocked !== null || unset.length > 0}>
-          <Play aria-hidden="true" />
-          Run
-          <kbd className="font-mono text-xs opacity-80">⌘↩</kbd>
-        </Button>
-        {blocked !== null && <span className="text-muted-foreground text-xs">{blocked}</span>}
+        {blocked === null ? (
+          <Button type="submit" size="sm" disabled={unset.length > 0}>
+            {needsConfirmation(command) ? (
+              <>
+                <Eye aria-hidden="true" />
+                Preview
+              </>
+            ) : (
+              <>
+                <Play aria-hidden="true" />
+                Run
+              </>
+            )}
+            <kbd className="font-mono text-xs opacity-80">⌘↩</kbd>
+          </Button>
+        ) : (
+          <p className="text-muted-foreground m-0">{blocked}</p>
+        )}
       </div>
     </form>
   );

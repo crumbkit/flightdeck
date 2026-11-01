@@ -1,12 +1,13 @@
 import { cn } from "cn";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { notStartedWord } from "@/api/failure";
 import type { Command } from "@/api/model";
 import { resultOf } from "@/api/result";
 import { elapsedWords } from "@/lib/duration";
+import { needsConfirmation } from "@/lib/rail";
 import type { PageSize, View } from "@/lib/table";
 import { copiedLine } from "@/lib/table";
-import type { Run, RunState } from "@/lib/transcript";
+import type { Run } from "@/lib/transcript";
 import { CopyButton } from "./CopyButton";
 import { RecordView } from "./RecordView";
 import { ResultTable } from "./ResultTable";
@@ -17,14 +18,25 @@ type Props = {
   onEdit: () => void;
   onRunAgain: () => void;
   onPageSize: (size: PageSize) => void;
+  /** What follows the result, such as a preview's question. */
+  children?: ReactNode;
 };
 
 /** The status of a run as a word, and whether it failed. */
-function statusOf(state: RunState): { words: string; failed: boolean } {
+function statusOf(run: Run): { words: string; failed: boolean } {
+  const { state, ask } = run;
+  if (ask?.answer === "declined") {
+    return { words: "not confirmed", failed: false };
+  }
+  if (ask?.answer === "open" && ask.confirmation !== null) {
+    return { words: "awaiting confirmation", failed: false };
+  }
   switch (state.kind) {
     case "starting":
     case "running":
-      return { words: "running", failed: false };
+      return { words: ask?.answer === "open" ? "previewing" : "running", failed: false };
+    case "issued":
+      return { words: "awaiting confirmation", failed: false };
     case "refused":
       return { words: notStartedWord(state.problem), failed: true };
     case "broken":
@@ -54,13 +66,16 @@ function timeOf(iso: string | null): string | null {
 
 /**
  * One run in the transcript: its line, start time, duration and exit, its
- * result, and Edit, Run again, Copy and a JSON view.
+ * result, and Edit, Run again, Copy and a JSON view. A preview card adds
+ * crumbkit's dry-run sentence above its rows, and its question as
+ * `children`. A command that needs a confirmation has Preview again in
+ * place of Run again.
  */
-export function RunCard({ run, command, onEdit, onRunAgain, onPageSize }: Props) {
+export function RunCard({ run, command, onEdit, onRunAgain, onPageSize, children }: Props) {
   const [view, setView] = useState<View>({ long: false, fields: null });
   const [json, setJson] = useState(false);
   const { state } = run;
-  const status = statusOf(state);
+  const status = statusOf(run);
   const startedAt =
     state.kind === "running" || state.kind === "ended" || state.kind === "cut"
       ? state.startedAt
@@ -87,7 +102,7 @@ export function RunCard({ run, command, onEdit, onRunAgain, onPageSize }: Props)
             Edit
           </button>
           <button type="button" className="text-primary" onClick={onRunAgain}>
-            Run again
+            {command !== undefined && needsConfirmation(command) ? "Preview again" : "Run again"}
           </button>
           <CopyButton text={line} label="Copy line" />
           <label className="inline-flex items-center gap-1">
@@ -101,13 +116,29 @@ export function RunCard({ run, command, onEdit, onRunAgain, onPageSize }: Props)
         </span>
       </header>
       <div className="px-3 py-2.5">
+        {isDryRun(run) && (
+          <p className="bg-muted mt-0 mb-2 rounded-md px-2.5 py-1.5">
+            <span className="font-semibold">Dry run.</span> This was a dry run, so nothing changed.
+          </p>
+        )}
         {json ? (
           <JsonView run={run} />
         ) : (
           <Body run={run} command={command} view={view} onView={setView} onPageSize={onPageSize} />
         )}
+        {children}
       </div>
     </section>
+  );
+}
+
+/** Returns true for a preview card whose dry run ended with a result. */
+function isDryRun(run: Run): boolean {
+  return (
+    run.ask !== undefined &&
+    run.ask.answer !== "confirmed" &&
+    run.state.kind === "ended" &&
+    run.state.outcome.kind === "result"
   );
 }
 
@@ -138,6 +169,8 @@ function Body({ run, command, view, onView, onPageSize }: BodyProps) {
     case "starting":
     case "running":
       return <p className="text-muted-foreground">Running…</p>;
+    case "issued":
+      return <p className="m-0">This command has no preview.</p>;
     case "refused":
       return <PlainFailure code={state.problem?.code ?? null} words={state.words} />;
     case "broken":

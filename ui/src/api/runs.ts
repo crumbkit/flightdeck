@@ -25,13 +25,19 @@ const Outcome = z.discriminatedUnion("kind", [
 ]);
 export type Outcome = z.infer<typeof Outcome>;
 
-/** One line of a run's stream. */
+/**
+ * One line of a run's stream. A preview's `started` line adds `preview`,
+ * false when the command has no dry run and the preview runs nothing, and
+ * its `started` and `ended` lines add the confirmation id once it is issued.
+ */
 export const RunEvent = z.discriminatedUnion("event", [
   z.object({
     event: z.literal("started"),
     run: z.string().nullable(),
     line: z.string(),
     started_at: z.string(),
+    preview: z.boolean().optional(),
+    confirmation: z.string().nullable().optional(),
   }),
   z.object({ event: z.literal("line"), text: z.string() }),
   // The server writes this during a quiet stretch of a run, and the page ignores it.
@@ -41,6 +47,7 @@ export const RunEvent = z.discriminatedUnion("event", [
     outcome: Outcome,
     exit: z.number().int().nullable(),
     duration_ms: z.number().nonnegative(),
+    confirmation: z.string().nullable().optional(),
   }),
 ]);
 export type RunEvent = z.infer<typeof RunEvent>;
@@ -71,14 +78,32 @@ export type RunCall = {
 };
 
 /**
- * Starts a run at `POST /api/runs` and passes each event of its stream to
+ * Sends the request to `route` and passes each event of its stream to
  * `onEvent` as it arrives. It resolves when the stream closes, whether or
  * not an `ended` line came, and throws ApiError when the server refuses the
  * request or the stream breaks.
  */
-export async function streamRun({ request, onEvent, signal }: RunCall): Promise<void> {
-  const body = await postStream("/api/runs", request, signal);
+async function stream(route: string, { request, onEvent, signal }: RunCall): Promise<void> {
+  const body = await postStream(route, request, signal);
   for await (const line of readLines(body)) {
     onEvent(parseEvent(line));
   }
+}
+
+/** Starts a run at `POST /api/runs`, as `stream` does. */
+export function streamRun(call: RunCall): Promise<void> {
+  return stream("/api/runs", call);
+}
+
+/** Previews a command at `POST /api/previews`, as `stream` does. */
+export function streamPreview(call: RunCall): Promise<void> {
+  return stream("/api/previews", call);
+}
+
+/**
+ * Runs a previewed command at `POST /api/confirmations/<id>`, as `stream`
+ * does. The server runs it only when `id` was issued for the same request.
+ */
+export function streamConfirmation(id: string, call: RunCall): Promise<void> {
+  return stream(`/api/confirmations/${encodeURIComponent(id)}`, call);
 }

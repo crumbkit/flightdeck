@@ -63,16 +63,20 @@ async function openerOf(child: ChildProcess): Promise<string> {
  * page for the shelf that scripts/install-test-tools.sh installs. Each test
  * starts its own flightdeck, because a launch code works once, and stops it
  * when the test ends. The Rust lane builds both before this lane runs.
+ * `test.use({ readOnly: true })` starts it with `--read-only`.
  */
-export const test = checked.extend<{ served: Served }>({
-  // Playwright reads a fixture's dependencies from its first parameter, and
-  // this fixture has none.
-  // biome-ignore lint/correctness/noEmptyPattern: Playwright requires the object pattern
-  served: async ({}, use) => {
+export const test = checked.extend<{ readOnly: boolean; served: Served }>({
+  readOnly: [false, { option: true }],
+  served: async ({ readOnly }, use) => {
     const home = await mkdtemp(path.join(tmpdir(), "flightdeck-acceptance-"));
     const child = spawn(
       path.join(root, "target/debug/flightdeck"),
-      ["open", path.join(root, "target/test-tools/bin/shelf"), "--no-browser"],
+      [
+        "open",
+        path.join(root, "target/test-tools/bin/shelf"),
+        "--no-browser",
+        ...(readOnly ? ["--read-only"] : []),
+      ],
       {
         env: {
           ...process.env,

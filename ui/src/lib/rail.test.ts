@@ -49,9 +49,9 @@ describe("effectOf", () => {
 });
 
 describe("whyNotRunnable", () => {
-  it("runs a read-only command and holds back one that needs a confirmation", () => {
+  it("runs every command when flightdeck was started without --read-only", () => {
     expect(whyNotRunnable(command(shelf, "books list"), false)).toBeNull();
-    expect(whyNotRunnable(command(shelf, "books remove"), false)).toContain("preview and confirm");
+    expect(whyNotRunnable(command(shelf, "books remove"), false)).toBeNull();
   });
 
   it("holds back every command but the read-only ones under --read-only", () => {
@@ -60,7 +60,9 @@ describe("whyNotRunnable", () => {
       effects: { read_only: false, destructive: false, idempotent: true },
     };
 
-    expect(whyNotRunnable(additive, true)).toContain("--read-only");
+    expect(whyNotRunnable(additive, true)).toBe(
+      "Turned off by --read-only. Start flightdeck without it to run this command.",
+    );
     expect(whyNotRunnable(command(shelf, "books list"), true)).toBeNull();
   });
 });
