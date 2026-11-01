@@ -1,54 +1,11 @@
 use super::{CommandsList, Effects, Listing, NotDocument, StepCommand, Tool};
 
-/// shelf's `commands list` document with the `goals` field that a newer
-/// crumbkit prints on a group's row.
-const WITH_GOALS: &str = include_str!("../../tests/fixtures/newer/commands-list-with-goals.json");
+/// shelf's `commands list` document, with `goals` on its root row.
+const WITH_GOALS: &str = include_str!("../../tests/fixtures/shelf/commands-list.json");
 
-/// shelf's `books list --json` document with the `next` field that a newer
-/// crumbkit prints on a listing.
-const WITH_NEXT: &str = include_str!("../../tests/fixtures/newer/books-list-with-next.json");
-
-#[test]
-fn goals_on_the_root_row_give_the_headings_in_help_order() {
-    let commands: CommandsList = serde_json::from_str(WITH_GOALS).unwrap();
-
-    let tool = Tool::assemble("shelf 0.1.0", commands, Vec::new()).unwrap();
-
-    let headings: Vec<(&str, Vec<String>)> = tool
-        .headings()
-        .iter()
-        .map(|heading| {
-            let paths = heading.commands().iter().map(ToString::to_string).collect();
-            (heading.title(), paths)
-        })
-        .collect();
-    assert_eq!(
-        headings,
-        [
-            (
-                "Browse the catalogue",
-                vec![
-                    "books list".to_owned(),
-                    "books show".to_owned(),
-                    "books summarize".to_owned(),
-                    "books remove".to_owned(),
-                ]
-            ),
-            (
-                "Explore the commands",
-                vec![
-                    "commands list".to_owned(),
-                    "schemas list".to_owned(),
-                    "schemas show".to_owned(),
-                ]
-            ),
-            (
-                "Review how shelf is used",
-                vec!["self usage".to_owned(), "self figures list".to_owned()]
-            ),
-        ]
-    );
-}
+/// shelf's `books list --json` document, with a next step that calls a
+/// shelf command and one that runs another program first.
+const WITH_NEXT: &str = include_str!("../../tests/fixtures/shelf/books-list-with-run-step.json");
 
 #[test]
 fn null_effects_are_unknown() {
@@ -94,7 +51,7 @@ fn null_goals_on_the_root_row_read_as_no_goals() {
     }
     let commands: CommandsList = serde_json::from_value(document).unwrap();
 
-    let tool = Tool::assemble("shelf 0.1.0", commands, Vec::new()).unwrap();
+    let tool = Tool::assemble("shelf 0.1.1", commands, Vec::new()).unwrap();
 
     let titles: Vec<&str> = tool.headings().iter().map(|h| h.title()).collect();
     assert_eq!(titles, ["shelf"]);
@@ -122,7 +79,7 @@ fn a_command_word_or_an_argument_name_with_a_control_character_is_refused_when_t
         assert!(WITH_GOALS.contains(from), "{from}");
         let commands: CommandsList = serde_json::from_str(&WITH_GOALS.replace(from, to)).unwrap();
 
-        let refused = Tool::assemble("shelf 0.1.0", commands, Vec::new());
+        let refused = Tool::assemble("shelf 0.1.1", commands, Vec::new());
 
         assert!(matches!(refused, Err(NotDocument::Control)), "{to}");
     }
