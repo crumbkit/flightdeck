@@ -67,6 +67,20 @@ What works today:
 - The page in `ui/` is a React application. It lists the tool's commands
   grouped by goal, finds a command with ⌘K, builds a run from a form, and
   shows each run as a card with its result as a table or a record.
+- A destructive command, or one that declares no effects, has Preview in
+  place of Run. Preview appends a card with crumbkit's dry-run sentence and
+  the rows the command would change, or "This command has no preview." for
+  a command without `--dry-run`. The card then asks the question with the
+  verb and the count, such as "Remove 1 book?", states the effects in
+  words, shows the exact line that will run, and offers Cancel, which has
+  focus, and a red confirm button, such as "Remove 1 book". ⌘↩ never
+  confirms. When the composer changes after the preview, the card marks
+  itself stale and disables its confirm button. Confirm runs the command
+  once in the same card, which then shows its result. A run that fails
+  because the tool asks for `--yes` opens the same card. Under
+  `--read-only`, the topbar shows a lock, the commands that are not
+  read-only stay in the rail dimmed with a lock, and their composer says
+  why in place of its button.
 
 - The library's `runner` module runs one of the tool's commands from a
   structured request: the command's path and a value for each argument by

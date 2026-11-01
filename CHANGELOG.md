@@ -52,3 +52,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `ui/dist`. The page lists the tool's commands grouped by goal, finds one
   with ⌘K, builds a run from a form and shows each run as a card with its
   result as a table or a record.
+- The page previews a destructive command, or one that declares no
+  effects, and asks for confirmation in the preview's card, which names the
+  verb and the count. Cancel has focus, ⌘↩ never confirms, and a change to
+  the composer after the preview disables the confirm button. A run that
+  fails because the tool asks for `--yes` opens the same card. Under
+  `--read-only`, the page keeps the other commands in the rail, dimmed and
+  locked, and says why it cannot run them.
