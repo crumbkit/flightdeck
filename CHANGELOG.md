@@ -44,3 +44,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   run cancels it. A shutdown
   lets runs end within a grace, cancels the rest, and refuses new runs with
   `flightdeck::run::closed`.
+- The model counts each command's runs from the tool's `self figures list`
+  when the tool mounts it. A tool without it, or a failing call, loads with
+  every count at 0.
+- The web page's code and its built files are in `ui/`. The binary does not
+  serve them yet.

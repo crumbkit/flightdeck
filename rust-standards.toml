@@ -89,6 +89,7 @@ note = "The functions of src/lock.rs take and wait on every lock of flightdeck. 
 id = "lanes"
 requirement = """
 - Lane: `gate` in .github/workflows/ci.yml, on each pull request and each push to main, on ubuntu-latest. It runs every step of the pull-request lane except `rustdoc` and `features`, because flightdeck does not adopt the library profile. Before the tests it installs shelf and reading from crumbkit with scripts/install-test-tools.sh, unless the cache holds them. Its budget is fifteen minutes, the job's timeout. A merge waits for it, and it is the one check that branch protection requires.
+- Lane: `ui` in .github/workflows/ci.yml runs the page's checks in ui/, and ui/typescript-standards.toml describes it.
 - Lane: `macos` in .github/workflows/ci.yml, weekly on Monday at 05:17 UTC. It runs the tests on macos-latest. Nothing waits for it.
 - Lane: `advisories` in .github/workflows/ci.yml, daily at 06:43 UTC and on each push to main. Nothing waits for it.
 """

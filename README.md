@@ -13,8 +13,9 @@ document and the listing envelope. It links none of the tool's code.
 ## Status
 
 `flightdeck open <TOOL>` starts the page's server, its sign-in and the
-routes that run the tool's commands. The page itself does not exist yet: the
-server serves a placeholder that says so.
+routes that run the tool's commands. The page's code is in [ui/](ui/), and
+its built files are committed in `ui/dist`. The server does not serve them
+yet: it serves a placeholder that says so.
 
 What works today:
 
@@ -58,7 +59,13 @@ What works today:
   documents they print with their JSON Schemas, and the links between
   them. It sets crumbkit's own flags, such as `--json` and `--limit`, apart
   from the tool's own arguments. It refuses a tool whose name, command
-  words or argument names hold a control character.
+  words or argument names hold a control character. When the tool mounts
+  `self figures list`, the model also counts how often the tool's usage log
+  saw each command run. When that call fails, every count stays 0 and the
+  tool still loads.
+- The page in `ui/` is a React application. It lists the tool's commands
+  grouped by goal, finds a command with ⌘K, builds a run from a form, and
+  shows each run as a card with its result as a table or a record.
 
 - The library's `runner` module runs one of the tool's commands from a
   structured request: the command's path and a value for each argument by
@@ -110,6 +117,24 @@ cargo test
 ```
 
 A test that needs them fails with the script's name when they are missing.
+
+The page needs Node.js at the version in `ui/.node-version` and pnpm at the
+version in `ui/package.json`. Building flightdeck never runs Node, because
+the built page is committed in `ui/dist`. After you change the page, run its
+checks and rebuild it from `ui/`:
+
+```sh
+cd ui
+pnpm install --frozen-lockfile
+pnpm run lint && pnpm run typecheck && pnpm run knip && pnpm test
+pnpm run build && pnpm run size
+pnpm run acceptance
+```
+
+Commit `ui/dist` with the change. CI's `ui` job fails when the committed
+files differ from a fresh build.
+[ui/typescript-standards.toml](ui/typescript-standards.toml) maps the
+TypeScript standards that the page follows to the files that meet them.
 [rust-standards.toml](rust-standards.toml) maps the Rust standards that
 flightdeck follows to the files that meet them.
 
