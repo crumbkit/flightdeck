@@ -66,7 +66,15 @@ What works today:
   runs that flightdeck makes to load the tool.
 - The page in `ui/` is a React application. It lists the tool's commands
   grouped by goal, finds a command with ⌘K, builds a run from a form, and
-  shows each run as a card with its result as a table or a record.
+  shows each run as a card with its result as a table or a record. A
+  stream's rows appear as they arrive, under the time since the run
+  started and a count of its rows, and Cancel or ⌘. stops the run and
+  keeps the rows that came. A failure shows its message, cause, code,
+  fields and labels, and its recovery and alternatives as chips that fill
+  the form and run nothing. The failures of a batch stand in their keys'
+  places among the rows. A refusal of the line underlines the word at
+  fault and marks its field in the form. A result's next steps appear as
+  chips after its footer, three at first and the rest behind "+N more".
 
 - The library's `runner` module runs one of the tool's commands from a
   structured request: the command's path and a value for each argument by
