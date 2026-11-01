@@ -2,24 +2,24 @@ import { z } from "@/api/zod";
 import { forgetToken, readToken, writeToken } from "@/storage";
 
 /**
- * The document of a refused request: the server's problem document, or the
- * runner's failure document, which carries a code, a cause and the fields
- * that name what it refused.
+ * A failure document, with the fields the page reads: crumbkit's failure
+ * document, which a tool prints and the runner answers with, or the
+ * server's problem document of a refused request, which carries a `title`
+ * in place of a `message`. Each has a stable `code`.
  */
-export const Problem = z.object({
-  code: z.string().optional(),
-  title: z.string().optional(),
-  detail: z.string().optional(),
+export const FailureDocument = z.object({
+  code: z.string(),
   message: z.string().optional(),
   cause: z.string().optional(),
-  hint: z.string().optional(),
+  recovery: z.unknown().optional(),
   fields: z.record(z.string(), z.unknown()).optional(),
+  title: z.string().optional(),
 });
-export type Problem = z.infer<typeof Problem>;
+export type FailureDocument = z.infer<typeof FailureDocument>;
 
 /** Why a request to the server failed, in terms a screen can word (APP-14). */
 export type ApiFailure =
-  | { kind: "status"; status: number; problem: Problem | null }
+  | { kind: "status"; status: number; problem: FailureDocument | null }
   | { kind: "shape"; issues: string }
   | { kind: "network" };
 
@@ -86,9 +86,9 @@ async function send(path: string, init: RequestInit): Promise<Response> {
   return response;
 }
 
-async function problemOf(response: Response): Promise<Problem | null> {
+async function problemOf(response: Response): Promise<FailureDocument | null> {
   try {
-    const parsed = Problem.safeParse(await response.json());
+    const parsed = FailureDocument.safeParse(await response.json());
     return parsed.success ? parsed.data : null;
   } catch {
     return null;

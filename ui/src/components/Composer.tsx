@@ -1,5 +1,5 @@
 import { Play } from "lucide-react";
-import { type KeyboardEvent, useId } from "react";
+import { type KeyboardEvent, useEffect, useId, useRef } from "react";
 import type { Argument, Command } from "@/api/model";
 import type { Value } from "@/api/runs";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,22 @@ export function Composer(props: Props) {
   const form = formOf(command);
   const unset = missing(command, draft);
   const blocked = whyNotRunnable(command, readOnly);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Edit moves focus to the first text field or list and selects its
+  // text, so the person can type the new value at once.
+  useEffect(() => {
+    if (editing === null) {
+      return;
+    }
+    const field = formRef.current?.querySelector<HTMLInputElement | HTMLSelectElement>(
+      "input[type=text], select",
+    );
+    field?.focus();
+    if (field instanceof HTMLInputElement) {
+      field.select();
+    }
+  }, [editing]);
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
@@ -47,6 +63,7 @@ export function Composer(props: Props) {
   return (
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: ⌘↩ and Esc reach the form from whichever of its fields has focus
     <form
+      ref={formRef}
       aria-label="Composer"
       onKeyDown={onKeyDown}
       onSubmit={(event) => {

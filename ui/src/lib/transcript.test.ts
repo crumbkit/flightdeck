@@ -77,6 +77,7 @@ describe("transcript", () => {
       kind: "cut",
       startedAt: "2026-11-02T09:00:00Z",
       lines: ["{}"],
+      words: null,
     });
   });
 
@@ -88,5 +89,25 @@ describe("transcript", () => {
     runs = transcript(runs, { type: "closed", number: 1 });
 
     expect(runs).toEqual(before);
+  });
+
+  it("keeps the lines of a stream that breaks after it started, as a cut-off run with the error", () => {
+    let runs = transcript([], { type: "add", number: 1, request, line: "page line" });
+    const started = {
+      event: "started",
+      run: "r1",
+      line: "shelf books show 2",
+      started_at: "2026-11-02T09:00:00Z",
+    } as const;
+    runs = transcript(runs, { type: "event", number: 1, event: started });
+    runs = transcript(runs, { type: "event", number: 1, event: { event: "line", text: "{}" } });
+    runs = transcript(runs, { type: "broken", number: 1, words: "The server did not answer." });
+
+    expect(runs[0]?.state).toEqual({
+      kind: "cut",
+      startedAt: "2026-11-02T09:00:00Z",
+      lines: ["{}"],
+      words: "The server did not answer.",
+    });
   });
 });

@@ -121,8 +121,25 @@ A test that needs them fails with the script's name when they are missing.
 
 The page needs Node.js at the version in `ui/.node-version` and pnpm at the
 version in `ui/package.json`. Building flightdeck never runs Node, because
-the built page is committed in `ui/dist`. After you change the page, run its
-checks and rebuild it from `ui/`:
+the built page is committed in `ui/dist`.
+
+`pnpm dev` cannot reach flightdeck. flightdeck listens on a port that the
+system picks, and its server refuses a request whose `Host` or `Origin` is
+not its own address, so a development server in front of it is refused.
+Develop the page with its tests instead: Vitest for its logic and
+components, and the Playwright journeys, which start the real
+`flightdeck open` with shelf. To see a change in a browser, build the page,
+then build and start flightdeck:
+
+```sh
+(cd ui && pnpm run build)
+cargo build
+target/debug/flightdeck open target/test-tools/bin/shelf
+```
+
+The binary embeds `ui/dist` when it is built, so build the page before
+flightdeck. After you change the page, run its checks and rebuild it from
+`ui/`:
 
 ```sh
 cd ui

@@ -1,7 +1,6 @@
-import { mutationOptions } from "@tanstack/react-query";
 import { z } from "@/api/zod";
 import { readLines } from "@/lib/ndjson";
-import { ApiError, postStream } from "./client";
+import { ApiError, FailureDocument, postStream } from "./client";
 import type { CommandPath } from "./model";
 
 /**
@@ -16,16 +15,6 @@ export type Value = true | string | string[];
  * `<ID>`. The page never sends a command line as text.
  */
 export type RunRequest = { path: CommandPath; values: Record<string, Value> };
-
-/** A failure document: crumbkit's, the tool's own, or flightdeck's. */
-export const FailureDocument = z.object({
-  code: z.string(),
-  message: z.string().optional(),
-  cause: z.string().optional(),
-  hint: z.string().optional(),
-  fields: z.record(z.string(), z.unknown()).optional(),
-});
-export type FailureDocument = z.infer<typeof FailureDocument>;
 
 const Outcome = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("result") }),
@@ -87,14 +76,9 @@ export type RunCall = {
  * not an `ended` line came, and throws ApiError when the server refuses the
  * request or the stream breaks.
  */
-async function streamRun({ request, onEvent, signal }: RunCall): Promise<void> {
+export async function streamRun({ request, onEvent, signal }: RunCall): Promise<void> {
   const body = await postStream("/api/runs", request, signal);
   for await (const line of readLines(body)) {
     onEvent(parseEvent(line));
   }
-}
-
-/** The run mutation (APP-11). Runs change nothing that the page caches. */
-export function runMutation() {
-  return mutationOptions({ mutationKey: ["runs"], mutationFn: streamRun });
 }

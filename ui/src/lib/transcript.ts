@@ -1,4 +1,4 @@
-import type { Problem } from "@/api/client";
+import type { FailureDocument } from "@/api/client";
 import type { Outcome, RunEvent, RunRequest } from "@/api/runs";
 
 /** Where one run is. */
@@ -13,8 +13,9 @@ export type RunState =
       durationMs: number;
       outcome: Outcome;
     }
-  | { kind: "cut"; startedAt: string | null; lines: string[] }
-  | { kind: "refused"; problem: Problem | null; words: string }
+  /** A run whose stream stopped before its end, with the error, if one came. */
+  | { kind: "cut"; startedAt: string | null; lines: string[]; words: string | null }
+  | { kind: "refused"; problem: FailureDocument | null; words: string }
   | { kind: "broken"; words: string };
 
 /**
@@ -27,7 +28,7 @@ export type Run = { number: number; request: RunRequest; line: string; state: Ru
 export type Action =
   | { type: "add"; number: number; request: RunRequest; line: string }
   | { type: "event"; number: number; event: RunEvent }
-  | { type: "refused"; number: number; problem: Problem | null; words: string }
+  | { type: "refused"; number: number; problem: FailureDocument | null; words: string }
   | { type: "broken"; number: number; words: string }
   | { type: "closed"; number: number };
 
@@ -49,7 +50,14 @@ export function transcript(runs: Run[], action: Action): Run[] {
     }
     case "broken": {
       const { words } = action;
-      return change(action.number, (run) => ({ ...run, state: { kind: "broken", words } }));
+      return change(action.number, (run) =>
+        run.state.kind === "running"
+          ? {
+              ...run,
+              state: { kind: "cut", startedAt: run.state.startedAt, lines: run.state.lines, words },
+            }
+          : { ...run, state: { kind: "broken", words } },
+      );
     }
     case "event":
       return change(action.number, (run) => applyEvent(run, action.event));
@@ -69,7 +77,7 @@ function closeRun(run: Run): Run {
   }
   const lines = state.kind === "running" ? state.lines : [];
   const startedAt = state.kind === "running" ? state.startedAt : null;
-  return { ...run, state: { kind: "cut", startedAt, lines } };
+  return { ...run, state: { kind: "cut", startedAt, lines, words: null } };
 }
 
 function applyEvent(run: Run, event: RunEvent): Run {

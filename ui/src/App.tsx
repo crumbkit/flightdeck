@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { dropToken } from "@/api/client";
 import { isSignedOut } from "@/api/failure";
 import { modelQuery } from "@/api/model";
@@ -17,6 +18,15 @@ export function App({ code }: { code: string | null }) {
   const session = useQuery(sessionQuery(code));
   const signedIn = session.data === "signed-in";
   const model = useQuery({ ...modelQuery(), enabled: signedIn });
+  const [refused, setRefused] = useState(false);
+  const signedOut = refused || isSignedOut(model.error);
+
+  // A refused token is forgotten, so a reload does not send it again.
+  useEffect(() => {
+    if (signedOut) {
+      dropToken();
+    }
+  }, [signedOut]);
 
   if (session.isPending) {
     return <Loading />;
@@ -24,10 +34,7 @@ export function App({ code }: { code: string | null }) {
   if (session.isError) {
     return <Failure error={session.error} onRetry={() => void session.refetch()} />;
   }
-  if (!signedIn || isSignedOut(model.error)) {
-    if (isSignedOut(model.error)) {
-      dropToken();
-    }
+  if (!signedIn || signedOut) {
     return <SignedOut />;
   }
   if (model.isPending) {
@@ -36,5 +43,5 @@ export function App({ code }: { code: string | null }) {
   if (model.isError) {
     return <Failure error={model.error} onRetry={() => void model.refetch()} />;
   }
-  return <ToolPage reply={model.data} />;
+  return <ToolPage reply={model.data} onSignedOut={() => setRefused(true)} />;
 }

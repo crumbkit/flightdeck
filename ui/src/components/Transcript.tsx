@@ -60,16 +60,20 @@ export function Transcript({ size, children }: Props) {
       <div ref={scroller} onScroll={onScroll} className="h-full overflow-y-auto px-4 pt-3 pb-2">
         {children}
       </div>
-      {behind && (
-        <button
-          type="button"
-          onClick={toBottom}
-          className="bg-card text-primary absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full border px-3 py-1 text-xs shadow-md"
-        >
-          New rows
-          <ArrowDown aria-hidden="true" className="size-3.5" />
-        </button>
-      )}
+      {/* The live region is always present, so a screen reader announces
+          the button when it appears. */}
+      <div role="status" aria-live="polite" className="absolute bottom-3 left-1/2 -translate-x-1/2">
+        {behind && (
+          <button
+            type="button"
+            onClick={toBottom}
+            className="bg-card text-primary inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs shadow-md"
+          >
+            New rows
+            <ArrowDown aria-hidden="true" className="size-3.5" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

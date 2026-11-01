@@ -122,7 +122,10 @@ test("the column picker's choice appears in the copied line as --fields", async 
   await expect(card.getByRole("columnheader")).toHaveCount(3);
 });
 
-test("Edit fills the form from run 3 and labels it", async ({ page, served }) => {
+test("Edit fills the form from run 3, labels it and focuses its first field", async ({
+  page,
+  served,
+}) => {
   await signIn(page, served);
   await page.getByRole("button", { name: "Print the first page of books" }).click();
   await page.getByRole("button", { name: "Print every book" }).click();
@@ -139,6 +142,7 @@ test("Edit fills the form from run 3 and labels it", async ({ page, served }) =>
 
   const composer = page.getByRole("form", { name: "Composer" });
   await expect(composer.getByText("Editing run 3")).toBeVisible();
+  await expect(composer.getByLabel(/The ids of the books to show/)).toBeFocused();
   await expect(composer.getByRole("heading")).toHaveText("books show");
   await expect(composer.getByRole("button", { name: "Remove 2" })).toBeVisible();
   await expect(composer.getByRole("button", { name: "Remove 5" })).toBeVisible();

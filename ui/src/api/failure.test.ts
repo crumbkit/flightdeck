@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fieldErrorOf, notStartedWord } from "./failure";
+import { ApiError } from "./client";
+import { describeFailure, fieldErrorOf, notStartedWord } from "./failure";
 
 const refusal = (fields: Record<string, unknown>) => ({
   code: "flightdeck::run::refused",
@@ -49,7 +50,39 @@ describe("notStartedWord", () => {
     expect(notStartedWord({ code: "flightdeck::run::read_only" })).toBe("refused");
     expect(notStartedWord({ code: "flightdeck::run::busy" })).toBe("busy");
     expect(notStartedWord({ code: "flightdeck::run::closed" })).toBe("not started");
-    expect(notStartedWord({ title: "Not Found" })).toBe("not started");
+    expect(notStartedWord({ code: "flightdeck::request::not_found" })).toBe("not started");
     expect(notStartedWord(null)).toBe("not started");
+  });
+});
+
+describe("describeFailure", () => {
+  const status = (code: number, problem: { code: string; title?: string } | null) =>
+    new ApiError({ kind: "status", status: code, problem });
+
+  it("words a refused request by its problem document's title", () => {
+    const origin = status(403, {
+      code: "flightdeck::request::origin",
+      title: "The request comes from another origin, or a POST names no origin.",
+    });
+
+    expect(describeFailure(origin)).toBe(
+      "The request comes from another origin, or a POST names no origin.",
+    );
+  });
+
+  it("gives no advice to try again for a 4xx reply without a document", () => {
+    expect(describeFailure(status(415, null))).toBe(
+      "The server refused the request with status 415.",
+    );
+  });
+
+  it("advises trying again for a 5xx reply without a document", () => {
+    expect(describeFailure(status(502, null))).toBe(
+      "The server failed with status 502. Try again.",
+    );
+  });
+
+  it("gives no advice to reload for an answer the page cannot read", () => {
+    expect(describeFailure(new ApiError({ kind: "shape", issues: "x" }))).not.toMatch(/[Rr]eload/);
   });
 });

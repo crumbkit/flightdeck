@@ -16,7 +16,7 @@ type Sent = { path: string; method: string; headers: Headers; body: string | nul
  * only `code`, the model and a run of books show, with a keepalive line.
  * With `cut`, the run's stream closes before its ended line.
  */
-function stubServer(code: string, cut = false): Sent[] {
+function stubServer(code: string, cut = false, runStatus = 200): Sent[] {
   const sent: Sent[] = [];
   vi.stubGlobal("fetch", async (path: string, init: RequestInit) => {
     const body = typeof init.body === "string" ? init.body : null;
@@ -28,6 +28,12 @@ function stubServer(code: string, cut = false): Sent[] {
     }
     if (path === "/api/model") {
       return Response.json(shelfReply);
+    }
+    if (runStatus !== 200) {
+      return Response.json(
+        { code: "flightdeck::session::unauthorized", title: "The request needs the page's token." },
+        { status: runStatus },
+      );
     }
     const lines = [
       {
@@ -74,6 +80,9 @@ describe("App", () => {
 
     expect(await screen.findByRole("region", { name: "Welcome to shelf" })).toBeInTheDocument();
     expect(readToken()).toBe("token-for-test");
+    const kept = Object.keys(window.localStorage).map((key) => window.localStorage.getItem(key));
+    expect(kept).not.toContain("token-for-test");
+    expect(kept.join(" ")).not.toContain("token-for-test");
     expect(sent.filter((each) => each.path === "/api/session")).toHaveLength(1);
     const model = sent.find((each) => each.path === "/api/model");
     expect(model?.headers.get("Authorization")).toBe("Bearer token-for-test");
@@ -125,5 +134,22 @@ describe("App", () => {
 
     const card = await screen.findByRole("region", { name: /Run 1: shelf books show 2, cut off/ });
     expect(within(card).getByRole("alert")).toHaveTextContent(/stopped before the run ended/);
+  });
+
+  it("signs the page out when the server refuses the token during a run", async () => {
+    stubServer("launch-code-for-test", false, 401);
+    const user = userEvent.setup();
+    renderApp("launch-code-for-test");
+
+    await screen.findByRole("region", { name: "Welcome to shelf" });
+    const rail = screen.getByRole("navigation", { name: "Commands" });
+    await user.click(within(rail).getByRole("button", { name: /books show/ }));
+    await user.type(screen.getByLabelText(/The ids of the books to show/), "2 ");
+    await user.click(screen.getByRole("button", { name: /Run/ }));
+
+    expect(
+      await screen.findByRole("region", { name: "This page is not signed in" }),
+    ).toBeInTheDocument();
+    expect(readToken()).toBeNull();
   });
 });

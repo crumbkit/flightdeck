@@ -1,4 +1,4 @@
-import { ApiError, type Problem } from "./client";
+import { ApiError, type FailureDocument } from "./client";
 
 /**
  * The one wording of every failed request the page shows (APP-14). It says
@@ -14,18 +14,21 @@ export function describeFailure(error: unknown): string {
     case "network":
       return "The flightdeck server did not answer. Check that flightdeck open is still running in your terminal, then try again.";
     case "shape":
-      return "The server sent data that this page cannot read. Reload the page, and reinstall flightdeck if that does not help.";
+      return "The server sent data that this page cannot read. Check that this page and flightdeck come from the same version.";
     case "status": {
-      const said = failure.problem?.cause ?? failure.problem?.message ?? failure.problem?.detail;
+      const said = failure.problem?.cause ?? failure.problem?.message ?? failure.problem?.title;
       if (failure.status === 401) {
         return "This page is no longer signed in. Run flightdeck open again in your terminal.";
       }
       if (failure.status === 413) {
         return "The request is larger than the server accepts. Send fewer or shorter values.";
       }
-      return said === undefined
-        ? `The server refused the request with status ${failure.status}. Try again.`
-        : said;
+      if (said !== undefined) {
+        return said;
+      }
+      return failure.status < 500
+        ? `The server refused the request with status ${failure.status}.`
+        : `The server failed with status ${failure.status}. Try again.`;
     }
   }
 }
@@ -45,7 +48,7 @@ export function isSignedOut(error: unknown): boolean {
  * carries `index`, the words name the refused value's place in its list.
  */
 export function fieldErrorOf(
-  problem: Problem | null,
+  problem: FailureDocument | null,
   words: string,
 ): { name: string; words: string } | null {
   if (problem?.code !== "flightdeck::run::refused") {
@@ -73,7 +76,7 @@ const refusals = [
  * failure document's code. The reply's status says less, because the server
  * may answer the same failure with another status.
  */
-export function notStartedWord(problem: Problem | null): string {
+export function notStartedWord(problem: FailureDocument | null): string {
   const code = problem?.code;
   if (code !== undefined && refusals.includes(code)) {
     return "refused";

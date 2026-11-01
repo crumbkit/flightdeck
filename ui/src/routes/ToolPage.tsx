@@ -1,9 +1,8 @@
-import { useMutation } from "@tanstack/react-query";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { ApiError } from "@/api/client";
-import { describeFailure, fieldErrorOf } from "@/api/failure";
+import { describeFailure, fieldErrorOf, isSignedOut } from "@/api/failure";
 import type { Command, Example, ModelReply } from "@/api/model";
-import { type RunRequest, runMutation } from "@/api/runs";
+import { type RunRequest, streamRun } from "@/api/runs";
 import { Composer, type FieldError } from "@/components/Composer";
 import { Palette } from "@/components/Palette";
 import { Rail } from "@/components/Rail";
@@ -20,18 +19,36 @@ import { transcript } from "@/lib/transcript";
 /** The composer's command, what it holds, and the run it edits, if any. */
 type Composing = { command: Command; draft: Draft; editing: number | null };
 
+type Props = {
+  reply: ModelReply;
+  /** Called when the server refuses the page's token during a run. */
+  onSignedOut: () => void;
+};
+
 /**
  * The page of one tool: the rail, the transcript of runs with the welcome
  * card first, the composer docked at the bottom, and the ⌘K palette.
  */
-export function ToolPage({ reply }: { reply: ModelReply }) {
+export function ToolPage({ reply, onSignedOut }: Props) {
   const { tool } = reply;
   const [runs, apply] = useReducer(transcript, []);
   const [composing, setComposing] = useState<Composing | null>(null);
   const [fieldError, setFieldError] = useState<FieldError | null>(null);
   const [finding, setFinding] = useState(false);
   const counter = useRef(0);
-  const mutation = useMutation(runMutation());
+  // Each running run's controller, by its number. Leaving the page aborts
+  // every run, which closes its stream, and the server cancels the run.
+  const controllers = useRef(new Map<number, AbortController>());
+
+  useEffect(() => {
+    const running = controllers.current;
+    return () => {
+      for (const controller of running.values()) {
+        controller.abort();
+      }
+      running.clear();
+    };
+  }, []);
 
   // ⌘K or Ctrl-K opens the palette from anywhere on the page.
   useEffect(() => {
@@ -57,14 +74,22 @@ export function ToolPage({ reply }: { reply: ModelReply }) {
     const number = counter.current;
     setFieldError(null);
     apply({ type: "add", number, request, line: lineOf(tool.name, command, request) });
-    mutation
-      .mutateAsync({
-        request,
-        onEvent: (event) => apply({ type: "event", number, event }),
-        signal: new AbortController().signal,
-      })
+    const controller = new AbortController();
+    controllers.current.set(number, controller);
+    streamRun({
+      request,
+      onEvent: (event) => apply({ type: "event", number, event }),
+      signal: controller.signal,
+    })
       .then(() => apply({ type: "closed", number }))
       .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        if (isSignedOut(error)) {
+          onSignedOut();
+          return;
+        }
         const words = describeFailure(error);
         if (error instanceof ApiError && error.failure.kind === "status") {
           const { problem } = error.failure;
@@ -76,7 +101,8 @@ export function ToolPage({ reply }: { reply: ModelReply }) {
         } else {
           apply({ type: "broken", number, words });
         }
-      });
+      })
+      .finally(() => controllers.current.delete(number));
   };
 
   const choose = (command: Command, draft: Draft = emptyDraft(command)) => {

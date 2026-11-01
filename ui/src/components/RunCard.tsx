@@ -3,7 +3,6 @@ import { useState } from "react";
 import { notStartedWord } from "@/api/failure";
 import type { Command } from "@/api/model";
 import { resultOf } from "@/api/result";
-import type { FailureDocument } from "@/api/runs";
 import { elapsedWords } from "@/lib/duration";
 import type { PageSize, View } from "@/lib/table";
 import { copiedLine } from "@/lib/table";
@@ -140,22 +139,27 @@ function Body({ run, command, view, onView, onPageSize }: BodyProps) {
     case "running":
       return <p className="text-muted-foreground">Running…</p>;
     case "refused":
-      return (
-        <PlainFailure failure={{ code: state.problem?.code ?? "refused", cause: state.words }} />
-      );
+      return <PlainFailure code={state.problem?.code ?? null} words={state.words} />;
     case "broken":
       return <p role="alert">{state.words}</p>;
     case "cut":
       return (
         <p role="alert">
-          The run's output stopped before the run ended, so its result is incomplete. Check that
-          flightdeck open is still running in your terminal, then run it again.
+          The run's output stopped before the run ended, so its result is incomplete.{" "}
+          {state.words ??
+            "Check that flightdeck open is still running in your terminal, then run it again."}
         </p>
       );
     case "ended": {
       const { outcome } = state;
       if (outcome.kind === "tool_failure" || outcome.kind === "failed") {
-        return <PlainFailure failure={outcome.failure} />;
+        const { failure } = outcome;
+        return (
+          <PlainFailure
+            code={failure.code}
+            words={failure.cause ?? failure.message ?? "The run failed."}
+          />
+        );
       }
       if (outcome.kind === "cancelled") {
         return <p className="text-muted-foreground">The run was cancelled.</p>;
@@ -200,14 +204,16 @@ function Body({ run, command, view, onView, onPageSize }: BodyProps) {
   }
 }
 
-/** A failure document as a plain card with its code and cause. */
-function PlainFailure({ failure }: { failure: FailureDocument }) {
+/** A failure as a plain card with its words, and its code when it has one. */
+function PlainFailure({ code, words }: { code: string | null; words: string }) {
   return (
     <div role="alert" className="border-l-destructive rounded-md border border-l-4 px-3 py-2">
-      <p className="m-0 font-semibold">{failure.cause ?? failure.message ?? "The run failed."}</p>
-      <code className="bg-code text-muted-foreground mt-1 inline-block rounded px-1.5 font-mono text-xs">
-        {failure.code}
-      </code>
+      <p className="m-0 font-semibold">{words}</p>
+      {code !== null && (
+        <code className="bg-code text-muted-foreground mt-1 inline-block rounded px-1.5 font-mono text-xs">
+          {code}
+        </code>
+      )}
     </div>
   );
 }
@@ -223,14 +229,16 @@ function ItemFailures({
   }
   return (
     <ul className="mt-2 flex flex-col gap-1 p-0">
-      {failures.map((failure) => (
-        <li key={`${failure.key ?? ""}${failure.code}`} className="list-none">
+      {failures.map((failure, index) => (
+        // The same item can fail twice, as in `books show 7 7`, and a
+        // result's failures never change order, so the index keys them.
+        // biome-ignore lint/suspicious/noArrayIndexKey: a result's failures are fixed
+        <li key={index} className="list-none">
           <PlainFailure
-            failure={{
-              code: failure.code,
-              cause:
-                failure.key === undefined ? failure.message : `${failure.key}: ${failure.message}`,
-            }}
+            code={failure.code}
+            words={
+              failure.key === undefined ? failure.message : `${failure.key}: ${failure.message}`
+            }
           />
         </li>
       ))}
