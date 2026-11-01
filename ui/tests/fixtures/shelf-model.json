@@ -1,0 +1,1729 @@
+{
+  "read_only": false,
+  "tool": {
+    "name": "shelf",
+    "version": "0.1.0+git-31245d63b750",
+    "about": "Browse a small catalogue of public-domain books",
+    "headings": [
+      {
+        "title": "shelf",
+        "commands": [
+          ["books", "list"],
+          ["books", "show"],
+          ["books", "summarize"],
+          ["books", "remove"],
+          ["commands", "list"],
+          ["schemas", "list"],
+          ["schemas", "show"],
+          ["self", "usage"],
+          ["self", "figures", "list"]
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "path": ["books", "list"],
+        "about": "List the books in the catalogue, in id order",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "--limit",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["N"]
+            },
+            "required": false,
+            "defaults": ["4"],
+            "possible_values": [],
+            "help": {
+              "line": "Print at most this many rows, up to 100",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": "--limit"
+          },
+          {
+            "name": "--all",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print every row",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": "--all"
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf books list",
+            "about": "Print the first page of books"
+          },
+          {
+            "command": "shelf books list --all",
+            "about": "Print every book"
+          }
+        ],
+        "result": {
+          "document": null,
+          "form": "document",
+          "columns": [
+            {
+              "name": "id",
+              "long": false,
+              "description": "The book's id, unique within the catalogue."
+            },
+            {
+              "name": "title",
+              "long": false,
+              "description": "The book's title."
+            },
+            {
+              "name": "author",
+              "long": false,
+              "description": "The book's author."
+            },
+            {
+              "name": "year",
+              "long": false,
+              "description": "The year the book was first published."
+            },
+            {
+              "name": "form",
+              "long": true,
+              "description": "The book's literary form."
+            },
+            {
+              "name": "pages",
+              "long": true,
+              "description": "The number of pages in a common edition."
+            },
+            {
+              "name": "reading",
+              "long": true,
+              "description": "The time it takes to read the book at two minutes a page."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "writes": null,
+        "runs": 0
+      },
+      {
+        "path": ["books", "show"],
+        "about": "Show the books with the given ids, in the order given",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "<ID>",
+            "short": null,
+            "kind": "positional",
+            "arity": {
+              "kind": "many",
+              "value_names": ["ID"]
+            },
+            "required": true,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "The ids of the books to show, separated by spaces",
+              "long": null
+            },
+            "one_of": ["--from"],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--from",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["FILE"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Read the ids from this file, one id per line",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf books show 2 5",
+            "about": "Show books 2 and 5"
+          }
+        ],
+        "result": {
+          "document": null,
+          "form": "document",
+          "columns": [
+            {
+              "name": "id",
+              "long": false,
+              "description": "The book's id, unique within the catalogue."
+            },
+            {
+              "name": "title",
+              "long": false,
+              "description": "The book's title."
+            },
+            {
+              "name": "author",
+              "long": false,
+              "description": "The book's author."
+            },
+            {
+              "name": "year",
+              "long": false,
+              "description": "The year the book was first published."
+            },
+            {
+              "name": "form",
+              "long": true,
+              "description": "The book's literary form."
+            },
+            {
+              "name": "pages",
+              "long": true,
+              "description": "The number of pages in a common edition."
+            },
+            {
+              "name": "reading",
+              "long": true,
+              "description": "The time it takes to read the book at two minutes a page."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "writes": null,
+        "runs": 0
+      },
+      {
+        "path": ["books", "summarize"],
+        "about": "Describe the books with the given ids, or the whole catalogue, in one sentence",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "<ID>",
+            "short": null,
+            "kind": "positional",
+            "arity": {
+              "kind": "many",
+              "value_names": ["ID"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "The ids of the books to describe, separated by spaces; without ids, the whole catalogue",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf books summarize",
+            "about": "Summarize the whole catalogue"
+          },
+          {
+            "command": "shelf books summarize 2 5",
+            "about": "Summarize books 2 and 5"
+          }
+        ],
+        "result": {
+          "document": null,
+          "form": "document",
+          "columns": []
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "writes": null,
+        "runs": 0
+      },
+      {
+        "path": ["books", "remove"],
+        "about": "Remove the books with the given ids from the shelf, so list and show skip them",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "<ID>",
+            "short": null,
+            "kind": "positional",
+            "arity": {
+              "kind": "many",
+              "value_names": ["ID"]
+            },
+            "required": true,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "The ids of the books to remove, separated by spaces",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--dry-run",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Report what the command would change, and change nothing",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": "--dry-run"
+          },
+          {
+            "name": "--yes",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Proceed without asking for confirmation",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": "--yes"
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf books remove 2 --dry-run",
+            "about": "Print the book that removing book 2 would remove"
+          },
+          {
+            "command": "shelf books remove 2 --yes",
+            "about": "Remove book 2 without asking"
+          }
+        ],
+        "result": {
+          "document": null,
+          "form": "document",
+          "columns": [
+            {
+              "name": "id",
+              "long": false,
+              "description": "The book's id, unique within the catalogue."
+            },
+            {
+              "name": "title",
+              "long": false,
+              "description": "The book's title."
+            },
+            {
+              "name": "author",
+              "long": false,
+              "description": "The book's author."
+            },
+            {
+              "name": "year",
+              "long": false,
+              "description": "The year the book was first published."
+            },
+            {
+              "name": "form",
+              "long": true,
+              "description": "The book's literary form."
+            },
+            {
+              "name": "pages",
+              "long": true,
+              "description": "The number of pages in a common edition."
+            },
+            {
+              "name": "reading",
+              "long": true,
+              "description": "The time it takes to read the book at two minutes a page."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": false,
+          "destructive": true,
+          "idempotent": true,
+          "open_world": false
+        },
+        "writes": {
+          "replaces": false,
+          "expect": false,
+          "items": "all_or_none"
+        },
+        "runs": 0
+      },
+      {
+        "path": ["commands", "list"],
+        "about": "List a branch of shelf's commands with their arguments, examples and columns",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "<PATH>",
+            "short": null,
+            "kind": "positional",
+            "arity": {
+              "kind": "many",
+              "value_names": ["PATH"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "The names of the commands below the root that lead to the branch, such as `books list`",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--limit",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["N"]
+            },
+            "required": false,
+            "defaults": ["25"],
+            "possible_values": [],
+            "help": {
+              "line": "Print at most this many rows",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": "--limit"
+          },
+          {
+            "name": "--all",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print every row",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": "--all"
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf commands list",
+            "about": "List every command"
+          },
+          {
+            "command": "shelf commands list books",
+            "about": "List the books command and the commands below it"
+          },
+          {
+            "command": "shelf commands list books list --json --full",
+            "about": "Print books list with its arguments, examples and columns as JSON"
+          }
+        ],
+        "result": {
+          "document": null,
+          "form": "document",
+          "columns": [
+            {
+              "name": "path",
+              "long": false,
+              "description": "The command line that runs the command, such as `shelf books list`."
+            },
+            {
+              "name": "about",
+              "long": false,
+              "description": "The command's one-line description, or its full description when it has no one-line description."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "writes": null,
+        "runs": 0
+      },
+      {
+        "path": ["schemas", "list"],
+        "about": "List the JSON documents that shelf prints, with a description of each",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "--limit",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["N"]
+            },
+            "required": false,
+            "defaults": ["25"],
+            "possible_values": [],
+            "help": {
+              "line": "Print at most this many rows",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": "--limit"
+          },
+          {
+            "name": "--all",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print every row",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": "--all"
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf schemas list",
+            "about": "List every document that shelf prints"
+          }
+        ],
+        "result": {
+          "document": null,
+          "form": "document",
+          "columns": [
+            {
+              "name": "id",
+              "long": false,
+              "description": "The document's id, such as `shelf/books-list/v1`, which `schemas show` takes."
+            },
+            {
+              "name": "kind",
+              "long": false,
+              "description": "output when a command prints the document with its schema id, unwrapped when a command prints it without the envelope that holds its schema id, and file when it is a file format that users write and no command prints."
+            },
+            {
+              "name": "form",
+              "long": false,
+              "description": "stream when a command prints the document as a stream, one document on each line as each row arrives, and document when a command prints it once or it is a file format."
+            },
+            {
+              "name": "description",
+              "long": false,
+              "description": "What the document holds, in one line."
+            },
+            {
+              "name": "commands",
+              "long": true,
+              "description": "The command lines that print the document. It is empty for the failure document, which every command prints when it fails with --json, and for a file format."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "writes": null,
+        "runs": 0
+      },
+      {
+        "path": ["schemas", "show"],
+        "about": "Print the JSON Schema of each document",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "<ID>",
+            "short": null,
+            "kind": "positional",
+            "arity": {
+              "kind": "many",
+              "value_names": ["ID"]
+            },
+            "required": true,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "The ids of the documents that `schemas list` lists, separated by spaces",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf schemas show shelf/books-list/v1",
+            "about": "Print the JSON Schema of the document that books list prints"
+          }
+        ],
+        "result": {
+          "document": null,
+          "form": "document",
+          "columns": [
+            {
+              "name": "id",
+              "long": false,
+              "description": "The document's id, such as `shelf/books-list/v1`."
+            },
+            {
+              "name": "schema",
+              "long": false,
+              "description": "The document's 2020-12 JSON Schema."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "writes": null,
+        "runs": 0
+      },
+      {
+        "path": ["self", "usage"],
+        "about": "Report the patterns in shelf's usage log where callers waste effort",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "--since",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["DURATION"]
+            },
+            "required": false,
+            "defaults": ["7d"],
+            "possible_values": [],
+            "help": {
+              "line": "How far back to read the usage log, such as 12h, 7d or 2w",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--log",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["FILE"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Read this usage log instead of the tool's own",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf self usage",
+            "about": "Report the findings of the last 7 days"
+          },
+          {
+            "command": "shelf self usage --since 1d",
+            "about": "Report the findings of the last day"
+          }
+        ],
+        "result": {
+          "document": null,
+          "form": "document",
+          "columns": [
+            {
+              "name": "finding",
+              "long": false,
+              "description": "What the pattern is."
+            },
+            {
+              "name": "runs",
+              "long": false,
+              "description": "The runs that show the pattern."
+            },
+            {
+              "name": "command",
+              "long": false,
+              "description": "The command path below the tool's name, such as `books show`, or the tool's name for its root command."
+            },
+            {
+              "name": "suggestion",
+              "long": false,
+              "description": "What the pattern suggests, or the figure that raised it."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "writes": null,
+        "runs": 0
+      },
+      {
+        "path": ["self", "figures", "list"],
+        "about": "List the figures of each command in shelf's usage log",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "--since",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["DURATION"]
+            },
+            "required": false,
+            "defaults": ["7d"],
+            "possible_values": [],
+            "help": {
+              "line": "How far back to read the usage log, such as 12h, 7d or 2w",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--log",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["FILE"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Read this usage log instead of the tool's own",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--limit",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["N"]
+            },
+            "required": false,
+            "defaults": ["25"],
+            "possible_values": [],
+            "help": {
+              "line": "Print at most this many rows",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": "--limit"
+          },
+          {
+            "name": "--all",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print every row",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": "--all"
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf self figures list",
+            "about": "Print the figures of each command over the last 7 days"
+          },
+          {
+            "command": "shelf self figures list --log usage.jsonl",
+            "about": "Print the figures of the commands in a copy of the usage log"
+          }
+        ],
+        "result": {
+          "document": null,
+          "form": "document",
+          "columns": [
+            {
+              "name": "command",
+              "long": false,
+              "description": "The command path below the tool's name, such as `books show`, or the tool's name for its root command."
+            },
+            {
+              "name": "runs",
+              "long": false,
+              "description": "The runs that did not print a help page."
+            },
+            {
+              "name": "help_pages",
+              "long": false,
+              "description": "The runs that printed the command's help page."
+            },
+            {
+              "name": "help_before",
+              "long": false,
+              "description": "The help pages that each run's session read since its last run that printed no help page, summed over the runs."
+            },
+            {
+              "name": "failed",
+              "long": false,
+              "description": "The runs that failed."
+            },
+            {
+              "name": "p95_out_bytes",
+              "long": false,
+              "description": "The 95th percentile of the bytes that the runs wrote to standard output, or null when no run printed a result."
+            },
+            {
+              "name": "refused",
+              "long": true,
+              "description": "The runs whose command line was refused."
+            },
+            {
+              "name": "p95_ms",
+              "long": true,
+              "description": "The 95th percentile of the runs' wall time in milliseconds, or null when every run printed help."
+            },
+            {
+              "name": "typed_full",
+              "long": true,
+              "description": "The runs that typed `--full`."
+            },
+            {
+              "name": "typed_all",
+              "long": true,
+              "description": "The runs that typed `--all`."
+            },
+            {
+              "name": "typed_long",
+              "long": true,
+              "description": "The runs that typed `--long`."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "writes": null,
+        "runs": 0
+      }
+    ],
+    "documents": [],
+    "links": []
+  }
+}

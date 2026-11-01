@@ -1,0 +1,6 @@
+node_modules/
+test-results/
+playwright-report/
+*.tsbuildinfo
+# A global ignore of dist/ must not hide the committed bundle (EMB-3).
+!dist/

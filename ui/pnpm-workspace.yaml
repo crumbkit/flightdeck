@@ -1,0 +1,10 @@
+# pnpm reads its settings from this file.
+
+# `pnpm add` writes an exact version, never a range (BASE-13).
+savePrefix: ""
+# A release becomes installable only once it is 7 days old (10,080 minutes),
+# the same cooldown Dependabot applies, so a release withdrawn soon after
+# publication is never installed (BASE-14).
+minimumReleaseAge: 10080
+# No dependency runs an install script unless it is listed here (BASE-14).
+allowBuilds: {}

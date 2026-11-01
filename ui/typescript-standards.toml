@@ -1,0 +1,44 @@
+# flightdeck's adoption map of Luke Randall's TypeScript standards
+# (https://github.com/crumbkit/typescript-standards, adoption.md), for the
+# page in ui/, which the flightdeck binary embeds and serves.
+
+schema = "typescript-standards/adoption/v1"
+standards = { version = "0.1.0", commit = "0531f36f78463deb184952832fc387a3dd5e6ed9" }
+
+profiles = ["base", "app", "embedded"]
+
+[[binding]]
+rule = "BASE-7"
+owners = ["src/api/client.ts", "src/storage.ts"]
+checks = [
+  "Biome noRestrictedGlobals, with the baseline's override for src/api/client.ts",
+  "a biome-ignore comment on each storage call in src/storage.ts",
+]
+note = "client.ts is the only caller of fetch. storage.ts is the storage owner: it keeps the session's token in sessionStorage and the theme choice in localStorage, and nothing else touches storage. The page reads no clock: a run's start time and duration come from the server."
+
+[[binding]]
+rule = "EMB-5"
+owners = ["dist/"]
+checks = ["none yet"]
+note = "The server does not embed the bundle yet, so no test serves it. The test that requests every file under ui/dist and checks its media type lands with the embedding."
+
+[[decision]]
+id = "lanes"
+requirement = """
+- Lane: `ui` in ../.github/workflows/ci.yml, on each pull request and each push to main, on ubuntu-24.04. It runs every step of the pull-request lane from `install` on, in ui/. The `workflows` step runs in the Rust lane's `gate` job, which checks the same files. Its budget is fifteen minutes, the job's timeout. A merge waits for it.
+- Lane: `advisories` in ../.github/workflows/ci.yml, daily at 06:43 UTC and on each push to main, runs `pnpm audit` in ui/ after the Rust advisories. Nothing waits for it.
+"""
+reason = "The page's lane runs beside the Rust lane, so neither waits for the other. flightdeck has no release yet, so an advisory found after merge only means a pull request that moves the affected pin."
+realizations = ["../.github/workflows/ci.yml"]
+
+[[decision]]
+id = "budgets"
+requirement = "The first load, index.html with assets/app.js and assets/index.css, stays under 150 kB with Brotli. Every built file together stays under 250 kB."
+reason = "The first load holds React, TanStack Query, zod and the page. The page has one screen and loads nothing lazily, so the two budgets cover the same files today."
+realizations = ["package.json"]
+
+[[decision]]
+id = "theme"
+requirement = "src/index.css holds each colour role once, as a light-dark() pair, and the root's color-scheme picks the value: the system's appearance by default, or the person's choice of System, Light or Dark, which the topbar's control writes to data-theme on the root element. Tailwind's dark: variant follows the same choice."
+reason = "APP-9 places the dark values under a prefers-color-scheme query. The signed-off design has a theme control, and a forced choice would need the dark values written twice, once in the query and once under data-theme. A light-dark() pair keeps each role in one place."
+realizations = ["src/index.css", "src/components/ThemeControl.tsx", "src/storage.ts"]

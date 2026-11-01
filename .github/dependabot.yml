@@ -22,6 +22,19 @@ updates:
     groups:
       github-actions:
         patterns: ["*"]
+  # The page in ui/. Dependabot does not read ui/.node-version, so a person
+  # raises it, and checks the `packageManager` pin of pnpm in the same
+  # change. A pull request that moves a runtime dependency also rebuilds
+  # and commits ui/dist (EMB-1).
+  - package-ecosystem: npm
+    directory: /ui
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      npm:
+        patterns: ["*"]
   - package-ecosystem: rust-toolchain
     directory: /
     schedule:
