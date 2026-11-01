@@ -21,18 +21,26 @@ impl Asset {
     }
 }
 
-/// Every asset of the page.
-///
-/// RUST-10: the set holds one placeholder page that says the page is not
-/// built yet. It serves the routes and the headers that the real page
-/// needs, and it misses the page itself, so the launch code stays in the
-/// address bar unexchanged. The React page that a later pull request (H4)
-/// builds and embeds replaces it.
-pub(super) const ALL: &[Asset] = &[Asset {
-    path: "/",
-    content_type: "text/html; charset=utf-8",
-    body: include_bytes!("assets/index.html"),
-}];
+/// Every asset of the page: the files that `pnpm run build` writes to
+/// `ui/dist`, under fixed names. A test requests every file in that
+/// directory, so a built file missing here fails it.
+pub(super) const ALL: &[Asset] = &[
+    Asset {
+        path: "/",
+        content_type: "text/html; charset=utf-8",
+        body: include_bytes!("../../ui/dist/index.html"),
+    },
+    Asset {
+        path: "/assets/app.js",
+        content_type: "text/javascript; charset=utf-8",
+        body: include_bytes!("../../ui/dist/assets/app.js"),
+    },
+    Asset {
+        path: "/assets/index.css",
+        content_type: "text/css; charset=utf-8",
+        body: include_bytes!("../../ui/dist/assets/index.css"),
+    },
+];
 
 /// Returns the asset at `path`, such as `/`.
 pub(super) fn find(path: &str) -> Option<&'static Asset> {

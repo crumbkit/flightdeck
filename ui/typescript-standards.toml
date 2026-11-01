@@ -18,9 +18,9 @@ note = "client.ts is the only caller of fetch. storage.ts is the storage owner: 
 
 [[binding]]
 rule = "EMB-5"
-owners = ["dist/"]
-checks = ["none yet"]
-note = "The server does not embed the bundle yet, so no test serves it. The test that requests every file under ui/dist and checks its media type lands with the embedding."
+owners = ["dist/", "../src/server/assets.rs"]
+checks = ["every_built_file_of_the_page_is_served_with_its_bytes_and_its_media_type in ../tests/server.rs"]
+note = "src/server/assets.rs embeds each file of ui/dist with include_bytes!, under the fixed names that the build writes. The test requests every file in ui/dist from the running server and checks its status, its media type and its bytes."
 
 [[decision]]
 id = "lanes"

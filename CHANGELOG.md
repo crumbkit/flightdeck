@@ -47,5 +47,7 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The model counts each command's runs from the tool's `self figures list`
   when the tool mounts it. A tool without it, or a failing call, loads with
   every count at 0.
-- The web page's code and its built files are in `ui/`. The binary does not
-  serve them yet.
+- `flightdeck open` serves the web page, which the binary embeds from
+  `ui/dist`. The page lists the tool's commands grouped by goal, finds one
+  with ⌘K, builds a run from a form and shows each run as a card with its
+  result as a table or a record.

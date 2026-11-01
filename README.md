@@ -13,9 +13,8 @@ document and the listing envelope. It links none of the tool's code.
 ## Status
 
 `flightdeck open <TOOL>` starts the page's server, its sign-in and the
-routes that run the tool's commands. The page's code is in [ui/](ui/), and
-its built files are committed in `ui/dist`. The server does not serve them
-yet: it serves a placeholder that says so.
+routes that run the tool's commands, and serves the page. The page's code is
+in [ui/](ui/), and the binary embeds its built files from `ui/dist`.
 
 What works today:
 
