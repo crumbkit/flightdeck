@@ -36,6 +36,21 @@ describe("fieldErrorOf", () => {
   });
 });
 
+describe("fieldErrorOf, for a tool's own refusal", () => {
+  it("marks the argument of crumbkit's usage failure with the tool's message", () => {
+    const usage = {
+      code: "shelf::cli::usage",
+      message: "--limit takes a whole number from 1 to 100",
+      fields: { argument: "--limit", value: "101", most: 100 },
+    };
+
+    expect(fieldErrorOf(usage, "--limit takes a whole number from 1 to 100")).toEqual({
+      name: "--limit",
+      words: "--limit takes a whole number from 1 to 100",
+    });
+  });
+});
+
 describe("fieldErrorOf, by the failure document's code", () => {
   it("marks no field for a failure other than a refusal, whatever its status", () => {
     const busy = { code: "flightdeck::run::busy", cause: "busy", fields: { argument: "--limit" } };
@@ -80,6 +95,13 @@ describe("describeFailure", () => {
     expect(describeFailure(status(502, null))).toBe(
       "The server failed with status 502. Try again.",
     );
+  });
+
+  it("says that the connection broke for a stream that stopped mid-run, and gives no advice to reload", () => {
+    const words = describeFailure(new ApiError({ kind: "broken" }));
+
+    expect(words).toMatch(/connection to flightdeck broke/);
+    expect(words).not.toMatch(/[Rr]eload/);
   });
 
   it("gives no advice to reload for an answer the page cannot read", () => {

@@ -15,7 +15,7 @@ describe("transcript", () => {
     ]);
   });
 
-  it("follows a run from its start through its lines to its end", () => {
+  it("follows a run from its start through its lines to its end, in one frame's batch of events", () => {
     let runs = transcript([], { type: "add", number: 1, request, line: "page line" });
     const events = [
       {
@@ -27,9 +27,7 @@ describe("transcript", () => {
       { event: "line", text: '{"schema":"s","data":[]}' },
       { event: "ended", outcome: { kind: "result" }, exit: 0, duration_ms: 412 },
     ] as const;
-    for (const event of events) {
-      runs = transcript(runs, { type: "event", number: 1, event });
-    }
+    runs = transcript(runs, { type: "events", number: 1, events: [...events] });
 
     expect(runs[0]).toEqual({
       number: 1,
@@ -54,9 +52,9 @@ describe("transcript", () => {
       line: "shelf books show 2",
       started_at: "2026-11-02T09:00:00Z",
     } as const;
-    runs = transcript(runs, { type: "event", number: 1, event: started });
+    runs = transcript(runs, { type: "events", number: 1, events: [started] });
     const before = runs;
-    runs = transcript(runs, { type: "event", number: 1, event: { event: "alive" } });
+    runs = transcript(runs, { type: "events", number: 1, events: [{ event: "alive" }] });
 
     expect(runs).toEqual(before);
   });
@@ -69,8 +67,8 @@ describe("transcript", () => {
       line: "shelf books show 2",
       started_at: "2026-11-02T09:00:00Z",
     } as const;
-    runs = transcript(runs, { type: "event", number: 1, event: started });
-    runs = transcript(runs, { type: "event", number: 1, event: { event: "line", text: "{}" } });
+    runs = transcript(runs, { type: "events", number: 1, events: [started] });
+    runs = transcript(runs, { type: "events", number: 1, events: [{ event: "line", text: "{}" }] });
     runs = transcript(runs, { type: "closed", number: 1 });
 
     expect(runs[0]?.state).toEqual({
@@ -84,7 +82,7 @@ describe("transcript", () => {
   it("keeps an ended run as it is when its stream closes", () => {
     let runs = transcript([], { type: "add", number: 1, request, line: "page line" });
     const ended = { event: "ended", outcome: { kind: "result" }, exit: 0, duration_ms: 1 } as const;
-    runs = transcript(runs, { type: "event", number: 1, event: ended });
+    runs = transcript(runs, { type: "events", number: 1, events: [ended] });
     const before = runs;
     runs = transcript(runs, { type: "closed", number: 1 });
 
@@ -99,8 +97,8 @@ describe("transcript", () => {
       line: "shelf books show 2",
       started_at: "2026-11-02T09:00:00Z",
     } as const;
-    runs = transcript(runs, { type: "event", number: 1, event: started });
-    runs = transcript(runs, { type: "event", number: 1, event: { event: "line", text: "{}" } });
+    runs = transcript(runs, { type: "events", number: 1, events: [started] });
+    runs = transcript(runs, { type: "events", number: 1, events: [{ event: "line", text: "{}" }] });
     runs = transcript(runs, { type: "broken", number: 1, words: "The server did not answer." });
 
     expect(runs[0]?.state).toEqual({
