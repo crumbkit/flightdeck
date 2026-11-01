@@ -5,24 +5,46 @@ schema = "rust-standards/adoption/v1"
 standards = { version = "0.1.0", commit = "7c9a7577fed4fe5ba0682960c0380af0a75dace4" }
 
 # flightdeck is a command-line program built on crumbkit, it starts the tool
-# it wraps as a child process, and it will serve a local web page.
+# it wraps as a child process, and it serves a local web page.
 profiles = ["base", "cli", "child-process", "service"]
 
 [[binding]]
 rule = "PROC-1"
-owners = ["src/spawn.rs"]
+owners = ["src/spawn.rs", "src/spawn/browser.rs"]
 checks = [
   "clippy disallowed_methods and disallowed_types (clippy.toml)",
   "the argument vector test in src/spawn/tests.rs",
   "the not-found, not-a-document, time-limit and background-process tests in tests/model.rs",
+  "the argument and time-limit tests of the opener in src/spawn/browser/tests.rs",
 ]
-note = "spawn::describe runs one of the fixed queries of spawn::Query. The module's documentation states the five items of PROC-2. On Unix it kills the child's whole process group when the child exits or the time limit passes, before it reaps the child, and every read of the child's pipes ends at the same deadline. A descendant that leaves the group, such as one that calls setsid, is not stopped."
+note = "spawn has two operations. spawn::describe runs one of the fixed queries of spawn::Query. On Unix it kills the child's whole process group when the child exits or the time limit passes, before it reaps the child, and every read of the child's pipes ends at the same deadline. A descendant that leaves the group, such as one that calls setsid, is not stopped. spawn::open_browser runs the system's opener with the opener page's path as its one argument, and at its time limit stops the opener alone, never the browser it starts. Each module's documentation states the five items of PROC-2."
 
 [[binding]]
 rule = "SVC-1"
 owners = ["src/spawn.rs"]
 checks = ["clippy disallowed_methods (clippy.toml)"]
-note = "The only threads are the two pipe readers of spawn::describe and, on Unix, the thread that waits for the child to exit. A std::thread::scope joins all three before describe returns."
+note = "flightdeck's own threads are the two pipe readers of spawn::describe and, on Unix, the thread that waits for the child to exit. A std::thread::scope joins all three before describe returns. The server answers on the thread that calls Server::run. tiny_http starts and owns its accept thread and a pool of connection threads; dropping the server ends the accept thread, and the pool keeps four connection threads waiting and ends each further one after five idle seconds. Neither outlives the process, which exits when Server::run returns. signal-hook starts no thread, because flightdeck registers only flags."
+
+[[binding]]
+rule = "BASE-24"
+owners = ["src/server/secret.rs"]
+checks = ["review: expose_secret appears only in the files below"]
+note = "The launch code and the token are secrecy::SecretString values inside server::secret::Secret, and the launch code that the page sends is read straight into one. expose_secret is called in src/server/secret.rs to compare a presented value, in src/server/session.rs to compare a presented launch code, in src/server.rs to write the token reply, and in src/opener.rs to write the opener page."
+
+[[binding]]
+rule = "SVC-4"
+owners = ["src/server/reply.rs"]
+checks = [
+  "the test in src/server/reply/tests.rs that lists every code and status",
+  "the refusal tests in tests/server.rs",
+]
+note = "flightdeck owns its error format, so every refusal is an RFC 9457 problem document with type about:blank, a title, the status and flightdeck's stable code."
+
+[[binding]]
+rule = "SVC-5"
+owners = ["src/server.rs", "src/open.rs"]
+checks = ["open_prints_two_lines_and_no_secret_and_stops_on_sigterm_with_exit_0 in tests/open.rs"]
+note = "flightdeck writes no request log. The test searches everything flightdeck prints and every refusal for the token and the launch code."
 
 [[decision]]
 id = "lanes"
@@ -56,12 +78,18 @@ realizations = ["clippy.toml", "src/spawn.rs"]
 rule = "CLI-7"
 paths = ["src/lib.rs"]
 owner = "Luke Randall"
-reason = "flightdeck mounts only crumbkit's commands list, schemas list and schemas show, and keeps no usage log yet."
-correction = "Start crumbkit-usage in main and mount `self usage` in the pull request that adds `flightdeck open`, which is the first command a person runs."
+reason = "flightdeck keeps no usage log yet, and the pull request that added `flightdeck open` left it out to keep that change to the server and its sign-in."
+correction = "Start crumbkit-usage in main and mount `self usage` before flightdeck's first release."
 
 [[exception]]
-rule = "CLI-8"
-paths = ["src/lib.rs"]
+rule = "CLI-1"
+paths = ["src/open.rs"]
 owner = "Luke Randall"
-reason = "flightdeck's only commands are crumbkit's own, which print through crumbkit::finish, and it writes no file, so it has no tests for a closed standard output or for Ctrl-C."
-correction = "Add both tests in the pull request that adds `flightdeck open`, which runs until Ctrl-C."
+reason = "crumbkit's Output prints only documents and failures, and `flightdeck open` prints two status lines while it serves. src/open.rs writes them to standard error, which it opens in one place."
+correction = "Write the lines through crumbkit's sink when crumbkit offers a writer for messages about a run."
+
+[[decision]]
+id = "open-exit"
+requirement = "`flightdeck open` exits with 0 when Ctrl-C, SIGTERM or the idle limit stops the server, and removes the opener page's directory first. A second Ctrl-C or SIGTERM while it stops ends the process at once with exit code 130. tests/open.rs tests Ctrl-C and SIGTERM, and tests/streams.rs tests a closed standard output."
+reason = "CLI-8 asks for exit code 130 on Ctrl-C because Ctrl-C usually interrupts a command before it has done its work. For `flightdeck open`, Ctrl-C is the normal way to finish, so the run succeeded. The forced exit keeps 130 because it interrupts the stop."
+realizations = ["src/open.rs", "tests/open.rs", "tests/streams.rs"]

@@ -1,5 +1,6 @@
 PATH                      ABOUT
-flightdeck                Start a local web page for a crumbkit tool (in development)
+flightdeck                Start a local web page for a crumbkit tool
+flightdeck open           Open a local web page that lists and runs a tool's commands
 flightdeck commands       Explore flightdeck's commands
 flightdeck commands list  List a branch of flightdeck's commands with their arguments, examples and columns
 flightdeck schemas        Explore the JSON documents that flightdeck prints

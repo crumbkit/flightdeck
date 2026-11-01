@@ -1,0 +1,626 @@
+//! The page's local HTTP server, driven in-process on a port the system
+//! picks. Each test loads shelf, one of crumbkit's example tools that
+//! `scripts/install-test-tools.sh` installs, writes the opener page, reads
+//! the launch code back from it, and sends plain HTTP requests. The clock is
+//! injected, so no test waits for a deadline.
+
+#![cfg(test)]
+
+#[path = "support/http.rs"]
+mod http;
+
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::{Duration, Instant};
+
+use crumbkit_flightdeck::model::{self, Tool};
+use crumbkit_flightdeck::opener::Opener;
+use crumbkit_flightdeck::server::{
+    BODY_LIMIT, Clock, Ended, IDLE_LIMIT, Listener, Server, Session, Settings,
+};
+use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
+use http::{Call, Reply, exchange, launch_code};
+
+/// The headers that every reply carries, with their values.
+const SECURITY_HEADERS: [(&str, &str); 6] = [
+    ("Cache-Control", "no-store"),
+    ("X-Content-Type-Options", "nosniff"),
+    ("Referrer-Policy", "no-referrer"),
+    ("Cross-Origin-Resource-Policy", "same-origin"),
+    ("Cross-Origin-Opener-Policy", "same-origin"),
+    (
+        "Content-Security-Policy",
+        "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    ),
+];
+
+/// A clock that moves only when a test moves it.
+struct FakeClock {
+    start: Instant,
+    millis: AtomicU64,
+}
+
+impl FakeClock {
+    fn new() -> Self {
+        Self {
+            start: Instant::now(),
+            millis: AtomicU64::new(0),
+        }
+    }
+
+    /// Moves the clock forward by `by`.
+    fn advance(&self, by: Duration) {
+        let millis = u64::try_from(by.as_millis()).unwrap();
+        self.millis.fetch_add(millis, Ordering::SeqCst);
+    }
+}
+
+impl Clock for FakeClock {
+    fn now(&self) -> Instant {
+        self.start + Duration::from_millis(self.millis.load(Ordering::SeqCst))
+    }
+}
+
+/// Returns shelf's model, loaded once for every test.
+fn shelf() -> &'static Tool {
+    static SHELF: OnceLock<Tool> = OnceLock::new();
+    SHELF.get_or_init(|| {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/test-tools/bin/shelf");
+        assert!(
+            path.is_file(),
+            "{} is missing; run scripts/install-test-tools.sh to install shelf and reading",
+            path.display()
+        );
+        let dirs = tempfile::tempdir().unwrap();
+        let program = Program::new(path)
+            .env("XDG_CONFIG_HOME", dirs.path().join("config"))
+            .env("XDG_DATA_HOME", dirs.path().join("data"))
+            .env("XDG_STATE_HOME", dirs.path().join("state"))
+            .env("XDG_CACHE_HOME", dirs.path().join("cache"));
+        model::load(&program, TIME_LIMIT).unwrap()
+    })
+}
+
+/// A server that runs on a thread of the test, and what the test knows
+/// about it.
+struct Running<'a> {
+    port: u16,
+    code: String,
+    page: PathBuf,
+    clock: &'a FakeClock,
+}
+
+impl Running<'_> {
+    /// Exchanges the launch code and returns the token.
+    fn token(&self) -> String {
+        exchange(self.port, &self.code)
+    }
+
+    /// Sends `GET /api/model` with `token`.
+    fn model(&self, token: &str) -> Reply {
+        Call::get(self.port, "/api/model")
+            .bearer(token)
+            .send(self.port)
+    }
+}
+
+/// What the harness does once the test's requests are done.
+enum Then {
+    /// Stop the server, as Ctrl-C does.
+    Stop,
+    /// Wait for the server to stop by itself.
+    Wait,
+}
+
+/// Starts a server for shelf, runs `test` against it, and returns how the
+/// server ended and whether the opener page's directory remained.
+fn serving(read_only: bool, test: impl FnOnce(&Running<'_>) -> Then) -> Ended {
+    let clock = FakeClock::new();
+    let settings = Settings::new().poll(Duration::from_millis(5));
+    let listener = Listener::bind().unwrap();
+    let port = listener.port();
+    let session = Session::new(clock.now()).unwrap();
+    let opener = Opener::write(&listener.origin(), session.launch_code().unwrap()).unwrap();
+    let code = launch_code(&std::fs::read_to_string(opener.page()).unwrap());
+    let server = Server::new(listener, session, shelf(), read_only, settings).unwrap();
+    let stop = AtomicBool::new(false);
+    std::thread::scope(|scope| {
+        let handle = scope.spawn(|| server.run(&clock, &stop));
+        let running = Running {
+            port,
+            code,
+            page: opener.page().to_path_buf(),
+            clock: &clock,
+        };
+        // A failed assertion in `test` unwinds through the guard, which
+        // stops the server, so the scope can join its thread.
+        let guard = StopOnDrop(&stop);
+        match test(&running) {
+            Then::Stop => drop(guard),
+            Then::Wait => std::mem::forget(guard),
+        }
+        handle.join().unwrap().unwrap()
+    })
+}
+
+/// Sets the stop flag when it is dropped.
+struct StopOnDrop<'a>(&'a AtomicBool);
+
+impl Drop for StopOnDrop<'_> {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::SeqCst);
+    }
+}
+
+/// Asserts that `reply` is a refusal with `status` and `code`.
+fn assert_refused(reply: &Reply, status: u16, code: &str) {
+    assert_eq!(
+        (reply.status, reply.code().as_str()),
+        (status, code),
+        "{}",
+        String::from_utf8_lossy(&reply.body)
+    );
+    assert_eq!(
+        reply.header("Content-Type"),
+        Some("application/problem+json")
+    );
+}
+
+#[test]
+fn a_request_without_a_token_gets_401_with_a_problem_document() {
+    serving(false, |page| {
+        let reply = Call::get(page.port, "/api/model").send(page.port);
+
+        assert_refused(&reply, 401, "flightdeck::session::unauthorized");
+        assert_eq!(reply.json()["status"], 401);
+        assert_eq!(reply.header("WWW-Authenticate"), Some("Bearer"));
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_wrong_token_of_the_right_length_gets_401() {
+    serving(false, |page| {
+        let token = page.token();
+        let wrong: String = token
+            .chars()
+            .map(|c| if c == '0' { '1' } else { '0' })
+            .collect();
+        assert_eq!(wrong.len(), token.len());
+
+        assert_refused(
+            &page.model(&wrong),
+            401,
+            "flightdeck::session::unauthorized",
+        );
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_malformed_authorization_header_gets_401() {
+    serving(false, |page| {
+        let token = page.token();
+        for value in [
+            format!("Basic {token}"),
+            format!("bearer {token}"),
+            format!("Bearer  {token}"),
+            format!("Bearer {token}0"),
+            format!("Bearer {token}, Bearer {token}"),
+            "Bearer".to_owned(),
+            String::new(),
+        ] {
+            let reply = Call::get(page.port, "/api/model")
+                .header("Authorization", &value)
+                .send(page.port);
+            assert_refused(&reply, 401, "flightdeck::session::unauthorized");
+        }
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_launch_code_exchanges_for_a_token_of_64_hex_digits_that_opens_the_api() {
+    serving(false, |page| {
+        let token = page.token();
+
+        assert_eq!(token.len(), 64);
+        assert!(token.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_eq!(page.model(&token).status, 200);
+        Then::Stop
+    });
+}
+
+#[test]
+fn the_same_launch_code_a_second_time_is_refused() {
+    serving(false, |page| {
+        page.token();
+
+        let body = format!(r#"{{"code":"{}"}}"#, page.code);
+        let reply = Call::post(page.port, "/api/session", &body).send(page.port);
+
+        assert_refused(&reply, 401, "flightdeck::session::code_refused");
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_launch_code_older_than_60_seconds_is_refused() {
+    serving(false, |page| {
+        page.clock.advance(Duration::from_secs(61));
+
+        let body = format!(r#"{{"code":"{}"}}"#, page.code);
+        let reply = Call::post(page.port, "/api/session", &body).send(page.port);
+
+        assert_refused(&reply, 401, "flightdeck::session::code_refused");
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_wrong_launch_code_is_refused_and_leaves_the_right_one_valid() {
+    serving(false, |page| {
+        let wrong = "0".repeat(page.code.len());
+        let reply = Call::post(
+            page.port,
+            "/api/session",
+            &format!(r#"{{"code":"{wrong}"}}"#),
+        )
+        .send(page.port);
+        assert_refused(&reply, 401, "flightdeck::session::code_refused");
+
+        assert_eq!(page.model(&page.token()).status, 200);
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_session_body_that_is_not_the_exchange_document_is_refused() {
+    serving(false, |page| {
+        for body in ["", "{", r#"{"code":7}"#, r#"{"code":"a","extra":1}"#] {
+            let reply = Call::post(page.port, "/api/session", body).send(page.port);
+            assert_refused(&reply, 400, "flightdeck::request::body");
+        }
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_host_other_than_the_servers_own_address_is_refused() {
+    serving(false, |page| {
+        let token = page.token();
+        for host in [
+            format!("localhost:{}", page.port),
+            "127.0.0.1".to_owned(),
+            format!("127.0.0.1:{}", page.port + 1),
+            format!("evil.example:{}", page.port),
+        ] {
+            let reply = Call::get(page.port, "/api/model")
+                .bearer(&token)
+                .header("Host", &host)
+                .send(page.port);
+            assert_refused(&reply, 403, "flightdeck::request::host");
+        }
+        let reply = Call::get(page.port, "/").without("Host").send(page.port);
+        assert_refused(&reply, 403, "flightdeck::request::host");
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_foreign_origin_is_refused_on_any_method() {
+    serving(false, |page| {
+        let token = page.token();
+        let foreign = format!("http://localhost:{}", page.port);
+        let get = Call::get(page.port, "/api/model")
+            .bearer(&token)
+            .header("Origin", &foreign)
+            .send(page.port);
+        let post = Call::post(page.port, "/api/session", r#"{"code":"0"}"#)
+            .header("Origin", "http://evil.example")
+            .send(page.port);
+
+        assert_refused(&get, 403, "flightdeck::request::origin");
+        assert_refused(&post, 403, "flightdeck::request::origin");
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_post_without_an_origin_is_refused() {
+    serving(false, |page| {
+        let body = format!(r#"{{"code":"{}"}}"#, page.code);
+        let reply = Call::post(page.port, "/api/session", &body)
+            .without("Origin")
+            .send(page.port);
+
+        assert_refused(&reply, 403, "flightdeck::request::origin");
+        assert_eq!(page.model(&page.token()).status, 200);
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_cross_site_or_same_site_request_is_refused() {
+    serving(false, |page| {
+        let token = page.token();
+        for site in ["cross-site", "same-site"] {
+            let get = Call::get(page.port, "/api/model")
+                .bearer(&token)
+                .header("Sec-Fetch-Site", site)
+                .send(page.port);
+            let script = Call::get(page.port, "/")
+                .header("Sec-Fetch-Site", site)
+                .header("Sec-Fetch-Mode", "no-cors")
+                .send(page.port);
+            assert_refused(&get, 403, "flightdeck::request::cross_site");
+            assert_refused(&script, 403, "flightdeck::request::cross_site");
+        }
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_cross_site_navigation_to_the_page_is_served_because_the_opener_page_starts_one() {
+    serving(false, |page| {
+        let token = page.token();
+        let navigate = |path: &str| {
+            Call::get(page.port, path)
+                .bearer(&token)
+                .header("Sec-Fetch-Site", "cross-site")
+                .header("Sec-Fetch-Mode", "navigate")
+                .send(page.port)
+        };
+
+        assert_eq!(navigate("/").status, 200);
+        assert_refused(
+            &navigate("/api/model"),
+            403,
+            "flightdeck::request::cross_site",
+        );
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_same_origin_request_is_served() {
+    serving(false, |page| {
+        let token = page.token();
+        let reply = Call::get(page.port, "/api/model")
+            .bearer(&token)
+            .header("Sec-Fetch-Site", "same-origin")
+            .header("Origin", &format!("http://127.0.0.1:{}", page.port))
+            .send(page.port);
+
+        assert_eq!(reply.status, 200);
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_post_that_is_not_json_is_refused() {
+    serving(false, |page| {
+        let body = format!("code={}", page.code);
+        for content_type in [
+            Some("application/x-www-form-urlencoded"),
+            Some("text/plain"),
+            Some("multipart/form-data; boundary=x"),
+            None,
+        ] {
+            let call = Call::post(page.port, "/api/session", &body);
+            let call = match content_type {
+                Some(value) => call.header("Content-Type", value),
+                None => call.without("Content-Type"),
+            };
+            assert_refused(
+                &call.send(page.port),
+                415,
+                "flightdeck::request::content_type",
+            );
+        }
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_json_content_type_with_a_charset_is_accepted() {
+    serving(false, |page| {
+        let body = format!(r#"{{"code":"{}"}}"#, page.code);
+        let reply = Call::post(page.port, "/api/session", &body)
+            .header("Content-Type", "application/json; charset=utf-8")
+            .send(page.port);
+
+        assert_eq!(reply.status, 200);
+        Then::Stop
+    });
+}
+
+#[test]
+fn an_options_request_is_refused_without_cors_headers() {
+    serving(false, |page| {
+        let reply = Call::new("OPTIONS", page.port, "/api/session")
+            .header("Origin", &format!("http://127.0.0.1:{}", page.port))
+            .header("Access-Control-Request-Method", "POST")
+            .send(page.port);
+
+        assert_refused(&reply, 405, "flightdeck::request::method");
+        assert!(
+            reply
+                .headers
+                .iter()
+                .all(|(name, _)| !name.to_ascii_lowercase().starts_with("access-control-")),
+            "{:?}",
+            reply.headers
+        );
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_body_over_the_size_limit_is_refused() {
+    serving(false, |page| {
+        let reply = Call::post(page.port, "/api/session", "")
+            .body(vec![b' '; BODY_LIMIT + 1])
+            .send(page.port);
+
+        assert_refused(&reply, 413, "flightdeck::request::too_large");
+        Then::Stop
+    });
+}
+
+#[test]
+fn an_unknown_path_gets_404_and_an_unknown_api_path_needs_the_token_first() {
+    serving(false, |page| {
+        let token = page.token();
+
+        let unknown = Call::get(page.port, "/nothing-here").send(page.port);
+        let api_without_token = Call::get(page.port, "/api/nothing").send(page.port);
+        let api_with_token = Call::get(page.port, "/api/nothing")
+            .bearer(&token)
+            .send(page.port);
+
+        assert_refused(&unknown, 404, "flightdeck::request::not_found");
+        assert_refused(&api_without_token, 401, "flightdeck::session::unauthorized");
+        assert_refused(&api_with_token, 404, "flightdeck::request::not_found");
+        Then::Stop
+    });
+}
+
+#[test]
+fn every_reply_carries_the_security_headers_and_no_cors_header() {
+    serving(false, |page| {
+        let token = page.token();
+        let replies = [
+            Call::get(page.port, "/").send(page.port),
+            page.model(&token),
+            Call::get(page.port, "/api/model").send(page.port),
+            Call::get(page.port, "/nothing-here").send(page.port),
+            Call::get(page.port, "/")
+                .header("Host", "localhost")
+                .send(page.port),
+            Call::new("OPTIONS", page.port, "/").send(page.port),
+            Call::post(page.port, "/api/session", "")
+                .body(vec![b' '; BODY_LIMIT + 1])
+                .send(page.port),
+        ];
+
+        for reply in &replies {
+            for (name, value) in SECURITY_HEADERS {
+                assert_eq!(
+                    reply.header(name),
+                    Some(value),
+                    "{name} on a {} reply",
+                    reply.status
+                );
+            }
+            assert_eq!(reply.header("Access-Control-Allow-Origin"), None);
+        }
+        Then::Stop
+    });
+}
+
+#[test]
+fn the_root_path_serves_the_placeholder_page_as_html() {
+    serving(false, |page| {
+        let reply = Call::get(page.port, "/").send(page.port);
+
+        assert_eq!(reply.status, 200);
+        assert_eq!(
+            reply.header("Content-Type"),
+            Some("text/html; charset=utf-8")
+        );
+        assert!(String::from_utf8_lossy(&reply.body).contains("not built yet"));
+        Then::Stop
+    });
+}
+
+#[test]
+fn the_model_route_returns_shelfs_model_with_read_only_as_started() {
+    for read_only in [false, true] {
+        serving(read_only, |page| {
+            let reply = page.model(&page.token());
+
+            assert_eq!(reply.status, 200);
+            assert_eq!(reply.header("Content-Type"), Some("application/json"));
+            let model = reply.json();
+            assert_eq!(model["read_only"], read_only);
+            assert_eq!(model["tool"]["name"], "shelf");
+            assert_eq!(model["tool"]["commands"].as_array().unwrap().len(), 9);
+            let books_show = &model["tool"]["commands"][1];
+            assert_eq!(books_show["path"], serde_json::json!(["books", "show"]));
+            assert_eq!(books_show["arguments"][0]["name"], "<ID>");
+            assert_eq!(books_show["arguments"][0]["arity"]["kind"], "many");
+            assert_eq!(books_show["effects"]["read_only"], true);
+            assert_eq!(
+                model["tool"]["links"][0]["target"],
+                serde_json::json!(["books", "show"])
+            );
+            Then::Stop
+        });
+    }
+}
+
+#[test]
+fn the_server_stops_by_itself_after_the_idle_limit() {
+    let ended = serving(false, |page| {
+        page.clock.advance(IDLE_LIMIT);
+        Then::Wait
+    });
+
+    assert_eq!(ended, Ended::Idle);
+}
+
+#[test]
+fn an_authenticated_request_restarts_the_idle_limit() {
+    let ended = serving(false, |page| {
+        let token = page.token();
+        page.clock.advance(IDLE_LIMIT - Duration::from_secs(60));
+        assert_eq!(page.model(&token).status, 200);
+        page.clock.advance(IDLE_LIMIT - Duration::from_secs(60));
+
+        assert_eq!(page.model(&token).status, 200);
+        Then::Stop
+    });
+
+    assert_eq!(ended, Ended::Stopped);
+}
+
+#[test]
+fn a_refused_request_does_not_restart_the_idle_limit() {
+    let ended = serving(false, |page| {
+        page.clock.advance(IDLE_LIMIT - Duration::from_secs(60));
+        Call::get(page.port, "/api/model")
+            .bearer(&"0".repeat(64))
+            .send(page.port);
+        page.clock.advance(Duration::from_secs(60));
+        Then::Wait
+    });
+
+    assert_eq!(ended, Ended::Idle);
+}
+
+#[cfg(unix)]
+#[test]
+fn the_opener_page_is_private_to_the_user_and_holds_the_code_only_in_its_fragment() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    serving(false, |page| {
+        let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&page.page), 0o600);
+        assert_eq!(mode(page.page.parent().unwrap()), 0o700);
+
+        let html = std::fs::read_to_string(&page.page).unwrap();
+        let origin = format!("http://127.0.0.1:{}/#code=", page.port);
+        assert_eq!(page.code.len(), 64);
+        let uses: Vec<usize> = html.match_indices(&page.code).map(|(at, _)| at).collect();
+        assert!(!uses.is_empty());
+        for at in uses {
+            assert!(
+                html[..at].ends_with(&origin),
+                "the code at byte {at} is not in the fragment: {html}"
+            );
+        }
+        Then::Stop
+    });
+}

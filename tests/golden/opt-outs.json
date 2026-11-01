@@ -1,4 +1,22 @@
 {
   "schema": "flightdeck/opt-outs/v1",
-  "data": []
+  "data": [],
+  "customisations": [
+    {
+      "declaration": "root-verbs",
+      "applies_to": "flightdeck open",
+      "declares": "Each command sits directly under the root as a verb, and root help lists it under the heading Verbs.",
+      "reason": "flightdeck opens a page for a tool, and a tool is no resource of flightdeck's own."
+    },
+    {
+      "declaration": "example-precondition",
+      "applies_to": "flightdeck open shelf",
+      "declares": "The example runs only in a test run that provides browser."
+    },
+    {
+      "declaration": "example-precondition",
+      "applies_to": "flightdeck open ./target/debug/shelf --read-only --no-browser",
+      "declares": "The example runs only in a test run that provides browser."
+    }
+  ]
 }
