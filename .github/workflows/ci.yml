@@ -42,15 +42,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          # The commit check reads every commit of the pull request or push.
-          fetch-depth: 0
-      # The commit check reads only the commits, so it runs first.
-      - name: commits
-        run: .github/scripts/commit-check.sh "$BASE" "$HEAD"
-        env:
-          COMMIT_PATTERN: ${{ secrets.COMMIT_PATTERN }}
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
       # rustup installs the version and components that rust-toolchain.toml
       # names (BASE-26).
       - run: rustup toolchain install

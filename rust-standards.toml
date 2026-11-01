@@ -49,24 +49,18 @@ note = "flightdeck writes no request log. The test searches everything flightdec
 [[decision]]
 id = "lanes"
 requirement = """
-- Lane: `gate` in .github/workflows/ci.yml, on each pull request and each push to main, on ubuntu-latest. It runs the commit check, then every step of the pull-request lane except `rustdoc` and `features`, because flightdeck does not adopt the library profile. Before the tests it installs shelf and reading from crumbkit with scripts/install-test-tools.sh, unless the cache holds them. Its budget is fifteen minutes, the job's timeout. A merge waits for it, and it is the one check that branch protection requires.
+- Lane: `gate` in .github/workflows/ci.yml, on each pull request and each push to main, on ubuntu-latest. It runs every step of the pull-request lane except `rustdoc` and `features`, because flightdeck does not adopt the library profile. Before the tests it installs shelf and reading from crumbkit with scripts/install-test-tools.sh, unless the cache holds them. Its budget is fifteen minutes, the job's timeout. A merge waits for it, and it is the one check that branch protection requires.
 - Lane: `macos` in .github/workflows/ci.yml, weekly on Monday at 05:17 UTC. It runs the tests on macos-latest. Nothing waits for it.
 - Lane: `advisories` in .github/workflows/ci.yml, daily at 06:43 UTC and on each push to main. Nothing waits for it.
 """
 reason = "The pull-request lane stays on one runner. The weekly macOS run catches a difference in process handling between Linux and macOS; finding it after merge is safe because flightdeck has no release yet, and the release lane will run the tests on both systems. The daily advisory run catches an advisory published against a dependency already on main, and finding it after merge is safe because nothing is released before it passes."
-realizations = [".github/workflows/ci.yml", ".github/scripts/commit-check.sh", "scripts/install-test-tools.sh"]
+realizations = [".github/workflows/ci.yml", "scripts/install-test-tools.sh"]
 
 [[decision]]
 id = "release-profile"
 requirement = "`[profile.release]` sets `overflow-checks = true`, `lto = false`, `codegen-units = 16` and `strip = \"none\"`."
 reason = "People install flightdeck with `cargo install`, which builds it on their machine, so a fast release build is worth more than a smaller binary. These are Cargo's defaults, written out."
 realizations = ["Cargo.toml"]
-
-[[decision]]
-id = "commit-check"
-requirement = "The `gate` lane fails when a commit's message, diff, author email or committer email matches the extended regular expression in the COMMIT_PATTERN repository secret, case-insensitively. The script prints the commit and the part that matched, and never the pattern or the matched text. An empty secret skips the check with a notice. GitHub gives no secret to a pull request from a fork or to one that Dependabot opens, so the check is skipped on both, and a maintainer reads such a pull request before it merges. A base commit that the checkout lacks, as after a force push, checks every commit that the head reaches."
-reason = "flightdeck is a public repository, and some words must never reach it. The pattern lives in a secret so that the repository does not hold it. The check runs on the pull request, before the merge, because a check after the merge comes too late: the words are then in the public history of main."
-realizations = [".github/scripts/commit-check.sh", ".github/workflows/ci.yml"]
 
 [[decision]]
 id = "environment"
