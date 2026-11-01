@@ -1,12 +1,12 @@
-//! The refusals and failures of a run, each with a stable code.
+//! The refusals of a run before it starts, and the codes of every refusal
+//! and failure of a run.
 
 use std::fmt;
 
 use crumbkit::{Code, Failure, FieldValue, Recovery};
 
 use super::RunId;
-use crate::model::{exit_code, last_lines};
-use crate::spawn::{Exit, Limit, SpawnError};
+use crate::spawn::SpawnError;
 
 /// The code of a request that the tool's model does not allow: an unknown
 /// path, argument or value.
@@ -45,7 +45,8 @@ pub const RUN_CLOSED: Code = Code::new("flightdeck", "run", "closed");
 /// The code of a system that gives no random bytes.
 pub const RUN_RANDOM: Code = Code::new("flightdeck", "run", "random");
 
-/// A run that was refused or that failed.
+/// A run that the runner refused, or that could not start. How a started
+/// run fails is an [`EndFailure`](super::EndFailure).
 #[derive(Debug, Failure)]
 pub enum RunFailure {
     /// The tool's model does not allow the request.
@@ -53,14 +54,18 @@ pub enum RunFailure {
         code = RUN_REFUSED,
         hint = "choose the command and its values from the tool's commands list",
         field(
-            path = path.as_str(),
+            path = FieldValue::list(path.iter().map(String::as_str)),
             argument = text_or_null(argument.as_deref()),
             reason = reason.name(),
+            index = reason.index().map_or(FieldValue::Null, FieldValue::from),
+            takes = reason.takes().map_or(FieldValue::Null, |takes| FieldValue::from(takes.name())),
+            earlier = text_or_null(reason.earlier()),
         ),
     )]
     Refused {
-        /// The command's path, such as `books list`.
-        path: String,
+        /// The command's path as the page sent it, one word at a time, such
+        /// as `["books", "list"]`.
+        path: Vec<String>,
         /// The argument at fault, or `None` for an unknown path.
         argument: Option<String>,
         /// Why the runner refused the request.
@@ -97,34 +102,7 @@ pub enum RunFailure {
         /// What is wrong with the id.
         problem: ConfirmationProblem,
     },
-    /// The run ended without a document that explains its exit.
-    ///
-    /// Its sentence and its hint name only the command's path, because they
-    /// may reach a log. The line, with every value, is a field for the page.
-    #[failure(
-        code = RUN_NO_DOCUMENT,
-        hint = "run the command line of the line field in a terminal to see what it prints",
-        field(
-            path = path.as_str(),
-            line = line.as_str(),
-            exit = exit_code(*exit),
-            meaning = text_or_null(meaning.as_deref()),
-            stderr = FieldValue::list(stderr.iter().map(String::as_str)),
-        ),
-    )]
-    NoDocument {
-        /// The command's path, such as `books remove`.
-        path: String,
-        /// The command line that ran, with `--dry-run` for a dry run.
-        line: String,
-        /// How the child ended.
-        exit: Exit,
-        /// The meaning that the tool declares for the exit code.
-        meaning: Option<String>,
-        /// The last lines of the child's standard error.
-        stderr: Vec<String>,
-    },
-    /// The program would not start, or flightdeck could not follow it.
+    /// The program would not start.
     #[failure(
         code = RUN_SPAWN,
         hint = "check that {tool} exists and runs",
@@ -135,18 +113,6 @@ pub enum RunFailure {
         tool: String,
         /// What went wrong.
         source: SpawnError,
-    },
-    /// The run's standard output passed a limit, so flightdeck stopped it.
-    #[failure(
-        code = RUN_OUTPUT_LIMIT,
-        hint = "narrow the command with its arguments, such as a smaller --limit",
-        field(limit = limit_name(*limit), bytes = *bytes),
-    )]
-    OutputLimit {
-        /// The limit that the output passed.
-        limit: Limit,
-        /// The limit in bytes.
-        bytes: usize,
     },
     /// The most runs are running.
     #[failure(code = RUN_BUSY, recovery = Recovery::Retry, field(most = *most))]
@@ -181,29 +147,11 @@ pub enum RunFailure {
 impl RunFailure {
     /// Returns the refusal of `argument` of the command at `path` for
     /// `reason`.
-    pub(super) fn refused(path: String, argument: Option<&str>, reason: Reason) -> Self {
+    pub(super) fn refused(path: &[String], argument: Option<&str>, reason: Reason) -> Self {
         Self::Refused {
-            path,
+            path: path.to_vec(),
             argument: argument.map(str::to_owned),
             reason,
-        }
-    }
-
-    /// Returns the failure of a run of the command at `path` as `line` that
-    /// ended with `exit` and no document, with the declared `meaning` of its
-    /// exit and the last lines of `stderr`.
-    pub(super) fn no_document(
-        (path, line): (String, String),
-        exit: Exit,
-        meaning: Option<String>,
-        stderr: &[u8],
-    ) -> Self {
-        Self::NoDocument {
-            path,
-            line,
-            exit,
-            meaning,
-            stderr: last_lines(stderr),
         }
     }
 }
@@ -217,7 +165,12 @@ impl fmt::Display for RunFailure {
                 path,
                 argument,
                 reason,
-            } => refusal(f, path, argument.as_deref().unwrap_or_default(), reason),
+            } => refusal(
+                f,
+                &path.join(" "),
+                argument.as_deref().unwrap_or_default(),
+                reason,
+            ),
             Self::NeedsConfirmation { path } => write!(
                 f,
                 "{path} may destroy data, so it runs only after a preview and a confirmation"
@@ -233,19 +186,7 @@ impl fmt::Display for RunFailure {
                     "the confirmation id was issued for another command line"
                 }
             }),
-            Self::NoDocument { path, exit, .. } => match exit {
-                Exit::Code(code) => {
-                    write!(f, "{path} exited with {code} and printed no document")
-                }
-                Exit::Signal | Exit::TimedOut | Exit::Unknown => {
-                    write!(f, "{path} was ended by a signal and printed no document")
-                }
-            },
             Self::Spawn { tool, .. } => write!(f, "cannot run {tool}"),
-            Self::OutputLimit { limit, bytes } => match limit {
-                Limit::Line => write!(f, "the command printed a line longer than {bytes} bytes"),
-                Limit::Total => write!(f, "the command printed more than {bytes} bytes"),
-            },
             Self::Busy { most } => write!(f, "{most} runs are running, which is the most at once"),
             Self::NotRunning { run: Some(run) } => write!(f, "run {} is not running", run.0),
             Self::NotRunning { run: None } => f.write_str("no run has that id"),
@@ -266,13 +207,13 @@ fn refusal(f: &mut fmt::Formatter<'_>, path: &str, argument: &str, reason: &Reas
         Reason::Arity { takes } => write!(f, "{argument} of {path} takes {}", takes.words()),
         // The value may be anything the page sent, so the sentence leaves it
         // out.
-        Reason::NotPossible => {
+        Reason::NotPossible { .. } => {
             write!(
                 f,
                 "{argument} of {path} does not take the value it was sent"
             )
         }
-        Reason::Control => write!(
+        Reason::Control { .. } => write!(
             f,
             "a value of {argument} of {path} holds a control character, which the command line cannot show"
         ),
@@ -315,12 +256,20 @@ pub enum Reason {
     },
     /// The value is not one of the argument's possible values. The reason
     /// leaves the value out, because it may be anything the page sent.
-    NotPossible,
+    NotPossible {
+        /// Which item of a list value, counted from 0, or `None` for an
+        /// argument that takes one value.
+        index: Option<usize>,
+    },
     /// A value holds a control character, such as a NUL byte, a newline or
     /// an escape, or a bidirectional control. A NUL byte reaches no
     /// program, and the others would make the display line show something
     /// other than what runs.
-    Control,
+    Control {
+        /// Which item of a list value, counted from 0, or `None` for an
+        /// argument that takes one value.
+        index: Option<usize>,
+    },
     /// A positional value follows a positional argument without one, which
     /// the tool would read as the earlier argument's value.
     Skipped {
@@ -346,10 +295,40 @@ impl Reason {
             Self::UnknownArgument => "unknown_argument",
             Self::Reserved => "reserved",
             Self::Arity { .. } => "arity",
-            Self::NotPossible => "not_possible",
-            Self::Control => "control",
+            Self::NotPossible { .. } => "not_possible",
+            Self::Control { .. } => "control",
             Self::Skipped { .. } => "skipped",
             Self::Grouped => "grouped",
+        }
+    }
+
+    /// Returns which item of a list value the reason is about, for the
+    /// `index` field.
+    #[must_use]
+    pub const fn index(&self) -> Option<usize> {
+        match self {
+            Self::NotPossible { index } | Self::Control { index } => *index,
+            _ => None,
+        }
+    }
+
+    /// Returns what the argument takes, for the `takes` field of an arity
+    /// refusal.
+    #[must_use]
+    pub const fn takes(&self) -> Option<Takes> {
+        match self {
+            Self::Arity { takes } => Some(*takes),
+            _ => None,
+        }
+    }
+
+    /// Returns the earlier positional argument without a value, for the
+    /// `earlier` field of a skipped positional.
+    #[must_use]
+    pub fn earlier(&self) -> Option<&str> {
+        match self {
+            Self::Skipped { earlier } => Some(earlier),
+            _ => None,
         }
     }
 }
@@ -366,6 +345,16 @@ pub enum Takes {
 }
 
 impl Takes {
+    /// Returns the name in a failure's `takes` field, such as `one`.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Flag => "flag",
+            Self::One => "one",
+            Self::Many => "many",
+        }
+    }
+
     /// Returns the words of a refusal, such as `one value`.
     const fn words(self) -> &'static str {
         match self {
@@ -400,14 +389,6 @@ impl ConfirmationProblem {
 }
 
 /// Returns `text` as a field's value, or null.
-fn text_or_null(text: Option<&str>) -> FieldValue<'_> {
+pub(super) fn text_or_null(text: Option<&str>) -> FieldValue<'_> {
     text.map_or(FieldValue::Null, FieldValue::from)
-}
-
-/// Returns the limit's name in a failure's fields.
-const fn limit_name(limit: Limit) -> &'static str {
-    match limit {
-        Limit::Line => "line",
-        Limit::Total => "total",
-    }
 }

@@ -34,6 +34,7 @@
 
 mod clock;
 mod confirmations;
+mod end_failure;
 mod failure;
 mod outcome;
 mod request;
@@ -49,6 +50,7 @@ use std::time::Duration;
 pub use self::clock::{Clock, SystemClock};
 pub use self::confirmations::ConfirmationId;
 use self::confirmations::Confirmations;
+pub use self::end_failure::EndFailure;
 pub use self::failure::{
     ConfirmationProblem, RUN_BUSY, RUN_CLOSED, RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION,
     RUN_NO_DOCUMENT, RUN_NOT_RUNNING, RUN_OUTPUT_LIMIT, RUN_RANDOM, RUN_READ_ONLY, RUN_REFUSED,
@@ -62,7 +64,7 @@ use self::trace::Trace;
 pub(crate) use self::vector::Argv;
 use self::vector::{Extra, Vector};
 use crate::model::{Command, Effects, Tool};
-use crate::spawn::{self, Event, Events, Program};
+use crate::spawn::{self, Event, Events, Exit, Program, Silent};
 pub use crate::spawn::{DRAIN_GRACE, Escalation, Limit, Limits, QUEUE};
 
 /// How long a confirmation id works after the preview that issued it.
@@ -177,16 +179,16 @@ impl Runner {
     ///
     /// # Errors
     ///
-    /// Returns [`RunFailure::Random`] when the system gives no random bytes
-    /// for the trace id.
+    /// Returns the error of the system's random source when it gives no
+    /// random bytes for the trace id.
     pub fn new(
         tool: Tool,
         program: Program,
         mode: Mode,
         clock: Arc<dyn Clock>,
         settings: Settings,
-    ) -> Result<Self, RunFailure> {
-        let trace = Trace::new().map_err(|source| RunFailure::Random { source })?;
+    ) -> Result<Self, getrandom::Error> {
+        let trace = Trace::new()?;
         Ok(Self {
             tool,
             program,
@@ -203,6 +205,12 @@ impl Runner {
     #[must_use]
     pub const fn tool(&self) -> &Tool {
         &self.tool
+    }
+
+    /// Returns which commands the runner may run.
+    #[must_use]
+    pub const fn mode(&self) -> Mode {
+        self.mode
     }
 
     /// Starts the command of `request` when it is read-only or additive.
@@ -351,6 +359,7 @@ impl Runner {
             line: vector.line(Extra::None),
             events: Some(events),
             last: None,
+            exit: None,
             ending: Ending::new(&self.tool, command, vector.line(extra), limits),
         })
     }
@@ -426,6 +435,15 @@ pub enum RunEvent {
     Outcome(Outcome),
 }
 
+/// What a wait of at most a given time for a run's next event found.
+#[derive(Debug)]
+pub enum Waited {
+    /// The run's next event.
+    Event(RunEvent),
+    /// No event arrived within the time.
+    Silent,
+}
+
 /// A started run, which yields its events in order.
 ///
 /// The run holds at most [`QUEUE`] lines that the caller has not read, and
@@ -440,6 +458,7 @@ pub struct Run {
     line: String,
     events: Option<Events>,
     last: Option<String>,
+    exit: Option<Exit>,
     ending: Ending,
 }
 
@@ -456,16 +475,29 @@ impl Run {
     pub fn line(&self) -> &str {
         &self.line
     }
-}
 
-/// Yields each line of standard output as it arrives, then the outcome.
-/// Waiting for the next event blocks until the child prints a line or the
-/// run ends.
-impl Iterator for Run {
-    type Item = RunEvent;
+    /// Returns how the child ended once the run has yielded its outcome, or
+    /// `None` before then and for a child that flightdeck could not follow
+    /// to its end.
+    #[must_use]
+    pub const fn exit(&self) -> Option<Exit> {
+        self.exit
+    }
 
-    fn next(&mut self) -> Option<RunEvent> {
-        let ended = match self.events.as_ref()?.recv()? {
+    /// Waits at most `timeout` for the next event, and returns
+    /// [`Waited::Silent`] when none arrived. It returns `None` once the
+    /// outcome has been returned.
+    pub fn next_timeout(&mut self, timeout: Duration) -> Option<Waited> {
+        match self.events.as_ref()?.recv_timeout(timeout) {
+            Ok(event) => self.read(event).map(Waited::Event),
+            Err(Silent) => Some(Waited::Silent),
+        }
+    }
+
+    /// Returns the run's event for `event`, the next event of its child,
+    /// and keeps the last line for the outcome.
+    fn read(&mut self, event: Option<Event>) -> Option<RunEvent> {
+        let ended = match event? {
             Event::Line(line) => {
                 self.last = Some(line.clone());
                 return Some(RunEvent::Line(line));
@@ -476,8 +508,21 @@ impl Iterator for Run {
             }
         };
         self.events = None;
+        self.exit = ended.as_ref().ok().map(spawn::Ended::exit);
         let outcome = self.ending.outcome(self.last.as_deref(), ended);
         Some(RunEvent::Outcome(outcome))
+    }
+}
+
+/// Yields each line of standard output as it arrives, then the outcome.
+/// Waiting for the next event blocks until the child prints a line or the
+/// run ends.
+impl Iterator for Run {
+    type Item = RunEvent;
+
+    fn next(&mut self) -> Option<RunEvent> {
+        let event = self.events.as_ref()?.recv();
+        self.read(event)
     }
 }
 
@@ -526,30 +571,57 @@ impl Preview {
     pub fn run_id(&self) -> Option<RunId> {
         self.dry_run.as_ref().map(|dry_run| dry_run.run.id())
     }
-}
 
-/// Yields each event of the dry run, and nothing for a command without
-/// `--dry-run`. When the dry run ends with [`Outcome::Result`] the preview
-/// issues its id, and when the system gives no random bytes
-/// for the id the outcome is [`RunFailure::Random`] instead.
-impl Iterator for Preview {
-    type Item = RunEvent;
+    /// Returns how the dry run's child ended, as [`Run::exit`] does, or
+    /// `None` for a command without `--dry-run`.
+    #[must_use]
+    pub fn exit(&self) -> Option<Exit> {
+        self.dry_run.as_ref().and_then(|dry_run| dry_run.run.exit())
+    }
 
-    fn next(&mut self) -> Option<RunEvent> {
-        let dry_run = self.dry_run.as_mut()?;
-        let event = dry_run.run.next()?;
+    /// Waits at most `timeout` for the dry run's next event, as
+    /// [`Run::next_timeout`] does, and issues the id as the preview's
+    /// iterator does. It returns `None` at once for a command without
+    /// `--dry-run`.
+    pub fn next_timeout(&mut self, timeout: Duration) -> Option<Waited> {
+        match self.dry_run.as_mut()?.run.next_timeout(timeout)? {
+            Waited::Event(event) => Some(Waited::Event(self.issue(event))),
+            Waited::Silent => Some(Waited::Silent),
+        }
+    }
+
+    /// Returns `event`, and issues the id when it is the dry run's outcome
+    /// [`Outcome::Result`]. When the system gives no random bytes for the
+    /// id, the outcome is [`EndFailure::Random`] instead.
+    fn issue(&mut self, event: RunEvent) -> RunEvent {
+        let Some(dry_run) = &self.dry_run else {
+            return event;
+        };
         let RunEvent::Outcome(Outcome::Result) = event else {
-            return Some(event);
+            return event;
         };
         let now = dry_run.clock.now();
-        Some(RunEvent::Outcome(
+        RunEvent::Outcome(
             match dry_run.confirmations.issue(dry_run.vector.clone(), now) {
                 Ok(confirmation) => {
                     self.confirmation = Some(confirmation);
                     Outcome::Result
                 }
-                Err(source) => Outcome::Failed(RunFailure::Random { source }),
+                Err(source) => Outcome::Failed(EndFailure::Random { source }),
             },
-        ))
+        )
+    }
+}
+
+/// Yields each event of the dry run, and nothing for a command without
+/// `--dry-run`. When the dry run ends with [`Outcome::Result`] the preview
+/// issues its id, and when the system gives no random bytes
+/// for the id the outcome is [`EndFailure::Random`] instead.
+impl Iterator for Preview {
+    type Item = RunEvent;
+
+    fn next(&mut self) -> Option<RunEvent> {
+        let event = self.dry_run.as_mut()?.run.next()?;
+        Some(self.issue(event))
     }
 }

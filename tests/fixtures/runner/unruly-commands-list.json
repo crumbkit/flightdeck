@@ -181,6 +181,40 @@
       "writes": null
     },
     {
+      "path": "unruly child wait",
+      "about": "Print three documents, then wait until SIGINT and exit with 130",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child spew",
+      "about": "Print the process id, then documents until a signal ends it",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
       "path": "unruly child wipe",
       "about": "Wipe the name it is given; its preview fails for the name bad and waits for SIGINT for the name slow",
       "long_about": null,
@@ -283,6 +317,39 @@
             "SECOND"
           ],
           "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": null,
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child linger",
+      "about": "Print its process id, ignore SIGINT and SIGTERM for some seconds, then print a document",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "<SECONDS>",
+          "short": null,
+          "value_names": [
+            "SECONDS"
+          ],
+          "required": true,
           "many": false,
           "defaults": [],
           "possible_values": [],

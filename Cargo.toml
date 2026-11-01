@@ -50,6 +50,10 @@ secrecy = { version = "0.10.3", default-features = false, features = ["serde"] }
 # signal-hook sets a flag on Ctrl-C and SIGTERM, which the server's loop
 # reads, so `flightdeck open` stops and removes its opener page.
 signal-hook = { version = "0.4.6", default-features = false }
+# humantime writes when a run started, as RFC 3339 text in UTC, on the first
+# line of its stream. crumbkit already depends on it. It has no default
+# features.
+humantime = { version = "2.4.0", default-features = false }
 # subtle compares a presented token or launch code with the real one in
 # constant time.
 subtle = { version = "2.6.1", default-features = false }

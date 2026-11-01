@@ -1,11 +1,9 @@
 //! Builds the argument vector of a run from a request, after checking each
 //! part of the request against the tool's model.
 
-use unicode_general_category::{GeneralCategory, get_general_category};
-
 use super::failure::{Reason, RunFailure, Takes};
 use super::request::{RunRequest, Value};
-use crate::model::{Argument, Arity, Command, CrumbkitFlag, Kind, Tool};
+use crate::model::{Argument, Arity, Command, CrumbkitFlag, Kind, Tool, has_control};
 
 #[cfg(test)]
 mod tests;
@@ -101,17 +99,18 @@ impl Vector {
 /// one of crumbkit's own flags other than `--limit` and `--all`, when a
 /// value is of the wrong kind, is not one of the argument's possible values
 /// or holds a control character, and when a positional value follows a
-/// positional argument without one.
+/// positional argument without one. The tool's model refused control
+/// characters in command words and argument names when it loaded.
 pub(super) fn build<'tool>(
     tool: &'tool Tool,
     request: &RunRequest,
 ) -> Result<(&'tool Command, Vector), RunFailure> {
-    let path = request.path().join(" ");
-    let words: Vec<&str> = request.path().iter().map(String::as_str).collect();
+    let path = request.path();
+    let words: Vec<&str> = path.iter().map(String::as_str).collect();
     let command = tool
         .command(&words)
-        .ok_or_else(|| RunFailure::refused(path.clone(), None, Reason::UnknownCommand))?;
-    let refuse = |argument: &str, reason| RunFailure::refused(path.clone(), Some(argument), reason);
+        .ok_or_else(|| RunFailure::refused(path, None, Reason::UnknownCommand))?;
+    let refuse = |argument: &str, reason| RunFailure::refused(path, Some(argument), reason);
 
     for name in request.values().keys() {
         let argument = command
@@ -127,8 +126,7 @@ pub(super) fn build<'tool>(
         }
     }
 
-    let mut line = Line::new(tool.name(), request.path())
-        .map_err(|()| RunFailure::refused(path.clone(), None, Reason::Control))?;
+    let mut line = Line::new(tool.name(), path);
     let mut options = Vec::new();
     let mut positionals = Vec::new();
     // The first positional argument without a value. A value of a later
@@ -157,16 +155,16 @@ pub(super) fn build<'tool>(
         if given.values.is_empty() && !given.flag {
             continue;
         }
-        if has_control(argument.name()) {
-            return Err(refuse(argument.name(), Reason::Control));
-        }
-        for value in &given.values {
+        // A list value names its item at fault, so the page can mark it.
+        let listed = matches!(argument.arity(), Arity::Many { .. });
+        for (index, value) in given.values.iter().enumerate() {
+            let index = listed.then_some(index);
             if has_control(value) {
-                return Err(refuse(argument.name(), Reason::Control));
+                return Err(refuse(argument.name(), Reason::Control { index }));
             }
             let possible = argument.possible_values();
             if !possible.is_empty() && !possible.contains(value) {
-                return Err(refuse(argument.name(), Reason::NotPossible));
+                return Err(refuse(argument.name(), Reason::NotPossible { index }));
             }
         }
         match (argument.kind(), given.flag) {
@@ -254,18 +252,16 @@ struct Line {
 }
 
 impl Line {
-    /// Starts the line with the tool's name and the command's path, or
-    /// refuses a word that holds a NUL byte.
-    fn new(tool: &str, path: &[String]) -> Result<Self, ()> {
-        let mut head = quote(tool)?;
+    /// Starts the line with the tool's name and the command's path.
+    fn new(tool: &str, path: &[String]) -> Self {
+        let mut head = quote_or_empty(tool);
         for word in path {
-            head.push(' ');
-            head.push_str(&quote(word)?);
+            push(&mut head, word);
         }
-        Ok(Self {
+        Self {
             head,
             tail: String::new(),
-        })
+        }
     }
 
     /// Adds a flag, such as `--all`.
@@ -299,35 +295,11 @@ fn push(text: &mut String, word: &str) {
     text.push_str(&quote_or_empty(word));
 }
 
-/// Returns true when `text` holds a control character, a format character
-/// (Unicode's category Cf, such as a bidirectional control, a zero-width
-/// space or a soft hyphen), or a line or paragraph separator, which a
-/// display line would show as something else or not at all.
-///
-/// RUST-10: the runner refuses such a value, which is plainer than
-/// quoting it. It handles every value that a person types on one line, and
-/// it misses a value that holds a newline or a tab, such as a note of
-/// several lines. Quoting each such character as `$'\n'` or `$'\u{202e}'`
-/// replaces the refusal when a tool takes such a value.
-fn has_control(text: &str) -> bool {
-    text.chars().any(|c| {
-        c.is_control()
-            || get_general_category(c) == GeneralCategory::Format
-            || matches!(c, '\u{2028}' | '\u{2029}')
-    })
-}
-
-/// Returns `word` quoted for a POSIX shell, or refuses a word that holds a
-/// NUL byte, which no shell word can hold.
-fn quote(word: &str) -> Result<String, ()> {
-    shlex::try_quote(word)
-        .map(|quoted| quoted.into_owned())
-        .map_err(|_| ())
-}
-
-/// Returns `word` quoted for a POSIX shell. `build` refuses every name and
-/// value with a control character, NUL among them, before it reaches the
-/// line, so the empty word of a refused quote never prints.
+/// Returns `word` quoted for a POSIX shell. A word that holds a NUL byte,
+/// which no shell word can hold, prints as the empty word `''`. The model
+/// refuses a tool whose name, command words or argument names hold a
+/// control character, NUL among them, when it loads, and `build` refuses
+/// every such value, so that word never prints.
 fn quote_or_empty(word: &str) -> String {
-    quote(word).unwrap_or_else(|()| "''".to_owned())
+    shlex::try_quote(word).map_or_else(|_| "''".to_owned(), |quoted| quoted.into_owned())
 }

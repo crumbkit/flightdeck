@@ -68,7 +68,7 @@ fn nothing_parseable_with_exit_130_is_cancelled_without_a_cancel() {
 
 #[test]
 fn a_signal_without_a_cancel_is_no_document_with_a_null_exit() {
-    let outcome = outcome(&ending(Form::Document), None, Exit::Signal, None, b"");
+    let outcome = outcome(&ending(Form::Document), None, Exit::Signal(9), None, b"");
 
     assert_eq!(field(&outcome, "exit"), Some(FieldValue::Null));
 }

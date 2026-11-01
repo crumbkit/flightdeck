@@ -28,10 +28,15 @@ fn many(texts: &[&str]) -> Value {
 
 fn reason(failure: &RunFailure) -> String {
     assert_eq!(failure.code(), &RUN_REFUSED);
+    field(failure, "reason")
+}
+
+/// Returns the debug print of the failure's field `name`.
+fn field(failure: &RunFailure, name: &str) -> String {
     failure
         .fields()
         .into_iter()
-        .find(|field| field.name() == "reason")
+        .find(|field| field.name() == name)
         .map(|field| format!("{:?}", field.value()))
         .unwrap()
 }
@@ -100,24 +105,39 @@ fn the_line_quotes_each_value_and_puts_the_separator_before_a_positional_that_st
 }
 
 #[test]
-fn a_value_of_the_wrong_arity_is_refused() {
+fn a_value_of_the_wrong_arity_is_refused_with_what_the_argument_takes_and_the_paths_words() {
     let tool = shelf();
 
-    for (path, name, value) in [
-        (&["books", "list"], "--all", Value::One("yes".to_owned())),
-        (&["books", "list"], "--limit", Value::Flag(true)),
-        (&["books", "show"], "<ID>", Value::One("2".to_owned())),
+    for (path, name, value, takes) in [
+        (
+            &["books", "list"],
+            "--all",
+            Value::One("yes".to_owned()),
+            "flag",
+        ),
+        (&["books", "list"], "--limit", Value::Flag(true), "one"),
+        (
+            &["books", "show"],
+            "<ID>",
+            Value::One("2".to_owned()),
+            "many",
+        ),
     ] {
         let request = RunRequest::new(path.iter().copied()).value(name, value);
 
         let failure = build(&tool, &request).unwrap_err();
 
         assert_eq!(reason(&failure), r#"Text("arity")"#, "{name}");
+        assert_eq!(field(&failure, "takes"), format!("Text({takes:?})"));
+        assert_eq!(
+            field(&failure, "path"),
+            format!("List([Text({:?}), Text({:?})])", path[0], path[1])
+        );
     }
 }
 
 #[test]
-fn a_value_that_holds_a_character_that_a_display_line_would_hide_is_refused() {
+fn a_value_that_holds_a_character_that_a_display_line_would_hide_is_refused_by_its_index() {
     let tool = shelf();
 
     let values = [
@@ -137,11 +157,12 @@ fn a_value_that_holds_a_character_that_a_display_line_would_hide_is_refused() {
         "2\u{e0001}",
     ];
     for value in values {
-        let request = RunRequest::new(["books", "show"]).value("<ID>", many(&[value]));
+        let request = RunRequest::new(["books", "show"]).value("<ID>", many(&["5", value]));
 
         let failure = build(&tool, &request).unwrap_err();
 
         assert_eq!(reason(&failure), r#"Text("control")"#, "{value:?}");
+        assert_eq!(field(&failure, "index"), "Unsigned(1)", "{value:?}");
     }
 }
 
@@ -156,6 +177,7 @@ fn a_positional_value_is_refused_when_an_earlier_positional_has_none() {
     let (_, vector) = build(&tool, &first).unwrap();
 
     assert_eq!(reason(&failure), r#"Text("skipped")"#);
+    assert_eq!(field(&failure, "earlier"), r#"Text("<FIRST>")"#);
     assert_eq!(vector.line(Extra::None), "unruly child pair x");
 }
 

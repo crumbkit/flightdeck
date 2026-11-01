@@ -16,8 +16,8 @@ use crumbkit_flightdeck::model::{self, Tool};
 use crumbkit_flightdeck::runner::{
     Clock, ConfirmationId, Escalation, Limits, Mode, Outcome, RUN_BUSY, RUN_CLOSED,
     RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION, RUN_NO_DOCUMENT, RUN_NOT_RUNNING, RUN_OUTPUT_LIMIT,
-    RUN_READ_ONLY, RUN_REFUSED, RUN_SPAWN, RunEvent, RunFailure, RunId, RunRequest, Runner,
-    Settings, SystemClock, Value,
+    RUN_READ_ONLY, RUN_REFUSED, RUN_SPAWN, RunEvent, RunId, RunRequest, Runner, Settings,
+    SystemClock, Value,
 };
 use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
 use tempfile::TempDir;
@@ -152,12 +152,12 @@ fn finish(run: impl Iterator<Item = RunEvent>) -> (Vec<String>, Outcome) {
 }
 
 /// Returns the code of a refusal or a failure.
-fn code(failure: &RunFailure) -> &'static crumbkit::Code {
+fn code(failure: &impl crumbkit::Failure) -> &'static crumbkit::Code {
     failure.code()
 }
 
 /// Returns the value of the failure's field `name`.
-fn field(failure: &RunFailure, name: &str) -> Option<FieldValue<'static>> {
+fn field(failure: &impl crumbkit::Failure, name: &str) -> Option<FieldValue<'static>> {
     failure
         .fields()
         .into_iter()
@@ -434,8 +434,8 @@ fn readings_stream_delivers_lines_while_the_child_still_runs() {
         program.env("READING_DIR", lists.path()),
         Mode::Full,
         Settings::new().escalation(Escalation::new(
-            Duration::from_secs(2),
-            Duration::from_secs(2),
+            Duration::from_secs(10),
+            Duration::from_secs(10),
         )),
     );
     let mut run = reading

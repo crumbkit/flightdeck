@@ -76,3 +76,16 @@ fn an_end_dropped_without_a_send_reaches_the_receiver_as_a_read_error() {
     };
     assert!(matches!(ended, Err(SpawnError::Read(_))));
 }
+
+#[test]
+fn a_wait_with_a_deadline_is_silent_until_a_line_arrives_and_then_returns_it() {
+    let (lines, _end, receiver) = queue(2);
+    let past = std::time::Instant::now();
+
+    let silent = receiver.recv_by(past);
+    assert!(lines.push("a".to_owned()));
+    let line = receiver.recv_by(past);
+
+    assert!(silent.is_err());
+    assert_eq!(text(line.unwrap()), Some("line a".to_owned()));
+}

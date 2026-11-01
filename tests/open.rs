@@ -23,6 +23,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStderr, Command, Stdio};
 
 use http::{Call, exchange, launch_code};
+use serde_json::json;
 
 /// Returns the path of shelf, and fails the test when the install script
 /// has not run.
@@ -85,9 +86,10 @@ impl Open {
         };
         let lines = [read_line(), read_line()];
         let port = lines[0]
-            .rsplit_once("http://127.0.0.1:")
-            .unwrap_or_else(|| panic!("no address in {lines:?}"))
-            .1
+            .strip_prefix("http://127.0.0.1:")
+            .and_then(|rest| rest.split_once(' '))
+            .unwrap_or_else(|| panic!("no address first in {lines:?}"))
+            .0
             .parse()
             .unwrap();
         let page = lines[1]
@@ -180,10 +182,9 @@ fn open_prints_two_lines_and_no_secret_and_stops_on_sigterm_with_exit_0() {
     let code = launch_code(&page_html);
     let port = open.port;
 
-    assert!(
-        open.lines[0].starts_with("shelf 0.1.0+git-31245d63b750 · 9 commands · http://127.0.0.1:"),
-        "{:?}",
-        open.lines
+    assert_eq!(
+        open.lines[0],
+        format!("http://127.0.0.1:{port} · shelf 0.1.0+git-31245d63b750 · 9 commands"),
     );
     assert_eq!(
         open.lines[1],
@@ -278,10 +279,47 @@ fn open_prints_the_control_characters_of_a_tools_version_escaped() {
 
     assert_eq!(exit, Some(0), "{printed}");
     assert!(
-        line.starts_with(
-            "fake 1.0\\u{1b}]52;c;aGk=\\u{7}\\u{d}\\u{202e} · 1 command · http://127.0.0.1:"
-        ),
+        line.ends_with(" · fake 1.0\\u{1b}]52;c;aGk=\\u{7}\\u{d}\\u{202e} · 1 command"),
         "{line:?}"
     );
     assert!(!line.chars().any(char::is_control), "{line:?}");
+}
+
+#[test]
+fn sigterm_during_a_streamed_run_lets_the_run_finish_and_its_stream_end_before_flightdeck_exits() {
+    let unruly = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/runner/unruly");
+    let open = Open::start_on(&unruly);
+    let directory = open.page.parent().unwrap().to_path_buf();
+    let port = open.port;
+    let token = exchange(
+        port,
+        &launch_code(&std::fs::read_to_string(&open.page).unwrap()),
+    );
+    let linger = json!({"path": ["child", "linger"], "values": {"<SECONDS>": "0.5"}});
+    let mut lines = Call::post(port, "/api/runs", &linger.to_string())
+        .bearer(&token)
+        .stream(port);
+    assert_eq!(lines.next_event().unwrap()["event"], "started");
+    let first = lines.next_event().unwrap();
+    let document: serde_json::Value =
+        serde_json::from_str(first["text"].as_str().unwrap()).unwrap();
+    let pid = rustix::process::Pid::from_raw(
+        i32::try_from(document["data"]["pid"].as_i64().unwrap()).unwrap(),
+    )
+    .unwrap();
+
+    // The child lingers for half a second, within the runner's shutdown
+    // grace, so it finishes by itself.
+    let (exit, printed) = open.stop(rustix::process::Signal::TERM);
+    let rest = lines.rest();
+
+    assert_eq!(exit, Some(0), "{printed}");
+    let ended = rest.last().unwrap();
+    assert_eq!(ended["event"], "ended", "{rest:?}");
+    assert_eq!(ended["outcome"]["kind"], "result");
+    assert!(
+        rustix::process::test_kill_process(pid).is_err(),
+        "the child outlived flightdeck"
+    );
+    assert!(!directory.exists(), "{} remains", directory.display());
 }

@@ -1,9 +1,9 @@
 # The runner's fake tool
 
 `unruly` is a shell script that stands in for a crumbkit tool in
-`tests/runner.rs`. It prints `unruly-commands-list.json` for
-`commands list`, an empty `schemas list`, and one command for each way a
-real tool can misbehave or a test needs:
+`tests/runner.rs`, `tests/routes.rs` and `tests/open.rs`. It prints
+`unruly-commands-list.json` for `commands list`, an empty `schemas list`,
+and one command for each way a real tool can misbehave or a test needs:
 
 - `child panic` exits with 101 and prints a panic on standard error.
 - `child hang` prints two lines and ignores SIGINT and SIGTERM.
@@ -20,7 +20,14 @@ real tool can misbehave or a test needs:
   prints a document and exits with 0 on SIGINT.
 - `child both` declares itself read-only and destructive at once.
 - `child pair` takes two optional positional values.
+- `child linger` prints its process id, then ignores SIGINT and SIGTERM
+  for the number of seconds that its one value gives, and then prints a
+  document.
 - `child adopt` moves into the process group of the program that started
   it, then ignores SIGINT and SIGTERM. It needs `perl`.
 - `child interrupt` prints a document, and on SIGINT prints 400 more and
   then a line that is no document.
+- `child wait` prints three documents, then waits until SIGINT, on which
+  it exits with 130.
+- `child spew` prints its process id, then prints documents until a
+  signal ends it.

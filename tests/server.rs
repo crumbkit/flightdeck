@@ -1,27 +1,26 @@
 //! The page's local HTTP server, driven in-process on a port the system
-//! picks. Each test loads shelf, one of crumbkit's example tools that
-//! `scripts/install-test-tools.sh` installs, writes the opener page, reads
-//! the launch code back from it, and sends plain HTTP requests. The clock is
-//! injected, so no test waits for a deadline.
+//! picks. Each test serves shelf, one of crumbkit's example tools that
+//! `scripts/install-test-tools.sh` installs, through `support/serving.rs`,
+//! and sends plain HTTP requests. The clock is injected, so no test waits
+//! for a deadline. `tests/routes.rs` tests the routes that run commands.
 
 #![cfg(test)]
 
 #[path = "support/http.rs"]
+#[expect(dead_code, reason = "these tests use only part of the shared client")]
 mod http;
+#[path = "support/serving.rs"]
+#[expect(dead_code, reason = "these tests use only part of the shared harness")]
+mod serving;
 
-use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::time::{Duration, Instant, SystemTime};
+use std::path::Path;
+use std::time::Duration;
 
-use crumbkit_flightdeck::model::{self, Tool};
-use crumbkit_flightdeck::opener::Opener;
 use crumbkit_flightdeck::server::{
-    BODY_LIMIT, CONNECTION_LIMIT, Clock, Ended, HEAD_LIMIT, HEADER_LIMIT, IDLE_LIMIT, Listener,
-    Moment, Server, Session, Settings,
+    BODY_LIMIT, CONNECTION_LIMIT, Ended, HEAD_LIMIT, HEADER_LIMIT, IDLE_LIMIT, Settings,
 };
-use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
-use http::{Call, Reply, exchange, launch_code, raw};
+use http::{Call, Reply, raw};
+use serving::{Setup, Then, serving};
 
 /// The headers that every reply carries, with their values.
 const SECURITY_HEADERS: [(&str, &str); 6] = [
@@ -35,142 +34,6 @@ const SECURITY_HEADERS: [(&str, &str); 6] = [
         "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
     ),
 ];
-
-/// A clock that moves only when a test moves it. Its monotonic time and
-/// its wall-clock time move apart when the test moves only the wall clock,
-/// as on a machine that sleeps.
-struct FakeClock {
-    start: Instant,
-    start_wall: SystemTime,
-    millis: AtomicU64,
-    wall_millis: AtomicU64,
-}
-
-impl FakeClock {
-    fn new() -> Self {
-        Self {
-            start: Instant::now(),
-            start_wall: SystemTime::now(),
-            millis: AtomicU64::new(0),
-            wall_millis: AtomicU64::new(0),
-        }
-    }
-
-    /// Moves both clocks forward by `by`.
-    fn advance(&self, by: Duration) {
-        let millis = u64::try_from(by.as_millis()).unwrap();
-        self.millis.fetch_add(millis, Ordering::SeqCst);
-        self.wall_millis.fetch_add(millis, Ordering::SeqCst);
-    }
-
-    /// Moves only the wall clock forward by `by`, as a machine's sleep
-    /// does on a system whose monotonic clock stops while it sleeps.
-    fn sleep(&self, by: Duration) {
-        let millis = u64::try_from(by.as_millis()).unwrap();
-        self.wall_millis.fetch_add(millis, Ordering::SeqCst);
-    }
-}
-
-impl Clock for FakeClock {
-    fn now(&self) -> Moment {
-        let millis = |clock: &AtomicU64| Duration::from_millis(clock.load(Ordering::SeqCst));
-        Moment::new(
-            self.start + millis(&self.millis),
-            self.start_wall + millis(&self.wall_millis),
-        )
-    }
-}
-
-/// Returns shelf's model, loaded once for every test.
-fn shelf() -> &'static Tool {
-    static SHELF: OnceLock<Tool> = OnceLock::new();
-    SHELF.get_or_init(|| {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/test-tools/bin/shelf");
-        assert!(
-            path.is_file(),
-            "{} is missing; run scripts/install-test-tools.sh to install shelf and reading",
-            path.display()
-        );
-        let dirs = tempfile::tempdir().unwrap();
-        let program = Program::new(path)
-            .env("XDG_CONFIG_HOME", dirs.path().join("config"))
-            .env("XDG_DATA_HOME", dirs.path().join("data"))
-            .env("XDG_STATE_HOME", dirs.path().join("state"))
-            .env("XDG_CACHE_HOME", dirs.path().join("cache"));
-        model::load(&program, TIME_LIMIT).unwrap()
-    })
-}
-
-/// A server that runs on a thread of the test, and what the test knows
-/// about it.
-struct Running<'a> {
-    port: u16,
-    code: String,
-    page: PathBuf,
-    clock: &'a FakeClock,
-}
-
-impl Running<'_> {
-    /// Exchanges the launch code and returns the token.
-    fn token(&self) -> String {
-        exchange(self.port, &self.code)
-    }
-
-    /// Sends `GET /api/model` with `token`.
-    fn model(&self, token: &str) -> Reply {
-        Call::get(self.port, "/api/model")
-            .bearer(token)
-            .send(self.port)
-    }
-}
-
-/// What the harness does once the test's requests are done.
-enum Then {
-    /// Stop the server, as Ctrl-C does.
-    Stop,
-    /// Wait for the server to stop by itself.
-    Wait,
-}
-
-/// Starts a server for shelf, runs `test` against it, and returns how the
-/// server ended and whether the opener page's directory remained.
-fn serving(read_only: bool, test: impl FnOnce(&Running<'_>) -> Then) -> Ended {
-    let clock = FakeClock::new();
-    let settings = Settings::new().poll(Duration::from_millis(5));
-    let listener = Listener::bind().unwrap();
-    let port = listener.port();
-    let session = Session::new(clock.now()).unwrap();
-    let opener = Opener::write(&listener.origin(), session.launch_code().unwrap()).unwrap();
-    let code = launch_code(&std::fs::read_to_string(opener.page()).unwrap());
-    let server = Server::new(listener, session, shelf(), read_only, settings).unwrap();
-    let stop = AtomicBool::new(false);
-    std::thread::scope(|scope| {
-        let handle = scope.spawn(|| server.run(&clock, &stop));
-        let running = Running {
-            port,
-            code,
-            page: opener.page().to_path_buf(),
-            clock: &clock,
-        };
-        // A failed assertion in `test` unwinds through the guard, which
-        // stops the server, so the scope can join its thread.
-        let guard = StopOnDrop(&stop);
-        match test(&running) {
-            Then::Stop => drop(guard),
-            Then::Wait => std::mem::forget(guard),
-        }
-        handle.join().unwrap().unwrap()
-    })
-}
-
-/// Sets the stop flag when it is dropped.
-struct StopOnDrop<'a>(&'a AtomicBool);
-
-impl Drop for StopOnDrop<'_> {
-    fn drop(&mut self) {
-        self.0.store(true, Ordering::SeqCst);
-    }
-}
 
 /// Asserts that `reply` is a refusal with `status` and `code`.
 fn assert_refused(reply: &Reply, status: u16, code: &str) {
@@ -188,7 +51,7 @@ fn assert_refused(reply: &Reply, status: u16, code: &str) {
 
 #[test]
 fn a_request_without_a_token_gets_401_with_a_problem_document() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let reply = Call::get(page.port, "/api/model").send(page.port);
 
         assert_refused(&reply, 401, "flightdeck::session::unauthorized");
@@ -200,7 +63,7 @@ fn a_request_without_a_token_gets_401_with_a_problem_document() {
 
 #[test]
 fn a_wrong_token_of_the_right_length_gets_401() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let token = page.token();
         let wrong: String = token
             .chars()
@@ -219,7 +82,7 @@ fn a_wrong_token_of_the_right_length_gets_401() {
 
 #[test]
 fn a_malformed_authorization_header_gets_401() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let token = page.token();
         for value in [
             format!("Basic {token}"),
@@ -241,7 +104,7 @@ fn a_malformed_authorization_header_gets_401() {
 
 #[test]
 fn a_launch_code_exchanges_for_a_token_of_64_hex_digits_that_opens_the_api() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let token = page.token();
 
         assert_eq!(token.len(), 64);
@@ -253,7 +116,7 @@ fn a_launch_code_exchanges_for_a_token_of_64_hex_digits_that_opens_the_api() {
 
 #[test]
 fn the_same_launch_code_a_second_time_is_refused() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         page.token();
 
         let body = format!(r#"{{"code":"{}"}}"#, page.code);
@@ -266,7 +129,7 @@ fn the_same_launch_code_a_second_time_is_refused() {
 
 #[test]
 fn a_launch_code_older_than_60_seconds_is_refused() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         page.clock.advance(Duration::from_secs(61));
 
         let body = format!(r#"{{"code":"{}"}}"#, page.code);
@@ -280,7 +143,7 @@ fn a_launch_code_older_than_60_seconds_is_refused() {
 #[test]
 fn a_launch_code_is_refused_once_the_wall_clock_passes_60_seconds_while_the_monotonic_clock_stood_still()
  {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         page.clock.sleep(Duration::from_secs(61));
 
         let body = format!(r#"{{"code":"{}"}}"#, page.code);
@@ -293,7 +156,7 @@ fn a_launch_code_is_refused_once_the_wall_clock_passes_60_seconds_while_the_mono
 
 #[test]
 fn a_wrong_launch_code_is_refused_and_leaves_the_right_one_valid() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let wrong = "0".repeat(page.code.len());
         let reply = Call::post(
             page.port,
@@ -310,7 +173,7 @@ fn a_wrong_launch_code_is_refused_and_leaves_the_right_one_valid() {
 
 #[test]
 fn a_session_body_that_is_not_the_exchange_document_is_refused() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         for body in ["", "{", r#"{"code":7}"#, r#"{"code":"a","extra":1}"#] {
             let reply = Call::post(page.port, "/api/session", body).send(page.port);
             assert_refused(&reply, 400, "flightdeck::request::body");
@@ -321,7 +184,7 @@ fn a_session_body_that_is_not_the_exchange_document_is_refused() {
 
 #[test]
 fn a_host_other_than_the_servers_own_address_is_refused() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let token = page.token();
         for host in [
             format!("localhost:{}", page.port),
@@ -343,7 +206,7 @@ fn a_host_other_than_the_servers_own_address_is_refused() {
 
 #[test]
 fn a_foreign_origin_is_refused_on_any_method() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let token = page.token();
         let foreign = format!("http://localhost:{}", page.port);
         let get = Call::get(page.port, "/api/model")
@@ -362,7 +225,7 @@ fn a_foreign_origin_is_refused_on_any_method() {
 
 #[test]
 fn a_post_without_an_origin_is_refused() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let body = format!(r#"{{"code":"{}"}}"#, page.code);
         let reply = Call::post(page.port, "/api/session", &body)
             .without("Origin")
@@ -376,7 +239,7 @@ fn a_post_without_an_origin_is_refused() {
 
 #[test]
 fn a_cross_site_or_same_site_request_is_refused() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let token = page.token();
         for site in ["cross-site", "same-site"] {
             let get = Call::get(page.port, "/api/model")
@@ -396,7 +259,7 @@ fn a_cross_site_or_same_site_request_is_refused() {
 
 #[test]
 fn a_cross_site_navigation_to_the_page_is_served_because_the_opener_page_starts_one() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let token = page.token();
         let navigate = |path: &str| {
             Call::get(page.port, path)
@@ -418,7 +281,7 @@ fn a_cross_site_navigation_to_the_page_is_served_because_the_opener_page_starts_
 
 #[test]
 fn a_same_origin_request_is_served() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let token = page.token();
         let reply = Call::get(page.port, "/api/model")
             .bearer(&token)
@@ -433,7 +296,7 @@ fn a_same_origin_request_is_served() {
 
 #[test]
 fn a_post_that_is_not_json_is_refused() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let body = format!("code={}", page.code);
         for content_type in [
             Some("application/x-www-form-urlencoded"),
@@ -458,7 +321,7 @@ fn a_post_that_is_not_json_is_refused() {
 
 #[test]
 fn a_json_content_type_with_a_charset_is_accepted() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let body = format!(r#"{{"code":"{}"}}"#, page.code);
         let reply = Call::post(page.port, "/api/session", &body)
             .header("Content-Type", "application/json; charset=utf-8")
@@ -471,7 +334,7 @@ fn a_json_content_type_with_a_charset_is_accepted() {
 
 #[test]
 fn an_options_request_is_refused_without_cors_headers() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let reply = Call::new("OPTIONS", page.port, "/api/session")
             .header("Origin", &format!("http://127.0.0.1:{}", page.port))
             .header("Access-Control-Request-Method", "POST")
@@ -492,7 +355,7 @@ fn an_options_request_is_refused_without_cors_headers() {
 
 #[test]
 fn a_body_over_the_size_limit_is_refused() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let reply = Call::post(page.port, "/api/session", "")
             .body(vec![b' '; BODY_LIMIT + 1])
             .send(page.port);
@@ -504,7 +367,7 @@ fn a_body_over_the_size_limit_is_refused() {
 
 #[test]
 fn an_unknown_path_gets_404_and_an_unknown_api_path_needs_the_token_first() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let token = page.token();
 
         let unknown = Call::get(page.port, "/nothing-here").send(page.port);
@@ -522,7 +385,7 @@ fn an_unknown_path_gets_404_and_an_unknown_api_path_needs_the_token_first() {
 
 #[test]
 fn every_reply_carries_the_security_headers_and_no_cors_header() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let token = page.token();
         let replies = [
             Call::get(page.port, "/").send(page.port),
@@ -555,7 +418,7 @@ fn every_reply_carries_the_security_headers_and_no_cors_header() {
 
 #[test]
 fn the_root_path_serves_the_placeholder_page_as_html() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let reply = Call::get(page.port, "/").send(page.port);
 
         assert_eq!(reply.status, 200);
@@ -571,7 +434,12 @@ fn the_root_path_serves_the_placeholder_page_as_html() {
 #[test]
 fn the_model_route_returns_shelfs_model_with_read_only_as_started() {
     for read_only in [false, true] {
-        serving(read_only, |page| {
+        let setup = if read_only {
+            Setup::shelf().read_only()
+        } else {
+            Setup::shelf()
+        };
+        serving(setup, |page| {
             let reply = page.model(&page.token());
 
             assert_eq!(reply.status, 200);
@@ -596,7 +464,7 @@ fn the_model_route_returns_shelfs_model_with_read_only_as_started() {
 
 #[test]
 fn the_server_stops_by_itself_after_the_idle_limit() {
-    let ended = serving(false, |page| {
+    let ended = serving(Setup::shelf(), |page| {
         page.clock.advance(IDLE_LIMIT);
         Then::Wait
     });
@@ -606,7 +474,7 @@ fn the_server_stops_by_itself_after_the_idle_limit() {
 
 #[test]
 fn the_server_stops_after_the_idle_limit_by_the_wall_clock_while_the_monotonic_clock_stood_still() {
-    let ended = serving(false, |page| {
+    let ended = serving(Setup::shelf(), |page| {
         page.clock.sleep(IDLE_LIMIT);
         Then::Wait
     });
@@ -616,7 +484,7 @@ fn the_server_stops_after_the_idle_limit_by_the_wall_clock_while_the_monotonic_c
 
 #[test]
 fn an_authenticated_request_restarts_the_idle_limit() {
-    let ended = serving(false, |page| {
+    let ended = serving(Setup::shelf(), |page| {
         let token = page.token();
         page.clock.advance(IDLE_LIMIT - Duration::from_secs(60));
         assert_eq!(page.model(&token).status, 200);
@@ -631,7 +499,7 @@ fn an_authenticated_request_restarts_the_idle_limit() {
 
 #[test]
 fn a_refused_request_does_not_restart_the_idle_limit() {
-    let ended = serving(false, |page| {
+    let ended = serving(Setup::shelf(), |page| {
         page.clock.advance(IDLE_LIMIT - Duration::from_secs(60));
         Call::get(page.port, "/api/model")
             .bearer(&"0".repeat(64))
@@ -648,7 +516,7 @@ fn a_refused_request_does_not_restart_the_idle_limit() {
 fn the_opener_page_is_private_to_the_user_and_holds_the_code_only_in_its_fragment() {
     use std::os::unix::fs::PermissionsExt as _;
 
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode(&page.page), 0o600);
         assert_eq!(mode(page.page.parent().unwrap()), 0o700);
@@ -670,7 +538,7 @@ fn the_opener_page_is_private_to_the_user_and_holds_the_code_only_in_its_fragmen
 
 #[test]
 fn a_huge_declared_length_with_a_wrong_host_is_refused_and_the_server_still_answers() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         for length in [u64::MAX.to_string(), (1_u64 << 50).to_string()] {
             let head = format!(
                 "POST /api/session HTTP/1.1\r\nHost: localhost\r\nContent-Length: {length}\r\n\r\n"
@@ -687,7 +555,7 @@ fn a_huge_declared_length_with_a_wrong_host_is_refused_and_the_server_still_answ
 
 #[test]
 fn a_refused_request_whose_body_never_arrives_does_not_block_the_next_request() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let head = format!(
             "GET /api/model HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nContent-Length: 5000\r\n\r\n",
             page.port
@@ -703,7 +571,7 @@ fn a_refused_request_whose_body_never_arrives_does_not_block_the_next_request() 
 
 #[test]
 fn a_connection_over_the_connection_limit_is_refused_and_the_others_are_still_answered() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         // Each held connection sends part of a head and waits.
         let held: Vec<_> = (0..CONNECTION_LIMIT)
             .map(|_| raw(page.port, b"GET / HTTP/1.1\r\n"))
@@ -726,7 +594,7 @@ fn a_connection_over_the_connection_limit_is_refused_and_the_others_are_still_an
 
 #[test]
 fn a_request_head_over_the_size_limit_or_with_too_many_headers_is_refused() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let long = Call::get(page.port, "/")
             .header("X-Padding", &"a".repeat(HEAD_LIMIT))
             .send(page.port);
@@ -745,7 +613,7 @@ fn a_request_head_over_the_size_limit_or_with_too_many_headers_is_refused() {
 
 #[test]
 fn every_reply_closes_its_connection() {
-    serving(false, |page| {
+    serving(Setup::shelf(), |page| {
         let replies = [
             Call::get(page.port, "/").send(page.port),
             Call::get(page.port, "/api/model").send(page.port),
@@ -756,4 +624,44 @@ fn every_reply_closes_its_connection() {
         }
         Then::Stop
     });
+}
+
+#[test]
+fn a_session_request_whose_body_never_arrives_gets_408() {
+    let settings = Settings::new()
+        .poll(Duration::from_millis(5))
+        .request_time(Duration::from_millis(200));
+    serving(Setup::shelf().server(settings), |page| {
+        let head = format!(
+            "POST /api/session HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nOrigin: http://127.0.0.1:{port}\r\nContent-Type: application/json\r\nContent-Length: 80\r\n\r\n",
+            port = page.port
+        );
+
+        // The connection stays open and never sends the body it declares.
+        let held = raw(page.port, head.as_bytes());
+
+        assert_refused(&held.reply(), 408, "flightdeck::request::timeout");
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_token_that_arrives_after_the_idle_limit_is_refused_and_stops_the_server_before_its_next_poll()
+{
+    // The server next checks its idle time after 30 seconds, six times the
+    // harness's wait for a server to stop by itself, so only the refused
+    // request can stop it in time. A failed assertion stops it at that
+    // poll.
+    let settings = Settings::new().poll(Duration::from_secs(30));
+    let ended = serving(Setup::shelf().server(settings), |page| {
+        let token = page.token();
+        page.clock.advance(IDLE_LIMIT);
+
+        let reply = page.model(&token);
+
+        assert_refused(&reply, 401, "flightdeck::session::unauthorized");
+        Then::Wait
+    });
+
+    assert_eq!(ended, Ended::Idle);
 }

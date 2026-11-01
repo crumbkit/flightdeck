@@ -12,9 +12,9 @@ document and the listing envelope. It links none of the tool's code.
 
 ## Status
 
-`flightdeck open <TOOL>` starts the page's server and its sign-in. The page
-itself does not exist yet: the server serves a placeholder that says so, and
-it runs no command of the tool.
+`flightdeck open <TOOL>` starts the page's server, its sign-in and the
+routes that run the tool's commands. The page itself does not exist yet: the
+server serves a placeholder that says so.
 
 What works today:
 
@@ -23,19 +23,31 @@ What works today:
   browser:
 
   ```text
-  shelf 0.1.0 · 9 commands · http://127.0.0.1:52710
+  http://127.0.0.1:52710 · shelf 0.1.0 · 9 commands
   Opening the browser. Press Ctrl-C to stop flightdeck.
   ```
 
   With `--no-browser`, the second line names the opener page to open in a
-  browser, and flightdeck opens nothing. `--read-only` marks the page as one
-  that may run only the tool's read-only commands. The server stops on Ctrl-C,
-  on SIGTERM, and after 30 minutes without a request from the page.
+  browser, and flightdeck opens nothing. With `--read-only`, the page may
+  run only the tool's read-only commands. The server stops on Ctrl-C, on
+  SIGTERM, and after 30 minutes without a request from the page. When it
+  stops, it lets each run finish within five seconds and cancels the rest.
 - The browser signs in with a one-time launch code that the opener page
   holds in the URL's fragment, and exchanges it for a token that every API
   request carries. `GET /api/model` returns the tool's model as JSON.
   [docs/security.md](docs/security.md) states the threat model, every guard
   of the server and the test that proves it.
+- The page runs a command with `POST /api/runs`, previews a destructive
+  one with `POST /api/previews`, runs it once with the preview's id with
+  `POST /api/confirmations/<id>`, and cancels a run with
+  `POST /api/runs/<id>/cancel`. Each run route answers with a stream of
+  JSON lines: `started`, a `line` for each line that the tool prints,
+  `alive` after 15 seconds without output, and `ended` with the outcome,
+  the exit code and the duration. A request that the runner refuses gets
+  422 with flightdeck's failure document, a full or stopping runner gets
+  503, and a tool that will not start gets 500. A page that closes its
+  connection cancels its run. [docs/security.md](docs/security.md) states
+  the routes' shapes in full.
 - `flightdeck commands list`, `flightdeck schemas list` and
   `flightdeck schemas show`, crumbkit's own commands, describe flightdeck
   itself. [docs/commands.md](docs/commands.md) is the reference.
@@ -45,7 +57,8 @@ What works today:
   commands, their arguments, the goal headings that group them, the
   documents they print with their JSON Schemas, and the links between
   them. It sets crumbkit's own flags, such as `--json` and `--limit`, apart
-  from the tool's own arguments.
+  from the tool's own arguments. It refuses a tool whose name, command
+  words or argument names hold a control character.
 
 - The library's `runner` module runs one of the tool's commands from a
   structured request: the command's path and a value for each argument by
@@ -54,7 +67,9 @@ What works today:
   kind or outside the argument's possible values, and every crumbkit flag
   except `--limit` and `--all`. It also refuses a value with a control
   character, and a positional value after a positional argument without
-  one. It builds the argument vector itself, with each option as one
+  one. Each refusal names the command's path as a list of words, the
+  argument, the reason, and, where they apply, the item of a list value,
+  what the argument takes and the earlier positional argument. It builds the argument vector itself, with each option as one
   `--name=value` word and the positional values after `--`, and it never
   runs a shell. It delivers each line of standard output as it arrives and
   ends with an outcome. A destructive command, or one that declares no

@@ -1,9 +1,9 @@
 //! A plain HTTP/1.1 client for the server tests. It writes each request
 //! byte by byte over a new connection, so a test controls every header,
 //! including `Host`, and reads the whole reply after the server closes the
-//! connection.
+//! connection, or a stream's body one line at a time.
 
-use std::io::{Read as _, Write as _};
+use std::io::{BufRead as _, BufReader, Read as _, Write as _};
 use std::net::TcpStream;
 
 /// One request that a test sends.
@@ -70,6 +70,36 @@ impl Call {
 
     /// Sends the request to the server on `port` and returns its reply.
     pub(crate) fn send(self, port: u16) -> Reply {
+        let mut stream = self.write(port);
+        let mut bytes = Vec::new();
+        // A server may reset a connection whose request it refused before
+        // reading all of it, after it has sent its reply.
+        let _ = stream.read_to_end(&mut bytes);
+        Reply::parse(&bytes)
+    }
+
+    /// Sends the request to the server on `port`, reads the head of its
+    /// reply, and returns the reply, whose body the test reads one line at
+    /// a time.
+    pub(crate) fn stream(self, port: u16) -> Lines {
+        let mut reader = BufReader::new(self.write(port));
+        let mut head = String::new();
+        loop {
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            if line == "\r\n" || line.is_empty() {
+                break;
+            }
+            head.push_str(&line);
+        }
+        let mut reply = Reply::parse(format!("{head}\r\n").as_bytes());
+        reply.body.clear();
+        Lines { reply, reader }
+    }
+
+    /// Connects to the server on `port`, writes the request, and returns
+    /// the connection.
+    fn write(self, port: u16) -> TcpStream {
         let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
         let mut request = format!("{} {} HTTP/1.1\r\n", self.method, self.path);
         for (name, value) in &self.headers {
@@ -83,11 +113,42 @@ impl Call {
         // A server that refuses a request before it reads the body may
         // close the connection while the body is still being written.
         let _ = stream.write_all(&self.body);
-        let mut bytes = Vec::new();
-        // A server may reset a connection whose request it refused before
-        // reading all of it, after it has sent its reply.
-        let _ = stream.read_to_end(&mut bytes);
-        Reply::parse(&bytes)
+        stream
+    }
+}
+
+/// A reply whose body the test reads one JSON line at a time.
+pub(crate) struct Lines {
+    pub(crate) reply: Reply,
+    reader: BufReader<TcpStream>,
+}
+
+impl Lines {
+    /// Returns the next line of the body as JSON, or `None` once the server
+    /// has closed the connection.
+    pub(crate) fn next(&mut self) -> Option<serde_json::Value> {
+        let mut line = String::new();
+        match self.reader.read_line(&mut line) {
+            Ok(0) | Err(_) => None,
+            Ok(_) => Some(
+                serde_json::from_str(&line).unwrap_or_else(|error| panic!("{error}: {line:?}")),
+            ),
+        }
+    }
+
+    /// Returns the next line that is no `alive` line.
+    pub(crate) fn next_event(&mut self) -> Option<serde_json::Value> {
+        loop {
+            let line = self.next()?;
+            if line["event"] != "alive" {
+                return Some(line);
+            }
+        }
+    }
+
+    /// Returns every line until the server closes the connection.
+    pub(crate) fn rest(mut self) -> Vec<serde_json::Value> {
+        std::iter::from_fn(|| self.next()).collect()
     }
 }
 

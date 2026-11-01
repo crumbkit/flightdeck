@@ -8,31 +8,46 @@
 //! `http` reads its head within [`HEAD_LIMIT`] bytes and [`REQUEST_TIME`],
 //! the request passes the checks of `request::check`, and only then may its
 //! route read a body of at most [`BODY_LIMIT`] bytes. Every reply carries the
-//! security headers of `reply` and `Connection: close`, and a route may
-//! write its body one line at a time. The routes are these:
+//! security headers of `reply` and `Connection: close`. The routes are these:
 //!
 //! - `POST /api/session` exchanges the launch code for the token, once.
 //! - `GET /api/model` returns the tool's model and whether the page is
-//!   read-only. It needs the token.
-//! - Any other `/api/` path needs the token, and then gets 404.
+//!   read-only.
+//! - `POST /api/runs` starts a run, `POST /api/previews` starts a preview,
+//!   and `POST /api/confirmations/<id>` starts a confirmed run. Each takes a
+//!   [`RunRequest`] and answers with the stream of `stream`, or with the
+//!   runner's failure document and the status of `failure_status`.
+//! - `POST /api/runs/<id>/cancel` cancels a run, and answers 204, or 404
+//!   when the run is not running.
+//! - Any other `/api/` path gets 404.
 //! - `GET /` and the other asset paths serve the embedded page.
 //!
-//! `docs/security.md` states what these guards defend against.
+//! Every `/api/` path except `/api/session` needs the token. One
+//! [`Runner`] serves every connection. When the server stops, it stops
+//! accepting, lets the runner's shutdown end every run, and then joins
+//! every thread (SVC-2). After the runner's shutdown, each stream has one
+//! write time in all to write its remaining lines. `docs/security.md` states what these
+//! guards defend against.
 
 mod assets;
+mod document;
 mod http;
 mod reply;
 mod request;
 mod secret;
 mod session;
+mod stream;
+
+#[cfg(test)]
+mod tests;
 
 use std::collections::BTreeMap;
 use std::fmt;
 use std::io;
-use std::net::{Ipv4Addr, Shutdown, TcpListener, TcpStream};
-use std::sync::Mutex;
+use std::net::{Ipv4Addr, Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TryRecvError};
+use std::sync::{Mutex, OnceLock};
 use std::thread::Scope;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -42,10 +57,12 @@ use serde::{Deserialize, Serialize};
 use self::assets::Asset;
 pub use self::http::{BODY_LIMIT, HEAD_LIMIT, HEADER_LIMIT, REQUEST_TIME, WRITE_TIME};
 use self::reply::{Refusal, Replies, Reply};
-use self::request::{API, Address, Method};
+use self::request::{API, Address, Head, Method};
 pub use self::session::{CODE_LIFETIME, Session};
+use self::stream::{Pacing, Stream};
 use crate::lock::lock;
 use crate::model::Tool;
+use crate::runner::{MOST_RUNS, Mode, RunFailure, RunRequest, Runner};
 
 /// How long the server runs without an authenticated request.
 pub const IDLE_LIMIT: Duration = Duration::from_secs(30 * 60);
@@ -57,6 +74,15 @@ pub const POLL: Duration = Duration::from_millis(250);
 /// The most connections that the server holds at once. A connection over
 /// the limit gets a 503 reply and is closed.
 pub const CONNECTION_LIMIT: usize = 16;
+
+/// How long a stream goes without output before the server writes an
+/// `alive` line, which also tells it whether the client is still there.
+pub const KEEPALIVE: Duration = Duration::from_secs(15);
+
+// Each run's stream holds a connection until the run ends, and a cancel
+// needs a connection of its own. The runner's cap leaves at least half the
+// connections free while every run streams.
+const _: () = assert!(MOST_RUNS * 2 <= CONNECTION_LIMIT);
 
 /// The source of the current time, which tests replace to move time on
 /// without waiting.
@@ -95,6 +121,12 @@ impl Moment {
         Self { monotonic, wall }
     }
 
+    /// Returns the moment by the wall clock.
+    #[must_use]
+    pub const fn wall(self) -> SystemTime {
+        self.wall
+    }
+
     /// Returns how long has passed from `earlier` to this moment: the
     /// longer of the two clocks' measures. A wall clock set back measures
     /// no time.
@@ -111,15 +143,22 @@ impl Moment {
 pub struct Settings {
     idle_limit: Duration,
     poll: Duration,
+    keepalive: Duration,
+    request_time: Duration,
+    write_time: Duration,
 }
 
 impl Settings {
-    /// Returns the settings with [`IDLE_LIMIT`] and [`POLL`].
+    /// Returns the settings with [`IDLE_LIMIT`], [`POLL`], [`KEEPALIVE`],
+    /// [`REQUEST_TIME`] and [`WRITE_TIME`].
     #[must_use]
     pub const fn new() -> Self {
         Self {
             idle_limit: IDLE_LIMIT,
             poll: POLL,
+            keepalive: KEEPALIVE,
+            request_time: REQUEST_TIME,
+            write_time: WRITE_TIME,
         }
     }
 
@@ -134,6 +173,28 @@ impl Settings {
     #[must_use]
     pub const fn poll(mut self, poll: Duration) -> Self {
         self.poll = poll;
+        self
+    }
+
+    /// Returns the settings with `keepalive` in place of [`KEEPALIVE`].
+    #[must_use]
+    pub const fn keepalive(mut self, keepalive: Duration) -> Self {
+        self.keepalive = keepalive;
+        self
+    }
+
+    /// Returns the settings with `request_time` in place of
+    /// [`REQUEST_TIME`].
+    #[must_use]
+    pub const fn request_time(mut self, request_time: Duration) -> Self {
+        self.request_time = request_time;
+        self
+    }
+
+    /// Returns the settings with `write_time` in place of [`WRITE_TIME`].
+    #[must_use]
+    pub const fn write_time(mut self, write_time: Duration) -> Self {
+        self.write_time = write_time;
         self
     }
 }
@@ -233,11 +294,12 @@ struct Exchange {
     code: SecretString,
 }
 
-/// The server: its listener, its session and the replies it gives.
+/// The server: its listener, what its connections share, and the channel
+/// on which the watcher learns of a failure or a closed session.
 pub struct Server {
     listener: Listener,
     shared: Shared,
-    settings: Settings,
+    wakes: Receiver<Wake>,
 }
 
 /// What every connection's thread reads, and the session it changes.
@@ -247,12 +309,25 @@ struct Shared {
     model: Vec<u8>,
     replies: Replies,
     connections: Connections,
+    runner: Runner,
+    settings: Settings,
+    wake: SyncSender<Wake>,
+    cut_off: OnceLock<Instant>,
+}
+
+/// Why the watcher wakes before its poll.
+#[derive(Debug)]
+enum Wake {
+    /// The accept thread stopped on this error.
+    Failed(io::Error),
+    /// A request found the session closed by the idle limit.
+    Closed,
 }
 
 impl Server {
     /// Returns the server that answers on `listener` with `session`, and
-    /// serves the model of `tool`, marked `read_only` when the page may run
-    /// only its read-only commands.
+    /// runs commands with `runner`. It serves the model of the runner's
+    /// tool, marked read-only when the runner is.
     ///
     /// # Errors
     ///
@@ -261,114 +336,116 @@ impl Server {
     pub fn new(
         listener: Listener,
         session: Session,
-        tool: &Tool,
-        read_only: bool,
+        runner: Runner,
         settings: Settings,
     ) -> Result<Self, StartError> {
-        let model =
-            serde_json::to_vec(&ModelReply { read_only, tool }).map_err(StartError::Json)?;
+        let model = serde_json::to_vec(&ModelReply {
+            read_only: runner.mode() == Mode::ReadOnly,
+            tool: runner.tool(),
+        })
+        .map_err(StartError::Json)?;
+        // One waiting wake is enough: the watcher stops at the first.
+        let (wake, wakes) = mpsc::sync_channel(1);
         Ok(Self {
             shared: Shared {
                 address: Address::new(listener.port()),
                 session: Mutex::new(session),
                 model,
-                replies: Replies::new()?,
+                replies: Replies::new(settings.write_time)?,
                 connections: Connections::default(),
+                runner,
+                settings,
+                wake,
+                cut_off: OnceLock::new(),
             },
             listener,
-            settings,
+            wakes,
         })
     }
 
     /// Serves until `stop` is set or the idle limit passes, and returns
     /// which happened. It checks both each time [`Settings::poll`] passes.
-    /// Before it returns, it closes every open connection and joins every
-    /// thread it started.
+    ///
+    /// Before it returns, it stops accepting connections, shuts the runner
+    /// down, which lets each run end within the runner's shutdown grace and
+    /// cancels the rest, closes the reading side of every open connection,
+    /// and joins every thread it started. A stream whose run ended writes its
+    /// `ended` line before its thread ends. Once the runner's shutdown has
+    /// returned, each stream has [`Settings::write_time`] in all to write
+    /// the lines it has left, so the stop takes at most that long after the
+    /// runner's shutdown.
     ///
     /// # Errors
     ///
     /// Returns the error of a listener that stopped accepting connections.
     pub fn run(self, clock: &dyn Clock, stop: &AtomicBool) -> io::Result<Ended> {
-        let shared = &self.shared;
-        let listener = &self.listener.listener;
-        let closing = AtomicBool::new(false);
-        let (failed, failure) = mpsc::channel();
+        let Self {
+            listener,
+            shared,
+            wakes,
+        } = self;
+        let shared = &shared;
+        let socket = &listener.listener;
+        // Dropping `closing` is the closing signal, which the accept thread
+        // reads from `closed`.
+        let (closing, closed) = mpsc::channel::<()>();
         std::thread::scope(|scope| {
-            let closing = &closing;
-            let acceptor =
-                scope.spawn(move || accept(scope, listener, shared, clock, closing, &failed));
-            let ended = self.watch(clock, stop, &failure);
-            // The accept thread sees `closing` once it accepts again, so
+            let acceptor = scope.spawn(move || accept(scope, socket, shared, clock, &closed));
+            let ended = shared.watch(clock, stop, &wakes);
+            drop(closing);
+            // The accept thread sees the signal once it accepts again, so
             // the server connects to itself to wake it. When the connect
-            // fails, the accept thread has already ended.
-            closing.store(true, Ordering::SeqCst);
-            drop(TcpStream::connect((
-                Ipv4Addr::LOCALHOST,
-                self.listener.port,
-            )));
+            // fails, the accept thread has already ended. When the listen
+            // backlog is full, the connect gives up after one poll, and a
+            // connection already waiting in the backlog wakes the thread.
+            let own = SocketAddr::from((Ipv4Addr::LOCALHOST, listener.port));
+            drop(TcpStream::connect_timeout(&own, shared.settings.poll));
             // Once the accept thread has ended, no connection opens after
-            // the ones that `close_all` closes. A panic in it, which only a
+            // the ones that `close_reads` closes. A panic in it, which only a
             // broken invariant can cause, left no connection to close.
             acceptor.join().ok();
-            shared.connections.close_all();
+            shared.runner.shutdown();
+            // Every run has ended, so each stream has only its last lines
+            // left, and it has one write time in all to write them. A line
+            // already being written ends by its own deadline, which is no
+            // later.
+            let cut_off = Instant::now() + shared.settings.write_time;
+            shared.cut_off.set(cut_off).ok();
+            shared.connections.close_reads();
             ended
         })
     }
-
-    /// Waits until `stop` is set, the idle limit passes or the accept thread
-    /// fails.
-    fn watch(
-        &self,
-        clock: &dyn Clock,
-        stop: &AtomicBool,
-        failure: &Receiver<io::Error>,
-    ) -> io::Result<Ended> {
-        loop {
-            if stop.load(Ordering::SeqCst) {
-                return Ok(Ended::Stopped);
-            }
-            if lock(&self.shared.session).idle_for(clock.now()) >= self.settings.idle_limit {
-                return Ok(Ended::Idle);
-            }
-            match failure.recv_timeout(self.settings.poll) {
-                Ok(error) => return Err(error),
-                Err(RecvTimeoutError::Timeout) => {}
-                Err(RecvTimeoutError::Disconnected) => {
-                    return Err(io::Error::other("the server stopped accepting connections"));
-                }
-            }
-        }
-    }
 }
 
-/// Accepts connections until `closing` is set, and answers each on a thread
-/// of `scope`. A connection over [`CONNECTION_LIMIT`] gets a 503 reply. A
-/// failure to accept goes to `failed`, and ends the thread.
+/// Accepts connections until the closing signal, and answers each on a
+/// thread of `scope`. A connection over [`CONNECTION_LIMIT`] gets a 503
+/// reply. A failure for lack of descriptors, memory or buffers, or an
+/// aborted connection, waits one poll and accepts again. Any other failure
+/// wakes the watcher and ends the thread.
 fn accept<'scope>(
     scope: &'scope Scope<'scope, '_>,
     listener: &'scope TcpListener,
     shared: &'scope Shared,
     clock: &'scope dyn Clock,
-    closing: &'scope AtomicBool,
-    failed: &Sender<io::Error>,
+    closed: &Receiver<()>,
 ) {
     loop {
         let accepted = listener.accept();
-        if closing.load(Ordering::SeqCst) {
+        if matches!(closed.try_recv(), Err(TryRecvError::Disconnected)) {
             return;
         }
         let mut connection = match accepted {
             Ok((connection, _)) => connection,
+            Err(error) if passes(&error) => match closed.recv_timeout(shared.settings.poll) {
+                Err(RecvTimeoutError::Timeout) => continue,
+                Ok(()) | Err(RecvTimeoutError::Disconnected) => return,
+            },
             Err(error) => {
-                // The receiver is gone only after `run` has stopped watching.
-                failed.send(error).ok();
+                // A full channel already holds a wake that stops the server.
+                shared.wake.try_send(Wake::Failed(error)).ok();
                 return;
             }
         };
-        // A connection whose timeouts cannot be set is closed unanswered.
-        if connection.set_write_timeout(Some(WRITE_TIME)).is_err() {
-            continue;
-        }
         match shared.connections.admit(&connection) {
             Some(slot) => {
                 scope.spawn(move || {
@@ -376,41 +453,105 @@ fn accept<'scope>(
                     drop(slot);
                 });
             }
-            None => shared.refuse(&mut connection, Refusal::Busy),
+            None => shared.refuse_busy(&mut connection),
         }
     }
 }
 
+/// Returns true for a failure to accept that passes once the system frees
+/// a descriptor, memory or a buffer, or that ends one connection only.
+fn passes(error: &io::Error) -> bool {
+    use rustix::io::Errno;
+
+    Errno::from_io_error(error).is_some_and(|errno| {
+        [
+            Errno::MFILE,
+            Errno::NFILE,
+            Errno::CONNABORTED,
+            Errno::NOBUFS,
+            Errno::NOMEM,
+        ]
+        .contains(&errno)
+    })
+}
+
 impl Shared {
+    /// Waits until `stop` is set, the idle limit passes or a wake arrives
+    /// from `wakes`.
+    fn watch(
+        &self,
+        clock: &dyn Clock,
+        stop: &AtomicBool,
+        wakes: &Receiver<Wake>,
+    ) -> io::Result<Ended> {
+        loop {
+            if stop.load(Ordering::SeqCst) {
+                return Ok(Ended::Stopped);
+            }
+            if lock(&self.session).close_when_idle(clock.now(), self.settings.idle_limit) {
+                return Ok(Ended::Idle);
+            }
+            match wakes.recv_timeout(self.settings.poll) {
+                Ok(Wake::Failed(error)) => return Err(error),
+                Ok(Wake::Closed) | Err(RecvTimeoutError::Timeout) => {}
+                Err(RecvTimeoutError::Disconnected) => {
+                    return Err(io::Error::other("the server stopped accepting connections"));
+                }
+            }
+        }
+    }
+
     /// Reads one request from `connection`, answers it, and closes the
     /// connection.
     fn answer(&self, connection: &mut TcpStream, clock: &dyn Clock) {
-        let request = match http::read_request(connection) {
+        let request = match http::read_request(connection, self.settings.request_time) {
             Ok(Some(request)) => request,
             // A client that closes or stalls before its head ends gets no
             // reply.
-            Ok(None) => return,
+            Ok(None) => {
+                connection.shutdown(Shutdown::Both).ok();
+                return;
+            }
             Err(refusal) => return self.refuse(connection, refusal),
         };
-        let reply = self
+        let answer = self
             .route(&request, connection, clock)
-            .unwrap_or_else(Reply::Refused);
+            .unwrap_or_else(|refusal| Answer::Reply(Reply::Refused(refusal)));
         // A write fails only when the client has closed the connection or
-        // stopped reading, and then nobody is left to tell.
-        if self.replies.write(connection, &reply).is_ok() {
-            finish(connection);
-        }
+        // stopped reading, and then nobody is left to tell. A failed stream
+        // drops its run, which cancels it.
+        let written = match answer {
+            Answer::Stream(stream) => {
+                let pacing = Pacing {
+                    keepalive: self.settings.keepalive,
+                    write_time: self.settings.write_time,
+                    cut_off: &self.cut_off,
+                };
+                stream::write(connection, stream, clock, &pacing)
+            }
+            Answer::Reply(reply) => self.replies.write(connection, &reply),
+        };
+        end(connection, written);
     }
 
     /// Writes `refusal` to `connection` and closes it.
     fn refuse(&self, connection: &mut TcpStream, refusal: Refusal) {
-        if self
-            .replies
-            .write(connection, &Reply::Refused(refusal))
-            .is_ok()
-        {
-            finish(connection);
-        }
+        let written = self.replies.write(connection, &Reply::Refused(refusal));
+        end(connection, written);
+    }
+
+    /// Writes the busy refusal to `connection` on the accept thread and
+    /// closes the connection without draining it, so the accept thread
+    /// never waits for a client. The reply fits in the socket's send
+    /// buffer, so its write does not wait either. What the client has
+    /// already sent is read and dropped without waiting.
+    fn refuse_busy(&self, connection: &mut TcpStream) {
+        // The client may already have closed the connection.
+        self.replies
+            .write(connection, &Reply::Refused(Refusal::Busy))
+            .ok();
+        connection.shutdown(Shutdown::Write).ok();
+        http::discard_arrived(connection);
     }
 
     /// Checks `request`, then returns the reply of its route, which reads
@@ -420,12 +561,12 @@ impl Shared {
         request: &http::Request,
         connection: &mut TcpStream,
         clock: &dyn Clock,
-    ) -> Result<Reply, Refusal> {
+    ) -> Result<Answer, Refusal> {
         let head = request.head();
         request::check(head, &self.address)?;
         let route = Route::of(head.method(), head.path());
         if route.needs_token() {
-            lock(&self.session).authenticate(head.one("Authorization"), clock.now())?;
+            self.authenticate(head, clock)?;
         }
         match route {
             Route::Session => {
@@ -436,22 +577,119 @@ impl Shared {
                 let token = session.exchange(&exchange.code, clock.now())?;
                 // The token is hex digits, which JSON needs no escape for.
                 let document = format!(r#"{{"token":"{}"}}"#, token.expose_secret());
-                Ok(Reply::Json(document.into_bytes()))
+                Ok(Answer::Reply(Reply::Json(document.into_bytes())))
             }
-            Route::Model => Ok(Reply::Json(self.model.clone())),
-            Route::Asset(asset) => Ok(Reply::Asset(asset)),
+            Route::Model => Ok(Answer::Reply(Reply::Json(self.model.clone()))),
+            Route::Runs => {
+                let run = run_request(request, connection)?;
+                Ok(streamed(
+                    self.runner.run(&run).map(|run| Stream::Run(Box::new(run))),
+                ))
+            }
+            Route::Previews => {
+                let run = run_request(request, connection)?;
+                Ok(streamed(
+                    self.runner
+                        .preview(&run)
+                        .map(|preview| Stream::Preview(Box::new(preview))),
+                ))
+            }
+            Route::Confirmation(id) => {
+                let run = run_request(request, connection)?;
+                let confirmed = id
+                    .parse()
+                    .and_then(|id| self.runner.confirm(&id, &run))
+                    .map(|run| Stream::Run(Box::new(run)));
+                Ok(streamed(confirmed))
+            }
+            Route::Cancel(id) => Ok(Answer::Reply(
+                match id.parse().and_then(|id| self.runner.cancel(id)) {
+                    Ok(()) => Reply::Done,
+                    Err(failure) => failed(&failure),
+                },
+            )),
+            Route::Asset(asset) => Ok(Answer::Reply(Reply::Asset(asset))),
             Route::ApiNotFound | Route::NotFound => Err(Refusal::NotFound),
         }
     }
+
+    /// Accepts the request's token. A request that finds the session
+    /// closed by the idle limit wakes the watcher, which stops the server.
+    fn authenticate(&self, head: &Head, clock: &dyn Clock) -> Result<(), Refusal> {
+        let mut session = lock(&self.session);
+        let authenticated = session.authenticate(
+            head.one("Authorization"),
+            clock.now(),
+            self.settings.idle_limit,
+        );
+        if session.is_closed() {
+            // A full channel already holds a wake that stops the server.
+            self.wake.try_send(Wake::Closed).ok();
+        }
+        authenticated
+    }
 }
 
-/// Ends a connection after its reply: no more writes, then what the client
-/// still sends is read and dropped for a short time, so the client reads
-/// the reply before the connection closes.
-fn finish(connection: &mut TcpStream) {
+/// Reads the body of `request` from `connection` as a run request.
+fn run_request(request: &http::Request, connection: &mut TcpStream) -> Result<RunRequest, Refusal> {
+    let body = request.body(connection)?;
+    serde_json::from_slice(&body).map_err(|_| Refusal::Body)
+}
+
+/// What a route answers: a reply of known length, or a run's stream.
+enum Answer {
+    /// A reply of known length, which `Replies::write` writes.
+    Reply(Reply),
+    /// A run's stream of JSON lines, which `stream::write` writes.
+    Stream(Stream),
+}
+
+/// Returns the answer of a run route: the stream, or the runner's failure.
+fn streamed(started: Result<Stream, RunFailure>) -> Answer {
+    match started {
+        Ok(stream) => Answer::Stream(stream),
+        Err(failure) => Answer::Reply(failed(&failure)),
+    }
+}
+
+/// Returns the reply of `failure`: its failure document with the status of
+/// [`failure_status`].
+fn failed(failure: &RunFailure) -> Reply {
+    Reply::Failure {
+        status: failure_status(failure),
+        document: document::to_json(failure),
+    }
+}
+
+/// Returns the HTTP status of a runner's failure. A request that the runner
+/// refuses gets 422, a cancel that finds no run gets 404, a runner that is
+/// full or shutting down gets 503, and a tool that will not start or a
+/// system that gives no random bytes gets 500.
+fn failure_status(failure: &RunFailure) -> u16 {
+    match failure {
+        RunFailure::Refused { .. }
+        | RunFailure::NeedsConfirmation { .. }
+        | RunFailure::ReadOnly { .. }
+        | RunFailure::Confirmation { .. } => 422,
+        RunFailure::NotRunning { .. } => 404,
+        RunFailure::Busy { .. } | RunFailure::Closed => 503,
+        RunFailure::Spawn { .. } | RunFailure::Random { .. } => 500,
+    }
+}
+
+/// Ends a connection after its reply. After a reply that was written: no
+/// more writes, then what the client still sends is read and dropped for a
+/// short time, so the client reads the reply before the connection closes.
+/// After a write that failed, the connection is shut down both ways at
+/// once.
+fn end(connection: &mut TcpStream, written: io::Result<()>) {
     // The client may already have closed the connection.
-    connection.shutdown(Shutdown::Write).ok();
-    http::drain(connection);
+    if written.is_ok() {
+        connection.shutdown(Shutdown::Write).ok();
+        http::drain(connection);
+    } else {
+        connection.shutdown(Shutdown::Both).ok();
+    }
 }
 
 /// The open connections, at most [`CONNECTION_LIMIT`], each with a handle
@@ -479,12 +717,14 @@ impl Connections {
         })
     }
 
-    /// Closes every open connection, so each connection's thread ends at
-    /// its next read or write.
-    fn close_all(&self) {
+    /// Closes the reading side of every open connection, so a thread that
+    /// waits for a request or its body ends at once. A thread that writes
+    /// its reply, such as the last lines of a stream, ends by its write
+    /// deadline.
+    fn close_reads(&self) {
         for connection in lock(&self.open).values() {
             // A connection that the client has closed refuses the shutdown.
-            connection.shutdown(Shutdown::Both).ok();
+            connection.shutdown(Shutdown::Read).ok();
         }
     }
 }
@@ -506,18 +746,32 @@ impl fmt::Debug for Server {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Server")
             .field("listener", &self.listener)
-            .field("settings", &self.settings)
+            .field("settings", &self.shared.settings)
             .finish_non_exhaustive()
     }
 }
 
+/// The path prefix of a confirmed run, which the confirmation id follows.
+const CONFIRMATIONS: &str = "/api/confirmations/";
+
+/// The path prefix of a run, which its id and `/cancel` follow.
+const RUNS: &str = "/api/runs/";
+
 /// Where a request goes.
 #[derive(Debug)]
-enum Route {
+enum Route<'a> {
     /// `POST /api/session`.
     Session,
     /// `GET /api/model`.
     Model,
+    /// `POST /api/runs`.
+    Runs,
+    /// `POST /api/previews`.
+    Previews,
+    /// `POST /api/confirmations/<id>`, with the id as the page sent it.
+    Confirmation(&'a str),
+    /// `POST /api/runs/<id>/cancel`, with the id as the page sent it.
+    Cancel(&'a str),
     /// A `GET` of an embedded asset.
     Asset(&'static Asset),
     /// Another path under `/api/`, which needs the token before it gets 404.
@@ -526,20 +780,34 @@ enum Route {
     NotFound,
 }
 
-impl Route {
+impl<'a> Route<'a> {
     /// Returns the route of a request with `method` and `path`.
-    fn of(method: Method, path: &str) -> Self {
+    fn of(method: Method, path: &'a str) -> Self {
+        if method == Method::Post {
+            if let Some(id) = path.strip_prefix(CONFIRMATIONS) {
+                return Self::Confirmation(id);
+            }
+            if let Some(id) = path
+                .strip_prefix(RUNS)
+                .and_then(|rest| rest.strip_suffix("/cancel"))
+            {
+                return Self::Cancel(id);
+            }
+        }
         match (method, path) {
             (Method::Post, "/api/session") => Self::Session,
             (Method::Get, "/api/model") => Self::Model,
+            (Method::Post, "/api/runs") => Self::Runs,
+            (Method::Post, "/api/previews") => Self::Previews,
             _ if path.starts_with(API) => Self::ApiNotFound,
             (Method::Get, _) => assets::find(path).map_or(Self::NotFound, Self::Asset),
             _ => Self::NotFound,
         }
     }
 
-    /// Returns true when the route needs the token.
+    /// Returns true when the route needs the token: every `/api/` path
+    /// except `/api/session`.
     const fn needs_token(&self) -> bool {
-        matches!(self, Self::Model | Self::ApiNotFound)
+        !matches!(self, Self::Session | Self::Asset(_) | Self::NotFound)
     }
 }

@@ -286,23 +286,24 @@ pub enum DocumentForm {
 }
 
 /// The failure document that a crumbkit tool prints with `--json`, and each
-/// failure of a batch.
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+/// failure of a batch. It serializes as it was read, without its `schema`,
+/// for the page.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ToolFailure {
     code: String,
     message: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     cause: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
     fields: serde_json::Map<String, Value>,
     recovery: Recovery,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     alternatives: Vec<Recovery>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     key: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     index: Option<u64>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     url: Option<String>,
 }
 
@@ -364,7 +365,7 @@ impl ToolFailure {
 }
 
 /// A step that repairs a failure.
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum Recovery {
     /// Run this command of the tool.
@@ -373,7 +374,7 @@ pub enum Recovery {
         call: String,
         /// The list field of the failure whose every value the call takes in
         /// place of its placeholder, such as `left_out`.
-        #[serde(default)]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         all: Option<String>,
     },
     /// Run the same command again.
