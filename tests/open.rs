@@ -124,6 +124,32 @@ impl Open {
     }
 }
 
+/// A test that fails while flightdeck runs stops it here, so no flightdeck
+/// outlives the test: SIGTERM first, then SIGKILL when it has not exited
+/// within two seconds. A flightdeck that `stop` already reaped is left
+/// alone, because its process id may belong to another process by now.
+impl Drop for Open {
+    fn drop(&mut self) {
+        use wait_timeout::ChildExt as _;
+
+        if !matches!(self.child.try_wait(), Ok(None)) {
+            return;
+        }
+        let pid = rustix::process::Pid::from_child(&self.child);
+        // The process may have exited since `try_wait`, and it is unreaped,
+        // so its id still names it.
+        rustix::process::kill_process(pid, rustix::process::Signal::TERM).ok();
+        if matches!(
+            self.child.wait_timeout(std::time::Duration::from_secs(2)),
+            Ok(Some(_))
+        ) {
+            return;
+        }
+        self.child.kill().ok();
+        self.child.wait().ok();
+    }
+}
+
 #[test]
 fn open_on_a_missing_tool_prints_tool_not_found_and_starts_no_server() {
     let dirs = tempfile::tempdir().unwrap();
