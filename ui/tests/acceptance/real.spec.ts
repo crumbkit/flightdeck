@@ -26,6 +26,7 @@ test("the rail of crumbkit 0.1.0's shelf lists its commands under no heading", a
   served,
 }) => {
   await page.goto(served.opener);
+  await expect(page.getByRole("region", { name: "Welcome to shelf" })).toBeVisible();
   const rail = page.getByRole("navigation", { name: "Commands" });
 
   await expect(rail.getByRole("heading")).toHaveCount(0);
