@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { command, shelf, shelfWithGoals } from "../../tests/fixtures/shelf";
+import { command, shelf, shelfWithoutGoals } from "../../tests/fixtures/shelf";
 import { effectOf, railGroups, whyNotRunnable } from "./rail";
 
 function titles(groups: ReturnType<typeof railGroups>) {
@@ -8,7 +8,7 @@ function titles(groups: ReturnType<typeof railGroups>) {
 
 describe("railGroups", () => {
   it("groups the commands under the goal headings in help order", () => {
-    expect(titles(railGroups(shelfWithGoals))).toEqual([
+    expect(titles(railGroups(shelf))).toEqual([
       ["Browse the catalogue", ["books list", "books show", "books summarize", "books remove"]],
       ["Explore the commands", ["commands list", "schemas list", "schemas show"]],
       ["Review how shelf is used", ["self usage", "self figures list"]],
@@ -16,7 +16,7 @@ describe("railGroups", () => {
   });
 
   it("lists every command under no heading when the tool prints no goals", () => {
-    const groups = railGroups(shelf);
+    const groups = railGroups(shelfWithoutGoals);
 
     expect(groups).toHaveLength(1);
     expect(groups[0]?.title).toBeNull();
@@ -25,12 +25,12 @@ describe("railGroups", () => {
 
   it("keeps the guide's order whatever the runs counts are", () => {
     const busy = {
-      ...shelfWithGoals,
-      commands: shelfWithGoals.commands.map((each) => ({ ...each, runs: 100 - each.runs })),
+      ...shelf,
+      commands: shelf.commands.map((each) => ({ ...each, runs: 100 - each.runs })),
     };
     busy.commands.reverse();
 
-    expect(titles(railGroups(busy))).toEqual(titles(railGroups(shelfWithGoals)));
+    expect(titles(railGroups(busy))).toEqual(titles(railGroups(shelf)));
   });
 });
 

@@ -86,17 +86,6 @@ fn shelfs_commands_list_matches_crumbkits_schema_and_reads_into_a_commands_list(
 }
 
 #[test]
-fn a_commands_list_with_goals_still_matches_crumbkits_schema() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/newer/commands-list-with-goals.json");
-    let document = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
-
-    let list: CommandsList = validate_and_read("commands-list-v1", document);
-
-    assert!(!list.truncated());
-}
-
-#[test]
 fn shelfs_schemas_list_matches_crumbkits_schema_and_reads_into_a_schemas_list() {
     let document = run_shelf(&["schemas", "list", "--json", "--full", "--all", "--no-input"]);
 
