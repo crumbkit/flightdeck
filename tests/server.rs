@@ -12,13 +12,13 @@ mod http;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use crumbkit_flightdeck::model::{self, Tool};
 use crumbkit_flightdeck::opener::Opener;
 use crumbkit_flightdeck::server::{
     BODY_LIMIT, CONNECTION_LIMIT, Clock, Ended, HEAD_LIMIT, HEADER_LIMIT, IDLE_LIMIT, Listener,
-    Server, Session, Settings,
+    Moment, Server, Session, Settings,
 };
 use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
 use http::{Call, Reply, exchange, launch_code, raw};
@@ -36,30 +36,48 @@ const SECURITY_HEADERS: [(&str, &str); 6] = [
     ),
 ];
 
-/// A clock that moves only when a test moves it.
+/// A clock that moves only when a test moves it. Its monotonic time and
+/// its wall-clock time move apart when the test moves only the wall clock,
+/// as on a machine that sleeps.
 struct FakeClock {
     start: Instant,
+    start_wall: SystemTime,
     millis: AtomicU64,
+    wall_millis: AtomicU64,
 }
 
 impl FakeClock {
     fn new() -> Self {
         Self {
             start: Instant::now(),
+            start_wall: SystemTime::now(),
             millis: AtomicU64::new(0),
+            wall_millis: AtomicU64::new(0),
         }
     }
 
-    /// Moves the clock forward by `by`.
+    /// Moves both clocks forward by `by`.
     fn advance(&self, by: Duration) {
         let millis = u64::try_from(by.as_millis()).unwrap();
         self.millis.fetch_add(millis, Ordering::SeqCst);
+        self.wall_millis.fetch_add(millis, Ordering::SeqCst);
+    }
+
+    /// Moves only the wall clock forward by `by`, as a machine's sleep
+    /// does on a system whose monotonic clock stops while it sleeps.
+    fn sleep(&self, by: Duration) {
+        let millis = u64::try_from(by.as_millis()).unwrap();
+        self.wall_millis.fetch_add(millis, Ordering::SeqCst);
     }
 }
 
 impl Clock for FakeClock {
-    fn now(&self) -> Instant {
-        self.start + Duration::from_millis(self.millis.load(Ordering::SeqCst))
+    fn now(&self) -> Moment {
+        let millis = |clock: &AtomicU64| Duration::from_millis(clock.load(Ordering::SeqCst));
+        Moment::new(
+            self.start + millis(&self.millis),
+            self.start_wall + millis(&self.wall_millis),
+        )
     }
 }
 
@@ -250,6 +268,20 @@ fn the_same_launch_code_a_second_time_is_refused() {
 fn a_launch_code_older_than_60_seconds_is_refused() {
     serving(false, |page| {
         page.clock.advance(Duration::from_secs(61));
+
+        let body = format!(r#"{{"code":"{}"}}"#, page.code);
+        let reply = Call::post(page.port, "/api/session", &body).send(page.port);
+
+        assert_refused(&reply, 401, "flightdeck::session::code_refused");
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_launch_code_is_refused_once_the_wall_clock_passes_60_seconds_while_the_monotonic_clock_stood_still()
+ {
+    serving(false, |page| {
+        page.clock.sleep(Duration::from_secs(61));
 
         let body = format!(r#"{{"code":"{}"}}"#, page.code);
         let reply = Call::post(page.port, "/api/session", &body).send(page.port);
@@ -566,6 +598,16 @@ fn the_model_route_returns_shelfs_model_with_read_only_as_started() {
 fn the_server_stops_by_itself_after_the_idle_limit() {
     let ended = serving(false, |page| {
         page.clock.advance(IDLE_LIMIT);
+        Then::Wait
+    });
+
+    assert_eq!(ended, Ended::Idle);
+}
+
+#[test]
+fn the_server_stops_after_the_idle_limit_by_the_wall_clock_while_the_monotonic_clock_stood_still() {
+    let ended = serving(false, |page| {
+        page.clock.sleep(IDLE_LIMIT);
         Then::Wait
     });
 

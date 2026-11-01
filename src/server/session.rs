@@ -1,10 +1,11 @@
 //! The page's sign-in: a launch code that the browser exchanges once for the
 //! token, and the token that every other API request carries.
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use secrecy::{ExposeSecret as _, SecretString};
 
+use super::Moment;
 use super::reply::Refusal;
 use super::secret::Secret;
 
@@ -21,14 +22,14 @@ const BEARER: &str = "Bearer ";
 pub struct Session {
     token: Secret,
     code: Option<LaunchCode>,
-    last_authenticated: Instant,
+    last_authenticated: Moment,
 }
 
 /// A launch code and the time the server issued it.
 #[derive(Debug)]
 struct LaunchCode {
     secret: Secret,
-    issued: Instant,
+    issued: Moment,
 }
 
 impl Session {
@@ -38,7 +39,7 @@ impl Session {
     /// # Errors
     ///
     /// Returns the error of the operating system's random source.
-    pub fn new(now: Instant) -> Result<Self, getrandom::Error> {
+    pub fn new(now: Moment) -> Result<Self, getrandom::Error> {
         Ok(Self {
             token: Secret::generate()?,
             code: Some(LaunchCode {
@@ -62,12 +63,12 @@ impl Session {
     pub(super) fn exchange(
         &mut self,
         presented: &SecretString,
-        now: Instant,
+        now: Moment,
     ) -> Result<&SecretString, Refusal> {
         let Some(code) = &self.code else {
             return Err(Refusal::CodeRefused);
         };
-        if now.saturating_duration_since(code.issued) > CODE_LIFETIME {
+        if now.since(code.issued) > CODE_LIFETIME {
             self.code = None;
             return Err(Refusal::CodeRefused);
         }
@@ -85,7 +86,7 @@ impl Session {
     pub(super) fn authenticate(
         &mut self,
         authorization: Option<&str>,
-        now: Instant,
+        now: Moment,
     ) -> Result<(), Refusal> {
         let presented = authorization
             .and_then(|value| value.strip_prefix(BEARER))
@@ -99,7 +100,7 @@ impl Session {
 
     /// Returns how long the server has gone without an authenticated
     /// request at `now`, counting from its start before the first one.
-    pub(super) fn idle_for(&self, now: Instant) -> Duration {
-        now.saturating_duration_since(self.last_authenticated)
+    pub(super) fn idle_for(&self, now: Moment) -> Duration {
+        now.since(self.last_authenticated)
     }
 }
