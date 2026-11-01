@@ -52,12 +52,17 @@ export function Composer(props: Props) {
       field.select();
     }
   }, [editing]);
+  // Enter in a text field submits the form even when no Run button
+  // shows, so both ways in check that the command may run.
+  const runIfRunnable = () => {
+    if (blocked === null && unset.length === 0) {
+      onRun();
+    }
+  };
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
-      if (blocked === null && unset.length === 0) {
-        onRun();
-      }
+      runIfRunnable();
     } else if (event.key === "Escape" && editing !== null) {
       onStopEditing();
     }
@@ -71,7 +76,7 @@ export function Composer(props: Props) {
       onKeyDown={onKeyDown}
       onSubmit={(event) => {
         event.preventDefault();
-        onRun();
+        runIfRunnable();
       }}
       className="bg-card max-h-1/2 shrink-0 overflow-y-auto border-t px-4 py-3"
     >

@@ -178,4 +178,25 @@ describe("ToolPage", () => {
     expect(within(card).getByRole("group", { name: "Remove 1 book?" })).toBeVisible();
     expect(within(card).getByRole("button", { name: "Cancel" })).toHaveFocus();
   });
+  it("sends nothing when Enter submits a command that --read-only locks", async () => {
+    const sent = stubServer({});
+    // A single-value text field, where Enter submits the form.
+    const reply = withRemove((command) => ({
+      ...command,
+      arguments: command.arguments.map((each) =>
+        each.name === "<ID>"
+          ? { ...each, arity: { kind: "one" as const, value_names: ["ID"] } }
+          : each,
+      ),
+    }));
+    const user = userEvent.setup();
+    render(<ToolPage reply={{ ...reply, read_only: true }} onSignedOut={() => undefined} />);
+
+    const rail = screen.getByRole("navigation", { name: "Commands" });
+    await user.click(within(rail).getByRole("button", { name: /books remove/ }));
+    await user.type(screen.getByLabelText(/The ids of the books to remove/), "2{Enter}");
+
+    expect(screen.queryByRole("region", { name: /^Run 1/ })).toBeNull();
+    expect(sent.filter((path) => path === "/api/runs" || path === "/api/previews")).toEqual([]);
+  });
 });
