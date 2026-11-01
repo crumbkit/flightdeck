@@ -1,0 +1,343 @@
+{
+  "schema": "unruly/commands-list/v1",
+  "data": [
+    {
+      "path": "unruly",
+      "about": "Misbehave in the ways a real tool might",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": null,
+      "exits": [],
+      "effects": null,
+      "writes": null
+    },
+    {
+      "path": "unruly child",
+      "about": "Run a child that misbehaves",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": null,
+      "exits": [],
+      "effects": null,
+      "writes": null
+    },
+    {
+      "path": "unruly child panic",
+      "about": "Exit with 101 and print a panic on standard error",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child hang",
+      "about": "Print two lines, then ignore SIGINT and SIGTERM until killed",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child flood",
+      "about": "Print one line of 2000 bytes",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child trace",
+      "about": "Print the TRACEPARENT variable",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child pick",
+      "about": "Take a colour from a fixed list",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "--colour",
+          "short": null,
+          "value_names": [
+            "COLOUR"
+          ],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [
+            "red",
+            "green"
+          ],
+          "help": null,
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child orphan",
+      "about": "Leave a process in a session of its own that holds standard output open, and exit",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child chatter",
+      "about": "Print 1000 lines, then ignore SIGINT and SIGTERM until killed",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child nap",
+      "about": "Print a document after a fifth of a second",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child wipe",
+      "about": "Wipe the name it is given; its preview fails for the name bad and waits for SIGINT for the name slow",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "<NAME>",
+          "short": null,
+          "value_names": [
+            "NAME"
+          ],
+          "required": true,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "The name to wipe",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--dry-run",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Report what the command would change, and change nothing",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--yes",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Proceed without asking for confirmation",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": false,
+        "destructive": true,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child both",
+      "about": "Declare itself read-only and destructive at once",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": true,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child pair",
+      "about": "Take two optional positional values",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "<FIRST>",
+          "short": null,
+          "value_names": [
+            "FIRST"
+          ],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": null,
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "<SECOND>",
+          "short": null,
+          "value_names": [
+            "SECOND"
+          ],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": null,
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child adopt",
+      "about": "Move into its parent's process group, then ignore SIGINT and SIGTERM until killed",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child interrupt",
+      "about": "Print a document, and on SIGINT print 400 more and then a line that is no document",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    }
+  ],
+  "truncated": false
+}

@@ -7,8 +7,10 @@
   `tests/fixtures/crumbkit/` together, and say so in the pull request.
 - `SNAPSHOTS=overwrite cargo test` rewrites the golden files under
   `tests/golden/` and `docs/commands.md`. Review the diff before you commit.
-- Only `src/spawn.rs` starts processes. Add a new kind of run there as its
-  own operation, with the five items its module documentation lists.
+- Only `src/spawn.rs` and its child modules start processes. Add a new
+  kind of run there as its own operation, with the five items that PROC-2
+  lists. A thread starts there too, or inside a `std::thread::scope` that
+  joins it, as the server's threads do.
 - Test names are sentences, and no test repeats what another proves.
 - A deliberate shortcut gets a `RUST-10:` comment that says what it handles,
   what it misses and what replaces it.

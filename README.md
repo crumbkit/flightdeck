@@ -47,6 +47,21 @@ What works today:
   them. It sets crumbkit's own flags, such as `--json` and `--limit`, apart
   from the tool's own arguments.
 
+- The library's `runner` module runs one of the tool's commands from a
+  structured request: the command's path and a value for each argument by
+  its name in the model. It refuses a command that `commands list` does
+  not list, an argument the command does not take, a value of the wrong
+  kind or outside the argument's possible values, and every crumbkit flag
+  except `--limit` and `--all`. It also refuses a value with a control
+  character, and a positional value after a positional argument without
+  one. It builds the argument vector itself, with each option as one
+  `--name=value` word and the positional values after `--`, and it never
+  runs a shell. It delivers each line of standard output as it arrives and
+  ends with an outcome. A destructive command, or one that declares no
+  effects, runs only with a confirmation id for the same vector, which a
+  preview issues once its dry run succeeds. A cancel sends SIGINT, SIGTERM
+  and SIGKILL to the child's process group in turn.
+
 A link is inferred from crumbkit's command grammar. A command whose rows
 have an `id` column links it to each other command of the same resource that
 takes a positional `<ID>` argument, so shelf's `books list` links its `id`

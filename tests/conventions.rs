@@ -8,7 +8,7 @@
 #![cfg(test)]
 
 use clap::CommandFactory as _;
-use crumbkit_flightdeck::{CODES, Cli, GUIDE};
+use crumbkit_flightdeck::{CODES, Cli, GUIDE, runner};
 use crumbkit_test::{
     Allow, Budgets, Examples, Failing, Pages, PathBudgets, Recoveries, Twins, Unprovoked,
 };
@@ -34,6 +34,10 @@ const STARTS: &[Failing<'_>] = &[Failing::new(
     &["open", "./no-such-tool", "--no-browser"],
 )];
 
+/// The reason that no command of flightdeck provokes a run's code.
+const NO_RUN: &str =
+    "No flightdeck command runs a tool's commands yet; the runner returns the code.";
+
 /// The codes that the recovery check provokes with no command line.
 const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
     Unprovoked::new(
@@ -44,10 +48,22 @@ const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
         &crumbkit_flightdeck::SERVER_FAILED,
         "Only a system that refuses a socket, a random read or a temporary file provokes it.",
     ),
+    Unprovoked::new(&runner::RUN_REFUSED, NO_RUN),
+    Unprovoked::new(&runner::RUN_NEEDS_CONFIRMATION, NO_RUN),
+    Unprovoked::new(&runner::RUN_READ_ONLY, NO_RUN),
+    Unprovoked::new(&runner::RUN_CONFIRMATION, NO_RUN),
+    Unprovoked::new(&runner::RUN_NO_DOCUMENT, NO_RUN),
+    Unprovoked::new(&runner::RUN_SPAWN, NO_RUN),
+    Unprovoked::new(&runner::RUN_OUTPUT_LIMIT, NO_RUN),
+    Unprovoked::new(&runner::RUN_BUSY, NO_RUN),
+    Unprovoked::new(&runner::RUN_NOT_RUNNING, NO_RUN),
+    Unprovoked::new(&runner::RUN_RANDOM, NO_RUN),
+    Unprovoked::new(&runner::RUN_CLOSED, NO_RUN),
 ];
 
-/// The codes that have no twin, because the admitted twin of a refused
-/// `open` serves the page until it is stopped and never exits by itself.
+/// The codes that have no twin: the admitted twin of a refused `open`
+/// serves the page until it is stopped and never exits by itself, and no
+/// command of flightdeck returns a run's code yet.
 const UNTWINNED: &[Unprovoked<'_>] = &[
     Unprovoked::new(
         &crumbkit_flightdeck::model::TOOL_NOT_FOUND,
@@ -61,6 +77,17 @@ const UNTWINNED: &[Unprovoked<'_>] = &[
         &crumbkit_flightdeck::SERVER_FAILED,
         "Only a system that refuses a socket, a random read or a temporary file provokes it.",
     ),
+    Unprovoked::new(&runner::RUN_REFUSED, NO_RUN),
+    Unprovoked::new(&runner::RUN_NEEDS_CONFIRMATION, NO_RUN),
+    Unprovoked::new(&runner::RUN_READ_ONLY, NO_RUN),
+    Unprovoked::new(&runner::RUN_CONFIRMATION, NO_RUN),
+    Unprovoked::new(&runner::RUN_NO_DOCUMENT, NO_RUN),
+    Unprovoked::new(&runner::RUN_SPAWN, NO_RUN),
+    Unprovoked::new(&runner::RUN_OUTPUT_LIMIT, NO_RUN),
+    Unprovoked::new(&runner::RUN_BUSY, NO_RUN),
+    Unprovoked::new(&runner::RUN_NOT_RUNNING, NO_RUN),
+    Unprovoked::new(&runner::RUN_RANDOM, NO_RUN),
+    Unprovoked::new(&runner::RUN_CLOSED, NO_RUN),
 ];
 
 #[test]

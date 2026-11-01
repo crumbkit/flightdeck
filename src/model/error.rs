@@ -183,7 +183,7 @@ pub enum NotDocument {
 
 /// Returns the exit code that a failure's `exit` field holds, or null when
 /// the process did not exit by itself.
-fn exit_code(exit: Exit) -> FieldValue<'static> {
+pub(crate) fn exit_code(exit: Exit) -> FieldValue<'static> {
     match exit {
         Exit::Code(code) => FieldValue::from(code),
         Exit::Signal | Exit::TimedOut | Exit::Unknown => FieldValue::Null,
@@ -192,7 +192,7 @@ fn exit_code(exit: Exit) -> FieldValue<'static> {
 
 /// Returns the last [`STDERR_LINES`] lines of `stderr`, read as UTF-8 with
 /// each invalid sequence replaced.
-fn last_lines(stderr: &[u8]) -> Vec<String> {
+pub(crate) fn last_lines(stderr: &[u8]) -> Vec<String> {
     let text = String::from_utf8_lossy(stderr);
     let lines: Vec<&str> = text.lines().collect();
     let skip = lines.len().saturating_sub(STDERR_LINES);
