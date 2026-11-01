@@ -9,7 +9,11 @@
 #
 # Usage: commit-check.sh BASE HEAD
 # A BASE of forty zeros, which GitHub sends for a new branch, checks every
-# commit that HEAD reaches.
+# commit that HEAD reaches. So does a BASE that the checkout lacks, such as
+# the old tip of a branch after a force push, and the script says so.
+#
+# grep reads the pattern from a here-document on file descriptor 3, so the
+# pattern never appears in a process's argument list.
 set -eu
 
 if [ "$#" -ne 2 ]; then
@@ -24,10 +28,17 @@ if [ -z "${COMMIT_PATTERN:-}" ]; then
   exit 0
 fi
 
+# Reads standard input and succeeds when it matches the pattern.
+matches() {
+  grep -E -i -q -f /dev/fd/3 3<<PATTERN
+$COMMIT_PATTERN
+PATTERN
+}
+
 # grep exits with 2 on a pattern it cannot read, which would otherwise pass
 # every commit as one that does not match.
 status=0
-printf 'x\n' | grep -E -i -q -e "$COMMIT_PATTERN" || status=$?
+printf 'x\n' | matches || status=$?
 if [ "$status" -gt 1 ]; then
   echo "::error::COMMIT_PATTERN is not an extended regular expression that grep reads"
   exit 2
@@ -35,14 +46,12 @@ fi
 
 if [ "$base" = "0000000000000000000000000000000000000000" ]; then
   commits=$(git rev-list "$head")
+elif ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+  echo "::notice::the base commit $base is not in the checkout, as after a force push, so every commit that $head reaches is checked"
+  commits=$(git rev-list "$head")
 else
   commits=$(git rev-list "$base..$head")
 fi
-
-# Reads standard input and succeeds when it matches the pattern.
-matches() {
-  grep -E -i -q -e "$COMMIT_PATTERN"
-}
 
 failed=0
 for commit in $commits; do

@@ -42,8 +42,8 @@ realizations = ["Cargo.toml"]
 
 [[decision]]
 id = "commit-check"
-requirement = "The `gate` lane fails when a commit's message, diff, author email or committer email matches the extended regular expression in the COMMIT_PATTERN repository secret, case-insensitively. The script prints the commit and the part that matched, and never the pattern or the matched text. An empty secret, as on a pull request from a fork, skips the check with a notice."
-reason = "flightdeck is a public repository, and some words must never reach it. The pattern lives in a secret so that the repository does not hold it."
+requirement = "The `gate` lane fails when a commit's message, diff, author email or committer email matches the extended regular expression in the COMMIT_PATTERN repository secret, case-insensitively. The script prints the commit and the part that matched, and never the pattern or the matched text. An empty secret skips the check with a notice. GitHub gives no secret to a pull request from a fork or to one that Dependabot opens, so the check is skipped on both, and a maintainer reads such a pull request before it merges. A base commit that the checkout lacks, as after a force push, checks every commit that the head reaches."
+reason = "flightdeck is a public repository, and some words must never reach it. The pattern lives in a secret so that the repository does not hold it. The check runs on the pull request, before the merge, because a check after the merge comes too late: the words are then in the public history of main."
 realizations = [".github/scripts/commit-check.sh", ".github/workflows/ci.yml"]
 
 [[decision]]
