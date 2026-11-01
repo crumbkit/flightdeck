@@ -84,9 +84,34 @@ impl Call {
         // close the connection while the body is still being written.
         let _ = stream.write_all(&self.body);
         let mut bytes = Vec::new();
-        stream.read_to_end(&mut bytes).unwrap();
+        // A server may reset a connection whose request it refused before
+        // reading all of it, after it has sent its reply.
+        let _ = stream.read_to_end(&mut bytes);
         Reply::parse(&bytes)
     }
+}
+
+/// A connection that a test writes raw bytes to and keeps open.
+pub(crate) struct Raw {
+    stream: TcpStream,
+}
+
+impl Raw {
+    /// Reads the whole reply, after the server closes the connection.
+    pub(crate) fn reply(mut self) -> Reply {
+        let mut bytes = Vec::new();
+        // A server may reset a connection whose declared body it never read,
+        // after it has sent its reply.
+        let _ = self.stream.read_to_end(&mut bytes);
+        Reply::parse(&bytes)
+    }
+}
+
+/// Connects to the server on `port` and writes `bytes`, and nothing more.
+pub(crate) fn raw(port: u16, bytes: &[u8]) -> Raw {
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+    stream.write_all(bytes).unwrap();
+    Raw { stream }
 }
 
 /// The reply to one request.

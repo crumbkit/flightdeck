@@ -21,9 +21,9 @@ note = "spawn has two operations. spawn::describe runs one of the fixed queries 
 
 [[binding]]
 rule = "SVC-1"
-owners = ["src/spawn.rs"]
+owners = ["src/spawn.rs", "src/server.rs"]
 checks = ["clippy disallowed_methods (clippy.toml)"]
-note = "flightdeck's own threads are the two pipe readers of spawn::describe and, on Unix, the thread that waits for the child to exit. A std::thread::scope joins all three before describe returns. The server answers on the thread that calls Server::run. tiny_http starts and owns its accept thread and a pool of connection threads; dropping the server ends the accept thread, and the pool keeps four connection threads waiting and ends each further one after five idle seconds. Neither outlives the process, which exits when Server::run returns. signal-hook starts no thread, because flightdeck registers only flags."
+note = "flightdeck's own threads are the two pipe readers of spawn::describe and, on Unix, the thread that waits for the child to exit. A std::thread::scope joins all three before describe returns. Server::run opens a std::thread::scope that holds the server's accept thread and one thread for each open connection, at most server::CONNECTION_LIMIT. When the server stops, run wakes the accept thread with a connection to itself, joins it, shuts down every open connection so its thread ends at its next read or write, and the scope joins every thread before run returns. signal-hook starts no thread, because flightdeck registers only flags."
 
 [[binding]]
 rule = "BASE-24"

@@ -1,9 +1,7 @@
 //! The checks that every request passes before the server routes it. They
 //! read only the request line and the headers.
 
-use tiny_http::{Header, Method, Request};
-
-use super::BODY_LIMIT;
+use super::http::BODY_LIMIT;
 use super::reply::Refusal;
 
 /// The prefix of every API path.
@@ -27,56 +25,84 @@ impl Address {
     }
 }
 
-/// The parts of a request that the checks and the routes read.
-pub(super) struct Head<'a> {
-    method: &'a Method,
-    path: &'a str,
-    headers: &'a [Header],
-    body_length: Option<usize>,
+/// A request's method, of those that the server tells apart.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Method {
+    /// `GET`.
+    Get,
+    /// `POST`.
+    Post,
+    /// Any other method, which the server refuses.
+    Other,
 }
 
-impl<'a> Head<'a> {
-    /// Returns the head of `request`, whose path leaves out the query.
-    pub(super) fn of(request: &'a Request) -> Self {
-        let url = request.url();
+/// The parts of a request that the checks and the routes read.
+#[derive(Debug)]
+pub(super) struct Head {
+    method: Method,
+    path: String,
+    headers: Vec<(String, String)>,
+    body_length: Option<u64>,
+}
+
+impl Head {
+    /// Returns the head with `method`, the request target `target`, whose
+    /// path leaves out the query, and `headers`, with no declared body.
+    pub(super) fn new(method: Method, target: String, headers: Vec<(String, String)>) -> Self {
+        let path = match target.split_once('?') {
+            Some((path, _)) => path.to_owned(),
+            None => target,
+        };
         Self {
-            method: request.method(),
-            path: url.split_once('?').map_or(url, |(path, _)| path),
-            headers: request.headers(),
-            body_length: request.body_length(),
+            method,
+            path,
+            headers,
+            body_length: None,
         }
     }
 
+    /// Returns the head with the body length that `Content-Length`
+    /// declares.
+    pub(super) const fn with_body_length(mut self, body_length: Option<u64>) -> Self {
+        self.body_length = body_length;
+        self
+    }
+
     /// Returns the request's method.
-    pub(super) const fn method(&self) -> &Method {
+    pub(super) const fn method(&self) -> Method {
         self.method
     }
 
     /// Returns the request's path, such as `/api/model`.
-    pub(super) const fn path(&self) -> &str {
-        self.path
+    pub(super) fn path(&self) -> &str {
+        &self.path
+    }
+
+    /// Returns the body length that the request declares.
+    pub(super) const fn body_length(&self) -> Option<u64> {
+        self.body_length
     }
 
     /// Returns the value of the header `name` when the request has exactly
     /// one, or `None` when it has none or several.
-    pub(super) fn one(&self, name: &'static str) -> Option<&'a str> {
-        match self.values(name).as_slice() {
+    pub(super) fn one(&self, name: &str) -> Option<&str> {
+        match self.all(name).as_slice() {
             [value] => Some(value),
             _ => None,
         }
     }
 
     /// Returns true when the request has the header `name`.
-    fn has(&self, name: &'static str) -> bool {
-        !self.values(name).is_empty()
+    pub(super) fn has(&self, name: &str) -> bool {
+        !self.all(name).is_empty()
     }
 
     /// Returns every value of the header `name`, in any case.
-    fn values(&self, name: &'static str) -> Vec<&'a str> {
+    pub(super) fn all(&self, name: &str) -> Vec<&str> {
         self.headers
             .iter()
-            .filter(|header| header.field.equiv(name))
-            .map(|header| header.value.as_str())
+            .filter(|(header, _)| header.eq_ignore_ascii_case(name))
+            .map(|(_, value)| value.as_str())
             .collect()
     }
 }
@@ -96,14 +122,14 @@ impl<'a> Head<'a> {
 /// - A `POST` declares its body as `application/json`, which a cross-site
 ///   form or a request without a preflight cannot send.
 /// - A declared body length is at most [`BODY_LIMIT`].
-pub(super) fn check(head: &Head<'_>, address: &Address) -> Result<(), Refusal> {
+pub(super) fn check(head: &Head, address: &Address) -> Result<(), Refusal> {
     if head.one("Host") != Some(address.host.as_str()) {
         return Err(Refusal::Host);
     }
     let post = match head.method() {
         Method::Get => false,
         Method::Post => true,
-        _ => return Err(Refusal::Method),
+        Method::Other => return Err(Refusal::Method),
     };
     if head.has("Sec-Fetch-Site") && !same_origin(head) && !page_navigation(head) {
         return Err(Refusal::CrossSite);
@@ -116,7 +142,10 @@ pub(super) fn check(head: &Head<'_>, address: &Address) -> Result<(), Refusal> {
     if post && !head.one("Content-Type").is_some_and(is_json) {
         return Err(Refusal::ContentType);
     }
-    if head.body_length.is_some_and(|length| length > BODY_LIMIT) {
+    if head
+        .body_length()
+        .is_some_and(|length| usize::try_from(length).map_or(true, |length| length > BODY_LIMIT))
+    {
         return Err(Refusal::TooLarge);
     }
     Ok(())
@@ -124,14 +153,14 @@ pub(super) fn check(head: &Head<'_>, address: &Address) -> Result<(), Refusal> {
 
 /// Returns true when the browser says that the page itself sent the
 /// request, or that a person typed or chose the address.
-fn same_origin(head: &Head<'_>) -> bool {
+fn same_origin(head: &Head) -> bool {
     matches!(head.one("Sec-Fetch-Site"), Some("same-origin" | "none"))
 }
 
 /// Returns true for a `GET` that navigates the browser to a path outside
 /// the API.
-fn page_navigation(head: &Head<'_>) -> bool {
-    *head.method() == Method::Get
+fn page_navigation(head: &Head) -> bool {
+    head.method() == Method::Get
         && head.one("Sec-Fetch-Mode") == Some("navigate")
         && !head.path().starts_with(API)
 }

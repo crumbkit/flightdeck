@@ -17,10 +17,11 @@ use std::time::{Duration, Instant};
 use crumbkit_flightdeck::model::{self, Tool};
 use crumbkit_flightdeck::opener::Opener;
 use crumbkit_flightdeck::server::{
-    BODY_LIMIT, Clock, Ended, IDLE_LIMIT, Listener, Server, Session, Settings,
+    BODY_LIMIT, CONNECTION_LIMIT, Clock, Ended, HEAD_LIMIT, HEADER_LIMIT, IDLE_LIMIT, Listener,
+    Server, Session, Settings,
 };
 use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
-use http::{Call, Reply, exchange, launch_code};
+use http::{Call, Reply, exchange, launch_code, raw};
 
 /// The headers that every reply carries, with their values.
 const SECURITY_HEADERS: [(&str, &str); 6] = [
@@ -620,6 +621,96 @@ fn the_opener_page_is_private_to_the_user_and_holds_the_code_only_in_its_fragmen
                 html[..at].ends_with(&origin),
                 "the code at byte {at} is not in the fragment: {html}"
             );
+        }
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_huge_declared_length_with_a_wrong_host_is_refused_and_the_server_still_answers() {
+    serving(false, |page| {
+        for length in [u64::MAX.to_string(), (1_u64 << 50).to_string()] {
+            let head = format!(
+                "POST /api/session HTTP/1.1\r\nHost: localhost\r\nContent-Length: {length}\r\n\r\n"
+            );
+            let reply = raw(page.port, head.as_bytes()).reply();
+
+            assert_refused(&reply, 403, "flightdeck::request::host");
+        }
+
+        assert_eq!(Call::get(page.port, "/").send(page.port).status, 200);
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_refused_request_whose_body_never_arrives_does_not_block_the_next_request() {
+    serving(false, |page| {
+        let head = format!(
+            "GET /api/model HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nContent-Length: 5000\r\n\r\n",
+            page.port
+        );
+        // The connection stays open and never sends the body it declares.
+        let held = raw(page.port, head.as_bytes());
+
+        assert_eq!(Call::get(page.port, "/").send(page.port).status, 200);
+        assert_refused(&held.reply(), 401, "flightdeck::session::unauthorized");
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_connection_over_the_connection_limit_is_refused_and_the_others_are_still_answered() {
+    serving(false, |page| {
+        // Each held connection sends part of a head and waits.
+        let held: Vec<_> = (0..CONNECTION_LIMIT)
+            .map(|_| raw(page.port, b"GET / HTTP/1.1\r\n"))
+            .collect();
+
+        let refused = Call::get(page.port, "/").send(page.port);
+
+        assert_refused(&refused, 503, "flightdeck::request::busy");
+        drop(held);
+        // The server frees a slot once it sees a held connection close, so
+        // the request is sent again until a slot is free.
+        let answered = (0..1000)
+            .map(|_| Call::get(page.port, "/").send(page.port))
+            .find(|reply| reply.status != 503)
+            .unwrap();
+        assert_eq!(answered.status, 200);
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_request_head_over_the_size_limit_or_with_too_many_headers_is_refused() {
+    serving(false, |page| {
+        let long = Call::get(page.port, "/")
+            .header("X-Padding", &"a".repeat(HEAD_LIMIT))
+            .send(page.port);
+        let mut many = Call::get(page.port, "/");
+        for index in 0..HEADER_LIMIT {
+            many = many.header(&format!("X-Header-{index}"), "a");
+        }
+        let many = many.send(page.port);
+
+        assert_refused(&long, 431, "flightdeck::request::head_too_large");
+        assert_refused(&many, 431, "flightdeck::request::head_too_large");
+        assert_eq!(Call::get(page.port, "/").send(page.port).status, 200);
+        Then::Stop
+    });
+}
+
+#[test]
+fn every_reply_closes_its_connection() {
+    serving(false, |page| {
+        let replies = [
+            Call::get(page.port, "/").send(page.port),
+            Call::get(page.port, "/api/model").send(page.port),
+        ];
+
+        for reply in replies {
+            assert_eq!(reply.header("Connection"), Some("close"));
         }
         Then::Stop
     });

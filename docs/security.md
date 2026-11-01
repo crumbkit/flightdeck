@@ -52,7 +52,10 @@ neither of them.
 | An `Origin` header must be `http://127.0.0.1:<port>`, and every `POST` must have one. | A hostile page's request in a browser that sends no `Sec-Fetch-Site`. | `a_foreign_origin_is_refused_on_any_method` and `a_post_without_an_origin_is_refused` in `tests/server.rs`. |
 | Every `POST` must declare `Content-Type: application/json`. | A cross-site form, and any request that a browser sends without a CORS preflight. | `a_post_that_is_not_json_is_refused` in `tests/server.rs`. |
 | The server answers only `GET` and `POST`, refuses `OPTIONS`, and never sends a CORS header. | Every CORS preflight, so no other origin may read a reply or send JSON. | `an_options_request_is_refused_without_cors_headers` and `every_reply_carries_the_security_headers_and_no_cors_header` in `tests/server.rs`. |
-| A request body over 64 KiB is refused. | A request that fills the server's memory. | `a_body_over_the_size_limit_is_refused` in `tests/server.rs`. |
+| A request body over 64 KiB is refused, and a declared length over 64 KiB is refused from the head alone. The server reads a body only on the one route that takes one, after the request has passed every check above. A refused request's body is never read, apart from at most 64 KiB that the server reads and drops for half a second after the reply, so that the client receives the reply before the connection closes. | A request that fills the server's memory, or that declares a huge body to make the server allocate or wait for it. | `a_body_over_the_size_limit_is_refused` and `a_huge_declared_length_with_a_wrong_host_is_refused_and_the_server_still_answers` in `tests/server.rs`. |
+| A request's line and headers together may be at most 16 KiB, with at most 32 headers. A larger head gets 431. A request that is not HTTP/1.x, or that has `Transfer-Encoding` or a `Content-Length` that is not one decimal number, gets 400. | A request whose headers fill the server's memory, and a body whose length the server and the client would read differently. | `a_request_head_over_the_size_limit_or_with_too_many_headers_is_refused` in `tests/server.rs`. |
+| Each connection has 10 seconds to send its head and body, and each write of a reply may wait 10 seconds for the client to read. Each connection is answered on its own thread, and every reply carries `Connection: close`, so a connection holds one request. | A client that sends slowly, or never sends the body it declares, holding up the requests of the page. | `a_refused_request_whose_body_never_arrives_does_not_block_the_next_request` and `every_reply_closes_its_connection` in `tests/server.rs`. |
+| The server holds at most 16 connections at once. A connection over the limit gets 503 and is closed. | A client that opens connections until the process runs out of threads or memory. | `a_connection_over_the_connection_limit_is_refused_and_the_others_are_still_answered` in `tests/server.rs`. |
 | Every reply carries `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy: same-origin`, `Cross-Origin-Opener-Policy: same-origin` and a content security policy that allows only the server's own scripts, styles, fonts, images and connections, and no frames, forms or base URL. | A cached token reply, a reply read as another type, a leaked address, an embedding of the page or its files, and injected scripts. | `every_reply_carries_the_security_headers_and_no_cors_header` in `tests/server.rs`. |
 | No line that flightdeck prints and no reply holds the token or the launch code. | A secret in a terminal, a log or a refusal. | `open_prints_two_lines_and_no_secret_and_stops_on_sigterm_with_exit_0` in `tests/open.rs`. |
 | The server stops after 30 minutes without an authenticated request, and on Ctrl-C or SIGTERM. | A token that stays valid after the person has finished. | `the_server_stops_by_itself_after_the_idle_limit`, `an_authenticated_request_restarts_the_idle_limit` and `a_refused_request_does_not_restart_the_idle_limit` in `tests/server.rs`, and the signal tests in `tests/open.rs`. |
@@ -69,20 +72,15 @@ framing it. A navigation to an `/api/` path is refused.
 
 ## Known limits
 
-- **tiny_http limits neither header size nor request time.** The server
-  answers one request at a time, and it reads a body only after the request
-  passes every check above. A local process that sends a valid
-  `POST /api/session` and then holds back its body stops the server from
-  answering until it closes the connection. That process is the same user,
-  who is out of scope, or another user who knows the port and can at worst
-  stall the page. A first Ctrl-C does not stop a stalled server, and a
-  second Ctrl-C or SIGTERM ends flightdeck at once with exit code 130 and
-  leaves the opener directory behind.
-- **tiny_http answers some malformed requests itself.** A request line or a
-  header that tiny_http cannot parse gets its own empty 400 reply, and an
-  HTTP version above 1.1 gets its own 505 reply. These replies carry none of
-  the security headers. They hold no content, and the request never reaches
-  flightdeck's code.
+- **Another user can hold the server's connections.** A local process
+  that opens 16 connections and sends nothing holds every connection for up
+  to 10 seconds, and opening more keeps the page from reaching the server
+  for as long as it continues. It cannot read or change anything, and it
+  stops nothing that the page has started. That process is the same user,
+  who is out of scope, or another user who knows the port.
+- **A refusal for a connection over the limit is written by the accept
+  thread.** While it writes the 503 reply and waits up to half a second for
+  the client to close, the server accepts no other connection.
 - **The placeholder page does not exchange the code.** The page that the
   server embeds says that it is not built yet, so the launch code stays in
   the address bar until it expires.

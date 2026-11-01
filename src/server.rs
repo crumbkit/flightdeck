@@ -1,11 +1,15 @@
 //! The page's local HTTP server.
 //!
 //! [`Listener::bind`] listens on 127.0.0.1 on a port that the system picks.
-//! [`Server::run`] answers one request at a time on the calling thread
-//! until the caller's stop flag is set or [`IDLE_LIMIT`] passes without an
-//! authenticated request. Each request passes the checks of
-//! `request::check` before it is routed, and every reply carries the
-//! security headers of `reply`. The routes are these:
+//! [`Server::run`] serves until the caller's stop flag is set or
+//! [`IDLE_LIMIT`] passes without an authenticated request. One thread
+//! accepts connections, and each connection gets a thread of its own, at
+//! most [`CONNECTION_LIMIT`] at a time. A connection holds one request:
+//! `http` reads its head within [`HEAD_LIMIT`] bytes and [`REQUEST_TIME`],
+//! the request passes the checks of `request::check`, and only then may its
+//! route read a body of at most [`BODY_LIMIT`] bytes. Every reply carries the
+//! security headers of `reply` and `Connection: close`, and a route may
+//! write its body one line at a time. The routes are these:
 //!
 //! - `POST /api/session` exchanges the launch code for the token, once.
 //! - `GET /api/model` returns the tool's model and whether the page is
@@ -16,36 +20,42 @@
 //! `docs/security.md` states what these guards defend against.
 
 mod assets;
+mod http;
 mod reply;
 mod request;
 mod secret;
 mod session;
 
+use std::collections::BTreeMap;
 use std::fmt;
-use std::io::{self, Read as _};
-use std::net::{Ipv4Addr, TcpListener};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::io;
+use std::net::{Ipv4Addr, Shutdown, TcpListener, TcpStream};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
+use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::thread::Scope;
 use std::time::{Duration, Instant};
 
 use secrecy::{ExposeSecret as _, SecretString};
 use serde::{Deserialize, Serialize};
-use tiny_http::{Method, Request};
 
 use self::assets::Asset;
+pub use self::http::{BODY_LIMIT, HEAD_LIMIT, HEADER_LIMIT, REQUEST_TIME, WRITE_TIME};
 use self::reply::{Refusal, Replies, Reply};
-use self::request::{API, Address, Head};
+use self::request::{API, Address, Method};
 pub use self::session::{CODE_LIFETIME, Session};
 use crate::model::Tool;
 
 /// How long the server runs without an authenticated request.
 pub const IDLE_LIMIT: Duration = Duration::from_secs(30 * 60);
 
-/// How long the server waits for a request before it checks its stop flag
-/// and its idle time again. This bounds how long Ctrl-C takes.
+/// How often the server checks its stop flag and its idle time. This
+/// bounds how long Ctrl-C takes.
 pub const POLL: Duration = Duration::from_millis(250);
 
-/// The most bytes of a request body that the server reads.
-pub const BODY_LIMIT: usize = 64 * 1024;
+/// The most connections that the server holds at once. A connection over
+/// the limit gets a 503 reply and is closed.
+pub const CONNECTION_LIMIT: usize = 16;
 
 /// The source of the current time, which tests replace to move time on
 /// without waiting.
@@ -104,7 +114,7 @@ impl Default for Settings {
 
 /// A server that listens on 127.0.0.1 and has not started to answer.
 pub struct Listener {
-    server: tiny_http::Server,
+    listener: TcpListener,
     port: u16,
 }
 
@@ -117,9 +127,7 @@ impl Listener {
     pub fn bind() -> Result<Self, StartError> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).map_err(StartError::Listen)?;
         let port = listener.local_addr().map_err(StartError::Listen)?.port();
-        let server = tiny_http::Server::from_listener(listener, None)
-            .map_err(|error| StartError::Listen(io::Error::other(error)))?;
-        Ok(Self { server, port })
+        Ok(Self { listener, port })
     }
 
     /// Returns the port that the system picked.
@@ -150,8 +158,6 @@ pub enum StartError {
     Listen(io::Error),
     /// The model or a fixed reply could not be written as JSON.
     Json(serde_json::Error),
-    /// A fixed header with this name is not a valid header.
-    Header(&'static str),
 }
 
 impl fmt::Display for StartError {
@@ -159,7 +165,6 @@ impl fmt::Display for StartError {
         match self {
             Self::Listen(_) => f.write_str("cannot listen on 127.0.0.1"),
             Self::Json(_) => f.write_str("cannot write the model as JSON"),
-            Self::Header(name) => write!(f, "the fixed header {name} is not valid"),
         }
     }
 }
@@ -169,7 +174,6 @@ impl std::error::Error for StartError {
         match self {
             Self::Listen(error) => Some(error),
             Self::Json(error) => Some(error),
-            Self::Header(_) => None,
         }
     }
 }
@@ -200,11 +204,17 @@ struct Exchange {
 /// The server: its listener, its session and the replies it gives.
 pub struct Server {
     listener: Listener,
+    shared: Shared,
+    settings: Settings,
+}
+
+/// What every connection's thread reads, and the session it changes.
+struct Shared {
     address: Address,
-    session: Session,
+    session: Mutex<Session>,
     model: Vec<u8>,
     replies: Replies,
-    settings: Settings,
+    connections: Connections,
 }
 
 impl Server {
@@ -214,8 +224,8 @@ impl Server {
     ///
     /// # Errors
     ///
-    /// Returns [`StartError::Json`] or [`StartError::Header`] when a reply
-    /// that never changes cannot be built.
+    /// Returns [`StartError::Json`] when a reply that never changes cannot
+    /// be built.
     pub fn new(
         listener: Listener,
         session: Session,
@@ -226,61 +236,172 @@ impl Server {
         let model =
             serde_json::to_vec(&ModelReply { read_only, tool }).map_err(StartError::Json)?;
         Ok(Self {
-            address: Address::new(listener.port()),
+            shared: Shared {
+                address: Address::new(listener.port()),
+                session: Mutex::new(session),
+                model,
+                replies: Replies::new()?,
+                connections: Connections::default(),
+            },
             listener,
-            session,
-            model,
-            replies: Replies::new()?,
             settings,
         })
     }
 
-    /// Answers requests until `stop` is set or the idle limit passes, and
-    /// returns which happened. It checks both each time a request is
-    /// answered and each time [`Settings::poll`] passes without one.
+    /// Serves until `stop` is set or the idle limit passes, and returns
+    /// which happened. It checks both each time [`Settings::poll`] passes.
+    /// Before it returns, it closes every open connection and joins every
+    /// thread it started.
     ///
     /// # Errors
     ///
     /// Returns the error of a listener that stopped accepting connections.
-    pub fn run(mut self, clock: &dyn Clock, stop: &AtomicBool) -> io::Result<Ended> {
+    pub fn run(self, clock: &dyn Clock, stop: &AtomicBool) -> io::Result<Ended> {
+        let shared = &self.shared;
+        let listener = &self.listener.listener;
+        let closing = AtomicBool::new(false);
+        let (failed, failure) = mpsc::channel();
+        std::thread::scope(|scope| {
+            let closing = &closing;
+            let acceptor =
+                scope.spawn(move || accept(scope, listener, shared, clock, closing, &failed));
+            let ended = self.watch(clock, stop, &failure);
+            // The accept thread sees `closing` once it accepts again, so
+            // the server connects to itself to wake it. When the connect
+            // fails, the accept thread has already ended.
+            closing.store(true, Ordering::SeqCst);
+            drop(TcpStream::connect((
+                Ipv4Addr::LOCALHOST,
+                self.listener.port,
+            )));
+            // Once the accept thread has ended, no connection opens after
+            // the ones that `close_all` closes. A panic in it, which only a
+            // broken invariant can cause, left no connection to close.
+            acceptor.join().ok();
+            shared.connections.close_all();
+            ended
+        })
+    }
+
+    /// Waits until `stop` is set, the idle limit passes or the accept thread
+    /// fails.
+    fn watch(
+        &self,
+        clock: &dyn Clock,
+        stop: &AtomicBool,
+        failure: &Receiver<io::Error>,
+    ) -> io::Result<Ended> {
         loop {
             if stop.load(Ordering::SeqCst) {
                 return Ok(Ended::Stopped);
             }
-            if self.session.idle_for(clock.now()) >= self.settings.idle_limit {
+            if lock(&self.shared.session).idle_for(clock.now()) >= self.settings.idle_limit {
                 return Ok(Ended::Idle);
             }
-            if let Some(request) = self.listener.server.recv_timeout(self.settings.poll)? {
-                self.answer(request, clock.now());
+            match failure.recv_timeout(self.settings.poll) {
+                Ok(error) => return Err(error),
+                Err(RecvTimeoutError::Timeout) => {}
+                Err(RecvTimeoutError::Disconnected) => {
+                    return Err(io::Error::other("the server stopped accepting connections"));
+                }
             }
         }
     }
+}
 
-    /// Answers one request.
-    fn answer(&mut self, mut request: Request, now: Instant) {
-        let reply = self.route(&mut request, now).unwrap_or_else(Reply::Refused);
-        // A write fails only when the client has closed the connection, and
-        // then nobody is left to tell.
-        let _ = request.respond(self.replies.response(reply));
+/// Accepts connections until `closing` is set, and answers each on a thread
+/// of `scope`. A connection over [`CONNECTION_LIMIT`] gets a 503 reply. A
+/// failure to accept goes to `failed`, and ends the thread.
+fn accept<'scope>(
+    scope: &'scope Scope<'scope, '_>,
+    listener: &'scope TcpListener,
+    shared: &'scope Shared,
+    clock: &'scope dyn Clock,
+    closing: &'scope AtomicBool,
+    failed: &Sender<io::Error>,
+) {
+    loop {
+        let accepted = listener.accept();
+        if closing.load(Ordering::SeqCst) {
+            return;
+        }
+        let mut connection = match accepted {
+            Ok((connection, _)) => connection,
+            Err(error) => {
+                // The receiver is gone only after `run` has stopped watching.
+                failed.send(error).ok();
+                return;
+            }
+        };
+        // A connection whose timeouts cannot be set is closed unanswered.
+        if connection.set_write_timeout(Some(WRITE_TIME)).is_err() {
+            continue;
+        }
+        match shared.connections.admit(&connection) {
+            Some(slot) => {
+                scope.spawn(move || {
+                    shared.answer(&mut connection, clock);
+                    drop(slot);
+                });
+            }
+            None => shared.refuse(&mut connection, Refusal::Busy),
+        }
+    }
+}
+
+impl Shared {
+    /// Reads one request from `connection`, answers it, and closes the
+    /// connection.
+    fn answer(&self, connection: &mut TcpStream, clock: &dyn Clock) {
+        let request = match http::read_request(connection) {
+            Ok(Some(request)) => request,
+            // A client that closes or stalls before its head ends gets no
+            // reply.
+            Ok(None) => return,
+            Err(refusal) => return self.refuse(connection, refusal),
+        };
+        let reply = self
+            .route(&request, connection, clock)
+            .unwrap_or_else(Reply::Refused);
+        // A write fails only when the client has closed the connection or
+        // stopped reading, and then nobody is left to tell.
+        if self.replies.write(connection, &reply).is_ok() {
+            finish(connection);
+        }
     }
 
-    /// Checks `request`, then returns the reply of its route.
-    fn route(&mut self, request: &mut Request, now: Instant) -> Result<Reply, Refusal> {
-        let route = {
-            let head = Head::of(request);
-            request::check(&head, &self.address)?;
-            let route = Route::of(head.method(), head.path());
-            if route.needs_token() {
-                self.session.authenticate(head.one("Authorization"), now)?;
-            }
-            route
-        };
+    /// Writes `refusal` to `connection` and closes it.
+    fn refuse(&self, connection: &mut TcpStream, refusal: Refusal) {
+        if self
+            .replies
+            .write(connection, &Reply::Refused(refusal))
+            .is_ok()
+        {
+            finish(connection);
+        }
+    }
+
+    /// Checks `request`, then returns the reply of its route, which reads
+    /// the body from `connection` when it takes one.
+    fn route(
+        &self,
+        request: &http::Request,
+        connection: &mut TcpStream,
+        clock: &dyn Clock,
+    ) -> Result<Reply, Refusal> {
+        let head = request.head();
+        request::check(head, &self.address)?;
+        let route = Route::of(head.method(), head.path());
+        if route.needs_token() {
+            lock(&self.session).authenticate(head.one("Authorization"), clock.now())?;
+        }
         match route {
             Route::Session => {
-                let body = read_body(request)?;
+                let body = request.body(connection)?;
                 let exchange: Exchange =
                     serde_json::from_slice(&body).map_err(|_| Refusal::Body)?;
-                let token = self.session.exchange(&exchange.code, now)?;
+                let mut session = lock(&self.session);
+                let token = session.exchange(&exchange.code, clock.now())?;
                 // The token is hex digits, which JSON needs no escape for.
                 let document = format!(r#"{{"token":"{}"}}"#, token.expose_secret());
                 Ok(Reply::Json(document.into_bytes()))
@@ -292,11 +413,74 @@ impl Server {
     }
 }
 
+/// Ends a connection after its reply: no more writes, then what the client
+/// still sends is read and dropped for a short time, so the client reads
+/// the reply before the connection closes.
+fn finish(connection: &mut TcpStream) {
+    // The client may already have closed the connection.
+    connection.shutdown(Shutdown::Write).ok();
+    http::drain(connection);
+}
+
+/// Locks `mutex`. A thread that panicked while it held the lock left the
+/// session in a state that each method keeps whole, so the lock is taken
+/// anyway.
+fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// The open connections, at most [`CONNECTION_LIMIT`], each with a handle
+/// that closes it when the server stops.
+#[derive(Debug, Default)]
+struct Connections {
+    open: Mutex<BTreeMap<u64, TcpStream>>,
+    next: AtomicU64,
+}
+
+impl Connections {
+    /// Takes `connection` when fewer than [`CONNECTION_LIMIT`] are open, and
+    /// returns its slot, which frees the place when it is dropped.
+    fn admit(&self, connection: &TcpStream) -> Option<Slot<'_>> {
+        let handle = connection.try_clone().ok()?;
+        let mut open = lock(&self.open);
+        if open.len() >= CONNECTION_LIMIT {
+            return None;
+        }
+        let id = self.next.fetch_add(1, Ordering::Relaxed);
+        open.insert(id, handle);
+        Some(Slot {
+            connections: self,
+            id,
+        })
+    }
+
+    /// Closes every open connection, so each connection's thread ends at
+    /// its next read or write.
+    fn close_all(&self) {
+        for connection in lock(&self.open).values() {
+            // A connection that the client has closed refuses the shutdown.
+            connection.shutdown(Shutdown::Both).ok();
+        }
+    }
+}
+
+/// The place of one open connection.
+#[derive(Debug)]
+struct Slot<'a> {
+    connections: &'a Connections,
+    id: u64,
+}
+
+impl Drop for Slot<'_> {
+    fn drop(&mut self) {
+        lock(&self.connections.open).remove(&self.id);
+    }
+}
+
 impl fmt::Debug for Server {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Server")
             .field("listener", &self.listener)
-            .field("session", &self.session)
             .field("settings", &self.settings)
             .finish_non_exhaustive()
     }
@@ -319,7 +503,7 @@ enum Route {
 
 impl Route {
     /// Returns the route of a request with `method` and `path`.
-    fn of(method: &Method, path: &str) -> Self {
+    fn of(method: Method, path: &str) -> Self {
         match (method, path) {
             (Method::Post, "/api/session") => Self::Session,
             (Method::Get, "/api/model") => Self::Model,
@@ -333,19 +517,4 @@ impl Route {
     const fn needs_token(&self) -> bool {
         matches!(self, Self::Model | Self::ApiNotFound)
     }
-}
-
-/// Reads the body of `request`, at most [`BODY_LIMIT`] bytes.
-fn read_body(request: &mut Request) -> Result<Vec<u8>, Refusal> {
-    let mut body = Vec::new();
-    let limit = u64::try_from(BODY_LIMIT + 1).unwrap_or(u64::MAX);
-    request
-        .as_reader()
-        .take(limit)
-        .read_to_end(&mut body)
-        .map_err(|_| Refusal::Body)?;
-    if body.len() > BODY_LIMIT {
-        return Err(Refusal::TooLarge);
-    }
-    Ok(body)
 }

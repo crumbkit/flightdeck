@@ -1,13 +1,13 @@
 //! What the server sends back: the refusals with their problem documents,
 //! and the headers that every reply carries.
 
-use std::io::Cursor;
+use std::io::{self, Write};
 
 use serde::Serialize;
-use tiny_http::{Header, Response};
 
 use super::StartError;
-use super::assets::{self, Asset};
+use super::assets::Asset;
+use super::http::{self, ReplyHead};
 
 #[cfg(test)]
 mod tests;
@@ -48,8 +48,16 @@ pub(super) enum Refusal {
     Method,
     /// A `POST` body is not declared as JSON.
     ContentType,
-    /// The body is larger than [`super::BODY_LIMIT`].
+    /// The body is larger than [`http::BODY_LIMIT`].
     TooLarge,
+    /// The request's head is larger than [`http::HEAD_LIMIT`] or has more
+    /// than [`http::HEADER_LIMIT`] headers.
+    HeadTooLarge,
+    /// The request is not HTTP/1.x that the server reads, such as one with
+    /// `Transfer-Encoding` or two `Content-Length` headers.
+    Malformed,
+    /// The server already holds as many connections as it takes.
+    Busy,
     /// The body is not the JSON document that the route takes.
     Body,
     /// The request has no token, a wrong one, or a malformed header.
@@ -62,13 +70,16 @@ pub(super) enum Refusal {
 
 impl Refusal {
     /// Every refusal, in the order its document lists them.
-    pub(super) const ALL: [Self; 10] = [
+    pub(super) const ALL: [Self; 13] = [
         Self::Host,
         Self::CrossSite,
         Self::Origin,
         Self::Method,
         Self::ContentType,
         Self::TooLarge,
+        Self::HeadTooLarge,
+        Self::Malformed,
+        Self::Busy,
         Self::Body,
         Self::Unauthorized,
         Self::CodeRefused,
@@ -82,7 +93,9 @@ impl Refusal {
             Self::Method => 405,
             Self::ContentType => 415,
             Self::TooLarge => 413,
-            Self::Body => 400,
+            Self::HeadTooLarge => 431,
+            Self::Malformed | Self::Body => 400,
+            Self::Busy => 503,
             Self::Unauthorized | Self::CodeRefused => 401,
             Self::NotFound => 404,
         }
@@ -98,6 +111,9 @@ impl Refusal {
             Self::Method => "flightdeck::request::method",
             Self::ContentType => "flightdeck::request::content_type",
             Self::TooLarge => "flightdeck::request::too_large",
+            Self::HeadTooLarge => "flightdeck::request::head_too_large",
+            Self::Malformed => "flightdeck::request::malformed",
+            Self::Busy => "flightdeck::request::busy",
             Self::Body => "flightdeck::request::body",
             Self::Unauthorized => "flightdeck::session::unauthorized",
             Self::CodeRefused => "flightdeck::session::code_refused",
@@ -114,6 +130,9 @@ impl Refusal {
             Self::Method => "flightdeck answers only GET and POST.",
             Self::ContentType => "A POST must send its body as application/json.",
             Self::TooLarge => "The request body is larger than flightdeck reads.",
+            Self::HeadTooLarge => "The request line and headers are larger than flightdeck reads.",
+            Self::Malformed => "The request is not an HTTP/1.1 request that flightdeck reads.",
+            Self::Busy => "flightdeck is answering as many connections as it takes. Try again.",
             Self::Body => "The request body is not the JSON document that the route takes.",
             Self::Unauthorized => "The request needs the page's token.",
             Self::CodeRefused => {
@@ -145,29 +164,16 @@ pub(super) enum Reply {
     Refused(Refusal),
 }
 
-/// The fixed parts of every reply, parsed once when the server starts, so
-/// building a reply cannot fail.
+/// The problem documents of the refusals, written once when the server
+/// starts, so writing a reply builds no JSON.
 #[derive(Debug)]
 pub(super) struct Replies {
-    security: Vec<Header>,
-    content_types: Vec<(&'static str, Header)>,
-    authenticate: Header,
     problems: Vec<(Refusal, Vec<u8>)>,
 }
 
 impl Replies {
-    /// Parses the fixed headers and writes the problem document of each
-    /// refusal.
+    /// Writes the problem document of each refusal.
     pub(super) fn new() -> Result<Self, StartError> {
-        let security = SECURITY
-            .iter()
-            .map(|(name, value)| header(name, value))
-            .collect::<Result<_, _>>()?;
-        let content_types = [JSON, PROBLEM]
-            .into_iter()
-            .chain(assets::ALL.iter().map(Asset::content_type))
-            .map(|value| header("Content-Type", value).map(|header| (value, header)))
-            .collect::<Result<_, _>>()?;
         let problems = Refusal::ALL
             .into_iter()
             .map(|refusal| {
@@ -182,51 +188,62 @@ impl Replies {
                     .map_err(StartError::Json)
             })
             .collect::<Result<_, _>>()?;
-        Ok(Self {
-            security,
-            content_types,
-            authenticate: header("WWW-Authenticate", "Bearer")?,
-            problems,
-        })
+        Ok(Self { problems })
     }
 
-    /// Returns the response of `reply`, with the security headers and its
+    /// Writes `reply` to `connection` with the security headers and its
     /// content type.
-    pub(super) fn response(&self, reply: Reply) -> Response<Cursor<Vec<u8>>> {
-        let (status, content_type, body) = match reply {
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of a write, as when the client has closed the
+    /// connection.
+    pub(super) fn write(&self, connection: &mut impl Write, reply: &Reply) -> io::Result<()> {
+        let (status, content_type, body): (u16, &str, &[u8]) = match reply {
             Reply::Json(body) => (200, JSON, body),
-            Reply::Asset(asset) => (200, asset.content_type(), asset.body().to_vec()),
-            Reply::Refused(refusal) => (refusal.status(), PROBLEM, self.problem(refusal)),
+            Reply::Asset(asset) => (200, asset.content_type(), asset.body()),
+            Reply::Refused(refusal) => (refusal.status(), PROBLEM, self.problem(*refusal)),
         };
-        let mut response = Response::from_data(body).with_status_code(status);
-        for header in &self.security {
-            response.add_header(header.clone());
-        }
-        if let Some((_, header)) = self
-            .content_types
-            .iter()
-            .find(|(value, _)| *value == content_type)
-        {
-            response.add_header(header.clone());
-        }
-        // A 401 reply names the scheme it needs (RFC 9110).
-        if status == 401 {
-            response.add_header(self.authenticate.clone());
-        }
-        response
+        let mut body_writer = start(connection, status, content_type, Some(body.len()))?;
+        body_writer.send(body)
     }
 
     /// Returns the problem document of `refusal`.
-    fn problem(&self, refusal: Refusal) -> Vec<u8> {
+    fn problem(&self, refusal: Refusal) -> &[u8] {
         self.problems
             .iter()
             .find(|(each, _)| *each == refusal)
-            .map(|(_, body)| body.clone())
-            .unwrap_or_default()
+            .map_or(&[], |(_, body)| body.as_slice())
     }
 }
 
-/// Parses one fixed header.
-fn header(name: &'static str, value: &'static str) -> Result<Header, StartError> {
-    Header::from_bytes(name, value).map_err(|()| StartError::Header(name))
+/// Writes the head of a reply with `status`, `content_type`, the security
+/// headers and a body of `length` bytes, and returns the writer of its
+/// body. A body of unknown length, such as a stream of lines, ends when the
+/// server closes the connection.
+///
+/// # Errors
+///
+/// Returns the error of a write, as when the client has closed the
+/// connection.
+pub(super) fn start<'w, W: Write>(
+    connection: &'w mut W,
+    status: u16,
+    content_type: &str,
+    length: Option<usize>,
+) -> io::Result<http::Body<'w, W>> {
+    let mut headers: Vec<(&str, &str)> = SECURITY.to_vec();
+    headers.push(("Content-Type", content_type));
+    // A 401 reply names the scheme it needs (RFC 9110).
+    if status == 401 {
+        headers.push(("WWW-Authenticate", "Bearer"));
+    }
+    http::start(
+        connection,
+        &ReplyHead {
+            status,
+            headers: &headers,
+            length,
+        },
+    )
 }

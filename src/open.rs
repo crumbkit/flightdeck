@@ -162,8 +162,8 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
 }
 
 /// Sets `stop` on Ctrl-C and SIGTERM. A second signal while flightdeck
-/// stops, as when a request it is reading never ends, ends the process at
-/// once with exit code 130 and leaves the opener directory behind.
+/// stops ends the process at once with exit code 130 and leaves the opener
+/// directory behind.
 fn watch_signals(stop: &Arc<AtomicBool>) -> io::Result<()> {
     for signal in [SIGINT, SIGTERM] {
         // signal-hook runs the handlers in the order they were registered,
