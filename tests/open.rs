@@ -63,12 +63,16 @@ struct Open {
 }
 
 impl Open {
-    /// Starts flightdeck and reads its two lines.
+    /// Starts flightdeck on shelf and reads its two lines.
     fn start() -> Self {
+        Self::start_on(&shelf())
+    }
+
+    /// Starts flightdeck on the tool at `tool` and reads its two lines.
+    fn start_on(tool: &Path) -> Self {
         let dirs = tempfile::tempdir().unwrap();
-        let shelf = shelf();
         let mut child = flightdeck(
-            &["open".as_ref(), shelf.as_os_str(), "--no-browser".as_ref()],
+            &["open".as_ref(), tool.as_os_str(), "--no-browser".as_ref()],
             dirs.path(),
         )
         .spawn()
@@ -204,4 +208,54 @@ fn ctrl_c_stops_open_with_exit_0_and_removes_the_opener_directory() {
 
     assert_eq!(exit, Some(0), "{printed}");
     assert!(!directory.exists(), "{} remains", directory.display());
+}
+
+/// Writes a fake crumbkit tool with one command, whose `--version` prints
+/// `version_line`, and returns its directory and path.
+fn fake_tool(version_line: &str) -> (tempfile::TempDir, PathBuf) {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("fake");
+    let script = format!(
+        r#"#!/bin/sh
+case "$1 $2" in
+"--version ") printf '%s\n' '{version_line}' ;;
+"commands list") echo '{{"schema":"fake/commands-list/v1","truncated":false,"data":[{{"path":"fake","about":"A fake tool"}},{{"path":"fake things","about":"Things"}},{{"path":"fake things list","about":"Lists things"}}]}}' ;;
+"schemas list") echo '{{"schema":"fake/schemas-list/v1","truncated":false,"data":[]}}' ;;
+*) exit 2 ;;
+esac
+"#
+    );
+    std::fs::write(&path, script).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    (directory, path)
+}
+
+#[test]
+fn open_prints_the_control_characters_of_a_tools_version_escaped() {
+    // An OSC 52 sequence would write to the clipboard, and the carriage
+    // return and right-to-left override would hide the address.
+    let (_directory, tool) = fake_tool("fake 1.0\x1b]52;c;aGk=\x07\r\u{202e}");
+    let tool_line = std::process::Command::new(&tool)
+        .arg("--version")
+        .output()
+        .unwrap();
+    assert!(
+        tool_line.stdout.contains(&0x1b),
+        "the fake tool prints no ESC"
+    );
+
+    let open = Open::start_on(&tool);
+    let line = open.lines[0].clone();
+    let (exit, printed) = open.stop(rustix::process::Signal::TERM);
+
+    assert_eq!(exit, Some(0), "{printed}");
+    assert!(
+        line.starts_with(
+            "fake 1.0\\u{1b}]52;c;aGk=\\u{7}\\u{d}\\u{202e} · 1 command · http://127.0.0.1:"
+        ),
+        "{line:?}"
+    );
+    assert!(!line.chars().any(char::is_control), "{line:?}");
 }

@@ -24,6 +24,9 @@ use crate::server::{
 };
 use crate::spawn::{self, Exit, Program};
 
+#[cfg(test)]
+mod tests;
+
 /// The code of a page's server that could not start or stopped answering.
 pub const SERVER_FAILED: Code = Code::new("flightdeck", "server", "failed");
 
@@ -129,8 +132,8 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
     let _ = writeln!(
         lines,
         "{} {} · {commands} · {origin}",
-        tool.name(),
-        tool.version()
+        printable(tool.name()),
+        printable(tool.version())
     );
     let page = opener.page().display();
     if args.no_browser {
@@ -159,6 +162,31 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
     // Dropping the opener removes its directory before flightdeck exits.
     drop(opener);
     Ok(())
+}
+
+/// Returns `text` with each control character and each bidirectional
+/// formatting character written as `\u{..}`, so text that a tool prints
+/// about itself cannot move the cursor, rewrite the line, set the clipboard
+/// or reorder the address when flightdeck prints it.
+fn printable(text: &str) -> String {
+    text.chars()
+        .map(|character| {
+            if character.is_control() || is_bidi_control(character) {
+                character.escape_unicode().to_string()
+            } else {
+                character.to_string()
+            }
+        })
+        .collect()
+}
+
+/// Returns true for the characters that change the direction of text:
+/// the marks, the embeddings and overrides, and the isolates.
+const fn is_bidi_control(character: char) -> bool {
+    matches!(
+        character,
+        '\u{061c}' | '\u{200e}' | '\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}'
+    )
 }
 
 /// Sets `stop` on Ctrl-C and SIGTERM. A second signal while flightdeck
