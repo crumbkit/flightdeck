@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import { useState } from "react";
+import { notStartedWord } from "@/api/failure";
 import type { Command } from "@/api/model";
 import { resultOf } from "@/api/result";
 import type { FailureDocument } from "@/api/runs";
@@ -26,7 +27,7 @@ function statusOf(state: RunState): { words: string; failed: boolean } {
     case "running":
       return { words: "running", failed: false };
     case "refused":
-      return { words: "refused", failed: true };
+      return { words: notStartedWord(state.problem), failed: true };
     case "broken":
       return { words: "no answer", failed: true };
     case "cut":

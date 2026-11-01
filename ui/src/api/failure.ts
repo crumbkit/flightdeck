@@ -38,8 +38,9 @@ export function isSignedOut(error: unknown): boolean {
 }
 
 /**
- * Returns the composer field that a refusal marks, and its words. The
- * refusal's `argument` names the field. When it carries `earlier`, the
+ * Returns the composer field that a refusal marks, and its words. Only a
+ * failure document whose code is `flightdeck::run::refused` marks a field,
+ * whatever the reply's status. The refusal's `argument` names the field. When it carries `earlier`, the
  * earlier argument that needs a value first is marked instead, and when it
  * carries `index`, the words name the refused value's place in its list.
  */
@@ -47,11 +48,35 @@ export function fieldErrorOf(
   problem: Problem | null,
   words: string,
 ): { name: string; words: string } | null {
-  const fields = problem?.fields ?? {};
+  if (problem?.code !== "flightdeck::run::refused") {
+    return null;
+  }
+  const fields = problem.fields ?? {};
   const { argument, earlier, index } = fields;
   const name = typeof earlier === "string" ? earlier : argument;
   if (typeof name !== "string") {
     return null;
   }
   return { name, words: typeof index === "number" ? `Value ${index + 1}: ${words}` : words };
+}
+
+/** The runner's codes for a request it will not run as sent. */
+const refusals = [
+  "flightdeck::run::refused",
+  "flightdeck::run::read_only",
+  "flightdeck::run::needs_confirmation",
+  "flightdeck::run::confirmation",
+];
+
+/**
+ * Returns the card's word for a run that the server did not start, from the
+ * failure document's code. The reply's status says less, because the server
+ * may answer the same failure with another status.
+ */
+export function notStartedWord(problem: Problem | null): string {
+  const code = problem?.code;
+  if (code !== undefined && refusals.includes(code)) {
+    return "refused";
+  }
+  return code === "flightdeck::run::busy" ? "busy" : "not started";
 }

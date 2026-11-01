@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fieldErrorOf } from "./failure";
+import { fieldErrorOf, notStartedWord } from "./failure";
 
 const refusal = (fields: Record<string, unknown>) => ({
   code: "flightdeck::run::refused",
@@ -32,5 +32,24 @@ describe("fieldErrorOf", () => {
   it("marks nothing for a refusal that names no argument", () => {
     expect(fieldErrorOf(refusal({ path: ["books"], argument: null }), "x")).toBeNull();
     expect(fieldErrorOf(null, "x")).toBeNull();
+  });
+});
+
+describe("fieldErrorOf, by the failure document's code", () => {
+  it("marks no field for a failure other than a refusal, whatever its status", () => {
+    const busy = { code: "flightdeck::run::busy", cause: "busy", fields: { argument: "--limit" } };
+
+    expect(fieldErrorOf(busy, "busy")).toBeNull();
+  });
+});
+
+describe("notStartedWord", () => {
+  it("names a run the server would not start by its failure document's code", () => {
+    expect(notStartedWord({ code: "flightdeck::run::refused" })).toBe("refused");
+    expect(notStartedWord({ code: "flightdeck::run::read_only" })).toBe("refused");
+    expect(notStartedWord({ code: "flightdeck::run::busy" })).toBe("busy");
+    expect(notStartedWord({ code: "flightdeck::run::closed" })).toBe("not started");
+    expect(notStartedWord({ title: "Not Found" })).toBe("not started");
+    expect(notStartedWord(null)).toBe("not started");
   });
 });
