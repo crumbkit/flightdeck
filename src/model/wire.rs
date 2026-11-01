@@ -30,9 +30,9 @@ pub(super) struct CommandRow {
     pub(super) effects: Effects,
     #[serde(default)]
     pub(super) writes: Option<Writes>,
-    /// The goal headings of a group's help, which a newer crumbkit prints
-    /// and 0.1.0 does not. A newer crumbkit leaves the field out when it is
-    /// empty, and a `null` reads as empty.
+    /// The goal headings of a group's help, which crumbkit 0.1.1 prints and
+    /// 0.1.0 does not. crumbkit leaves the field out when it is empty, and a
+    /// `null` reads as empty.
     #[serde(default, deserialize_with = "null_as_empty")]
     pub(super) goals: Vec<GoalRow>,
 }

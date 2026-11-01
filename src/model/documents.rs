@@ -47,9 +47,9 @@ impl<T> Listing<T> {
         self.total
     }
 
-    /// Returns the listing's next steps, which a newer crumbkit prints and
-    /// 0.1.0 does not, so a listing from 0.1.0 has none. A newer crumbkit
-    /// leaves the field out when it is empty, and a `null` reads as empty.
+    /// Returns the listing's next steps, which crumbkit 0.1.1 prints and
+    /// 0.1.0 does not, so a listing from 0.1.0 has none. crumbkit leaves the
+    /// field out when it is empty, and a `null` reads as empty.
     #[must_use]
     pub fn next(&self) -> &[NextStep] {
         &self.next

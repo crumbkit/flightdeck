@@ -8,12 +8,12 @@ use crate::runner::vector::{Vector, build};
 
 /// shelf's `commands list` document at the commit that the install script
 /// pins.
-const SHELF: &str = include_str!("../../../tests/fixtures/newer/commands-list-with-goals.json");
+const SHELF: &str = include_str!("../../../tests/fixtures/shelf/commands-list.json");
 
 /// Returns the vector of `shelf books remove 2`.
 fn remove_2() -> Vector {
     let commands: CommandsList = serde_json::from_str(SHELF).unwrap();
-    let tool = Tool::assemble("shelf 0.1.0", commands, Vec::new()).unwrap();
+    let tool = Tool::assemble("shelf 0.1.1", commands, Vec::new()).unwrap();
     let request = RunRequest::new(["books", "remove"])
         .value("<ID>", crate::runner::Value::Many(vec!["2".to_owned()]));
     build(&tool, &request).unwrap().1

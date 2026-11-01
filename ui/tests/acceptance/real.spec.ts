@@ -14,7 +14,7 @@ async function signIn(page: Page, served: Served): Promise<void> {
   await expect(page.getByRole("region", { name: "Welcome to shelf" })).toBeVisible();
 }
 
-/** The fixture that the stubbed journeys and the unit tests read. */
+/** The fixture that the unit tests read. */
 const fixture = new URL("../fixtures/shelf-model.json", import.meta.url);
 
 test("the opener page signs in and the page drops the launch code from its address", async ({
@@ -28,17 +28,18 @@ test("the opener page signs in and the page drops the launch code from its addre
   await expectNoAccessibilityViolations(page);
 });
 
-test("the rail of crumbkit 0.1.0's shelf lists its commands under no heading", async ({
-  page,
-  served,
-}) => {
-  await page.goto(served.opener);
-  await expect(page.getByRole("region", { name: "Welcome to shelf" })).toBeVisible();
+test("the rail shows shelf's three goal headings in help order", async ({ page, served }) => {
+  await signIn(page, served);
   const rail = page.getByRole("navigation", { name: "Commands" });
 
-  await expect(rail.getByRole("heading")).toHaveCount(0);
+  await expect(rail.getByRole("heading")).toHaveText([
+    "Browse the catalogue",
+    "Explore the commands",
+    "Review how shelf is used",
+  ]);
   await expect(rail.getByRole("button")).toHaveCount(9);
   await expect(rail.getByRole("button", { name: "books remove destructive" })).toBeVisible();
+  await expectNoAccessibilityViolations(page);
 });
 
 test("⌘K finds books show by the caption of its example", async ({ page, served }) => {

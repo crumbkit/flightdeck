@@ -2,22 +2,25 @@
   "read_only": false,
   "tool": {
     "name": "shelf",
-    "version": "0.1.0+git-31245d63b750",
+    "version": "0.1.1+git-a85fa49c767a",
     "about": "Browse a small catalogue of public-domain books",
     "headings": [
       {
-        "title": "shelf",
+        "title": "Browse the catalogue",
         "commands": [
           ["books", "list"],
           ["books", "show"],
           ["books", "summarize"],
-          ["books", "remove"],
-          ["commands", "list"],
-          ["schemas", "list"],
-          ["schemas", "show"],
-          ["self", "usage"],
-          ["self", "figures", "list"]
+          ["books", "remove"]
         ]
+      },
+      {
+        "title": "Explore the commands",
+        "commands": [["commands", "list"], ["schemas", "list"], ["schemas", "show"]]
+      },
+      {
+        "title": "Review how shelf is used",
+        "commands": [["self", "usage"], ["self", "figures", "list"]]
       }
     ],
     "commands": [
@@ -2153,6 +2156,51 @@
               "const": true,
               "description": "Present, and true, when the run was a dry run that changed nothing."
             },
+            "next": {
+              "description": "The next steps, in the order the text prints them. It is absent when there are none.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "commands": {
+                    "description": "The commands that carry out the step, in order.",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "call": {
+                              "description": "A command line of this tool.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["call"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "run": {
+                              "description": "A command line of another program.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["run"],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "text": {
+                    "description": "The sentence or phrase that the text prints for the step.",
+                    "type": "string"
+                  }
+                },
+                "required": ["text", "commands"],
+                "type": "object"
+              },
+              "type": "array"
+            },
             "schema": {
               "const": "shelf/books-list/v1",
               "description": "The id of this document."
@@ -3290,6 +3338,27 @@
                   "description": "stream when the command prints a stream, one row on each line as each arrives, bytes when it prints one document that holds bytes, which its text prints unchanged, headed when it prints one document whose text prints each answer's bytes under a header, document when it prints any other document, and null when the guide's leaf for the command declares no document.",
                   "enum": ["bytes", "document", "headed", "stream", null]
                 },
+                "goals": {
+                  "description": "The goal headings that the command's help page lists its subcommands under, in the page's order. Only the row of a command whose help page prints goal headings for its group, which needs at least one goal that names a visible subcommand, has this field.",
+                  "items": {
+                    "properties": {
+                      "commands": {
+                        "description": "The names of the visible subcommands that the help page lists under the heading, in the heading's order.",
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "heading": {
+                        "description": "The heading, such as `Read`.",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["heading", "commands"],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
                 "line": {
                   "description": "The form of the text line that each row prints in place of a table row, such as `<POINTER> -> <TARGET>`, or null when the rows print a table or the command declares no document.",
                   "type": ["string", "null"]
@@ -3356,6 +3425,51 @@
             "dry_run": {
               "const": true,
               "description": "Present, and true, when the run was a dry run that changed nothing."
+            },
+            "next": {
+              "description": "The next steps, in the order the text prints them. It is absent when there are none.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "commands": {
+                    "description": "The commands that carry out the step, in order.",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "call": {
+                              "description": "A command line of this tool.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["call"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "run": {
+                              "description": "A command line of another program.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["run"],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "text": {
+                    "description": "The sentence or phrase that the text prints for the step.",
+                    "type": "string"
+                  }
+                },
+                "required": ["text", "commands"],
+                "type": "object"
+              },
+              "type": "array"
             },
             "schema": {
               "const": "shelf/commands-list/v1",
@@ -3445,6 +3559,51 @@
             "dry_run": {
               "const": true,
               "description": "Present, and true, when the run was a dry run that changed nothing."
+            },
+            "next": {
+              "description": "The next steps, in the order the text prints them. It is absent when there are none.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "commands": {
+                    "description": "The commands that carry out the step, in order.",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "call": {
+                              "description": "A command line of this tool.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["call"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "run": {
+                              "description": "A command line of another program.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["run"],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "text": {
+                    "description": "The sentence or phrase that the text prints for the step.",
+                    "type": "string"
+                  }
+                },
+                "required": ["text", "commands"],
+                "type": "object"
+              },
+              "type": "array"
             },
             "schema": {
               "const": "shelf/schemas-list/v1",
@@ -4145,6 +4304,51 @@
               "const": true,
               "description": "Present, and true, when the run was a dry run that changed nothing."
             },
+            "next": {
+              "description": "The next steps, in the order the text prints them. It is absent when there are none.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "commands": {
+                    "description": "The commands that carry out the step, in order.",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "call": {
+                              "description": "A command line of this tool.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["call"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "run": {
+                              "description": "A command line of another program.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["run"],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "text": {
+                    "description": "The sentence or phrase that the text prints for the step.",
+                    "type": "string"
+                  }
+                },
+                "required": ["text", "commands"],
+                "type": "object"
+              },
+              "type": "array"
+            },
             "schema": {
               "const": "shelf/self-usage/v1",
               "description": "The id of this document."
@@ -4392,6 +4596,51 @@
             "dry_run": {
               "const": true,
               "description": "Present, and true, when the run was a dry run that changed nothing."
+            },
+            "next": {
+              "description": "The next steps, in the order the text prints them. It is absent when there are none.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "commands": {
+                    "description": "The commands that carry out the step, in order.",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "call": {
+                              "description": "A command line of this tool.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["call"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "run": {
+                              "description": "A command line of another program.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["run"],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "text": {
+                    "description": "The sentence or phrase that the text prints for the step.",
+                    "type": "string"
+                  }
+                },
+                "required": ["text", "commands"],
+                "type": "object"
+              },
+              "type": "array"
             },
             "schema": {
               "const": "shelf/self-figures-list/v1",
