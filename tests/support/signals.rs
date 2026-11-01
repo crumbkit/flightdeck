@@ -7,19 +7,20 @@
 //! cancel escalates to SIGTERM. `flightdeck open` avoids this by installing
 //! its own handlers before it serves, and the tests do the same here.
 
+use std::sync::Once;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Once};
 
 use signal_hook::consts::SIGINT;
 
 /// Installs a SIGINT handler in the test process once. A handled signal
 /// resets to its default on exec, so every child starts with SIGINT at its
 /// default. The handler runs the default action, so Ctrl-C still stops the
-/// test process.
+/// test process. A test process that started with SIGINT ignored, as a
+/// background job, is then stopped by a SIGINT that it used to ignore.
 pub(crate) fn interrupt_reaches_children() {
     static INSTALLED: Once = Once::new();
     INSTALLED.call_once(|| {
-        let always = Arc::new(AtomicBool::new(true));
-        signal_hook::flag::register_conditional_default(SIGINT, always).unwrap();
+        static ALWAYS: AtomicBool = AtomicBool::new(true);
+        signal_hook::flag::register_conditional_default(SIGINT, &ALWAYS).unwrap();
     });
 }
