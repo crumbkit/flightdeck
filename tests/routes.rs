@@ -106,8 +106,8 @@ fn refused(reply: &Reply, status: u16, code: &str) -> Value {
     document
 }
 
-/// Returns the process id that `unruly child linger` prints on its first
-/// line.
+/// Returns the process id that `unruly child linger` or `unruly child spew`
+/// prints on its first line.
 fn linger_pid(lines: &mut Lines) -> rustix::process::Pid {
     let started = lines.next_event().unwrap();
     assert_eq!(started["event"], "started");
@@ -117,10 +117,10 @@ fn linger_pid(lines: &mut Lines) -> rustix::process::Pid {
     rustix::process::Pid::from_raw(i32::try_from(pid).unwrap()).unwrap()
 }
 
-/// Waits up to ten seconds for the process `pid` to be gone, and returns
+/// Waits up to `limit` for the process `pid` to be gone, and returns
 /// whether it is.
-fn gone(pid: rustix::process::Pid) -> bool {
-    let deadline = Instant::now() + Duration::from_secs(10);
+fn gone_within(pid: rustix::process::Pid, limit: Duration) -> bool {
+    let deadline = Instant::now() + limit;
     while Instant::now() < deadline {
         if rustix::process::test_kill_process(pid).is_err() {
             return true;
@@ -132,6 +132,46 @@ fn gone(pid: rustix::process::Pid) -> bool {
         std::thread::sleep(Duration::from_millis(20));
     }
     false
+}
+
+/// Waits up to ten seconds for the process `pid` to be gone, and returns
+/// whether it is.
+fn gone(pid: rustix::process::Pid) -> bool {
+    gone_within(pid, Duration::from_secs(10))
+}
+
+#[test]
+fn every_run_route_refuses_a_request_without_the_token_or_with_a_wrong_one_and_runs_nothing() {
+    serving(Setup::shelf(), |running| {
+        let page = Page::of(running);
+        let id = page.confirmation(&remove("2"));
+        let routes = [
+            ("/api/runs".to_owned(), remove("2")),
+            ("/api/previews".to_owned(), remove("2")),
+            (format!("/api/confirmations/{id}"), remove("2")),
+            ("/api/runs/1/cancel".to_owned(), json!({})),
+        ];
+        let wrong = "0".repeat(64);
+
+        for (path, body) in &routes {
+            let call = || Call::post(running.port, path, &body.to_string());
+            let without = call().send(running.port);
+            let with_wrong = call().bearer(&wrong).send(running.port);
+
+            for reply in [without, with_wrong] {
+                assert_eq!(reply.status, 401, "{path}");
+                assert_eq!(reply.code(), "flightdeck::session::unauthorized", "{path}");
+            }
+        }
+
+        assert_eq!(page.book_ids(), [1, 2, 3, 4, 5, 6]);
+        let confirmed = page.stream(&format!("/api/confirmations/{id}"), &remove("2"));
+        assert_eq!(
+            confirmed.rest().last().unwrap()["outcome"]["kind"],
+            "result"
+        );
+        Then::Stop
+    });
 }
 
 #[test]
@@ -192,6 +232,26 @@ fn a_value_that_starts_with_a_dash_reaches_the_tool_as_the_options_value() {
         assert_eq!(ended["outcome"]["failure"]["code"], "shelf::cli::usage");
         assert_eq!(ended["outcome"]["failure"]["fields"]["value"], "-1");
         assert_eq!(ended["exit"], 2);
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_positional_value_that_starts_with_a_dash_reaches_the_tool_after_the_separator() {
+    serving(Setup::shelf(), |running| {
+        let page = Page::of(running);
+
+        let lines = page.stream("/api/previews", &remove("-1")).rest();
+
+        // shelf reads -1 as the value of <ID> only after `--`. Before it,
+        // shelf refuses -1 as an unknown flag and names no value.
+        let ended = lines.last().unwrap();
+        assert_eq!(ended["outcome"]["kind"], "tool_failure", "{lines:?}");
+        let failure = &ended["outcome"]["failure"];
+        assert_eq!(failure["code"], "shelf::cli::usage");
+        assert_eq!(failure["fields"]["argument"], "<ID>...");
+        assert_eq!(failure["fields"]["value"], "-1");
+        assert_eq!(page.book_ids(), [1, 2, 3, 4, 5, 6]);
         Then::Stop
     });
 }
@@ -336,49 +396,62 @@ fn a_stream_from_reading_sends_started_then_each_entry_as_its_own_line_then_ende
 }
 
 #[test]
-fn cancel_ends_a_stream_with_exit_130_and_keeps_the_rows_that_arrived() {
-    // The list prints far more than the pipe and the runner's queue hold,
-    // so reading is still running when the test cancels it.
-    const ENTRIES: usize = 100_000;
-    let lists = tempfile::tempdir().unwrap();
-    let titles: String = (1..=ENTRIES).map(|n| format!("Book {n}\n")).collect();
-    std::fs::write(lists.path().join("to-read.txt"), titles).unwrap();
-    // The graces are long enough that a loaded machine does not reach
-    // SIGKILL before the tool handles SIGINT.
-    let setup = Setup::of(test_tool("reading"))
-        .env("READING_DIR", lists.path())
-        .runner(runner::Settings::new().escalation(runner::Escalation::new(
-            Duration::from_secs(2),
-            Duration::from_secs(2),
-        )));
-    serving(setup, |running| {
+fn with_every_run_streaming_a_cancel_ends_one_with_exit_130_and_keeps_the_rows_that_arrived() {
+    serving(Setup::of(unruly()), |running| {
         let page = Page::of(running);
-        let request = json!({"path": ["entries", "stream"], "values": {"--list": "to-read"}});
-        let mut lines = page.stream("/api/runs", &request);
-        let started = lines.next_event().unwrap();
-        let first = lines.next_event().unwrap();
+        let wait = json!({"path": ["child", "wait"]});
+        // Every run that the runner allows streams, each on a connection
+        // of its own, so the cancel needs a connection the runs leave free.
+        let mut streams: Vec<Lines> = (0..runner::MOST_RUNS)
+            .map(|_| page.stream("/api/runs", &wait))
+            .collect();
+        let mut first = streams.remove(0);
+        let started = first.next_event().unwrap();
+        let arrived: Vec<Value> = (0..3).map(|_| first.next_event().unwrap()).collect();
         let run = started["run"].as_str().unwrap();
         let cancel = format!("/api/runs/{run}/cancel");
 
         let cancelled = page.send(&cancel, &json!({}));
-        let rest = lines.rest();
+        let rest = first.rest();
         let again = page.send(&cancel, &json!({}));
 
         assert_eq!(cancelled.status, 204);
         assert!(cancelled.body.is_empty());
-        assert_eq!(first["event"], "line");
+        let numbers: Vec<Value> = arrived
+            .iter()
+            .map(|line| {
+                assert_eq!(line["event"], "line", "{line}");
+                let document: Value = serde_json::from_str(line["text"].as_str().unwrap()).unwrap();
+                document["data"]["n"].clone()
+            })
+            .collect();
+        assert_eq!(numbers, [1, 2, 3]);
         let ended = rest.last().unwrap();
         assert_eq!(ended["outcome"]["kind"], "cancelled", "{ended}");
         assert_eq!(ended["exit"], 130);
-        let rows = rest.iter().filter(|line| line["event"] == "line").count();
-        assert!(rows + 1 < ENTRIES, "{rows}");
         refused(&again, 404, "flightdeck::run::not_running");
         Then::Stop
     });
 }
 
 #[test]
-fn a_missing_binary_is_refused_with_spawn() {
+fn a_run_over_the_runners_cap_is_refused_with_503_and_busy() {
+    let setup = Setup::of(unruly()).runner(runner::Settings::new().most_runs(1));
+    serving(setup, |running| {
+        let page = Page::of(running);
+        let wait = json!({"path": ["child", "wait"]});
+        let mut holding = page.stream("/api/runs", &wait);
+        holding.next_event().unwrap();
+
+        let reply = page.send("/api/runs", &wait);
+
+        refused(&reply, 503, "flightdeck::run::busy");
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_missing_binary_is_refused_with_500_and_spawn() {
     let missing = tempfile::tempdir().unwrap();
     let setup = Setup::shelf().program(missing.path().join("no-such-tool"));
     serving(setup, |running| {
@@ -386,7 +459,7 @@ fn a_missing_binary_is_refused_with_spawn() {
 
         let reply = page.send("/api/runs", &json!({"path": ["books", "list"]}));
 
-        let document = refused(&reply, 422, "flightdeck::run::spawn");
+        let document = refused(&reply, 500, "flightdeck::run::spawn");
         assert_eq!(document["fields"]["tool"], "shelf");
         Then::Stop
     });
@@ -437,6 +510,37 @@ fn a_client_that_disconnects_stops_its_run() {
         // The child ignores SIGINT and SIGTERM for thirty seconds, so only
         // the cancel of a dropped run ends it this soon.
         assert!(gone(pid), "the child of a dropped stream still runs");
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_client_that_stays_connected_but_stops_reading_has_its_run_stopped_after_the_write_time() {
+    let write_time = Duration::from_millis(200);
+    let setup = Setup::of(unruly())
+        .server(
+            Settings::new()
+                .poll(Duration::from_millis(5))
+                .write_time(write_time),
+        )
+        // The run's output has no total limit, so only the write deadline
+        // can end it.
+        .runner(runner::Settings::new().limits(runner::Limits::new(4096, usize::MAX)));
+    serving(setup, |running| {
+        let page = Page::of(running);
+        let spew = json!({"path": ["child", "spew"]});
+        let mut held = page.stream("/api/runs", &spew);
+        let pid = linger_pid(&mut held);
+
+        // The client keeps the connection open and reads nothing more, so
+        // the socket's buffers fill and a write waits for the client. The
+        // default write time is ten seconds, so a child gone in five shows
+        // that the setting ended the stream.
+        assert!(
+            gone_within(pid, Duration::from_secs(5)),
+            "the child of a stream that nobody reads still runs"
+        );
+        drop(held);
         Then::Stop
     });
 }

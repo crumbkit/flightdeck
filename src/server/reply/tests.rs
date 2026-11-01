@@ -37,7 +37,14 @@ fn a_streamed_reply_sends_its_head_without_a_length_and_then_each_line_as_it_is_
     let mut client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
     let (mut connection, _) = listener.accept().unwrap();
 
-    let mut body = start(&mut connection, 200, "application/x-ndjson", None).unwrap();
+    let mut body = start(
+        &mut connection,
+        200,
+        "application/x-ndjson",
+        None,
+        crate::server::WRITE_TIME,
+    )
+    .unwrap();
     body.send(b"{\"line\":1}\n").unwrap();
     body.send(b"{\"line\":2}\n").unwrap();
     drop(connection);

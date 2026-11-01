@@ -18,8 +18,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the page's address first.
 - The page's server runs the tool's commands: `POST /api/runs`,
   `POST /api/previews` and `POST /api/confirmations/<id>` answer with a
-  stream of JSON lines that ends with an `ended` line, or with 422 and
-  flightdeck's failure document, and `POST /api/runs/<id>/cancel` cancels a
+  stream of JSON lines that ends with an `ended` line, or with
+  flightdeck's failure document and 422, 503 or 500, and `POST /api/runs/<id>/cancel` cancels a
   run. A closed connection cancels its run, and a shutdown lets runs finish
   within a grace and cancels the rest. A body that does not arrive in time
   gets 408 with `flightdeck::request::timeout`.

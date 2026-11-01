@@ -1,16 +1,16 @@
 //! What the server sends back: the refusals with their problem documents,
-//! the runner's refusals, the run streams, and the headers that every reply
-//! carries.
+//! the runner's refusals, and the headers that every reply, including a
+//! run's stream, carries.
 
 use std::io;
 use std::net::TcpStream;
+use std::time::Duration;
 
 use serde::Serialize;
 
 use super::StartError;
 use super::assets::Asset;
 use super::http::{self, Body};
-use super::stream::Stream;
 
 #[cfg(test)]
 mod tests;
@@ -163,7 +163,7 @@ struct Problem {
     code: &'static str,
 }
 
-/// A reply before it gets its headers.
+/// A reply of known length before it gets its headers.
 #[derive(Debug)]
 pub(super) enum Reply {
     /// A JSON document.
@@ -172,8 +172,8 @@ pub(super) enum Reply {
     Asset(&'static Asset),
     /// A refusal.
     Refused(Refusal),
-    /// A runner's refusal: 422, or 404 for a cancel of a run that is not
-    /// running, with the runner's failure document.
+    /// A runner's failure, with the runner's failure document and the
+    /// status that `failure_status` gives it.
     Failure {
         /// The HTTP status.
         status: u16,
@@ -182,20 +182,21 @@ pub(super) enum Reply {
     },
     /// 204 with no body, as a cancel answers.
     Done,
-    /// A run's stream of JSON lines, which `stream::write` writes.
-    Stream(Stream),
 }
 
 /// The problem documents of the refusals, written once when the server
-/// starts, so writing a reply builds no JSON.
+/// starts, so writing a reply builds no JSON, and how long a client has to
+/// read a reply.
 #[derive(Debug)]
 pub(super) struct Replies {
     problems: Vec<(Refusal, Vec<u8>)>,
+    write_time: Duration,
 }
 
 impl Replies {
-    /// Writes the problem document of each refusal.
-    pub(super) fn new() -> Result<Self, StartError> {
+    /// Writes the problem document of each refusal, for replies that a
+    /// client must read within `write_time`.
+    pub(super) fn new(write_time: Duration) -> Result<Self, StartError> {
         let problems = Refusal::ALL
             .into_iter()
             .map(|refusal| {
@@ -210,12 +211,14 @@ impl Replies {
                     .map_err(StartError::Json)
             })
             .collect::<Result<_, _>>()?;
-        Ok(Self { problems })
+        Ok(Self {
+            problems,
+            write_time,
+        })
     }
 
-    /// Writes `reply`, which has a known length, to `connection` with the
-    /// security headers and its content type. A stream is written by
-    /// `stream::write`, and here it writes nothing.
+    /// Writes `reply` to `connection` with the security headers and its
+    /// content type.
     ///
     /// # Errors
     ///
@@ -228,9 +231,14 @@ impl Replies {
             Reply::Refused(refusal) => (refusal.status(), PROBLEM, self.problem(*refusal)),
             Reply::Failure { status, document } => (*status, PROBLEM, document),
             Reply::Done => (204, "", &[]),
-            Reply::Stream(_) => return Ok(()),
         };
-        let mut body_writer = start(connection, status, content_type, Some(body.len()))?;
+        let mut body_writer = start(
+            connection,
+            status,
+            content_type,
+            Some(body.len()),
+            self.write_time,
+        )?;
         body_writer.send(body)
     }
 
@@ -245,10 +253,10 @@ impl Replies {
 
 /// Writes the head of a reply with `status`, `content_type` (none when it
 /// is empty), the security headers and a body of `length` bytes, and
-/// returns the writer of its body. A reply of known length has one deadline
+/// returns the writer of its body. A reply of known length has `write_time`
 /// for its head and body together. A body of unknown length, a stream of
-/// lines, gives each line its own deadline and ends when the server closes
-/// the connection.
+/// lines, gives each line `write_time` and ends when the server closes the
+/// connection.
 ///
 /// # Errors
 ///
@@ -259,6 +267,7 @@ pub(super) fn start<'w>(
     status: u16,
     content_type: &str,
     length: Option<usize>,
+    write_time: Duration,
 ) -> io::Result<Body<'w>> {
     let mut head = format!("HTTP/1.1 {status} {}\r\n", http::reason(status));
     for (name, value) in SECURITY {
@@ -277,8 +286,8 @@ pub(super) fn start<'w>(
     }
     head.push_str("Connection: close\r\n\r\n");
     let mut body = match length {
-        Some(_) => Body::whole(connection),
-        None => Body::lines(connection),
+        Some(_) => Body::whole(connection, write_time),
+        None => Body::lines(connection, write_time),
     };
     body.send(head.as_bytes())?;
     Ok(body)

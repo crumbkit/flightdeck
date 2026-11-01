@@ -181,6 +181,40 @@
       "writes": null
     },
     {
+      "path": "unruly child wait",
+      "about": "Print three documents, then wait until SIGINT and exit with 130",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child spew",
+      "about": "Print the process id, then documents until a signal ends it",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
       "path": "unruly child wipe",
       "about": "Wipe the name it is given; its preview fails for the name bad and waits for SIGINT for the name slow",
       "long_about": null,

@@ -4,11 +4,13 @@
 
 use std::io;
 use std::net::TcpStream;
-use std::time::Duration;
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
 use super::document::Document;
+use super::http::Body;
 use super::{Clock, reply};
 use crate::model::ToolFailure;
 use crate::runner::{Outcome, Preview, Run, RunEvent, Waited};
@@ -184,8 +186,33 @@ impl<'a> From<&'a Outcome> for Ending<'a> {
     }
 }
 
+/// How a stream is paced: how long it waits for output before it writes
+/// `alive`, how long the client has to read each line, and the deadline
+/// that the server sets for every stream once it stops.
+pub(super) struct Pacing<'a> {
+    /// How long the stream goes without output before it writes `alive`.
+    pub(super) keepalive: Duration,
+    /// How long the client has to read each line.
+    pub(super) write_time: Duration,
+    /// The deadline by which every remaining line is written, set once the
+    /// server stops.
+    pub(super) cut_off: &'a OnceLock<Instant>,
+}
+
+impl Pacing<'_> {
+    /// Writes `bytes` to `body`, by the server's deadline when it has
+    /// stopped.
+    fn send(&self, body: &mut Body<'_>, bytes: &[u8]) -> io::Result<()> {
+        if let Some(deadline) = self.cut_off.get() {
+            body.cut_off(*deadline);
+        }
+        body.send(bytes)
+    }
+}
+
 /// Writes `stream` to `connection` as a 200 reply of JSON lines, until its
-/// `ended` line. It writes `alive` after each `keepalive` without output.
+/// `ended` line. It writes `alive` after each keepalive interval without
+/// output. Once the server stops, the remaining lines share one deadline.
 ///
 /// # Errors
 ///
@@ -196,17 +223,17 @@ pub(super) fn write(
     connection: &mut TcpStream,
     mut stream: Stream,
     clock: &dyn Clock,
-    keepalive: Duration,
+    pacing: &Pacing<'_>,
 ) -> io::Result<()> {
     let started = clock.now();
     let started_at = humantime::format_rfc3339_seconds(started.wall()).to_string();
-    let mut body = reply::start(connection, 200, NDJSON, None)?;
-    body.send(&line(&stream.started(started_at))?)?;
+    let mut body = reply::start(connection, 200, NDJSON, None, pacing.write_time)?;
+    pacing.send(&mut body, &line(&stream.started(started_at))?)?;
     loop {
-        let event = match stream.next_timeout(keepalive) {
+        let event = match stream.next_timeout(pacing.keepalive) {
             Some(Waited::Event(event)) => event,
             Some(Waited::Silent) => {
-                body.send(ALIVE)?;
+                pacing.send(&mut body, ALIVE)?;
                 continue;
             }
             // A preview that runs nothing ends after its `started` line.
@@ -214,7 +241,7 @@ pub(super) fn write(
         };
         let outcome = match event {
             RunEvent::Line(text) => {
-                body.send(&line(&Record::Line { text: &text })?)?;
+                pacing.send(&mut body, &line(&Record::Line { text: &text })?)?;
                 continue;
             }
             RunEvent::Outcome(outcome) => outcome,
@@ -226,7 +253,7 @@ pub(super) fn write(
             duration_ms: u64::try_from(took.as_millis()).unwrap_or(u64::MAX),
             preview: stream.ended(),
         };
-        return body.send(&line(&ended)?);
+        return pacing.send(&mut body, &line(&ended)?);
     }
 }
 

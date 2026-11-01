@@ -44,7 +44,8 @@ What works today:
   JSON lines: `started`, a `line` for each line that the tool prints,
   `alive` after 15 seconds without output, and `ended` with the outcome,
   the exit code and the duration. A request that the runner refuses gets
-  422 with flightdeck's failure document. A page that closes its
+  422 with flightdeck's failure document, a full or stopping runner gets
+  503, and a tool that will not start gets 500. A page that closes its
   connection cancels its run. [docs/security.md](docs/security.md) states
   the routes' shapes in full.
 - `flightdeck commands list`, `flightdeck schemas list` and

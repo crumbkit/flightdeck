@@ -29,8 +29,8 @@ pub const BODY_LIMIT: usize = 64 * 1024;
 /// How long a client has to send a request's head and body together.
 pub const REQUEST_TIME: Duration = Duration::from_secs(10);
 
-/// How long the client may take to read a whole reply of known length, or
-/// one line of a stream.
+/// How long the client may take, by default, to read a whole reply of
+/// known length, or one line of a stream.
 pub const WRITE_TIME: Duration = Duration::from_secs(10);
 
 /// The most bytes that the server reads and drops after a reply, so that a
@@ -223,8 +223,8 @@ enum Pace {
     /// Every write of the reply, its head and its body, ends by this one
     /// deadline.
     Whole(Instant),
-    /// Each line of a stream has [`WRITE_TIME`] from when its write starts.
-    Line,
+    /// Each line of a stream has this long from when its write starts.
+    Line(Duration),
 }
 
 /// The connection of a reply, which writes each piece within the reply's
@@ -237,25 +237,36 @@ pub(super) struct Body<'w> {
 
 impl<'w> Body<'w> {
     /// Returns the writer of a reply of known length, whose head and body
-    /// the client must read within [`WRITE_TIME`] in all.
-    pub(super) fn whole(connection: &'w mut TcpStream) -> Self {
+    /// the client must read within `time` in all.
+    pub(super) fn whole(connection: &'w mut TcpStream, time: Duration) -> Self {
         Self {
             connection,
-            pace: Pace::Whole(Instant::now() + WRITE_TIME),
+            pace: Pace::Whole(Instant::now() + time),
         }
     }
 
     /// Returns the writer of a stream, each of whose lines the client must
-    /// read within [`WRITE_TIME`].
+    /// read within `time`.
     ///
     /// A stream's body ends when the server closes the connection, so its
     /// own last line says that it is whole. The run routes' last line is
     /// the `ended` record, and a stream that closes without it was cut off.
-    pub(super) const fn lines(connection: &'w mut TcpStream) -> Self {
+    pub(super) const fn lines(connection: &'w mut TcpStream, time: Duration) -> Self {
         Self {
             connection,
-            pace: Pace::Line,
+            pace: Pace::Line(time),
         }
+    }
+
+    /// Makes every later write end by `deadline` in all, or by the reply's
+    /// own deadline when that is earlier. The server cuts its streams off
+    /// when it stops, so a client that reads slowly cannot hold the stop
+    /// for longer than one write time.
+    pub(super) fn cut_off(&mut self, deadline: Instant) {
+        self.pace = match self.pace {
+            Pace::Whole(own) => Pace::Whole(own.min(deadline)),
+            Pace::Line(_) => Pace::Whole(deadline),
+        };
     }
 
     /// Writes `bytes`, such as the head or one line of a stream with its
@@ -269,7 +280,7 @@ impl<'w> Body<'w> {
     pub(super) fn send(&mut self, bytes: &[u8]) -> io::Result<()> {
         let deadline = match self.pace {
             Pace::Whole(deadline) => deadline,
-            Pace::Line => Instant::now() + WRITE_TIME,
+            Pace::Line(time) => Instant::now() + time,
         };
         write_by(self.connection, bytes, deadline)
     }

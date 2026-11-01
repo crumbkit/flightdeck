@@ -1,4 +1,8 @@
-use super::{HEAD_LIMIT, HEADER_LIMIT, ends_head, parse_head};
+use std::io;
+use std::net::{TcpListener, TcpStream};
+use std::time::{Duration, Instant};
+
+use super::{Body, HEAD_LIMIT, HEADER_LIMIT, ends_head, parse_head};
 use crate::server::reply::Refusal;
 use crate::server::request::Method;
 
@@ -77,4 +81,31 @@ fn a_head_with_too_many_headers_or_over_the_size_limit_is_too_large() {
 
         assert_eq!(refused, Err(Refusal::HeadTooLarge));
     }
+}
+
+#[test]
+fn a_stream_that_is_cut_off_at_a_deadline_that_has_passed_writes_nothing_more() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let _client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+    let (mut connection, _) = listener.accept().unwrap();
+    let mut body = Body::lines(&mut connection, Duration::from_secs(10));
+    body.send(b"{}\n").unwrap();
+
+    body.cut_off(Instant::now());
+
+    let refused = body.send(b"{}\n").unwrap_err();
+    assert_eq!(refused.kind(), io::ErrorKind::TimedOut);
+}
+
+#[test]
+fn a_cut_off_later_than_a_replys_own_deadline_leaves_the_earlier_one() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let _client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+    let (mut connection, _) = listener.accept().unwrap();
+    let mut body = Body::whole(&mut connection, Duration::ZERO);
+
+    body.cut_off(Instant::now() + Duration::from_secs(60));
+
+    let refused = body.send(b"{}").unwrap_err();
+    assert_eq!(refused.kind(), io::ErrorKind::TimedOut);
 }

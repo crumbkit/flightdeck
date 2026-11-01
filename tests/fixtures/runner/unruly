@@ -99,6 +99,20 @@ case "$1 $2" in
   sleep "$seconds"
   echo '{"schema":"unruly/child-linger/v1","data":{}}'
   ;;
+"child wait")
+  # It prints three documents, then waits until SIGINT, on which it exits
+  # with 130.
+  trap 'exit 130' INT
+  for n in 1 2 3; do
+    echo "{\"schema\":\"unruly/child-wait/v1\",\"data\":{\"n\":$n}}"
+  done
+  while :; do sleep 0.01; done
+  ;;
+"child spew")
+  # It prints its process id, then documents until a signal ends it.
+  echo "{\"schema\":\"unruly/child-spew/v1\",\"data\":{\"pid\":$$}}"
+  while :; do echo '{"schema":"unruly/child-spew/v1","data":{}}'; done
+  ;;
 "child both" | "child pair")
   echo '{"schema":"unruly/child-both/v1","data":{}}'
   ;;
