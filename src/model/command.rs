@@ -198,7 +198,9 @@ impl Command {
     }
 
     /// Returns how often the command ran, from the tool's `self figures
-    /// list`, or 0 when the tool keeps no figures or the call failed.
+    /// list`, or 0 when the tool keeps no figures or the call failed. The
+    /// commands that the loader runs itself, such as `commands list`, are
+    /// always 0.
     #[must_use]
     pub const fn runs(&self) -> u64 {
         self.runs

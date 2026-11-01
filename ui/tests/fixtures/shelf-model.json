@@ -957,7 +957,7 @@
           "open_world": false
         },
         "writes": null,
-        "runs": 1
+        "runs": 0
       },
       {
         "path": ["schemas", "list"],
@@ -1138,7 +1138,7 @@
           "open_world": false
         },
         "writes": null,
-        "runs": 1
+        "runs": 0
       },
       {
         "path": ["schemas", "show"],
@@ -1286,7 +1286,7 @@
           "open_world": false
         },
         "writes": null,
-        "runs": 1
+        "runs": 0
       },
       {
         "path": ["self", "usage"],

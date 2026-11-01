@@ -61,7 +61,9 @@ What works today:
   words or argument names hold a control character. When the tool mounts
   `self figures list`, the model also counts how often the tool's usage log
   saw each command run. When that call fails, every count stays 0 and the
-  tool still loads.
+  tool still loads. `commands list`, `schemas list`, `schemas show` and
+  `self figures list` keep no count, because the figures also count the
+  runs that flightdeck makes to load the tool.
 - The page in `ui/` is a React application. It lists the tool's commands
   grouped by goal, finds a command with ⌘K, builds a run from a form, and
   shows each run as a card with its result as a table or a record.

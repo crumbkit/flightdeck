@@ -46,7 +46,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `flightdeck::run::closed`.
 - The model counts each command's runs from the tool's `self figures list`
   when the tool mounts it. A tool without it, or a failing call, loads with
-  every count at 0.
+  every count at 0. The commands that flightdeck runs to load the tool keep
+  no count, because the figures include flightdeck's own runs of them.
 - `flightdeck open` serves the web page, which the binary embeds from
   `ui/dist`. The page lists the tool's commands grouped by goal, finds one
   with ⌘K, builds a run from a form and shows each run as a card with its

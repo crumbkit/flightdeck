@@ -21,6 +21,7 @@ mod wire;
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashMap;
 use std::io;
 use std::time::{Duration, Instant};
 
@@ -117,14 +118,10 @@ impl Tool {
     }
 
     /// Gives each command the runs that `figures` holds for its path, such
-    /// as `("books list", 7)`.
-    fn count_runs(&mut self, figures: Vec<(String, u64)>) {
-        for (path, runs) in figures {
-            if let Some(command) = self
-                .commands
-                .iter_mut()
-                .find(|command| command.path().to_string() == path)
-            {
+    /// as `books list`.
+    fn count_runs(&mut self, figures: &HashMap<String, u64>) {
+        for command in &mut self.commands {
+            if let Some(&runs) = figures.get(&command.path().to_string()) {
                 command.set_runs(runs);
             }
         }
@@ -297,7 +294,7 @@ pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> 
     if tool.command(&figures::COMMAND).is_some()
         && let Ok(answer) = ask(Query::FiguresList)
     {
-        tool.count_runs(figures::read(&answer.stdout));
+        tool.count_runs(&figures::read(&answer.stdout));
     }
     Ok(tool)
 }

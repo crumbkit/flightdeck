@@ -45,20 +45,16 @@ describe("search", () => {
     ]);
   });
 
-  it("ranks an exact path match above an about-text match with more runs", () => {
-    // "books list" is an exact path; "books show" matches only in its about
-    // text, "Show the books with the given ids".
-    const busy = withRuns({ "books show": 50 });
+  it("ranks path matches above an about-text match with more runs", () => {
+    // "books show" and "schemas show" match "show" by path; "books remove"
+    // matches only in its about text, "...so list and show skip them".
+    const busy = withRuns({ "books remove": 50 });
 
-    expect(paths(busy, "books list")[0]).toBe("books list");
-    expect(paths(busy, "the books")).toEqual([
-      "books show",
-      "books list",
-      "books summarize",
-      "books remove",
-      "commands list",
-      "schemas show",
-    ]);
+    expect(paths(busy, "show")).toEqual(["books show", "schemas show", "books remove"]);
+  });
+
+  it("ranks books list above commands list for list in a freshly opened shelf", () => {
+    expect(paths(shelf, "list").slice(0, 2)).toEqual(["books list", "commands list"]);
   });
 
   it("lists every command in the guide's order for an empty query", () => {

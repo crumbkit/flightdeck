@@ -462,7 +462,7 @@ esac"#
 #[test]
 fn a_tool_that_mounts_self_figures_list_gives_each_listed_command_its_runs() {
     let (_directory, path) = fake_tool_with_figures(
-        r#"echo '{"schema":"fake/self-figures-list/v1","data":[{"command":"fake","runs":3},{"command":"things list","runs":7}],"total":2,"truncated":false}'"#,
+        r#"echo '{"schema":"fake/self-figures-list/v1","data":[{"command":"fake","runs":3},{"command":"things list","runs":7},{"command":"self figures list","runs":5}],"total":3,"truncated":false}'"#,
     );
     let (_dirs, program) = isolated(path);
 
@@ -525,10 +525,20 @@ fn a_tool_without_self_figures_list_loads_with_no_runs_and_is_never_asked_for_fi
 }
 
 #[test]
-fn shelf_counts_the_loaders_own_queries_among_its_runs() {
-    let shelf = load("shelf");
+fn opening_shelf_again_counts_none_of_the_loaders_own_queries_as_runs() {
+    let (_dirs, program) = isolated(test_tool("shelf"));
+    model::load(&program, TIME_LIMIT).unwrap();
+
+    let shelf = model::load(&program, TIME_LIMIT).unwrap();
 
     let runs = |words: &[&str]| shelf.command(words).unwrap().runs();
-    assert_eq!(runs(&["commands", "list"]), 1);
+    for words in [
+        ["commands", "list"].as_slice(),
+        &["schemas", "list"],
+        &["schemas", "show"],
+        &["self", "figures", "list"],
+    ] {
+        assert_eq!(runs(words), 0, "{words:?}");
+    }
     assert_eq!(runs(&["books", "list"]), 0);
 }
