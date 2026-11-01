@@ -10,20 +10,22 @@ profiles = ["base", "cli", "child-process", "service"]
 
 [[binding]]
 rule = "PROC-1"
-owners = ["src/spawn.rs", "src/spawn/browser.rs"]
+owners = ["src/spawn.rs", "src/spawn/browser.rs", "src/spawn/stream.rs"]
 checks = [
   "clippy disallowed_methods and disallowed_types (clippy.toml)",
   "the argument vector test in src/spawn/tests.rs",
+  "the vector tests in src/runner/vector/tests.rs",
   "the not-found, not-a-document, time-limit and background-process tests in tests/model.rs",
   "the argument and time-limit tests of the opener in src/spawn/browser/tests.rs",
+  "the refusal, separator, cancel and spawn tests in tests/runner.rs",
 ]
-note = "spawn has two operations. spawn::describe runs one of the fixed queries of spawn::Query. On Unix it kills the child's whole process group when the child exits or the time limit passes, before it reaps the child, and every read of the child's pipes ends at the same deadline. A descendant that leaves the group, such as one that calls setsid, is not stopped. spawn::open_browser runs the system's opener with the opener page's path as its one argument, and at its time limit stops the opener alone, never the browser it starts. Each module's documentation states the five items of PROC-2."
+note = "spawn has three operations. spawn::describe runs one of the fixed queries of spawn::Query. spawn::stream runs a runner::Argv, which only the runner builds after it checks the command and each value against the tool's model. On Unix both kill the child's whole process group when the child exits, before they reap the child. describe also kills the group when its time limit passes, and every read of its child's pipes ends at the same deadline. stream also stops the group when a run is cancelled or its output passes a limit. A descendant that leaves the group, such as one that calls setsid, is not stopped. spawn::open_browser runs the system's opener with the opener page's path as its one argument, and at its time limit stops the opener alone, never the browser it starts. Each module's documentation states the five items of PROC-2."
 
 [[binding]]
 rule = "SVC-1"
-owners = ["src/spawn.rs", "src/server.rs"]
+owners = ["src/spawn.rs", "src/spawn/stream.rs", "src/server.rs"]
 checks = ["clippy disallowed_methods (clippy.toml)"]
-note = "flightdeck's own threads are the two pipe readers of spawn::describe and, on Unix, the thread that waits for the child to exit. A std::thread::scope joins all three before describe returns. Server::run opens a std::thread::scope that holds the server's accept thread and one thread for each open connection, at most server::CONNECTION_LIMIT. When the server stops, run wakes the accept thread with a connection to itself, joins it, shuts down every open connection so its thread ends at its next read or write, and the scope joins every thread before run returns. signal-hook starts no thread, because flightdeck registers only flags."
+note = "flightdeck's own threads are the two pipe readers of spawn::describe and, on Unix, the thread that waits for the child to exit, and a std::thread::scope joins all three before describe returns. Each run of spawn::stream has one thread, which runner::Runs owns and joins once the run has ended or at shutdown, and that thread joins its pipe readers and exit waiter in a scope of its own. Server::run opens a std::thread::scope that holds the server's accept thread and one thread for each open connection, at most server::CONNECTION_LIMIT. When the server stops, run wakes the accept thread with a connection to itself, joins it, shuts down every open connection so its thread ends at its next read or write, and the scope joins every thread before run returns. signal-hook starts no thread, because flightdeck registers only flags."
 
 [[binding]]
 rule = "BASE-24"
@@ -45,6 +47,18 @@ rule = "SVC-5"
 owners = ["src/server.rs", "src/open.rs"]
 checks = ["open_prints_two_lines_and_no_secret_and_stops_on_sigterm_with_exit_0 in tests/open.rs"]
 note = "flightdeck writes no request log. The test searches everything flightdeck prints and every refusal for the token and the launch code."
+
+[[binding]]
+rule = "BASE-5"
+owners = ["src/runner/clock.rs", "src/server.rs"]
+checks = ["the expiry test in tests/runner.rs", "the idle-limit tests in tests/server.rs"]
+note = "The runner reads the time only through a runner::Clock, and runner::SystemClock reads Instant::now. The server reads the time only through a server::Clock, and server::SystemClock reads Instant::now and SystemTime::now. The two stay separate because the runner needs only the monotonic clock. The tests pass a clock that they move forward."
+
+[[binding]]
+rule = "BASE-50"
+owners = ["src/runner/lock.rs"]
+checks = ["review"]
+note = "runner::lock::lock takes every lock of the runner. It recovers a poisoned lock, because each change to the confirmation ids and to the list of runs is one insert, removal or replacement."
 
 [[decision]]
 id = "lanes"

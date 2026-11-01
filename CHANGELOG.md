@@ -22,3 +22,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   model of its commands, arguments, goal headings, documents and inferred
   links, and fails with `flightdeck::tool::not_found` or
   `flightdeck::tool::load` when it cannot.
+- The `runner` module runs a tool's command from a structured request,
+  streams each line of standard output, and ends each run with an outcome.
+  It refuses requests that the model does not allow with
+  `flightdeck::run::refused`, runs a destructive command only with a
+  confirmation id that a preview issued for the same vector, refuses every
+  command that is not read-only in read-only mode, and fails a run with
+  `flightdeck::run::no_document`, `flightdeck::run::spawn` or
+  `flightdeck::run::output_limit` when the tool gives no document, will not
+  start or prints too much.
