@@ -6,7 +6,7 @@ use crate::runner::{RunRequest, Value};
 
 /// shelf's `commands list` document at the commit that the install script
 /// pins.
-const SHELF: &str = include_str!("../../../tests/fixtures/newer/commands-list-with-goals.json");
+const SHELF: &str = include_str!("../../../tests/fixtures/shelf/commands-list.json");
 
 /// The fake tool unruly's `commands list` document.
 const UNRULY: &str = include_str!("../../../tests/fixtures/runner/unruly-commands-list.json");
