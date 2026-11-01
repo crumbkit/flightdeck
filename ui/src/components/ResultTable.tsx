@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, type ReactNode, useState } from "react";
 import type { Command, Link } from "@/api/model";
+import { type Entry, type ItemFailure, rowsOf } from "@/api/result";
 import { cellLinkWords, isLinkColumn } from "@/lib/links";
 import {
   allColumnsOf,
@@ -14,9 +15,27 @@ import {
 import { CellValue } from "./CellValue";
 import { RecordView } from "./RecordView";
 
+/** A table's entry with its place among the entries, and a row's number among the rows. */
+type Numbered = { position: number } & (
+  | { kind: "failure"; failure: ItemFailure }
+  | { kind: "row"; row: Row; index: number }
+);
+
+/** Numbers the entries in order, and the rows among them from 0. */
+function numbered(entries: Entry[]): Numbered[] {
+  let index = 0;
+  return entries.map((entry, position) => {
+    if (entry.kind === "failure") {
+      return { position, ...entry };
+    }
+    index += 1;
+    return { position, kind: "row", row: entry.row, index: index - 1 };
+  });
+}
+
 type Props = {
   command: Command;
-  rows: Row[];
+  entries: Entry[];
   listing: { total: number | null; truncated: boolean } | null;
   view: View;
   onView: (view: View) => void;
@@ -25,6 +44,8 @@ type Props = {
   /** The link that each `id` cell opens, or null for none. */
   link: Link | null;
   onOpenLink: (value: string) => void;
+  /** Draws a failure in the place of the row it stands for. */
+  drawFailure: (failure: ItemFailure) => ReactNode;
 };
 
 const sizeLabels: Record<PageSize, string> = {
@@ -35,24 +56,28 @@ const sizeLabels: Record<PageSize, string> = {
 };
 
 /**
- * A result's rows as a table. Each column shows its description under its
+ * A result's rows as a table, with each failure of a batch or a stream as a
+ * row of its own in its place. Each column shows its description under its
  * name. The toolbar adds the long columns or picks columns, which the card
  * adds to its copied line, and each row expands to its full record. A
  * listing ends with crumbkit's footer and its page sizes, each of which
  * runs the command again in a new card.
  */
-export function ResultTable({
-  command,
-  rows,
-  listing,
-  view,
-  onView,
-  onPageSize,
-  label,
-  link,
-  onOpenLink,
-}: Props) {
+export function ResultTable(props: Props) {
+  const {
+    command,
+    entries,
+    listing,
+    view,
+    onView,
+    onPageSize,
+    label,
+    drawFailure,
+    link,
+    onOpenLink,
+  } = props;
   const [open, setOpen] = useState<number | null>(null);
+  const rows = rowsOf(entries);
   const columns = columnsOf(command, rows, view);
   const every = allColumnsOf(command, rows);
   const hasLong = every.some((column) => column.long);
@@ -129,53 +154,59 @@ export function ResultTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, index) => (
-              // Rows have no key of their own, and a result's rows never change order.
-              // biome-ignore lint/suspicious/noArrayIndexKey: a result's rows are fixed
-              <Fragment key={index}>
-                <tr className={open === index ? "bg-accent" : undefined}>
-                  <td className="border-b p-1 align-top">
-                    <button
-                      type="button"
-                      aria-expanded={open === index}
-                      aria-label={`Full record of row ${index + 1}`}
-                      onClick={() => setOpen(open === index ? null : index)}
-                      className="text-faint-foreground rounded p-0.5"
-                    >
-                      {open === index ? (
-                        <ChevronDown aria-hidden="true" className="size-3.5" />
-                      ) : (
-                        <ChevronRight aria-hidden="true" className="size-3.5" />
-                      )}
-                    </button>
+            {numbered(entries).map((item) =>
+              item.kind === "failure" ? (
+                <tr key={item.position}>
+                  <td colSpan={columns.length + 1} className="border-b px-1 py-1.5">
+                    {drawFailure(item.failure)}
                   </td>
-                  {columns.map((column) => (
-                    <td
-                      key={column.name}
-                      className={
-                        typeof row[column.name] === "number"
-                          ? "border-b px-2.5 py-1.5 text-right align-top tabular-nums"
-                          : "border-b px-2.5 py-1.5 align-top"
-                      }
-                    >
-                      <Cell
-                        value={row[column.name]}
-                        link={isLinkColumn(column.name) ? link : null}
-                        onOpenLink={onOpenLink}
-                      />
-                    </td>
-                  ))}
                 </tr>
-                {open === index && (
-                  <tr>
-                    <td />
-                    <td colSpan={columns.length} className="border-b px-2.5 py-2">
-                      <RecordView record={row} label={`Row ${index + 1}`} />
+              ) : (
+                <Fragment key={item.position}>
+                  <tr className={open === item.index ? "bg-accent" : undefined}>
+                    <td className="border-b p-1 align-top">
+                      <button
+                        type="button"
+                        aria-expanded={open === item.index}
+                        aria-label={`Full record of row ${item.index + 1}`}
+                        onClick={() => setOpen(open === item.index ? null : item.index)}
+                        className="text-faint-foreground rounded p-0.5"
+                      >
+                        {open === item.index ? (
+                          <ChevronDown aria-hidden="true" className="size-3.5" />
+                        ) : (
+                          <ChevronRight aria-hidden="true" className="size-3.5" />
+                        )}
+                      </button>
                     </td>
+                    {columns.map((column) => (
+                      <td
+                        key={column.name}
+                        className={
+                          typeof item.row[column.name] === "number"
+                            ? "border-b px-2.5 py-1.5 text-right align-top tabular-nums"
+                            : "border-b px-2.5 py-1.5 align-top"
+                        }
+                      >
+                        <Cell
+                          value={item.row[column.name]}
+                          link={isLinkColumn(column.name) ? link : null}
+                          onOpenLink={onOpenLink}
+                        />
+                      </td>
+                    ))}
                   </tr>
-                )}
-              </Fragment>
-            ))}
+                  {open === item.index && (
+                    <tr>
+                      <td />
+                      <td colSpan={columns.length} className="border-b px-2.5 py-2">
+                        <RecordView record={item.row} label={`Row ${item.index + 1}`} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ),
+            )}
           </tbody>
         </table>
       </div>

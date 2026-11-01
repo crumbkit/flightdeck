@@ -1,9 +1,10 @@
-import { QueryClientProvider } from "@tanstack/react-query";
+import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChoicesReply } from "@/api/choices";
+import type { Command } from "@/api/model";
 import { type Draft, emptyDraft } from "@/lib/form";
 import { makeQueryClient } from "@/queryClient";
 import { command, shelf } from "../../tests/fixtures/shelf";
@@ -49,8 +50,10 @@ function BooksShow({ onDraft }: { onDraft: (draft: Draft) => void }) {
       command={booksShow}
       draft={draft}
       editing={null}
+      focus={null}
       readOnly={false}
       fieldError={null}
+      lineRefused={false}
       onChange={(next) => {
         setDraft(next);
         onDraft(next);
@@ -76,6 +79,56 @@ function renderBooksShow(): { draft: () => Draft } {
   );
   return { draft: () => latest };
 }
+
+/** The composer of `shown` after an Edit that asks for focus `focus`. */
+function edited(shown: Command, focus: number | null, client: QueryClient) {
+  return (
+    <QueryClientProvider client={client}>
+      <Composer
+        tool={shelf}
+        command={shown}
+        draft={emptyDraft(shown)}
+        editing={focus === null ? null : 1}
+        focus={focus}
+        readOnly={false}
+        fieldError={null}
+        lineRefused={false}
+        onChange={noop}
+        onRun={noop}
+        onStopEditing={noop}
+        onShowRun={noop}
+      />
+    </QueryClientProvider>
+  );
+}
+
+describe("Composer", () => {
+  it("moves focus to the first field again on a second Edit of the same run", () => {
+    stubChoices(Response.json(twoBooks));
+    const client = makeQueryClient();
+    const { rerender } = render(edited(booksShow, 1, client));
+    const field = screen.getByLabelText(/The ids of the books to show/);
+    expect(field).toHaveFocus();
+
+    field.blur();
+    rerender(edited(booksShow, 2, client));
+
+    expect(field).toHaveFocus();
+  });
+
+  it("focuses a checkbox that is the first field, and opens More options to reach it", () => {
+    const list = command(shelf, "books list");
+    const onlyAll = {
+      ...list,
+      arguments: list.arguments.filter((argument) => argument.name === "--all"),
+    };
+
+    render(edited(onlyAll, 1, makeQueryClient()));
+
+    expect(screen.getByRole("checkbox")).toHaveFocus();
+    expect(screen.getByText("More options").closest("details")).toHaveAttribute("open");
+  });
+});
 
 describe("Composer's IDs chooser", () => {
   it("asks for the choices of books show from books list and labels each by its other columns", async () => {
