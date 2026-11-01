@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "crumbkit/commands-list/v1",
+  "description": "One branch of the tool's commands with their arguments, examples and columns.",
+  "type": "object",
+  "properties": {
+    "cut": {
+      "description": "Present when the output budget cut the result short, so data holds only its first rows.",
+      "type": "object",
+      "properties": {
+        "budget": {
+          "description": "The most bytes that the run printed on standard output.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "code": {
+          "description": "The over-budget code, in the tool's spelling.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "budget"
+      ]
+    },
+    "data": {
+      "description": "The rows of the page, up to the limit.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/CommandRow"
+      }
+    },
+    "dry_run": {
+      "description": "Present, and true, when the run was a dry run that changed nothing.",
+      "const": true
+    },
+    "schema": {
+      "description": "The id of this document.",
+      "const": "crumbkit/commands-list/v1"
+    },
+    "total": {
+      "description": "The number of rows that matched, of which data holds one page. It is absent when the tool did not count the rows.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "truncated": {
+      "description": "True when the document leaves out rows that matched, because of the limit or the output budget, and false when data holds every row.",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema",
+    "data",
+    "truncated"
+  ],
+  "$defs": {
+    "CommandRow": {
+      "description": "One visible command of a branch of the command tree.",
+      "type": "object",
+      "properties": {
+        "about": {
+          "description": "The command's one-line description, or its full description when it has no one-line description.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "arguments": {
+          "description": "The arguments that the command's help shows, in definition order.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "defaults": {
+                "description": "The values that the argument takes when the caller leaves it out, as help shows them.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "global": {
+                "description": "Whether the argument also works after every subcommand below the command that defines it.",
+                "type": "boolean"
+              },
+              "help": {
+                "description": "The one-line help: the argument's `help`, or its `long_help` when it has no `help`.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "long_help": {
+                "description": "The full help that `--help` shows, when the argument has one.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "many": {
+                "description": "Whether the argument takes more than one value, through repeats, commas or several words.",
+                "type": "boolean"
+              },
+              "name": {
+                "description": "The name as help writes it: `--all` for an argument with a long name, `-a` for one with only a short name, and `<ID>` for a positional argument.",
+                "type": "string"
+              },
+              "one_of": {
+                "description": "The visible arguments that can be given in place of this one. These are the other arguments of each required group that holds it and, when the argument is required, the arguments it conflicts with. The list is empty when no argument can be given in its place.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "possible_values": {
+                "description": "The values that the argument accepts, as help shows them, and none when it accepts any value.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "required": {
+                "description": "Whether the command refuses a command line without the argument.",
+                "type": "boolean"
+              },
+              "short": {
+                "description": "The short form, such as `-n`, when the argument has one.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "value_names": {
+                "description": "The names of the values that the argument takes, such as `N`, and none for a flag.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "name",
+              "short",
+              "value_names",
+              "required",
+              "many",
+              "defaults",
+              "possible_values",
+              "help",
+              "long_help",
+              "global",
+              "one_of"
+            ]
+          }
+        },
+        "children": {
+          "description": "The field whose items each row prints in text as lines under it, such as `components`, or null when the rows print no such lines or the command declares no document.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "children_help": {
+          "description": "The description of the child lines that help prints after `Children: `, which is the row type's own text or crumbkit's sentence that names the children field, or null when `children` is null.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "columns": {
+          "description": "The columns of the result that the command prints, from the document of the guide's leaf for the command. A headed command's text has no columns, so it lists the JSON fields that `--fields` selects, ending with `text` and `base64`.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "description": "The first paragraph of the field's doc comment, when it has one.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "long": {
+                "description": "Whether `--long` adds the column.",
+                "type": "boolean"
+              },
+              "name": {
+                "description": "The column's name, as the row type serializes the field.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "long",
+              "description"
+            ]
+          }
+        },
+        "effects": {
+          "description": "The command's effects, as the Model Context Protocol's tool annotations name them, or null when the tool declares none, in which case a caller assumes the command may destroy data.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "destructive": {
+              "description": "Whether the command may delete or overwrite data.",
+              "type": "boolean"
+            },
+            "idempotent": {
+              "description": "Whether a second run with the same arguments changes nothing more than the first.",
+              "type": "boolean"
+            },
+            "open_world": {
+              "description": "Whether the command reaches systems outside the tool, such as a web service.",
+              "type": "boolean"
+            },
+            "read_only": {
+              "description": "Whether the command changes nothing.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "read_only",
+            "destructive",
+            "idempotent",
+            "open_world"
+          ]
+        },
+        "examples": {
+          "description": "The examples of the guide's leaf for the command, in guide order.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "about": {
+                "description": "The one-line description, which is empty when the example has none.",
+                "type": "string"
+              },
+              "command": {
+                "description": "The full command line, such as `shelf books list --all`, with each word that a POSIX shell would split or expand between single quotes.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "command",
+              "about"
+            ]
+          }
+        },
+        "exits": {
+          "description": "The exit codes that the tool declares for the command besides 0, 1 and 2, which apply to every command, in guide order. `<tool> help exit-codes` describes every code.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "exit": {
+                "description": "The exit code, or the first code of a range of codes that the command passes on from another program.",
+                "type": "integer",
+                "maximum": 255,
+                "minimum": 0
+              },
+              "last": {
+                "description": "The last code of the range, which equals exit for a single code.",
+                "type": "integer",
+                "maximum": 255,
+                "minimum": 0
+              },
+              "meaning": {
+                "description": "What the code means, as one sentence.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "exit",
+              "last",
+              "meaning"
+            ]
+          }
+        },
+        "form": {
+          "description": "stream when the command prints a stream, one row on each line as each arrives, bytes when it prints one document that holds bytes, which its text prints unchanged, headed when it prints one document whose text prints each answer's bytes under a header, document when it prints any other document, and null when the guide's leaf for the command declares no document.",
+          "enum": [
+            "bytes",
+            "document",
+            "headed",
+            "stream",
+            null
+          ]
+        },
+        "line": {
+          "description": "The form of the text line that each row prints in place of a table row, such as `<POINTER> -> <TARGET>`, or null when the rows print a table or the command declares no document.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "long_about": {
+          "description": "The full description that the command's `--help` shows, when the command has one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path": {
+          "description": "The command line that runs the command, such as `shelf books list`.",
+          "type": "string"
+        },
+        "writes": {
+          "description": "How the command guards what it writes, or null when the command is read-only or the tool declares no effects.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "expect": {
+              "description": "Whether the command takes `--expect <VERSION>`, which fails with a conflict unless the target's current version is VERSION, or `none` when the target must not exist.",
+              "type": "boolean"
+            },
+            "items": {
+              "description": "all_or_none when the command writes every item or none, per_item when it reports each item and exits 1 when any item fails, and null when the tool declares neither.",
+              "enum": [
+                "all_or_none",
+                "per_item",
+                null
+              ]
+            },
+            "replaces": {
+              "description": "Whether the command replaces existing data.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "replaces",
+            "expect",
+            "items"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "about"
+      ]
+    }
+  }
+}

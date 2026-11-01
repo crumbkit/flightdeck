@@ -1,0 +1,67 @@
+# flightdeck's adoption map of Luke Randall's Rust standards
+# (https://github.com/crumbkit/rust-standards, adoption.md).
+
+schema = "rust-standards/adoption/v1"
+standards = { version = "0.1.0", commit = "7c9a7577fed4fe5ba0682960c0380af0a75dace4" }
+
+# flightdeck is a command-line program built on crumbkit, it starts the tool
+# it wraps as a child process, and it will serve a local web page.
+profiles = ["base", "cli", "child-process", "service"]
+
+[[binding]]
+rule = "PROC-1"
+owners = ["src/spawn.rs"]
+checks = [
+  "clippy disallowed_methods and disallowed_types (clippy.toml)",
+  "the argument vector test in src/spawn/tests.rs",
+  "the not-found, not-a-document, time-limit and background-process tests in tests/model.rs",
+]
+note = "spawn::describe runs one of the fixed queries of spawn::Query. The module's documentation states the five items of PROC-2. On Unix it kills the child's whole process group when the child exits or the time limit passes, before it reaps the child, and every read of the child's pipes ends at the same deadline. A descendant that leaves the group, such as one that calls setsid, is not stopped."
+
+[[binding]]
+rule = "SVC-1"
+owners = ["src/spawn.rs"]
+checks = ["clippy disallowed_methods (clippy.toml)"]
+note = "The only threads are the two pipe readers of spawn::describe and, on Unix, the thread that waits for the child to exit. A std::thread::scope joins all three before describe returns."
+
+[[decision]]
+id = "lanes"
+requirement = """
+- Lane: `gate` in .github/workflows/ci.yml, on each pull request and each push to main, on ubuntu-latest. It runs the commit check, then every step of the pull-request lane except `rustdoc` and `features`, because flightdeck does not adopt the library profile. Before the tests it installs shelf and reading from crumbkit with scripts/install-test-tools.sh, unless the cache holds them. Its budget is fifteen minutes, the job's timeout. A merge waits for it, and it is the one check that branch protection requires.
+- Lane: `macos` in .github/workflows/ci.yml, weekly on Monday at 05:17 UTC. It runs the tests on macos-latest. Nothing waits for it.
+- Lane: `advisories` in .github/workflows/ci.yml, daily at 06:43 UTC and on each push to main. Nothing waits for it.
+"""
+reason = "The pull-request lane stays on one runner. The weekly macOS run catches a difference in process handling between Linux and macOS; finding it after merge is safe because flightdeck has no release yet, and the release lane will run the tests on both systems. The daily advisory run catches an advisory published against a dependency already on main, and finding it after merge is safe because nothing is released before it passes."
+realizations = [".github/workflows/ci.yml", ".github/scripts/commit-check.sh", "scripts/install-test-tools.sh"]
+
+[[decision]]
+id = "release-profile"
+requirement = "`[profile.release]` sets `overflow-checks = true`, `lto = false`, `codegen-units = 16` and `strip = \"none\"`."
+reason = "People install flightdeck with `cargo install`, which builds it on their machine, so a fast release build is worth more than a smaller binary. These are Cargo's defaults, written out."
+realizations = ["Cargo.toml"]
+
+[[decision]]
+id = "commit-check"
+requirement = "The `gate` lane fails when a commit's message, diff, author email or committer email matches the extended regular expression in the COMMIT_PATTERN repository secret, case-insensitively. The script prints the commit and the part that matched, and never the pattern or the matched text. An empty secret skips the check with a notice. GitHub gives no secret to a pull request from a fork or to one that Dependabot opens, so the check is skipped on both, and a maintainer reads such a pull request before it merges. A base commit that the checkout lacks, as after a force push, checks every commit that the head reaches."
+reason = "flightdeck is a public repository, and some words must never reach it. The pattern lives in a secret so that the repository does not hold it. The check runs on the pull request, before the merge, because a check after the merge comes too late: the words are then in the public history of main."
+realizations = [".github/scripts/commit-check.sh", ".github/workflows/ci.yml"]
+
+[[decision]]
+id = "environment"
+requirement = "flightdeck reads no environment variable of its own, so its BASE-28 catalog is empty and clippy.toml forbids every reader. crumbkit reads its own variables, such as FLIGHTDECK_OUTPUT_BUDGET, and its documentation catalogs them. A child process inherits flightdeck's environment, plus the variables that spawn::Program::env adds."
+reason = "BASE-28's catalog test compares the catalog with the environment snapshot of BASE-6. With no variable read, there is no snapshot to compare, and the disallowed methods keep it that way until a variable is added with its catalog."
+realizations = ["clippy.toml", "src/spawn.rs"]
+
+[[exception]]
+rule = "CLI-7"
+paths = ["src/lib.rs"]
+owner = "Luke Randall"
+reason = "flightdeck mounts only crumbkit's commands list, schemas list and schemas show, and keeps no usage log yet."
+correction = "Start crumbkit-usage in main and mount `self usage` in the pull request that adds `flightdeck open`, which is the first command a person runs."
+
+[[exception]]
+rule = "CLI-8"
+paths = ["src/lib.rs"]
+owner = "Luke Randall"
+reason = "flightdeck's only commands are crumbkit's own, which print through crumbkit::finish, and it writes no file, so it has no tests for a closed standard output or for Ctrl-C."
+correction = "Add both tests in the pull request that adds `flightdeck open`, which runs until Ctrl-C."

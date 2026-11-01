@@ -1,0 +1,5 @@
+codes that no start provokes:
+  flightdeck::tool::not_found: No flightdeck command loads a tool yet; tests/model.rs provokes the code through the model.
+  flightdeck::tool::load: No flightdeck command loads a tool yet; tests/model.rs provokes the code through the model.
+
+codes whose recoveries the check did not follow, because no declared code spells them: 0

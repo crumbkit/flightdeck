@@ -1,0 +1,12 @@
+Explore flightdeck's commands
+
+Usage: flightdeck commands [OPTIONS] <COMMAND>
+
+Commands:
+  list  List a branch of flightdeck's commands with their arguments, examples and columns
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Global flags: --json, --fields <FIELD>, --long, --full. `flightdeck commands --help` describes them.
+Next: flightdeck commands <COMMAND> -h
