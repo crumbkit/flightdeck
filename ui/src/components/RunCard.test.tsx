@@ -18,6 +18,7 @@ describe("RunCard", () => {
       number: 1,
       request: { path: ["books", "show"], values: { "<ID>": ["7", "7"] } },
       line: "shelf books show 7 7",
+      long: false,
       state: {
         kind: "ended",
         startedAt: "2026-11-02T09:00:00Z",
@@ -49,6 +50,7 @@ describe("RunCard", () => {
       number: 1,
       request: { path: ["books", "show"], values: {} },
       line: "shelf books show",
+      long: false,
       state: { kind: "refused", problem: null, words: "The server refused the request." },
     };
 

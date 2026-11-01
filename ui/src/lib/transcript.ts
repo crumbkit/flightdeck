@@ -21,12 +21,19 @@ export type RunState =
 /**
  * One card of the transcript. `number` counts from 1 in the order the
  * person started the runs. `line` is the page's own line until the server sends the line it
- * ran.
+ * ran. `long` is true when the person asked for the long columns, which
+ * the card's table then shows first.
  */
-export type Run = { number: number; request: RunRequest; line: string; state: RunState };
+export type Run = {
+  number: number;
+  request: RunRequest;
+  line: string;
+  long: boolean;
+  state: RunState;
+};
 
 export type Action =
-  | { type: "add"; number: number; request: RunRequest; line: string }
+  | { type: "add"; number: number; request: RunRequest; line: string; long: boolean }
   | { type: "event"; number: number; event: RunEvent }
   | { type: "refused"; number: number; problem: FailureDocument | null; words: string }
   | { type: "broken"; number: number; words: string }
@@ -38,8 +45,8 @@ export function transcript(runs: Run[], action: Action): Run[] {
     runs.map((run) => (run.number === number ? next(run) : run));
   switch (action.type) {
     case "add": {
-      const { number, request, line } = action;
-      return [...runs, { number, request, line, state: { kind: "starting" } }];
+      const { number, request, line, long } = action;
+      return [...runs, { number, request, line, long, state: { kind: "starting" } }];
     }
     case "refused": {
       const { problem, words } = action;

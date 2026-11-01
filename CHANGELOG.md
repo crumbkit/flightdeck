@@ -52,3 +52,9 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `ui/dist`. The page lists the tool's commands grouped by goal, finds one
   with ⌘K, builds a run from a form and shows each run as a card with its
   result as a table or a record.
+- The page's command line edits the same run as the form, in both
+  directions. It colours flags and positional values, fills the form from
+  each finished word, rewrites itself in the form's order when the person
+  leaves it, marks a word the tool would refuse with crumbkit's words and a
+  one-click fix, drops a pasted `$ ` and tool name, and takes out
+  `--json`, `--full`, `--no-input`, `--yes` and `--dry-run` with a note.

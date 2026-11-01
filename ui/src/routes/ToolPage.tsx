@@ -2,8 +2,9 @@ import { useEffect, useReducer, useRef, useState } from "react";
 import { ApiError } from "@/api/client";
 import { describeFailure, fieldErrorOf, isSignedOut } from "@/api/failure";
 import type { Command, Example, ModelReply } from "@/api/model";
-import { type RunRequest, streamRun } from "@/api/runs";
+import { type RunRequest, streamRun, type Value } from "@/api/runs";
 import { Composer, type FieldError } from "@/components/Composer";
+import { LineEditor, shownLine, type Typed } from "@/components/LineEditor";
 import { Palette } from "@/components/Palette";
 import { Rail } from "@/components/Rail";
 import { RunCard } from "@/components/RunCard";
@@ -11,7 +12,17 @@ import { Topbar } from "@/components/Topbar";
 import { Transcript } from "@/components/Transcript";
 import { Welcome } from "@/components/Welcome";
 import { requestOfExample } from "@/lib/example";
-import { type Draft, draftFrom, emptyDraft, lineOf, missing, requestOf } from "@/lib/form";
+import {
+  type Draft,
+  draftFrom,
+  emptyDraft,
+  lineOf,
+  longOf,
+  missing,
+  requestOf,
+  setValue,
+} from "@/lib/form";
+import { textOf } from "@/lib/line";
 import { whyNotRunnable } from "@/lib/rail";
 import { withPageSize } from "@/lib/table";
 import { transcript } from "@/lib/transcript";
@@ -34,6 +45,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
   const [runs, apply] = useReducer(transcript, []);
   const [composing, setComposing] = useState<Composing | null>(null);
   const [fieldError, setFieldError] = useState<FieldError | null>(null);
+  const [typed, setTyped] = useState<Typed | null>(null);
   const [finding, setFinding] = useState(false);
   const counter = useRef(0);
   // Each running run's controller, by its number. Leaving the page aborts
@@ -65,7 +77,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
   const commandAt = (request: RunRequest) =>
     tool.commands.find((each) => each.path.join(" ") === request.path.join(" "));
 
-  const start = (request: RunRequest) => {
+  const start = (request: RunRequest, long: boolean) => {
     const command = commandAt(request);
     if (command === undefined) {
       return;
@@ -73,7 +85,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     counter.current += 1;
     const number = counter.current;
     setFieldError(null);
-    apply({ type: "add", number, request, line: lineOf(tool.name, command, request) });
+    apply({ type: "add", number, request, line: lineOf(tool.name, command, request), long });
     const controller = new AbortController();
     controllers.current.set(number, controller);
     streamRun({
@@ -119,7 +131,31 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     const draft = draftFrom(command, request);
     choose(command, draft);
     if (whyNotRunnable(command, reply.read_only) === null && missing(command, draft).length === 0) {
-      start(request);
+      start(request, false);
+    }
+  };
+
+  /**
+   * Returns the composer filled from the line's command and values. A
+   * switch keeps the alternative it was on when the line gives neither.
+   */
+  const fromLine = (command: Command, values: Record<string, Value>): Composing => {
+    const draft = draftFrom(command, { path: command.path, values });
+    if (composing === null || composing.command !== command) {
+      return { command, draft, editing: null };
+    }
+    return {
+      ...composing,
+      draft: { ...draft, chosen: { ...composing.draft.chosen, ...draft.chosen } },
+    };
+  };
+
+  /** Runs what the composer holds, when the command can run and has every required value. */
+  const run = (next: Composing) => {
+    setComposing({ ...next, editing: null });
+    const { command, draft } = next;
+    if (whyNotRunnable(command, reply.read_only) === null && missing(command, draft).length === 0) {
+      start(requestOf(command, draft), longOf(draft));
     }
   };
 
@@ -127,7 +163,8 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     const run = runs.find((each) => each.number === number);
     const command = run === undefined ? undefined : commandAt(run.request);
     if (run !== undefined && command !== undefined) {
-      setComposing({ command, draft: draftFrom(command, run.request), editing: number });
+      const draft = setValue(draftFrom(command, run.request), "--long", run.long ? true : null);
+      setComposing({ command, draft, editing: number });
     }
   };
 
@@ -141,6 +178,19 @@ export function ToolPage({ reply, onSignedOut }: Props) {
       1 +
       (run.state.kind === "running" || run.state.kind === "ended" ? run.state.lines.length : 0),
     0,
+  );
+
+  const canonical = composing === null ? "" : textOf(tool, composing.command, composing.draft);
+  const lineRefused = shownLine(tool, typed, canonical).parsed.problem !== null;
+  const line = (
+    <LineEditor
+      tool={tool}
+      canonical={canonical}
+      typed={typed}
+      onTyped={setTyped}
+      onApply={(command, values) => setComposing(fromLine(command, values))}
+      onRun={(command, values) => run(fromLine(command, values))}
+    />
   );
 
   return (
@@ -166,31 +216,34 @@ export function ToolPage({ reply, onSignedOut }: Props) {
                 run={run}
                 command={commandAt(run.request)}
                 onEdit={() => edit(run.number)}
-                onRunAgain={() => start(run.request)}
-                onPageSize={(pageSize) => start(withPageSize(run.request, pageSize))}
+                onRunAgain={() => start(run.request, run.long)}
+                onPageSize={(pageSize) => start(withPageSize(run.request, pageSize), run.long)}
               />
             ))}
           </Transcript>
-          {composing === null ? (
-            <p className="bg-card text-muted-foreground m-0 border-t px-4 py-3">
-              Choose a command from the rail, or press ⌘K to find one.
-            </p>
-          ) : (
-            <Composer
-              command={composing.command}
-              draft={composing.draft}
-              editing={composing.editing}
-              readOnly={reply.read_only}
-              fieldError={fieldError}
-              onChange={(draft) => setComposing({ ...composing, draft })}
-              onRun={() => {
-                setComposing({ ...composing, editing: null });
-                start(requestOf(composing.command, composing.draft));
-              }}
-              onStopEditing={() => setComposing({ ...composing, editing: null })}
-              onShowRun={showRun}
-            />
-          )}
+          {/* The line stays in one place in the page, so it keeps its focus
+              when the first command it names opens the form. */}
+          <div className="bg-card max-h-1/2 shrink-0 overflow-y-auto border-t px-4 py-3">
+            {line}
+            {composing === null ? (
+              <p className="text-muted-foreground m-0 text-xs">
+                Type a line, pick a command in the rail, or press ⌘K.
+              </p>
+            ) : (
+              <Composer
+                command={composing.command}
+                draft={composing.draft}
+                editing={composing.editing}
+                readOnly={reply.read_only}
+                fieldError={fieldError}
+                lineRefused={lineRefused}
+                onChange={(draft) => setComposing({ ...composing, draft })}
+                onRun={() => run(composing)}
+                onStopEditing={() => setComposing({ ...composing, editing: null })}
+                onShowRun={showRun}
+              />
+            )}
+          </div>
         </main>
       </div>
       {finding && (

@@ -57,7 +57,7 @@ function timeOf(iso: string | null): string | null {
  * result, and Edit, Run again, Copy and a JSON view.
  */
 export function RunCard({ run, command, onEdit, onRunAgain, onPageSize }: Props) {
-  const [view, setView] = useState<View>({ long: false, fields: null });
+  const [view, setView] = useState<View>({ long: run.long, fields: null });
   const [json, setJson] = useState(false);
   const { state } = run;
   const status = statusOf(state);
