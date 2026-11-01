@@ -270,8 +270,12 @@ impl Runner {
     /// Returns the failures of [`Runner::run`], except
     /// [`RunFailure::NeedsConfirmation`], and
     /// [`RunFailure::Confirmation`] for an id that is unknown, used,
-    /// expired or issued for another vector. A refused id is used up. A
-    /// confirmation refused with [`RunFailure::Closed`] or
+    /// expired or issued for another vector. The runner uses the id up once
+    /// the request has passed the model and the mode and the runner is open
+    /// and has room, so a confirmation refused with
+    /// [`RunFailure::Confirmation`] or [`RunFailure::Spawn`] uses its id up.
+    /// A confirmation refused with [`RunFailure::Refused`],
+    /// [`RunFailure::ReadOnly`], [`RunFailure::Closed`] or
     /// [`RunFailure::Busy`] keeps its id.
     pub fn confirm(
         &self,
@@ -300,7 +304,8 @@ impl Runner {
 
     /// Refuses every new run with [`RunFailure::Closed`], lets the runs in
     /// progress end by themselves within the shutdown grace of the
-    /// settings, then cancels the rest and waits for each to end.
+    /// settings, then cancels the rest and waits for each to end. Dropping
+    /// the runner shuts it down.
     pub fn shutdown(&self) {
         self.runs.shutdown(self.settings.shutdown_grace);
     }
@@ -346,9 +351,15 @@ impl Runner {
             line: vector.line(Extra::None),
             events: Some(events),
             last: None,
-            stopped: false,
             ending: Ending::new(&self.tool, command, vector.line(extra), limits),
         })
+    }
+}
+
+/// Shuts the runner down, so no run's thread outlives it.
+impl Drop for Runner {
+    fn drop(&mut self) {
+        self.shutdown();
     }
 }
 
@@ -429,7 +440,6 @@ pub struct Run {
     line: String,
     events: Option<Events>,
     last: Option<String>,
-    stopped: bool,
     ending: Ending,
 }
 
@@ -455,21 +465,16 @@ impl Iterator for Run {
     type Item = RunEvent;
 
     fn next(&mut self) -> Option<RunEvent> {
-        let events = self.events.as_ref()?;
-        let ended = match events.recv() {
-            Some(Event::Line(line)) => {
+        let ended = match self.events.as_ref()?.recv()? {
+            Event::Line(line) => {
                 self.last = Some(line.clone());
                 return Some(RunEvent::Line(line));
             }
-            Some(Event::End { ended, lost }) => {
+            Event::End { ended, lost } => {
                 self.last = lost.or_else(|| self.last.take());
                 ended
             }
-            None => Err(spawn::SpawnError::Read(std::io::Error::other(
-                "the run's end was already read",
-            ))),
         };
-        self.stopped = ended.as_ref().is_ok_and(|ended| ended.stopped().is_some());
         self.events = None;
         let outcome = self.ending.outcome(self.last.as_deref(), ended);
         Some(RunEvent::Outcome(outcome))
@@ -479,10 +484,10 @@ impl Iterator for Run {
 /// A preview: the line it would confirm, the dry run when the command takes
 /// `--dry-run`, and the confirmation id once the preview has issued one.
 ///
-/// The preview yields the dry run's events. When the dry run ends by itself
-/// with [`Outcome::Result`], the preview issues the id. An outcome of any
-/// other kind, and a dry run that was cancelled, issue none. Dropping the
-/// preview cancels its dry run.
+/// The preview yields the dry run's events. When the dry run ends with
+/// [`Outcome::Result`], the preview issues the id. An outcome of any other
+/// kind issues none, and a cancelled dry run ends with
+/// [`Outcome::Cancelled`]. Dropping the preview cancels its dry run.
 #[derive(Debug)]
 pub struct Preview {
     line: String,
@@ -524,8 +529,8 @@ impl Preview {
 }
 
 /// Yields each event of the dry run, and nothing for a command without
-/// `--dry-run`. When the dry run ends by itself with [`Outcome::Result`]
-/// the preview issues its id, and when the system gives no random bytes
+/// `--dry-run`. When the dry run ends with [`Outcome::Result`] the preview
+/// issues its id, and when the system gives no random bytes
 /// for the id the outcome is [`RunFailure::Random`] instead.
 impl Iterator for Preview {
     type Item = RunEvent;
@@ -536,9 +541,6 @@ impl Iterator for Preview {
         let RunEvent::Outcome(Outcome::Result) = event else {
             return Some(event);
         };
-        if dry_run.run.stopped {
-            return Some(event);
-        }
         let now = dry_run.clock.now();
         Some(RunEvent::Outcome(
             match dry_run.confirmations.issue(dry_run.vector.clone(), now) {

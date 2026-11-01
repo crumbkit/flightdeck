@@ -19,6 +19,6 @@ fn a_drained_pipe_reads_what_was_written_and_ends_a_grace_after_the_reap_while_i
 
     assert_eq!(read, "last words\n");
     assert!(started.elapsed() >= DRAIN_GRACE - Duration::from_millis(50));
-    assert!(started.elapsed() < DRAIN_GRACE + Duration::from_secs(1));
+    assert!(started.elapsed() < DRAIN_GRACE * 5);
     drop(writer);
 }

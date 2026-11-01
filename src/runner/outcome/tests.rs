@@ -97,6 +97,21 @@ fn no_document_names_the_declared_meaning_of_its_exit_and_the_last_40_lines_of_s
 }
 
 #[test]
+fn a_cancelled_run_whose_tool_printed_its_document_and_exited_0_is_cancelled() {
+    let document = r#"{"schema":"shelf/books-show/v1","data":[]}"#;
+
+    let outcome = outcome(
+        &ending(Form::Document),
+        Some(document),
+        Exit::Code(0),
+        Some(Stop::Cancel),
+        b"",
+    );
+
+    assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
+}
+
+#[test]
 fn a_cancel_after_the_tool_printed_its_failure_keeps_the_failure() {
     let failure = r#"{"schema":"shelf/failure/v1","code":"shelf::cli::interrupted","message":"interrupted","recovery":{"kind":"retry"}}"#;
 

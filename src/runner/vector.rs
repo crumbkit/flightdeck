@@ -1,6 +1,8 @@
 //! Builds the argument vector of a run from a request, after checking each
 //! part of the request against the tool's model.
 
+use unicode_general_category::{GeneralCategory, get_general_category};
+
 use super::failure::{Reason, RunFailure, Takes};
 use super::request::{RunRequest, Value};
 use crate::model::{Argument, Arity, Command, CrumbkitFlag, Kind, Tool};
@@ -297,10 +299,10 @@ fn push(text: &mut String, word: &str) {
     text.push_str(&quote_or_empty(word));
 }
 
-/// Returns true when `text` holds a control character, a bidirectional
-/// control, a line or paragraph separator, a zero-width space or a byte
-/// order mark, which a display line would show as something else or not at
-/// all.
+/// Returns true when `text` holds a control character, a format character
+/// (Unicode's category Cf, such as a bidirectional control, a zero-width
+/// space or a soft hyphen), or a line or paragraph separator, which a
+/// display line would show as something else or not at all.
 ///
 /// RUST-10: the runner refuses such a value, which is plainer than
 /// quoting it. It handles every value that a person types on one line, and
@@ -310,16 +312,8 @@ fn push(text: &mut String, word: &str) {
 fn has_control(text: &str) -> bool {
     text.chars().any(|c| {
         c.is_control()
-            || matches!(
-                c,
-                '\u{061c}'
-                    | '\u{200b}'
-                    | '\u{200e}'
-                    | '\u{200f}'
-                    | '\u{2028}'..='\u{202e}'
-                    | '\u{2066}'..='\u{2069}'
-                    | '\u{feff}'
-            )
+            || get_general_category(c) == GeneralCategory::Format
+            || matches!(c, '\u{2028}' | '\u{2029}')
     })
 }
 

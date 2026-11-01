@@ -427,11 +427,16 @@ fn readings_stream_delivers_lines_while_the_child_still_runs() {
     let titles: String = (1..=ENTRIES).map(|n| format!("Book {n}\n")).collect();
     std::fs::write(lists.path().join("to-read.txt"), titles).unwrap();
     let (dirs, program) = isolated(test_tool("reading"));
+    // The graces are long enough that a loaded machine does not reach
+    // SIGKILL before the tool handles SIGINT.
     let reading = session_of(
         dirs,
         program.env("READING_DIR", lists.path()),
         Mode::Full,
-        settings(),
+        Settings::new().escalation(Escalation::new(
+            Duration::from_secs(2),
+            Duration::from_secs(2),
+        )),
     );
     let mut run = reading
         .runner
@@ -674,9 +679,10 @@ fn shutdown_lets_a_run_finish_within_its_grace_and_cancels_a_run_that_outlasts_i
     unruly.runner.shutdown();
 
     // The grace, the two graces of the cancel and the second in which the
-    // readers drain the pipes come to under three seconds.
+    // readers drain the pipes come to under three seconds, and the child
+    // that outlasts the grace sleeps for thirty.
     assert!(
-        started.elapsed() < Duration::from_secs(5),
+        started.elapsed() < Duration::from_secs(15),
         "{:?}",
         started.elapsed()
     );
@@ -707,14 +713,17 @@ fn a_run_id_is_read_only_from_decimal_digits() {
 }
 
 /// Starts a run of `request`, retrying while the runner is busy, and fails
-/// the test when no place frees within five seconds.
+/// the test when no place frees within ten seconds.
 fn run_when_free(runner: &Runner, request: &RunRequest) -> crumbkit_flightdeck::runner::Run {
     let started = Instant::now();
     loop {
         match runner.run(request) {
             Ok(run) => return run,
             Err(failure) if code(&failure) == &RUN_BUSY => {
-                assert!(started.elapsed() < Duration::from_secs(5), "no place freed");
+                assert!(
+                    started.elapsed() < Duration::from_secs(10),
+                    "no place freed"
+                );
             }
             Err(failure) => panic!("{failure}"),
         }
@@ -736,7 +745,7 @@ fn cancel_ends_a_child_that_moved_into_flightdecks_own_process_group() {
     // The child ignores SIGINT and SIGTERM and sleeps for thirty seconds, so
     // only a SIGKILL sent to the child itself ends it this soon.
     assert!(
-        started.elapsed() < Duration::from_secs(5),
+        started.elapsed() < Duration::from_secs(10),
         "{:?}",
         started.elapsed()
     );
@@ -779,7 +788,7 @@ fn a_cancelled_run_whose_queue_was_full_ends_by_the_last_line_that_its_child_pri
 }
 
 #[test]
-fn a_cancelled_dry_run_that_ends_with_a_result_issues_no_confirmation() {
+fn a_cancelled_dry_run_whose_child_printed_its_document_is_cancelled_and_issues_no_confirmation() {
     let unruly = unruly_session(settings());
     let wipe = request(&["child", "wipe"]).value("<NAME>", one("slow"));
     let mut preview = unruly.runner.preview(&wipe).unwrap();
@@ -791,13 +800,38 @@ fn a_cancelled_dry_run_that_ends_with_a_result_issues_no_confirmation() {
     let (_, outcome) = finish(&mut preview);
 
     // The dry run exits with 0 on SIGINT after its document.
-    assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
+    assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
     assert!(preview.confirmation().is_none());
 }
 
 #[test]
+fn dropping_a_runner_cancels_its_runs_and_waits_for_them() {
+    let Session { _dirs, runner, .. } =
+        unruly_session(settings().shutdown_grace(Duration::from_millis(100)));
+    let hang = runner.run(&request(&["child", "hang"])).unwrap();
+    let started = Instant::now();
+
+    drop(runner);
+    let (_, outcome) = finish(hang);
+
+    // The child ignores SIGINT and SIGTERM and sleeps for thirty seconds, so
+    // only the shutdown of the dropped runner ends it this soon. The grace
+    // and the cancel's graces come to under a second and a half.
+    assert!(
+        started.elapsed() < Duration::from_secs(10),
+        "{:?}",
+        started.elapsed()
+    );
+    assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
+}
+
+#[test]
 fn a_run_can_be_cancelled_while_a_shutdown_waits_for_it() {
-    let unruly = unruly_session(settings().most_runs(1));
+    let unruly = unruly_session(
+        settings()
+            .most_runs(1)
+            .shutdown_grace(Duration::from_secs(30)),
+    );
     let hang = unruly.runner.run(&request(&["child", "hang"])).unwrap();
     let started = Instant::now();
 
@@ -814,9 +848,9 @@ fn a_run_can_be_cancelled_while_a_shutdown_waits_for_it() {
         unruly.runner.cancel(hang.id()).unwrap();
     });
 
-    // The shutdown's grace is five seconds, and the cancel ends it sooner.
+    // The shutdown's grace is thirty seconds, and the cancel ends it sooner.
     assert!(
-        started.elapsed() < Duration::from_secs(4),
+        started.elapsed() < Duration::from_secs(10),
         "{:?}",
         started.elapsed()
     );

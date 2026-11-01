@@ -172,6 +172,7 @@ dependencies = [
  "signal-hook",
  "subtle",
  "tempfile",
+ "unicode-general-category",
  "wait-timeout",
 ]
 

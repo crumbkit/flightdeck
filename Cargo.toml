@@ -63,6 +63,9 @@ tempfile = { version = "3.27.0", default-features = false }
 wait-timeout = { version = "0.2.1", default-features = false }
 # shlex quotes each word of a run's display line for a POSIX shell.
 shlex = { version = "2.0.1", default-features = false }
+# unicode-general-category tells the runner which characters are format
+# characters, which a display line would not show. It has no features.
+unicode-general-category = { version = "1.1.0", default-features = false }
 
 [target.'cfg(unix)'.dependencies]
 # rustix waits for a child to exit without reaping it, signals the child's

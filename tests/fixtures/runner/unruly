@@ -65,8 +65,7 @@ case "$1 $2" in
     # The preview prints its document, then exits with 0 on SIGINT.
     trap 'exit 0' INT
     echo '{"schema":"unruly/child-wipe/v1","dry_run":true,"data":{}}'
-    sleep 30 &
-    wait
+    while :; do sleep 0.01; done
     ;;
   *" --dry-run "*)
     echo '{"schema":"unruly/child-wipe/v1","dry_run":true,"data":{}}'
@@ -89,8 +88,7 @@ case "$1 $2" in
   # then a last line that is no document, and exits with 0.
   trap 'seq 400 | sed "s/.*/{\"schema\":\"unruly\/child-interrupt\/v1\",\"data\":{}}/"; echo interrupted; exit 0' INT
   echo '{"schema":"unruly/child-interrupt/v1","data":{}}'
-  sleep 30 &
-  wait
+  while :; do sleep 0.01; done
   ;;
 "child both" | "child pair")
   echo '{"schema":"unruly/child-both/v1","data":{}}'

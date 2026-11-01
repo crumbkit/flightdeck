@@ -20,8 +20,10 @@ pub enum Outcome {
     ResultWithFailures,
     /// The tool printed its failure document.
     ToolFailure(Box<ToolFailure>),
-    /// The run was cancelled, or the tool exited with 130 after Ctrl-C,
-    /// with no document that explains how it ended.
+    /// The run was cancelled and the tool printed no failure document, or
+    /// the tool exited with 130 after Ctrl-C with no document that explains
+    /// how it ended. A cancelled run is cancelled even when its tool printed
+    /// its document and exited with 0.
     Cancelled,
     /// flightdeck's own failure: no document, an output limit, or a program
     /// that could not be followed.
@@ -124,12 +126,13 @@ pub(super) fn outcome(
     let declared = |code: i32| code == 1 || ending.meaning(code).is_some();
     match (last_of(&ending.tool, last), exit) {
         (Last::Failure(failure), _) => Outcome::ToolFailure(failure),
+        _ if stopped == Some(Stop::Cancel) => Outcome::Cancelled,
         (Last::Document, Exit::Code(0)) => Outcome::Result,
         (Last::Nothing, Exit::Code(0)) if ending.form == Some(Form::Stream) && last.is_none() => {
             Outcome::Result
         }
         (Last::Document, Exit::Code(code)) if declared(code) => Outcome::ResultWithFailures,
-        _ if stopped == Some(Stop::Cancel) || exit == Exit::Code(130) => Outcome::Cancelled,
+        _ if exit == Exit::Code(130) => Outcome::Cancelled,
         _ => {
             let meaning = match exit {
                 Exit::Code(code) => ending.meaning(code).map(str::to_owned),

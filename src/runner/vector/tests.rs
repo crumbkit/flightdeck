@@ -130,6 +130,11 @@ fn a_value_that_holds_a_character_that_a_display_line_would_hide_is_refused() {
         "2\u{2029}5",
         "2\u{200b}",
         "\u{feff}2",
+        "2\u{ad}5",
+        "2\u{180e}5",
+        "2\u{2060}5",
+        "2\u{2064}5",
+        "2\u{e0001}",
     ];
     for value in values {
         let request = RunRequest::new(["books", "show"]).value("<ID>", many(&[value]));

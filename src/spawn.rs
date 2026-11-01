@@ -1,8 +1,9 @@
 //! Starts a crumbkit tool as a child process and captures what it prints.
 //!
 //! This module and its children are the only places that start a process
-//! (PROC-1), and the module and its child `stream` are the only places that
-//! start a thread (SVC-1). They have three operations. [`open_browser`]
+//! (PROC-1). Every thread of flightdeck starts here, where the owner of each
+//! run joins it, or in a `std::thread::scope` that joins it, as the
+//! server's do (SVC-1). The module has three operations. [`open_browser`]
 //! opens the opener page in the default browser, and its module states its
 //! five items of PROC-2. `stream` runs one command that the runner checked
 //! against the tool's model, and its module states its own five items of
