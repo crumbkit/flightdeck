@@ -10,10 +10,17 @@ function samePath(left: CommandPath, right: CommandPath): boolean {
 
 /**
  * Returns the link that a cell of the `id` column of `command`'s rows
- * opens: the first link that the model infers from the command, or null.
+ * opens: the first link that the model infers from the command to a
+ * read-only command, else the first link from the command, or null. A
+ * click then opens a command that only reads where the tool has one.
  */
 export function cellLinkOf(tool: Tool, command: Command): Link | null {
-  return tool.links.find((link) => samePath(link.source, command.path)) ?? null;
+  const from = tool.links.filter((link) => samePath(link.source, command.path));
+  const readOnly = from.find((link) => {
+    const target = tool.commands.find((each) => samePath(each.path, link.target));
+    return target?.effects?.read_only === true;
+  });
+  return readOnly ?? from[0] ?? null;
 }
 
 /** Returns true when `column` is the column that an inferred link starts from. */
