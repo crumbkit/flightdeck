@@ -2,44 +2,19 @@ import { type Command, ModelReply, type Tool } from "@/api/model";
 import model from "./shelf-model.json" with { type: "json" };
 
 /**
- * shelf's model as `GET /api/model` sends it. crumbkit 0.1.0's shelf prints
- * no goal headings, so the model has one heading named after the tool.
+ * shelf's model as `GET /api/model` sends it, with the three goal headings
+ * of shelf's root help in help order.
  */
 export const shelfReply: ModelReply = ModelReply.parse(model);
 export const shelf: Tool = shelfReply.tool;
 
 /**
- * shelf's model with the goal headings that a newer crumbkit prints, in the
- * order of shelf's root help.
+ * shelf's model as a tool on crumbkit 0.1.0 gives it, whose help prints no
+ * goal headings: one heading named after the tool holds every command.
  */
-export const shelfWithGoals: Tool = {
+export const shelfWithoutGoals: Tool = {
   ...shelf,
-  headings: [
-    {
-      title: "Browse the catalogue",
-      commands: [
-        ["books", "list"],
-        ["books", "show"],
-        ["books", "summarize"],
-        ["books", "remove"],
-      ],
-    },
-    {
-      title: "Explore the commands",
-      commands: [
-        ["commands", "list"],
-        ["schemas", "list"],
-        ["schemas", "show"],
-      ],
-    },
-    {
-      title: "Review how shelf is used",
-      commands: [
-        ["self", "usage"],
-        ["self", "figures", "list"],
-      ],
-    },
-  ],
+  headings: [{ title: shelf.name, commands: shelf.commands.map((each) => each.path) }],
 };
 
 /** Returns the tool's command at `path`, such as "books list", or throws. */
