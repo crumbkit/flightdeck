@@ -10,7 +10,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crumbkit_flightdeck::model::{CommandsList, Recovery, SchemasList, ToolFailure};
+use crumbkit_flightdeck::model::{CommandsList, Recovery, SchemasList, SchemasShow, ToolFailure};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -103,6 +103,22 @@ fn shelfs_schemas_list_matches_crumbkits_schema_and_reads_into_a_schemas_list() 
     let list: SchemasList = validate_and_read("schemas-list-v1", document);
 
     assert!(list.ids().any(|id| id == "shelf/books-list/v1"));
+}
+
+#[test]
+fn shelfs_schemas_show_matches_crumbkits_schema_and_reads_into_a_schemas_show() {
+    let document = run_shelf(&[
+        "schemas",
+        "show",
+        "--json",
+        "--no-input",
+        "--",
+        "shelf/books-list/v1",
+    ]);
+
+    let show: SchemasShow = validate_and_read("schemas-show-v1", document);
+
+    assert_eq!(show.ids().collect::<Vec<_>>(), ["shelf/books-list/v1"]);
 }
 
 #[test]

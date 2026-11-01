@@ -83,3 +83,29 @@ fn a_listing_reads_its_next_steps_with_calls_and_runs() {
         ]
     );
 }
+
+#[test]
+fn null_goals_on_the_root_row_read_as_no_goals() {
+    let mut document: serde_json::Value = serde_json::from_str(WITH_GOALS).unwrap();
+    for row in document["data"].as_array_mut().unwrap() {
+        if row.get("goals").is_some() {
+            row["goals"] = serde_json::Value::Null;
+        }
+    }
+    let commands: CommandsList = serde_json::from_value(document).unwrap();
+
+    let tool = Tool::assemble("shelf 0.1.0", commands, Vec::new()).unwrap();
+
+    let titles: Vec<&str> = tool.headings().iter().map(|h| h.title()).collect();
+    assert_eq!(titles, ["shelf"]);
+}
+
+#[test]
+fn null_next_steps_on_a_listing_read_as_no_next_steps() {
+    let mut document: serde_json::Value = serde_json::from_str(WITH_NEXT).unwrap();
+    document["next"] = serde_json::Value::Null;
+
+    let listing: Listing<serde_json::Value> = serde_json::from_value(document).unwrap();
+
+    assert!(listing.next().is_empty());
+}

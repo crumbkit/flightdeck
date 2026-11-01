@@ -96,13 +96,14 @@ impl fmt::Display for LoadError {
                 match (problem, exit) {
                     (Problem::Exit, Exit::Code(code)) => write!(f, "exited with {code}"),
                     (Problem::Exit, _) => f.write_str("was ended by a signal"),
+                    (Problem::Start(_), _) => f.write_str("could not be started"),
                     (Problem::TimeLimit, _) => f.write_str("did not finish within its time limit"),
                     (Problem::StdoutLimit, _) => f.write_str("printed more than flightdeck reads"),
+                    (Problem::NotDocument(NotDocument::MissingSchema(id)), _) => {
+                        write!(f, "printed no schema for {id}, which schemas list names")
+                    }
                     (Problem::NotDocument(_), _) => {
                         f.write_str("printed something other than the crumbkit document it names")
-                    }
-                    (Problem::Failures(count), _) => {
-                        write!(f, "could not show {count} of the schemas it lists")
                     }
                     (Problem::Read(_), _) => f.write_str("could not be followed to its end"),
                 }
@@ -125,6 +126,8 @@ impl std::error::Error for LoadError {
 pub enum Problem {
     /// The tool exited with a code other than 0, or a signal ended it.
     Exit,
+    /// The program exists and may be run, but starting it failed.
+    Start(io::Error),
     /// The tool did not finish within the time limit.
     TimeLimit,
     /// The tool printed more than flightdeck reads.
@@ -132,9 +135,6 @@ pub enum Problem {
     /// The tool printed something other than the document that flightdeck
     /// expects.
     NotDocument(NotDocument),
-    /// `schemas show` printed this many failures for ids that `schemas list`
-    /// named.
-    Failures(usize),
     /// Waiting for the tool or reading its output failed.
     Read(io::Error),
 }
@@ -146,10 +146,10 @@ impl Problem {
     pub const fn name(&self) -> &'static str {
         match self {
             Self::Exit => "exit",
+            Self::Start(_) => "start",
             Self::TimeLimit => "time_limit",
             Self::StdoutLimit => "stdout_limit",
             Self::NotDocument(_) => "not_document",
-            Self::Failures(_) => "failures",
             Self::Read(_) => "read",
         }
     }
@@ -158,7 +158,7 @@ impl Problem {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::NotDocument(NotDocument::Json(error)) => Some(error),
-            Self::Read(error) => Some(error),
+            Self::Start(error) | Self::Read(error) => Some(error),
             _ => None,
         }
     }
@@ -176,6 +176,9 @@ pub enum NotDocument {
     Truncated,
     /// `commands list` has no row for the tool itself.
     NoRoot,
+    /// `schemas show` printed no schema for this id, which `schemas list`
+    /// named.
+    MissingSchema(String),
 }
 
 /// Returns the exit code that a failure's `exit` field holds, or null when
@@ -183,7 +186,7 @@ pub enum NotDocument {
 fn exit_code(exit: Exit) -> FieldValue<'static> {
     match exit {
         Exit::Code(code) => FieldValue::from(code),
-        Exit::Signal | Exit::TimedOut => FieldValue::Null,
+        Exit::Signal | Exit::TimedOut | Exit::Unknown => FieldValue::Null,
     }
 }
 

@@ -18,7 +18,7 @@ pub struct Listing<T> {
     truncated: bool,
     #[serde(default)]
     total: Option<u64>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::wire::null_as_empty")]
     next: Vec<NextStep>,
 }
 
@@ -48,7 +48,8 @@ impl<T> Listing<T> {
     }
 
     /// Returns the listing's next steps, which a newer crumbkit prints and
-    /// 0.1.0 does not, so a listing from 0.1.0 has none.
+    /// 0.1.0 does not, so a listing from 0.1.0 has none. A newer crumbkit
+    /// leaves the field out when it is empty, and a `null` reads as empty.
     #[must_use]
     pub fn next(&self) -> &[NextStep] {
         &self.next
@@ -163,12 +164,31 @@ pub(super) struct SchemaRow {
     pub(super) commands: Vec<String>,
 }
 
-/// The document of `schemas show`.
+/// The document of `schemas show`. A tool prints its `failures` only with
+/// exit code 1, which fails the query before flightdeck reads the document,
+/// so the type leaves them out.
 #[derive(Debug, Deserialize)]
-pub(super) struct SchemasShow {
-    pub(super) schema: String,
-    pub(super) data: Vec<ShownSchema>,
-    pub(super) failures: Vec<ToolFailure>,
+pub struct SchemasShow {
+    schema: String,
+    data: Vec<ShownSchema>,
+}
+
+impl SchemasShow {
+    /// Returns the document's id, such as `shelf/schemas-show/v1`.
+    #[must_use]
+    pub fn schema(&self) -> &str {
+        &self.schema
+    }
+
+    /// Returns the ids of the schemas that the document shows, in order.
+    pub fn ids(&self) -> impl Iterator<Item = &str> {
+        self.data.iter().map(|shown| shown.id.as_str())
+    }
+
+    /// Returns the schemas, consuming the document.
+    pub(super) fn into_data(self) -> Vec<ShownSchema> {
+        self.data
+    }
 }
 
 /// One schema that `schemas show` printed.

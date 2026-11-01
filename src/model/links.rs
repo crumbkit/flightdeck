@@ -10,15 +10,14 @@ const ID_COLUMN: &str = "id";
 /// The value name of the positional argument that an inferred link fills.
 const ID_VALUE: &str = "ID";
 
-/// A link from a column of one command's rows to an argument of another
-/// command, which takes the column's value.
+/// A link from the `id` column of one command's rows to an argument of
+/// another command, which takes the column's value. flightdeck infers each
+/// link from crumbkit's command grammar.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Link {
     source: CommandPath,
-    column: String,
     target: CommandPath,
     argument: String,
-    origin: Origin,
 }
 
 impl Link {
@@ -26,12 +25,6 @@ impl Link {
     #[must_use]
     pub const fn source(&self) -> &CommandPath {
         &self.source
-    }
-
-    /// Returns the column whose value the link carries, such as `id`.
-    #[must_use]
-    pub fn column(&self) -> &str {
-        &self.column
     }
 
     /// Returns the command that the link opens.
@@ -46,20 +39,6 @@ impl Link {
     pub fn argument(&self) -> &str {
         &self.argument
     }
-
-    /// Returns where the link comes from.
-    #[must_use]
-    pub const fn origin(&self) -> Origin {
-        self.origin
-    }
-}
-
-/// Where a link comes from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Origin {
-    /// flightdeck inferred the link from crumbkit's command grammar; the tool
-    /// did not declare it.
-    Inferred,
 }
 
 /// Returns the links that crumbkit's grammar implies between `commands`, in
@@ -80,10 +59,8 @@ pub(super) fn infer(commands: &[Command]) -> Vec<Link> {
             if let Some(argument) = id_positional(target) {
                 links.push(Link {
                     source: source.path().clone(),
-                    column: ID_COLUMN.to_owned(),
                     target: target.path().clone(),
                     argument: argument.to_owned(),
-                    origin: Origin::Inferred,
                 });
             }
         }

@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use crumbkit::{Failure as _, FieldValue};
 use crumbkit_flightdeck::model::{
-    self, Arity, CrumbkitFlag, Kind, LoadError, Origin, TOOL_LOAD, TOOL_NOT_FOUND, Tool,
+    self, Arity, CrumbkitFlag, Kind, LoadError, TOOL_LOAD, TOOL_NOT_FOUND, Tool,
 };
 use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
 use tempfile::TempDir;
@@ -188,28 +188,19 @@ fn a_command_with_an_id_column_links_it_to_each_sibling_that_takes_an_id() {
     let links: Vec<String> = shelf
         .links()
         .iter()
-        .map(|link| {
-            assert_eq!(link.origin(), Origin::Inferred);
-            format!(
-                "{}.{} -> {} {}",
-                link.source(),
-                link.column(),
-                link.target(),
-                link.argument()
-            )
-        })
+        .map(|link| format!("{} -> {} {}", link.source(), link.target(), link.argument()))
         .collect();
     assert_eq!(
         links,
         [
-            "books list.id -> books show <ID>",
-            "books list.id -> books summarize <ID>",
-            "books list.id -> books remove <ID>",
-            "books show.id -> books summarize <ID>",
-            "books show.id -> books remove <ID>",
-            "books remove.id -> books show <ID>",
-            "books remove.id -> books summarize <ID>",
-            "schemas list.id -> schemas show <ID>",
+            "books list -> books show <ID>",
+            "books list -> books summarize <ID>",
+            "books list -> books remove <ID>",
+            "books show -> books summarize <ID>",
+            "books show -> books remove <ID>",
+            "books remove -> books show <ID>",
+            "books remove -> books summarize <ID>",
+            "schemas list -> schemas show <ID>",
         ]
     );
 }
@@ -297,4 +288,160 @@ fn a_tool_that_never_exits_is_stopped_at_the_time_limit() {
         Some(FieldValue::from("time_limit"))
     );
     assert_eq!(field(&error, "exit"), Some(FieldValue::Null));
+}
+
+#[cfg(unix)]
+#[test]
+fn a_background_process_that_holds_standard_output_open_is_stopped_when_the_tool_exits() {
+    // The shell exits at once, and its background `sleep` keeps the shell's
+    // standard output open. Reading to the end of the pipe would wait for
+    // the `sleep` unless flightdeck stops the whole process group.
+    let (directory, path) =
+        fake_tool("sleep 5 &\necho $! > \"$(dirname \"$0\")/pid\"\necho 'hello'");
+    let (_dirs, program) = isolated(path);
+    let started = std::time::Instant::now();
+
+    let error = model::load(&program, Duration::from_secs(2)).unwrap_err();
+
+    assert!(
+        started.elapsed() < Duration::from_secs(2),
+        "{:?}",
+        started.elapsed()
+    );
+    assert_eq!(
+        field(&error, "problem"),
+        Some(FieldValue::from("not_document"))
+    );
+    let pid = std::fs::read_to_string(directory.path().join("pid")).unwrap();
+    assert!(
+        !running(pid.trim()),
+        "the background sleep {pid} is still running"
+    );
+}
+
+/// Returns whether the process with id `pid` runs. A process that has ended
+/// but that its new parent has not yet reaped does not run.
+#[cfg(unix)]
+fn running(pid: &str) -> bool {
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the test asks ps about a process that the fake tool started"
+    )]
+    let output = std::process::Command::new("ps")
+        .args(["-o", "stat=", "-p", pid])
+        .output()
+        .unwrap();
+    let state = String::from_utf8_lossy(&output.stdout);
+    !state.trim().is_empty() && !state.trim().starts_with('Z')
+}
+
+/// A fake tool that answers `--version`, `commands list`, `schemas list` and
+/// `schemas show` like a crumbkit tool with one command, `fake things list`,
+/// which prints `fake/things-list/v1`. Its `schemas show` prints `shown`,
+/// and each answer comes after `pause` seconds.
+#[cfg(unix)]
+fn fake_crumbkit_tool(shown: &str, pause: &str) -> (TempDir, PathBuf) {
+    fake_tool(&format!(
+        r#"sleep {pause}
+case "$1 $2" in
+"--version ") echo 'fake 0.1.0' ;;
+"commands list") echo '{{"schema":"fake/commands-list/v1","truncated":false,"data":[{{"path":"fake","about":"A fake tool"}},{{"path":"fake things","about":"Things"}},{{"path":"fake things list","about":"Lists things"}}]}}' ;;
+"schemas list") echo '{{"schema":"fake/schemas-list/v1","truncated":false,"data":[{{"id":"fake/things-list/v1","kind":"output","form":"document","commands":["fake things list"]}}]}}' ;;
+"schemas show") echo '{shown}' ;;
+*) exit 2 ;;
+esac"#
+    ))
+}
+
+#[cfg(unix)]
+#[test]
+fn a_fake_tool_that_shows_every_schema_it_lists_loads() {
+    let (_directory, path) = fake_crumbkit_tool(
+        r#"{"schema":"fake/schemas-show/v1","data":[{"id":"fake/things-list/v1","schema":{"type":"object"}}],"failures":[]}"#,
+        "0",
+    );
+    let (_dirs, program) = isolated(path);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    assert_eq!(tool.version(), "0.1.0");
+    let command = tool.command(&["things", "list"]).unwrap();
+    assert_eq!(command.result().document(), Some("fake/things-list/v1"));
+}
+
+#[cfg(unix)]
+#[test]
+fn a_tool_whose_schemas_show_leaves_out_a_listed_id_is_tool_load() {
+    let (_directory, path) = fake_crumbkit_tool(
+        r#"{"schema":"fake/schemas-show/v1","data":[],"failures":[]}"#,
+        "0",
+    );
+    let (_dirs, program) = isolated(path);
+
+    let error = model::load(&program, TIME_LIMIT).unwrap_err();
+
+    assert_eq!(code(&error), &TOOL_LOAD);
+    assert_eq!(
+        field(&error, "command"),
+        Some(FieldValue::from(
+            "schemas show --json --no-input -- fake/things-list/v1"
+        ))
+    );
+    assert_eq!(
+        field(&error, "problem"),
+        Some(FieldValue::from("not_document"))
+    );
+    assert!(error.to_string().contains("fake/things-list/v1"), "{error}");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_file_that_may_not_be_run_is_tool_not_found() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let (_directory, path) = fake_tool("echo 'never runs'");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+    let (_dirs, program) = isolated(path);
+
+    let error = model::load(&program, TIME_LIMIT).unwrap_err();
+
+    assert_eq!(code(&error), &TOOL_NOT_FOUND);
+}
+
+#[test]
+fn a_program_that_cannot_be_started_for_another_reason_is_tool_load_with_no_exit() {
+    // A name with a NUL byte cannot pass to the operating system, so the
+    // start fails with an error other than a missing or forbidden program.
+    let (_dirs, program) = isolated("fake\0tool");
+
+    let error = model::load(&program, TIME_LIMIT).unwrap_err();
+
+    assert_eq!(code(&error), &TOOL_LOAD);
+    assert_eq!(field(&error, "problem"), Some(FieldValue::from("start")));
+    assert_eq!(field(&error, "exit"), Some(FieldValue::Null));
+}
+
+#[cfg(unix)]
+#[test]
+fn the_time_limit_covers_every_query_of_a_load_together() {
+    // Each query takes 0.4 seconds, well within the limit of 1 second, but
+    // the third query passes the limit for the load as a whole.
+    let (_directory, path) = fake_crumbkit_tool(
+        r#"{"schema":"fake/schemas-show/v1","data":[{"id":"fake/things-list/v1","schema":{}}]}"#,
+        "0.4",
+    );
+    let (_dirs, program) = isolated(path);
+
+    let error = model::load(&program, Duration::from_secs(1)).unwrap_err();
+
+    assert_eq!(
+        field(&error, "problem"),
+        Some(FieldValue::from("time_limit"))
+    );
+    assert_eq!(
+        field(&error, "command"),
+        Some(FieldValue::from(
+            "schemas list --json --full --all --no-input"
+        ))
+    );
 }

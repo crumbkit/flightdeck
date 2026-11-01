@@ -35,15 +35,20 @@ serde = { version = "1.0.229", default-features = false, features = ["std", "der
 # serde_json parses those documents and holds each result's JSON Schema as a
 # `Value`.
 serde_json = { version = "1.0.151", default-features = false, features = ["std"] }
-# wait-timeout waits for a child process with a time limit, so a tool that
-# never exits is stopped. It has no features.
-wait-timeout = { version = "0.2.1", default-features = false }
 
 [target.'cfg(unix)'.dependencies]
-# rustix stops every process in the child's process group when the time limit
-# passes, through a safe function, so a descendant that holds the child's
-# output open is stopped too.
-rustix = { version = "1.1.6", default-features = false, features = ["std", "process"] }
+# rustix waits for a child to exit without reaping it, kills the child's whole
+# process group once the child exits or the time limit passes, and bounds
+# each read of the child's pipes by the same deadline, all through safe
+# functions. The kill stops a descendant that holds the child's output open,
+# unless it left the group. `process` holds the wait and the kill, and
+# `event` holds `poll`.
+rustix = { version = "1.1.6", default-features = false, features = ["std", "process", "event"] }
+
+[target.'cfg(not(unix))'.dependencies]
+# wait-timeout waits for a child process with a time limit where rustix does
+# not run, so a tool that never exits is stopped. It has no features.
+wait-timeout = { version = "0.2.1", default-features = false }
 
 [dev-dependencies]
 # The convention tests check flightdeck's command tree, guide and codes with

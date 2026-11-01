@@ -3,7 +3,8 @@
 //!
 //! [`load`] runs four queries through [`crate::spawn`]: `--version`,
 //! `commands list`, `schemas list`, and `schemas show` of every document
-//! that `schemas list` names, at most [`MOST_IDS`] ids at a time. It joins
+//! that `schemas list` names, at most 100 ids at a time, all within
+//! one time limit. It joins
 //! their documents into a [`Tool`]: its runnable commands, the goal headings
 //! that group them, the documents they print with their JSON Schemas, and
 //! the links that crumbkit's command grammar implies between them.
@@ -18,27 +19,26 @@ mod wire;
 #[cfg(test)]
 mod tests;
 
-use std::time::Duration;
+use std::io;
+use std::time::{Duration, Instant};
 
 use serde::de::DeserializeOwned;
-use serde_json::Value;
 
 pub use self::argument::{Argument, Arity, CrumbkitFlag, Help, Kind};
 pub use self::command::{
     Column, Command, CommandPath, Effects, Example, ExitMeaning, Form, Items, ResultSpec, Writes,
 };
-use self::documents::SchemasShow;
 pub use self::documents::{
     CommandsList, Document, DocumentForm, DocumentKind, Listing, NextStep, Recovery, SchemasList,
-    StepCommand, ToolFailure,
+    SchemasShow, StepCommand, ToolFailure,
 };
 pub use self::error::{LoadError, NotDocument, Problem, TOOL_LOAD, TOOL_NOT_FOUND};
-pub use self::links::{Link, Origin};
+pub use self::links::Link;
 use self::wire::CommandRow;
 use crate::spawn::{self, Exit, Program, Query, SpawnError, Stdout};
 
 /// The most document ids that one `schemas show` takes.
-pub const MOST_IDS: usize = 100;
+pub(crate) const MOST_IDS: usize = 100;
 
 /// The model of one crumbkit tool.
 #[derive(Clone, Debug)]
@@ -181,18 +181,23 @@ impl Heading {
     }
 }
 
-/// Loads the model of the tool that `program` names, giving each query at
-/// most `time_limit`.
+/// Loads the model of the tool that `program` names, giving all of its
+/// queries together at most `time_limit`.
 ///
 /// # Errors
 ///
-/// Returns [`LoadError::NotFound`] when the program does not exist or will
-/// not start, and [`LoadError::Load`] when a query exits with a code other
-/// than 0, passes its time limit, or prints something other than the
-/// document it names.
+/// Returns [`LoadError::NotFound`] when the program does not exist or may
+/// not be run, and [`LoadError::Load`] when a query cannot be started,
+/// exits with a code other than 0, passes the time limit, or prints
+/// something other than the document it names. A `schemas show` that leaves
+/// out an id that `schemas list` named is a document of the wrong shape.
 pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> {
     let tool = program.name().to_string_lossy();
-    let ask = |query: Query<'_>| Answer::of(program, &tool, &query, time_limit);
+    let deadline = Instant::now() + time_limit;
+    let ask = |query: Query<'_>| {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        Answer::of(program, &tool, &query, remaining)
+    };
 
     let version = ask(Query::Version)?;
     let version_line = String::from_utf8_lossy(&version.stdout);
@@ -206,28 +211,31 @@ pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> 
     let schemas: SchemasList = schemas_answer.parse()?;
     schemas_answer.check(schemas.schema(), "schemas-list", schemas.truncated())?;
 
+    // `schemas show` exits with 1 when it cannot show an id, and that exit
+    // fails the query, so a document read here showed every id it printed.
     let ids: Vec<String> = schemas.ids().map(str::to_owned).collect();
-    let mut shown = Vec::new();
+    let mut in_order = Vec::with_capacity(ids.len());
     for chunk in ids.chunks(MOST_IDS) {
         let answer = ask(Query::SchemasShow(chunk))?;
         let document: SchemasShow = answer.parse()?;
-        answer.check(&document.schema, "schemas-show", false)?;
-        if !document.failures.is_empty() {
-            return Err(answer.fail(Problem::Failures(document.failures.len())));
+        answer.check(document.schema(), "schemas-show", false)?;
+        let mut shown = document.into_data();
+        for id in chunk {
+            let index = shown
+                .iter()
+                .position(|shown| &shown.id == id)
+                .ok_or_else(|| {
+                    answer.fail(Problem::NotDocument(NotDocument::MissingSchema(id.clone())))
+                })?;
+            in_order.push(shown.swap_remove(index).schema);
         }
-        shown.extend(document.data);
     }
 
     let documents = schemas
         .into_rows()
         .into_iter()
-        .map(|row| {
-            let schema = shown
-                .iter()
-                .position(|shown| shown.id == row.id)
-                .map_or(Value::Null, |index| shown.swap_remove(index).schema);
-            Document::new(row, schema)
-        })
+        .zip(in_order)
+        .map(|(row, schema)| Document::new(row, schema))
         .collect();
     Tool::assemble(version_line, commands, documents)
         .map_err(|problem| commands_answer.fail(Problem::NotDocument(problem)))
@@ -255,15 +263,24 @@ impl<'a> Answer<'a> {
         let command = query.words().join(" ");
         let finished = match spawn::describe(program, query, time_limit) {
             Ok(finished) => finished,
-            Err(SpawnError::Start(source)) => {
+            Err(SpawnError::Start(source))
+                if matches!(
+                    source.kind(),
+                    io::ErrorKind::NotFound | io::ErrorKind::PermissionDenied
+                ) =>
+            {
                 return Err(LoadError::NotFound {
                     tool: tool.to_owned(),
                     source,
                 });
             }
+            Err(SpawnError::Start(error)) => {
+                let problem = Problem::Start(error);
+                return Err(LoadError::load(tool, command, problem, Exit::Unknown, &[]));
+            }
             Err(SpawnError::Wait(error) | SpawnError::Read(error)) => {
                 let problem = Problem::Read(error);
-                return Err(LoadError::load(tool, command, problem, Exit::Signal, &[]));
+                return Err(LoadError::load(tool, command, problem, Exit::Unknown, &[]));
             }
         };
         let exit = finished.exit();
@@ -278,7 +295,7 @@ impl<'a> Answer<'a> {
             }),
             (Exit::Code(0), Stdout::OverLimit) => Err(fail(Problem::StdoutLimit)),
             (Exit::TimedOut, _) => Err(fail(Problem::TimeLimit)),
-            (Exit::Code(_) | Exit::Signal, _) => Err(fail(Problem::Exit)),
+            (Exit::Code(_) | Exit::Signal | Exit::Unknown, _) => Err(fail(Problem::Exit)),
         }
     }
 
@@ -352,6 +369,13 @@ fn headings_of(root: &CommandRow, rows: &[CommandRow]) -> Option<Vec<Heading>> {
 
 /// Returns the runnable commands of `rows`, each with the global arguments
 /// of the rows above it and the id of the document it prints.
+///
+/// RUST-10: a command takes only the global arguments of its groups. A
+/// group's required argument that is not global, which the person gives
+/// before the command's own words, is not carried to its commands, so the
+/// page cannot ask for it. crumbkit 0.1.0's tools have no such argument.
+/// Carrying each group's arguments with their position replaces this when a
+/// tool has one.
 fn commands_of(rows: Vec<CommandRow>, documents: &[Document]) -> Vec<Command> {
     let leaves: Vec<bool> = rows.iter().map(|row| is_leaf(row, &rows)).collect();
     let mut groups = Vec::new();

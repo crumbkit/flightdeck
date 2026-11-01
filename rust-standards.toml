@@ -14,15 +14,15 @@ owners = ["src/spawn.rs"]
 checks = [
   "clippy disallowed_methods and disallowed_types (clippy.toml)",
   "the argument vector test in src/spawn/tests.rs",
-  "the not-found, not-a-document and time-limit tests in tests/model.rs",
+  "the not-found, not-a-document, time-limit and background-process tests in tests/model.rs",
 ]
-note = "spawn::describe runs one of the fixed queries of spawn::Query. The module's documentation states the five items of PROC-2. On Unix it stops the child's whole process group at the time limit; a descendant that leaves the group is not stopped."
+note = "spawn::describe runs one of the fixed queries of spawn::Query. The module's documentation states the five items of PROC-2. On Unix it kills the child's whole process group when the child exits or the time limit passes, before it reaps the child, and every read of the child's pipes ends at the same deadline. A descendant that leaves the group, such as one that calls setsid, is not stopped."
 
 [[binding]]
 rule = "SVC-1"
 owners = ["src/spawn.rs"]
 checks = ["clippy disallowed_methods (clippy.toml)"]
-note = "The only threads are the two pipe readers of spawn::describe, which a std::thread::scope joins before describe returns."
+note = "The only threads are the two pipe readers of spawn::describe and, on Unix, the thread that waits for the child to exit. A std::thread::scope joins all three before describe returns."
 
 [[decision]]
 id = "lanes"
