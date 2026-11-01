@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { ApiError } from "@/api/client";
-import { describeFailure } from "@/api/failure";
+import { describeFailure, fieldErrorOf } from "@/api/failure";
 import type { Command, Example, ModelReply } from "@/api/model";
 import { type RunRequest, runMutation } from "@/api/runs";
 import { Composer, type FieldError } from "@/components/Composer";
@@ -63,14 +63,15 @@ export function ToolPage({ reply }: { reply: ModelReply }) {
         onEvent: (event) => apply({ type: "event", number, event }),
         signal: new AbortController().signal,
       })
+      .then(() => apply({ type: "closed", number }))
       .catch((error: unknown) => {
         const words = describeFailure(error);
         if (error instanceof ApiError && error.failure.kind === "status") {
           const { problem } = error.failure;
           apply({ type: "refused", number, problem, words });
-          const argument = problem?.fields?.argument;
-          if (typeof argument === "string") {
-            setFieldError({ name: argument, words });
+          const marked = fieldErrorOf(problem, words);
+          if (marked !== null) {
+            setFieldError(marked);
           }
         } else {
           apply({ type: "broken", number, words });

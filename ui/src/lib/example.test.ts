@@ -6,25 +6,25 @@ describe("requestOfExample", () => {
   it("reads an example's positionals into the request", () => {
     expect(requestOfExample(shelf, "shelf books show 2 5")).toEqual({
       path: ["books", "show"],
-      values: { "<ID>": { many: ["2", "5"] } },
+      values: { "<ID>": ["2", "5"] },
     });
   });
 
   it("reads flags and options, and drops the flags flightdeck sets itself", () => {
     expect(requestOfExample(shelf, "shelf books list --all --json")).toEqual({
       path: ["books", "list"],
-      values: { "--all": { flag: true } },
+      values: { "--all": true },
     });
     expect(requestOfExample(shelf, "shelf books list --limit=2 --fields id,title")).toEqual({
       path: ["books", "list"],
-      values: { "--limit": { one: "2" } },
+      values: { "--limit": "2" },
     });
   });
 
   it("reads a quoted word as one value", () => {
     expect(requestOfExample(shelf, "shelf books show --from 'my ids.txt'")).toEqual({
       path: ["books", "show"],
-      values: { "--from": { one: "my ids.txt" } },
+      values: { "--from": "my ids.txt" },
     });
   });
 

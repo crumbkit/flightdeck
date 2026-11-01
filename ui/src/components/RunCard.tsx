@@ -29,6 +29,8 @@ function statusOf(state: RunState): { words: string; failed: boolean } {
       return { words: "refused", failed: true };
     case "broken":
       return { words: "no answer", failed: true };
+    case "cut":
+      return { words: "cut off", failed: true };
     case "ended":
       if (state.outcome.kind === "cancelled") {
         return { words: "cancelled", failed: false };
@@ -59,7 +61,10 @@ export function RunCard({ run, command, onEdit, onRunAgain, onPageSize }: Props)
   const [json, setJson] = useState(false);
   const { state } = run;
   const status = statusOf(state);
-  const startedAt = state.kind === "running" || state.kind === "ended" ? state.startedAt : null;
+  const startedAt =
+    state.kind === "running" || state.kind === "ended" || state.kind === "cut"
+      ? state.startedAt
+      : null;
   const started = timeOf(startedAt);
   const line = copiedLine(run.line, view);
 
@@ -108,7 +113,8 @@ export function RunCard({ run, command, onEdit, onRunAgain, onPageSize }: Props)
 
 function JsonView({ run }: { run: Run }) {
   const { state } = run;
-  const lines = state.kind === "running" || state.kind === "ended" ? state.lines : [];
+  const lines =
+    state.kind === "running" || state.kind === "ended" || state.kind === "cut" ? state.lines : [];
   const { document } = resultOf(lines);
   const shown = document ?? (state.kind === "refused" ? state.problem : null);
   return (
@@ -138,6 +144,13 @@ function Body({ run, command, view, onView, onPageSize }: BodyProps) {
       );
     case "broken":
       return <p role="alert">{state.words}</p>;
+    case "cut":
+      return (
+        <p role="alert">
+          The run's output stopped before the run ended, so its result is incomplete. Check that
+          flightdeck open is still running in your terminal, then run it again.
+        </p>
+      );
     case "ended": {
       const { outcome } = state;
       if (outcome.kind === "tool_failure" || outcome.kind === "failed") {

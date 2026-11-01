@@ -13,6 +13,7 @@ export type RunState =
       durationMs: number;
       outcome: Outcome;
     }
+  | { kind: "cut"; startedAt: string | null; lines: string[] }
   | { kind: "refused"; problem: Problem | null; words: string }
   | { kind: "broken"; words: string };
 
@@ -27,7 +28,8 @@ export type Action =
   | { type: "add"; number: number; request: RunRequest; line: string }
   | { type: "event"; number: number; event: RunEvent }
   | { type: "refused"; number: number; problem: Problem | null; words: string }
-  | { type: "broken"; number: number; words: string };
+  | { type: "broken"; number: number; words: string }
+  | { type: "closed"; number: number };
 
 /** Applies one action to the transcript, oldest run first. */
 export function transcript(runs: Run[], action: Action): Run[] {
@@ -51,7 +53,23 @@ export function transcript(runs: Run[], action: Action): Run[] {
     }
     case "event":
       return change(action.number, (run) => applyEvent(run, action.event));
+    case "closed":
+      return change(action.number, closeRun);
   }
+}
+
+/**
+ * Applies the end of a run's stream. The `ended` line is always the last
+ * line, so a run that is still starting or running was cut off.
+ */
+function closeRun(run: Run): Run {
+  const { state } = run;
+  if (state.kind !== "starting" && state.kind !== "running") {
+    return run;
+  }
+  const lines = state.kind === "running" ? state.lines : [];
+  const startedAt = state.kind === "running" ? state.startedAt : null;
+  return { ...run, state: { kind: "cut", startedAt, lines } };
 }
 
 function applyEvent(run: Run, event: RunEvent): Run {
@@ -59,6 +77,8 @@ function applyEvent(run: Run, event: RunEvent): Run {
   const lines = state.kind === "running" ? state.lines : [];
   const startedAt = state.kind === "running" ? state.startedAt : null;
   switch (event.event) {
+    case "alive":
+      return run;
     case "started":
       return {
         ...run,

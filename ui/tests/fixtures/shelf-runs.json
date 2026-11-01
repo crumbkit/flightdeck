@@ -14,9 +14,7 @@
     "request": {
       "path": ["books", "list"],
       "values": {
-        "--all": {
-          "flag": true
-        }
+        "--all": true
       }
     },
     "line": "shelf books list --all",
@@ -29,9 +27,7 @@
     "request": {
       "path": ["books", "show"],
       "values": {
-        "<ID>": {
-          "many": ["2", "5"]
-        }
+        "<ID>": ["2", "5"]
       }
     },
     "line": "shelf books show 2 5",
@@ -44,9 +40,7 @@
     "request": {
       "path": ["books", "show"],
       "values": {
-        "<ID>": {
-          "many": ["2"]
-        }
+        "<ID>": ["2"]
       }
     },
     "line": "shelf books show 2",

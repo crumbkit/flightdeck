@@ -83,10 +83,10 @@ describe("page sizes", () => {
   });
 
   it("replaces the request's paging flags with the chosen size", () => {
-    const request = { path: ["books", "list"], values: { "--limit": { one: "2" } } };
+    const request = { path: ["books", "list"], values: { "--limit": "2" } };
 
-    expect(withPageSize(request, "all").values).toEqual({ "--all": { flag: true } });
-    expect(withPageSize(request, "25").values).toEqual({ "--limit": { one: "25" } });
+    expect(withPageSize(request, "all").values).toEqual({ "--all": true });
+    expect(withPageSize(request, "25").values).toEqual({ "--limit": "25" });
     expect(withPageSize(request, "default").values).toEqual({});
   });
 });

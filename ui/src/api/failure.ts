@@ -1,4 +1,4 @@
-import { ApiError } from "./client";
+import { ApiError, type Problem } from "./client";
 
 /**
  * The one wording of every failed request the page shows (APP-14). It says
@@ -35,4 +35,23 @@ export function isSignedOut(error: unknown): boolean {
   return (
     error instanceof ApiError && error.failure.kind === "status" && error.failure.status === 401
   );
+}
+
+/**
+ * Returns the composer field that a refusal marks, and its words. The
+ * refusal's `argument` names the field. When it carries `earlier`, the
+ * earlier argument that needs a value first is marked instead, and when it
+ * carries `index`, the words name the refused value's place in its list.
+ */
+export function fieldErrorOf(
+  problem: Problem | null,
+  words: string,
+): { name: string; words: string } | null {
+  const fields = problem?.fields ?? {};
+  const { argument, earlier, index } = fields;
+  const name = typeof earlier === "string" ? earlier : argument;
+  if (typeof name !== "string") {
+    return null;
+  }
+  return { name, words: typeof index === "number" ? `Value ${index + 1}: ${words}` : words };
 }

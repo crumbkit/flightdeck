@@ -86,13 +86,10 @@ function isEmpty(value: Value | undefined): boolean {
   if (value === undefined) {
     return true;
   }
-  if ("flag" in value) {
-    return !value.flag;
+  if (value === true) {
+    return false;
   }
-  if ("one" in value) {
-    return value.one === "";
-  }
-  return value.many.length === 0;
+  return value.length === 0;
 }
 
 /** Returns the run request of `draft`: the chosen argument of each field that has a value. */
@@ -151,12 +148,12 @@ export function lineOf(tool: string, command: Command, request: RunRequest): str
       continue;
     }
     const flag = argument.kind === "named" ? [argument.name] : [];
-    if ("flag" in value) {
+    if (value === true) {
       words.push(...flag);
-    } else if ("one" in value) {
-      words.push(...flag, quote(value.one));
+    } else if (typeof value === "string") {
+      words.push(...flag, quote(value));
     } else {
-      for (const item of value.many) {
+      for (const item of value) {
         words.push(...flag, quote(item));
       }
     }

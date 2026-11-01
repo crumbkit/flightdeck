@@ -176,17 +176,17 @@ function Input({ argument, value, error, onValue }: InputProps) {
         <label className="inline-flex items-center gap-2">
           <input
             type="checkbox"
-            checked={value !== undefined && "flag" in value}
+            checked={value === true}
             aria-invalid={invalid}
             aria-describedby={described}
-            onChange={(event) => onValue(event.target.checked ? { flag: true } : null)}
+            onChange={(event) => onValue(event.target.checked ? true : null)}
           />
           <span>{label}</span> {name}
           {message}
         </label>
       );
     case "one": {
-      const text = value !== undefined && "one" in value ? value.one : "";
+      const text = typeof value === "string" ? value : "";
       const control =
         argument.possible_values.length > 0 ? (
           <select
@@ -194,9 +194,7 @@ function Input({ argument, value, error, onValue }: InputProps) {
             value={text}
             aria-invalid={invalid}
             aria-describedby={described}
-            onChange={(event) =>
-              onValue(event.target.value === "" ? null : { one: event.target.value })
-            }
+            onChange={(event) => onValue(event.target.value === "" ? null : event.target.value)}
             className="border-input bg-card w-max rounded-md border px-2 py-1"
           >
             <option value="">{argument.defaults[0] ?? "None"}</option>
@@ -214,9 +212,7 @@ function Input({ argument, value, error, onValue }: InputProps) {
             placeholder={argument.defaults.join(", ")}
             aria-invalid={invalid}
             aria-describedby={described}
-            onChange={(event) =>
-              onValue(event.target.value === "" ? null : { one: event.target.value })
-            }
+            onChange={(event) => onValue(event.target.value === "" ? null : event.target.value)}
             className="border-input bg-card max-w-sm rounded-md border px-2 py-1 font-mono"
           />
         );
@@ -236,10 +232,10 @@ function Input({ argument, value, error, onValue }: InputProps) {
           label={label}
           name={name}
           required={required}
-          items={value !== undefined && "many" in value ? value.many : []}
+          items={Array.isArray(value) ? value : []}
           error={message}
           errorId={described}
-          onItems={(items) => onValue(items.length === 0 ? null : { many: items })}
+          onItems={(items) => onValue(items.length === 0 ? null : items)}
         />
       );
   }

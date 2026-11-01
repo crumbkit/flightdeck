@@ -30,9 +30,7 @@ const setByFlightdeck = ["--json", "--full", "--no-input", "--long", "--dry-run"
 function add(values: Record<string, Value>, argument: Argument, item: string): void {
   const current = values[argument.name];
   values[argument.name] =
-    argument.arity.kind === "many"
-      ? { many: [...(current !== undefined && "many" in current ? current.many : []), item] }
-      : { one: item };
+    argument.arity.kind === "many" ? [...(Array.isArray(current) ? current : []), item] : item;
 }
 
 /**
@@ -79,7 +77,7 @@ export function requestOfExample(tool: Tool, line: string): RunRequest | null {
       continue;
     }
     if (!takesValue) {
-      values[argument.name] = { flag: true };
+      values[argument.name] = true;
     } else if (value === undefined) {
       return null;
     } else {

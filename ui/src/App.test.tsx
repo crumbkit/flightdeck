@@ -13,9 +13,10 @@ type Sent = { path: string; method: string; headers: Headers; body: string | nul
 
 /**
  * Stubs fetch with the server's routes: the session exchange, which accepts
- * only `code`, the model and a run of books show.
+ * only `code`, the model and a run of books show, with a keepalive line.
+ * With `cut`, the run's stream closes before its ended line.
  */
-function stubServer(code: string): Sent[] {
+function stubServer(code: string, cut = false): Sent[] {
   const sent: Sent[] = [];
   vi.stubGlobal("fetch", async (path: string, init: RequestInit) => {
     const body = typeof init.body === "string" ? init.body : null;
@@ -35,6 +36,7 @@ function stubServer(code: string): Sent[] {
         line: "shelf books show 2",
         started_at: "2026-11-02T09:00:00Z",
       },
+      { event: "alive" },
       {
         event: "line",
         text: JSON.stringify({
@@ -43,7 +45,7 @@ function stubServer(code: string): Sent[] {
           failures: [],
         }),
       },
-      { event: "ended", outcome: { kind: "result" }, exit: 0, duration_ms: 12 },
+      ...(cut ? [] : [{ event: "ended", outcome: { kind: "result" }, exit: 0, duration_ms: 12 }]),
     ];
     return new Response(lines.map((line) => `${JSON.stringify(line)}\n`).join(""), {
       headers: { "Content-Type": "application/x-ndjson" },
@@ -106,7 +108,22 @@ describe("App", () => {
     expect(run?.headers.get("Content-Type")).toBe("application/json");
     expect(JSON.parse(run?.body ?? "null")).toEqual({
       path: ["books", "show"],
-      values: { "<ID>": { many: ["2"] } },
+      values: { "<ID>": ["2"] },
     });
+  });
+
+  it("shows a run whose stream closes before its ended line as cut off", async () => {
+    stubServer("launch-code-for-test", true);
+    const user = userEvent.setup();
+    renderApp("launch-code-for-test");
+
+    await screen.findByRole("region", { name: "Welcome to shelf" });
+    const rail = screen.getByRole("navigation", { name: "Commands" });
+    await user.click(within(rail).getByRole("button", { name: /books show/ }));
+    await user.type(screen.getByLabelText(/The ids of the books to show/), "2 ");
+    await user.click(screen.getByRole("button", { name: /Run/ }));
+
+    const card = await screen.findByRole("region", { name: /Run 1: shelf books show 2, cut off/ });
+    expect(within(card).getByRole("alert")).toHaveTextContent(/stopped before the run ended/);
   });
 });

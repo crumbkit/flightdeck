@@ -37,45 +37,45 @@ describe("formOf", () => {
 describe("requestOf", () => {
   it("sends structured values by the model's argument names", () => {
     let draft = emptyDraft(show);
-    draft = setValue(draft, "<ID>", { many: ["2", "5"] });
+    draft = setValue(draft, "<ID>", ["2", "5"]);
 
     expect(requestOf(show, draft)).toEqual({
       path: ["books", "show"],
-      values: { "<ID>": { many: ["2", "5"] } },
+      values: { "<ID>": ["2", "5"] },
     });
   });
 
   it("sends only the chosen alternative of a one_of switch", () => {
     let draft = emptyDraft(show);
-    draft = setValue(draft, "<ID>", { many: ["2"] });
-    draft = setValue(draft, "--from", { one: "ids.txt" });
+    draft = setValue(draft, "<ID>", ["2"]);
+    draft = setValue(draft, "--from", "ids.txt");
     draft = { ...draft, chosen: { "<ID>": "--from" } };
 
-    expect(requestOf(show, draft).values).toEqual({ "--from": { one: "ids.txt" } });
+    expect(requestOf(show, draft).values).toEqual({ "--from": "ids.txt" });
   });
 
   it("sends a flag only when it is on and a value only when it is not empty", () => {
     let draft = emptyDraft(list);
-    draft = setValue(draft, "--all", { flag: true });
-    draft = setValue(draft, "--limit", { one: "" });
+    draft = setValue(draft, "--all", true);
+    draft = setValue(draft, "--limit", "");
 
-    expect(requestOf(list, draft).values).toEqual({ "--all": { flag: true } });
+    expect(requestOf(list, draft).values).toEqual({ "--all": true });
   });
 });
 
 describe("missing", () => {
   it("names a required field that has no value", () => {
     expect(missing(show, emptyDraft(show))).toEqual(["<ID>"]);
-    expect(missing(show, setValue(emptyDraft(show), "<ID>", { many: ["2"] }))).toEqual([]);
+    expect(missing(show, setValue(emptyDraft(show), "<ID>", ["2"]))).toEqual([]);
   });
 });
 
 describe("draftFrom", () => {
   it("fills the form from a run's request and chooses the alternative it used", () => {
-    const draft = draftFrom(show, { path: ["books", "show"], values: { "--from": { one: "a" } } });
+    const draft = draftFrom(show, { path: ["books", "show"], values: { "--from": "a" } });
 
     expect(draft.chosen).toEqual({ "<ID>": "--from" });
-    expect(requestOf(show, draft).values).toEqual({ "--from": { one: "a" } });
+    expect(requestOf(show, draft).values).toEqual({ "--from": "a" });
   });
 });
 
@@ -83,14 +83,14 @@ describe("lineOf", () => {
   it("writes the path, the positionals, then the options, quoted where needed", () => {
     const request = {
       path: ["books", "list"],
-      values: { "--limit": { one: "2" }, "--all": { flag: true as const } },
+      values: { "--limit": "2", "--all": true as const },
     };
 
     expect(lineOf("shelf", list, request)).toBe("shelf books list --limit 2 --all");
     expect(
       lineOf("shelf", show, {
         path: ["books", "show"],
-        values: { "<ID>": { many: ["2", "it's"] } },
+        values: { "<ID>": ["2", "it's"] },
       }),
     ).toBe("shelf books show 2 'it'\\''s'");
   });

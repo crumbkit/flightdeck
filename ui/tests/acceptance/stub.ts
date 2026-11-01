@@ -33,7 +33,7 @@ export async function openShelf(page: Page, reply: ModelReply = shelfReply): Pro
         body: JSON.stringify({
           code: "flightdeck::run::refused",
           cause: "the stub has no output for this request",
-          fields: { path: request?.path?.join(" "), argument: null, reason: "stub" },
+          fields: { path: request?.path, argument: null, reason: "stub" },
         }),
       });
     }

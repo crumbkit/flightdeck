@@ -4,8 +4,11 @@ import { readLines } from "@/lib/ndjson";
 import { ApiError, postStream } from "./client";
 import type { CommandPath } from "./model";
 
-/** The value of one argument as the page sends it. */
-export type Value = { flag: true } | { one: string } | { many: string[] };
+/**
+ * The value of one argument as the page sends it: `true` for a flag that is
+ * on, a string for a single value and a list of strings for a repeated one.
+ */
+export type Value = true | string | string[];
 
 /**
  * A run request: the command's path and a value for each argument the
@@ -42,6 +45,8 @@ export const RunEvent = z.discriminatedUnion("event", [
     started_at: z.string(),
   }),
   z.object({ event: z.literal("line"), text: z.string() }),
+  // The server writes this during a quiet stretch of a run, and the page ignores it.
+  z.object({ event: z.literal("alive") }),
   z.object({
     event: z.literal("ended"),
     outcome: Outcome,
@@ -78,8 +83,9 @@ export type RunCall = {
 
 /**
  * Starts a run at `POST /api/runs` and passes each event of its stream to
- * `onEvent` as it arrives. It resolves when the stream ends, and throws
- * ApiError when the server refuses the request or the stream breaks.
+ * `onEvent` as it arrives. It resolves when the stream closes, whether or
+ * not an `ended` line came, and throws ApiError when the server refuses the
+ * request or the stream breaks.
  */
 async function streamRun({ request, onEvent, signal }: RunCall): Promise<void> {
   const body = await postStream("/api/runs", request, signal);

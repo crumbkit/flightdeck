@@ -78,9 +78,9 @@ export function withPageSize(request: RunRequest, size: PageSize): RunRequest {
   const { "--limit": _limit, "--all": _all, ...values } = request.values;
   const paging: Record<string, Value> = {};
   if (size === "all") {
-    paging["--all"] = { flag: true };
+    paging["--all"] = true;
   } else if (size !== "default") {
-    paging["--limit"] = { one: size };
+    paging["--limit"] = size;
   }
   return { ...request, values: { ...values, ...paging } };
 }
