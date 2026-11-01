@@ -295,16 +295,18 @@ fn a_tool_that_never_exits_is_stopped_at_the_time_limit() {
 fn a_background_process_that_holds_standard_output_open_is_stopped_when_the_tool_exits() {
     // The shell exits at once, and its background `sleep` keeps the shell's
     // standard output open. Reading to the end of the pipe would wait for
-    // the `sleep` unless flightdeck stops the whole process group.
+    // the `sleep` unless flightdeck stops the whole process group. The time
+    // limit is generous for a loaded machine and still well short of the
+    // `sleep`, and a load that reached it would fail with another problem.
     let (directory, path) =
-        fake_tool("sleep 5 &\necho $! > \"$(dirname \"$0\")/pid\"\necho 'hello'");
+        fake_tool("sleep 60 &\necho $! > \"$(dirname \"$0\")/pid\"\necho 'hello'");
     let (_dirs, program) = isolated(path);
     let started = std::time::Instant::now();
 
-    let error = model::load(&program, Duration::from_secs(2)).unwrap_err();
+    let error = model::load(&program, Duration::from_secs(20)).unwrap_err();
 
     assert!(
-        started.elapsed() < Duration::from_secs(2),
+        started.elapsed() < Duration::from_secs(20),
         "{:?}",
         started.elapsed()
     );

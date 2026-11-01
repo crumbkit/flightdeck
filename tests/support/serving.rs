@@ -243,10 +243,39 @@ pub(crate) fn serving(setup: Setup, test: impl FnOnce(&Running<'_>) -> Then) -> 
         let guard = StopOnDrop(&stop);
         match test(&running) {
             Then::Stop => drop(guard),
-            Then::Wait => std::mem::forget(guard),
+            Then::Wait => {
+                std::mem::forget(guard);
+                // A server that does not stop by itself fails the test
+                // instead of hanging it. The stop flag lets the scope join
+                // the server's thread after the panic.
+                if !finished_within(&handle, STOP_LIMIT) {
+                    stop.store(true, Ordering::SeqCst);
+                    panic!("the server did not stop by itself within {STOP_LIMIT:?}");
+                }
+            }
         }
         handle.join().unwrap().unwrap()
     })
+}
+
+/// How long a test that waits for the server to stop by itself waits.
+const STOP_LIMIT: Duration = Duration::from_secs(5);
+
+/// Waits up to `limit` for the thread of `handle` to finish, and returns
+/// whether it has.
+fn finished_within<T>(handle: &std::thread::ScopedJoinHandle<'_, T>, limit: Duration) -> bool {
+    let deadline = Instant::now() + limit;
+    while !handle.is_finished() {
+        if Instant::now() >= deadline {
+            return false;
+        }
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "a scoped thread offers no join with a timeout"
+        )]
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    true
 }
 
 /// Sets the stop flag when it is dropped.

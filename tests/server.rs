@@ -648,9 +648,11 @@ fn a_session_request_whose_body_never_arrives_gets_408() {
 #[test]
 fn a_token_that_arrives_after_the_idle_limit_is_refused_and_stops_the_server_before_its_next_poll()
 {
-    // The server would next check its idle time after an hour, so only the
-    // refused request can stop it within the test.
-    let settings = Settings::new().poll(Duration::from_secs(3600));
+    // The server next checks its idle time after 30 seconds, six times the
+    // harness's wait for a server to stop by itself, so only the refused
+    // request can stop it in time. A failed assertion stops it at that
+    // poll.
+    let settings = Settings::new().poll(Duration::from_secs(30));
     let ended = serving(Setup::shelf().server(settings), |page| {
         let token = page.token();
         page.clock.advance(IDLE_LIMIT);

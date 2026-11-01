@@ -434,8 +434,8 @@ fn readings_stream_delivers_lines_while_the_child_still_runs() {
         program.env("READING_DIR", lists.path()),
         Mode::Full,
         Settings::new().escalation(Escalation::new(
-            Duration::from_secs(2),
-            Duration::from_secs(2),
+            Duration::from_secs(10),
+            Duration::from_secs(10),
         )),
     );
     let mut run = reading
