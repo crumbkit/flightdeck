@@ -1,13 +1,16 @@
 //! What the server sends back: the refusals with their problem documents,
-//! and the headers that every reply carries.
+//! the runner's refusals, the run streams, and the headers that every reply
+//! carries.
 
-use std::io::{self, Write};
+use std::io;
+use std::net::TcpStream;
 
 use serde::Serialize;
 
 use super::StartError;
 use super::assets::Asset;
-use super::http::{self, ReplyHead};
+use super::http::{self, Body};
+use super::stream::Stream;
 
 #[cfg(test)]
 mod tests;
@@ -30,7 +33,8 @@ const SECURITY: [(&str, &str); 6] = [
 /// The content type of a JSON reply.
 const JSON: &str = "application/json";
 
-/// The content type of a refusal, an RFC 9457 problem document.
+/// The content type of a refusal, an RFC 9457 problem document, and of a
+/// runner's refusal, a failure document.
 const PROBLEM: &str = "application/problem+json";
 
 /// A request that the server refuses. Each refusal has a stable code, which
@@ -60,6 +64,8 @@ pub(super) enum Refusal {
     Busy,
     /// The body is not the JSON document that the route takes.
     Body,
+    /// The body did not arrive whole within the request's time.
+    Timeout,
     /// The request has no token, a wrong one, or a malformed header.
     Unauthorized,
     /// The launch code is wrong, used or expired.
@@ -70,7 +76,7 @@ pub(super) enum Refusal {
 
 impl Refusal {
     /// Every refusal, in the order its document lists them.
-    pub(super) const ALL: [Self; 13] = [
+    pub(super) const ALL: [Self; 14] = [
         Self::Host,
         Self::CrossSite,
         Self::Origin,
@@ -81,6 +87,7 @@ impl Refusal {
         Self::Malformed,
         Self::Busy,
         Self::Body,
+        Self::Timeout,
         Self::Unauthorized,
         Self::CodeRefused,
         Self::NotFound,
@@ -96,6 +103,7 @@ impl Refusal {
             Self::HeadTooLarge => 431,
             Self::Malformed | Self::Body => 400,
             Self::Busy => 503,
+            Self::Timeout => 408,
             Self::Unauthorized | Self::CodeRefused => 401,
             Self::NotFound => 404,
         }
@@ -115,6 +123,7 @@ impl Refusal {
             Self::Malformed => "flightdeck::request::malformed",
             Self::Busy => "flightdeck::request::busy",
             Self::Body => "flightdeck::request::body",
+            Self::Timeout => "flightdeck::request::timeout",
             Self::Unauthorized => "flightdeck::session::unauthorized",
             Self::CodeRefused => "flightdeck::session::code_refused",
             Self::NotFound => "flightdeck::request::not_found",
@@ -134,6 +143,7 @@ impl Refusal {
             Self::Malformed => "The request is not an HTTP/1.1 request that flightdeck reads.",
             Self::Busy => "flightdeck is answering as many connections as it takes. Try again.",
             Self::Body => "The request body is not the JSON document that the route takes.",
+            Self::Timeout => "The request body did not arrive in time.",
             Self::Unauthorized => "The request needs the page's token.",
             Self::CodeRefused => {
                 "The launch code is not valid. Run flightdeck open again to get a new one."
@@ -162,6 +172,18 @@ pub(super) enum Reply {
     Asset(&'static Asset),
     /// A refusal.
     Refused(Refusal),
+    /// A runner's refusal: 422, or 404 for a cancel of a run that is not
+    /// running, with the runner's failure document.
+    Failure {
+        /// The HTTP status.
+        status: u16,
+        /// The `flightdeck/failure/v1` document.
+        document: Vec<u8>,
+    },
+    /// 204 with no body, as a cancel answers.
+    Done,
+    /// A run's stream of JSON lines, which `stream::write` writes.
+    Stream(Stream),
 }
 
 /// The problem documents of the refusals, written once when the server
@@ -191,18 +213,22 @@ impl Replies {
         Ok(Self { problems })
     }
 
-    /// Writes `reply` to `connection` with the security headers and its
-    /// content type.
+    /// Writes `reply`, which has a known length, to `connection` with the
+    /// security headers and its content type. A stream is written by
+    /// `stream::write`, and here it writes nothing.
     ///
     /// # Errors
     ///
     /// Returns the error of a write, as when the client has closed the
     /// connection.
-    pub(super) fn write(&self, connection: &mut impl Write, reply: &Reply) -> io::Result<()> {
+    pub(super) fn write(&self, connection: &mut TcpStream, reply: &Reply) -> io::Result<()> {
         let (status, content_type, body): (u16, &str, &[u8]) = match reply {
             Reply::Json(body) => (200, JSON, body),
             Reply::Asset(asset) => (200, asset.content_type(), asset.body()),
             Reply::Refused(refusal) => (refusal.status(), PROBLEM, self.problem(*refusal)),
+            Reply::Failure { status, document } => (*status, PROBLEM, document),
+            Reply::Done => (204, "", &[]),
+            Reply::Stream(_) => return Ok(()),
         };
         let mut body_writer = start(connection, status, content_type, Some(body.len()))?;
         body_writer.send(body)
@@ -217,33 +243,43 @@ impl Replies {
     }
 }
 
-/// Writes the head of a reply with `status`, `content_type`, the security
-/// headers and a body of `length` bytes, and returns the writer of its
-/// body. A body of unknown length, such as a stream of lines, ends when the
-/// server closes the connection.
+/// Writes the head of a reply with `status`, `content_type` (none when it
+/// is empty), the security headers and a body of `length` bytes, and
+/// returns the writer of its body. A reply of known length has one deadline
+/// for its head and body together. A body of unknown length, a stream of
+/// lines, gives each line its own deadline and ends when the server closes
+/// the connection.
 ///
 /// # Errors
 ///
 /// Returns the error of a write, as when the client has closed the
 /// connection.
-pub(super) fn start<'w, W: Write>(
-    connection: &'w mut W,
+pub(super) fn start<'w>(
+    connection: &'w mut TcpStream,
     status: u16,
     content_type: &str,
     length: Option<usize>,
-) -> io::Result<http::Body<'w, W>> {
-    let mut headers: Vec<(&str, &str)> = SECURITY.to_vec();
-    headers.push(("Content-Type", content_type));
+) -> io::Result<Body<'w>> {
+    let mut head = format!("HTTP/1.1 {status} {}\r\n", http::reason(status));
+    for (name, value) in SECURITY {
+        head.push_str(&format!("{name}: {value}\r\n"));
+    }
+    if !content_type.is_empty() {
+        head.push_str(&format!("Content-Type: {content_type}\r\n"));
+    }
     // A 401 reply names the scheme it needs (RFC 9110).
     if status == 401 {
-        headers.push(("WWW-Authenticate", "Bearer"));
+        head.push_str("WWW-Authenticate: Bearer\r\n");
     }
-    http::start(
-        connection,
-        &ReplyHead {
-            status,
-            headers: &headers,
-            length,
-        },
-    )
+    // A 204 reply has no body and no length (RFC 9110).
+    if let Some(length) = length.filter(|_| status != 204) {
+        head.push_str(&format!("Content-Length: {length}\r\n"));
+    }
+    head.push_str("Connection: close\r\n\r\n");
+    let mut body = match length {
+        Some(_) => Body::whole(connection),
+        None => Body::lines(connection),
+    };
+    body.send(head.as_bytes())?;
+    Ok(body)
 }

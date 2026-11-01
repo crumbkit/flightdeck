@@ -20,6 +20,9 @@ real tool can misbehave or a test needs:
   prints a document and exits with 0 on SIGINT.
 - `child both` declares itself read-only and destructive at once.
 - `child pair` takes two optional positional values.
+- `child linger` prints its process id, then ignores SIGINT and SIGTERM
+  for the number of seconds that its one value gives, and then prints a
+  document.
 - `child adopt` moves into the process group of the program that started
   it, then ignores SIGINT and SIGTERM. It needs `perl`.
 - `child interrupt` prints a document, and on SIGINT prints 400 more and

@@ -16,13 +16,14 @@ pub const CODE_LIFETIME: Duration = Duration::from_secs(60);
 const BEARER: &str = "Bearer ";
 
 /// The sign-in state of one server: its token, its launch code until the
-/// page exchanges it or it expires, and the time of the last authenticated
-/// request.
+/// page exchanges it or it expires, the time of the last authenticated
+/// request, and whether the idle limit has closed the session.
 #[derive(Debug)]
 pub struct Session {
     token: Secret,
     code: Option<LaunchCode>,
     last_authenticated: Moment,
+    closed: bool,
 }
 
 /// A launch code and the time the server issued it.
@@ -47,6 +48,7 @@ impl Session {
                 issued: now,
             }),
             last_authenticated: now,
+            closed: false,
         })
     }
 
@@ -83,11 +85,20 @@ impl Session {
     /// Accepts the value of a request's one `Authorization` header when it
     /// is `Bearer` and the token, and records `now` as the time of the last
     /// authenticated request.
+    ///
+    /// Once `idle_limit` has passed since the last authenticated request,
+    /// it refuses every token and closes the session, so the server stops
+    /// even when this request arrives before the server next checks its
+    /// idle time.
     pub(super) fn authenticate(
         &mut self,
         authorization: Option<&str>,
         now: Moment,
+        idle_limit: Duration,
     ) -> Result<(), Refusal> {
+        if self.close_when_idle(now, idle_limit) {
+            return Err(Refusal::Unauthorized);
+        }
         let presented = authorization
             .and_then(|value| value.strip_prefix(BEARER))
             .ok_or(Refusal::Unauthorized)?;
@@ -98,9 +109,25 @@ impl Session {
         Ok(())
     }
 
+    /// Returns true once the session has closed: the idle limit passed
+    /// before a request, or the server found it passed.
+    pub(super) const fn is_closed(&self) -> bool {
+        self.closed
+    }
+
+    /// Closes the session at `now` once `idle_limit` has passed since the
+    /// last authenticated request, counting from the server's start before
+    /// the first one, and returns true when it is closed.
+    pub(super) fn close_when_idle(&mut self, now: Moment, idle_limit: Duration) -> bool {
+        if self.idle_for(now) >= idle_limit {
+            self.closed = true;
+        }
+        self.closed
+    }
+
     /// Returns how long the server has gone without an authenticated
     /// request at `now`, counting from its start before the first one.
-    pub(super) fn idle_for(&self, now: Moment) -> Duration {
+    fn idle_for(&self, now: Moment) -> Duration {
         now.since(self.last_authenticated)
     }
 }

@@ -1,6 +1,7 @@
 //! `flightdeck open <TOOL>`: load the tool's model, start the page's
-//! server, write the opener page, print two lines, open the browser, and
-//! serve until Ctrl-C, SIGTERM or the idle limit.
+//! server with the one runner of the process, write the opener page, print
+//! two lines, open the browser, and serve until Ctrl-C, SIGTERM or the idle
+//! limit.
 //!
 //! The command prints no result on standard output. It writes its two lines
 //! to standard error, where crumbkit writes messages about a run, and exits
@@ -19,6 +20,7 @@ use signal_hook::consts::{SIGINT, SIGTERM};
 use crate::cli::OpenArgs;
 use crate::model::{self, LoadError};
 use crate::opener::Opener;
+use crate::runner::{self, Mode, Runner};
 use crate::server::{
     Clock as _, Ended, IDLE_LIMIT, Listener, Server, Session, Settings, StartError, SystemClock,
 };
@@ -109,8 +111,8 @@ pub(crate) fn run(output: &mut Output, args: &OpenArgs) -> ExitCode {
 /// that a person reads to `lines`. A line that cannot be written, as when
 /// standard error is closed, is skipped.
 fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
-    let tool =
-        model::load(&Program::new(&args.tool), spawn::TIME_LIMIT).map_err(OpenError::Load)?;
+    let program = Program::new(&args.tool);
+    let tool = model::load(&program, spawn::TIME_LIMIT).map_err(OpenError::Load)?;
     let stop = Arc::new(AtomicBool::new(false));
     watch_signals(&stop).map_err(OpenError::Signals)?;
     let clock = SystemClock;
@@ -122,19 +124,29 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
         .launch_code()
         .ok_or_else(|| OpenError::Opener(io::Error::other("the session has no launch code")))?;
     let opener = Opener::write(&origin, code).map_err(OpenError::Opener)?;
-    let server = Server::new(listener, session, &tool, args.read_only, Settings::new())
-        .map_err(OpenError::Start)?;
-
     let commands = match tool.commands().len() {
         1 => "1 command".to_owned(),
         count => format!("{count} commands"),
     };
-    let _ = writeln!(
-        lines,
-        "{} {} · {commands} · {origin}",
-        printable(tool.name()),
-        printable(tool.version())
-    );
+    let name = format!("{} {}", printable(tool.name()), printable(tool.version()));
+    let mode = if args.read_only {
+        Mode::ReadOnly
+    } else {
+        Mode::Full
+    };
+    let runner = Runner::new(
+        tool,
+        program,
+        mode,
+        Arc::new(runner::SystemClock),
+        runner::Settings::new(),
+    )
+    .map_err(OpenError::Random)?;
+    let server =
+        Server::new(listener, session, runner, Settings::new()).map_err(OpenError::Start)?;
+
+    // The origin comes first, so a tool's name cannot push it out of view.
+    let _ = writeln!(lines, "{origin} · {name} · {commands}");
     let page = opener.page().display();
     if args.no_browser {
         let _ = writeln!(

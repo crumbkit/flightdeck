@@ -305,6 +305,39 @@
       "writes": null
     },
     {
+      "path": "unruly child linger",
+      "about": "Print its process id, ignore SIGINT and SIGTERM for some seconds, then print a document",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "<SECONDS>",
+          "short": null,
+          "value_names": [
+            "SECONDS"
+          ],
+          "required": true,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": null,
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
       "path": "unruly child adopt",
       "about": "Move into its parent's process group, then ignore SIGINT and SIGTERM until killed",
       "long_about": null,

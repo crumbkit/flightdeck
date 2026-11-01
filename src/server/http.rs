@@ -1,5 +1,5 @@
 //! HTTP/1.1 on one connection: reading a request's head and body within
-//! their limits, and writing a reply, whole or one piece at a time.
+//! their limits, and writing a reply's bytes within their deadlines.
 //!
 //! Every reply carries `Connection: close`, and the server closes the
 //! connection after it, so a connection holds one request. A body is read
@@ -7,10 +7,14 @@
 //! of `request::check`.
 
 use std::io::{self, Read, Write};
+use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 use super::reply::Refusal;
 use super::request::{Head, Method};
+
+#[cfg(test)]
+mod tests;
 
 /// The most bytes of a request's head, its request line and headers, that
 /// the server reads.
@@ -25,28 +29,17 @@ pub const BODY_LIMIT: usize = 64 * 1024;
 /// How long a client has to send a request's head and body together.
 pub const REQUEST_TIME: Duration = Duration::from_secs(10);
 
-/// How long one write of a reply may wait for the client to read.
+/// How long the client may take to read a whole reply of known length, or
+/// one line of a stream.
 pub const WRITE_TIME: Duration = Duration::from_secs(10);
 
 /// The most bytes that the server reads and drops after a reply, so that a
 /// client that is still sending gets the reply before the connection
 /// closes.
-const DRAIN_LIMIT: u64 = 64 * 1024;
+const DRAIN_LIMIT: usize = 64 * 1024;
 
 /// How long the server reads and drops after a reply.
 const DRAIN_TIME: Duration = Duration::from_millis(500);
-
-/// A connection whose reads all end at one deadline.
-pub(super) trait Timed: Read + Write {
-    /// Sets how long the next read may wait.
-    fn set_read_timeout(&self, timeout: Option<Duration>) -> io::Result<()>;
-}
-
-impl Timed for std::net::TcpStream {
-    fn set_read_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
-        Self::set_read_timeout(self, timeout)
-    }
-}
 
 /// A request whose head has been read, and the bytes of its body that
 /// arrived with the head.
@@ -63,22 +56,21 @@ impl Request {
         &self.head
     }
 
-    /// Reads the request's body from `connection`, which declares at most
-    /// [`BODY_LIMIT`] bytes, as `request::check` ensures. A body that
-    /// arrives short of its declared length before the deadline is refused.
-    pub(super) fn body(&self, connection: &mut impl Timed) -> Result<Vec<u8>, Refusal> {
+    /// Reads the request's body from `connection`. `request::check` has
+    /// refused a declared length over [`BODY_LIMIT`]. A body that does not
+    /// arrive whole before the request's deadline is refused with
+    /// [`Refusal::Timeout`].
+    pub(super) fn body(&self, connection: &mut TcpStream) -> Result<Vec<u8>, Refusal> {
         let length = self.head.body_length().unwrap_or(0);
         let length = usize::try_from(length).map_err(|_| Refusal::TooLarge)?;
-        if length > BODY_LIMIT {
-            return Err(Refusal::TooLarge);
-        }
         let mut body = self.early_body.clone();
         body.truncate(length);
         let mut chunk = [0; 4096];
         while body.len() < length {
-            let read = read_by(connection, self.deadline, &mut chunk).map_err(|_| Refusal::Body)?;
+            let read =
+                read_by(connection, self.deadline, &mut chunk).map_err(|_| Refusal::Timeout)?;
             let Some(bytes) = chunk.get(..read).filter(|bytes| !bytes.is_empty()) else {
-                return Err(Refusal::Body);
+                return Err(Refusal::Timeout);
             };
             let wanted = length - body.len();
             body.extend_from_slice(bytes.get(..wanted).unwrap_or(bytes));
@@ -87,8 +79,11 @@ impl Request {
     }
 }
 
-/// Reads a request's head from `connection` within [`REQUEST_TIME`], which
-/// also bounds the read of its body.
+/// Reads a request's head from `connection` within `time`, which also
+/// bounds the read of its body.
+///
+/// The server searches for the end of the head only in the bytes that each
+/// read adds, and parses the head once, when it has found the end.
 ///
 /// # Errors
 ///
@@ -96,8 +91,11 @@ impl Request {
 /// before it sends a whole head, which gets no reply. Returns a refusal for
 /// a head over [`HEAD_LIMIT`] bytes or [`HEADER_LIMIT`] headers, and for one
 /// that is not HTTP/1.x that the server reads.
-pub(super) fn read_request(connection: &mut impl Timed) -> Result<Option<Request>, Refusal> {
-    let deadline = Instant::now() + REQUEST_TIME;
+pub(super) fn read_request(
+    connection: &mut TcpStream,
+    time: Duration,
+) -> Result<Option<Request>, Refusal> {
+    let deadline = Instant::now() + time;
     let mut buffer = Vec::new();
     let mut chunk = [0; 4096];
     loop {
@@ -107,42 +105,62 @@ pub(super) fn read_request(connection: &mut impl Timed) -> Result<Option<Request
         let Some(bytes) = chunk.get(..read).filter(|bytes| !bytes.is_empty()) else {
             return Ok(None);
         };
+        let searched = buffer.len();
         buffer.extend_from_slice(bytes);
-        let mut headers = [httparse::EMPTY_HEADER; HEADER_LIMIT];
-        let mut parsed = httparse::Request::new(&mut headers);
-        match parsed.parse(&buffer) {
-            Ok(httparse::Status::Complete(end)) if end <= HEAD_LIMIT => {
-                let head = head_of(&parsed)?;
-                let early_body = buffer.get(end..).unwrap_or_default().to_vec();
-                return Ok(Some(Request {
-                    head,
-                    early_body,
-                    deadline,
-                }));
-            }
-            Ok(httparse::Status::Partial) if buffer.len() <= HEAD_LIMIT => {}
-            Ok(_) | Err(httparse::Error::TooManyHeaders) => return Err(Refusal::HeadTooLarge),
-            Err(_) => return Err(Refusal::Malformed),
+        if ends_head(&buffer, searched) {
+            let (head, end) = parse_head(&buffer)?;
+            let early_body = buffer.get(end..).unwrap_or_default().to_vec();
+            return Ok(Some(Request {
+                head,
+                early_body,
+                deadline,
+            }));
+        }
+        if buffer.len() > HEAD_LIMIT {
+            return Err(Refusal::HeadTooLarge);
         }
     }
 }
 
-/// Returns the head of a parsed request. A request with
-/// `Transfer-Encoding`, with a `Content-Length` that is not one decimal
-/// number, or with a header value that is not UTF-8, is malformed.
-fn head_of(parsed: &httparse::Request<'_, '_>) -> Result<Head, Refusal> {
+/// Returns true when `buffer` holds the empty line that ends a head, a line
+/// break followed by `\r\n` or `\n`, in the bytes from `searched` on or in
+/// the three bytes before them, where such a line may have started.
+fn ends_head(buffer: &[u8], searched: usize) -> bool {
+    let tail = buffer.get(searched.saturating_sub(3)..).unwrap_or_default();
+    tail.windows(2).any(|pair| pair == b"\n\n") || tail.windows(3).any(|three| three == b"\n\r\n")
+}
+
+/// Parses a whole head at the start of `bytes` and returns it with the
+/// length of the head in bytes.
+///
+/// A head over [`HEAD_LIMIT`] bytes or with more than [`HEADER_LIMIT`]
+/// headers is refused as too large. A request with `Transfer-Encoding`,
+/// with a `Content-Length` that is not one decimal number, with a header
+/// value that is not UTF-8, or that is not HTTP/1.x, is malformed.
+fn parse_head(bytes: &[u8]) -> Result<(Head, usize), Refusal> {
+    let mut headers = [httparse::EMPTY_HEADER; HEADER_LIMIT];
+    let mut parsed = httparse::Request::new(&mut headers);
+    let end = match parsed.parse(bytes) {
+        Ok(httparse::Status::Complete(end)) if end <= HEAD_LIMIT => end,
+        Ok(httparse::Status::Complete(_)) | Err(httparse::Error::TooManyHeaders) => {
+            return Err(Refusal::HeadTooLarge);
+        }
+        // A head whose end the server found and that still parses as
+        // partial is no head that the server reads.
+        Ok(httparse::Status::Partial) | Err(_) => return Err(Refusal::Malformed),
+    };
     let method = match parsed.method {
         Some("GET") => Method::Get,
         Some("POST") => Method::Post,
         _ => Method::Other,
     };
     let path = parsed.path.ok_or(Refusal::Malformed)?.to_owned();
-    let mut headers = Vec::with_capacity(parsed.headers.len());
+    let mut fields = Vec::with_capacity(parsed.headers.len());
     for header in parsed.headers.iter() {
         let value = std::str::from_utf8(header.value).map_err(|_| Refusal::Malformed)?;
-        headers.push((header.name.to_owned(), value.to_owned()));
+        fields.push((header.name.to_owned(), value.to_owned()));
     }
-    let head = Head::new(method, path, headers);
+    let head = Head::new(method, path, fields);
     if head.has("Transfer-Encoding") {
         return Err(Refusal::Malformed);
     }
@@ -154,11 +172,11 @@ fn head_of(parsed: &httparse::Request<'_, '_>) -> Result<Head, Refusal> {
         }
         _ => return Err(Refusal::Malformed),
     };
-    Ok(head.with_body_length(body_length))
+    Ok((head.with_body_length(body_length), end))
 }
 
 /// Reads into `chunk` from `connection`, waiting no later than `deadline`.
-fn read_by(connection: &mut impl Timed, deadline: Instant, chunk: &mut [u8]) -> io::Result<usize> {
+fn read_by(connection: &mut TcpStream, deadline: Instant, chunk: &mut [u8]) -> io::Result<usize> {
     let remaining = deadline.saturating_duration_since(Instant::now());
     if remaining.is_zero() {
         return Err(io::ErrorKind::TimedOut.into());
@@ -170,86 +188,126 @@ fn read_by(connection: &mut impl Timed, deadline: Instant, chunk: &mut [u8]) -> 
 /// Reads and drops what the client still sends after the reply, at most
 /// [`DRAIN_LIMIT`] bytes for [`DRAIN_TIME`], so that closing a connection
 /// with unread bytes does not reset it before the client reads the reply.
-pub(super) fn drain(connection: &mut impl Timed) {
+pub(super) fn drain(connection: &mut TcpStream) {
     let deadline = Instant::now() + DRAIN_TIME;
     let mut left = DRAIN_LIMIT;
     let mut chunk = [0; 4096];
     while left > 0 {
         match read_by(connection, deadline, &mut chunk) {
             Ok(0) | Err(_) => return,
-            Ok(read) => left = left.saturating_sub(u64::try_from(read).unwrap_or(u64::MAX)),
+            Ok(read) => left = left.saturating_sub(read),
         }
     }
 }
 
-/// The head of a reply: its status, its headers, and the length of its
-/// body when the server knows it before it writes the body.
-#[derive(Debug)]
-pub(super) struct ReplyHead<'a> {
-    /// The HTTP status, such as 200.
-    pub(super) status: u16,
-    /// Every header except `Content-Length` and `Connection`, which the
-    /// writer adds.
-    pub(super) headers: &'a [(&'a str, &'a str)],
-    /// The body's length, or `None` for a body that ends when the server
-    /// closes the connection, such as a stream of lines.
-    pub(super) length: Option<usize>,
-}
-
-/// Writes `head` to `connection` and returns the writer of the body.
-///
-/// # Errors
-///
-/// Returns the error of a write, as when the client has closed the
-/// connection.
-pub(super) fn start<'w, W: Write>(
-    connection: &'w mut W,
-    head: &ReplyHead<'_>,
-) -> io::Result<Body<'w, W>> {
-    let mut text = format!("HTTP/1.1 {} {}\r\n", head.status, reason(head.status));
-    for (name, value) in head.headers {
-        text.push_str(&format!("{name}: {value}\r\n"));
+/// Reads and drops what the client has already sent, at most
+/// [`DRAIN_LIMIT`] bytes, without waiting for more, so that closing the
+/// connection does not reset it before the client reads the reply.
+pub(super) fn discard_arrived(connection: &mut TcpStream) {
+    if connection.set_nonblocking(true).is_err() {
+        return;
     }
-    if let Some(length) = head.length {
-        text.push_str(&format!("Content-Length: {length}\r\n"));
+    let mut left = DRAIN_LIMIT;
+    let mut chunk = [0; 4096];
+    while left > 0 {
+        match connection.read(&mut chunk) {
+            Ok(0) | Err(_) => return,
+            Ok(read) => left = left.saturating_sub(read),
+        }
     }
-    text.push_str("Connection: close\r\n\r\n");
-    connection.write_all(text.as_bytes())?;
-    connection.flush()?;
-    Ok(Body { connection })
 }
 
-/// The body of a reply whose head has been written.
+/// How long the writes of a reply may wait for the client to read.
+#[derive(Clone, Copy, Debug)]
+enum Pace {
+    /// Every write of the reply, its head and its body, ends by this one
+    /// deadline.
+    Whole(Instant),
+    /// Each line of a stream has [`WRITE_TIME`] from when its write starts.
+    Line,
+}
+
+/// The connection of a reply, which writes each piece within the reply's
+/// deadline.
 #[derive(Debug)]
-pub(super) struct Body<'w, W: Write> {
-    connection: &'w mut W,
+pub(super) struct Body<'w> {
+    connection: &'w mut TcpStream,
+    pace: Pace,
 }
 
-impl<W: Write> Body<'_, W> {
-    /// Writes `bytes`, such as one line of a stream with its newline, and
-    /// flushes it to the client at once.
+impl<'w> Body<'w> {
+    /// Returns the writer of a reply of known length, whose head and body
+    /// the client must read within [`WRITE_TIME`] in all.
+    pub(super) fn whole(connection: &'w mut TcpStream) -> Self {
+        Self {
+            connection,
+            pace: Pace::Whole(Instant::now() + WRITE_TIME),
+        }
+    }
+
+    /// Returns the writer of a stream, each of whose lines the client must
+    /// read within [`WRITE_TIME`].
+    ///
+    /// A stream's body ends when the server closes the connection, so its
+    /// own last line says that it is whole. The run routes' last line is
+    /// the `ended` record, and a stream that closes without it was cut off.
+    pub(super) const fn lines(connection: &'w mut TcpStream) -> Self {
+        Self {
+            connection,
+            pace: Pace::Line,
+        }
+    }
+
+    /// Writes `bytes`, such as the head or one line of a stream with its
+    /// newline. TCP sends each write at once, so the client receives it
+    /// without a flush.
     ///
     /// # Errors
     ///
     /// Returns the error of a write, as when the client has closed the
-    /// connection or has not read for [`WRITE_TIME`].
+    /// connection or the reply's deadline has passed.
     pub(super) fn send(&mut self, bytes: &[u8]) -> io::Result<()> {
-        self.connection.write_all(bytes)?;
-        self.connection.flush()
+        let deadline = match self.pace {
+            Pace::Whole(deadline) => deadline,
+            Pace::Line => Instant::now() + WRITE_TIME,
+        };
+        write_by(self.connection, bytes, deadline)
     }
 }
 
+/// Writes `bytes` to `connection` by `deadline`. Each write waits at most
+/// until the deadline, and the deadline is checked before each one.
+fn write_by(connection: &mut TcpStream, mut bytes: &[u8], deadline: Instant) -> io::Result<()> {
+    while !bytes.is_empty() {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(io::ErrorKind::TimedOut.into());
+        }
+        connection.set_write_timeout(Some(remaining))?;
+        match connection.write(bytes) {
+            Ok(0) => return Err(io::ErrorKind::WriteZero.into()),
+            Ok(written) => bytes = bytes.get(written..).unwrap_or_default(),
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(())
+}
+
 /// Returns the reason phrase of `status`.
-const fn reason(status: u16) -> &'static str {
+pub(super) const fn reason(status: u16) -> &'static str {
     match status {
         200 => "OK",
+        204 => "No Content",
         400 => "Bad Request",
         401 => "Unauthorized",
         403 => "Forbidden",
         404 => "Not Found",
         405 => "Method Not Allowed",
+        408 => "Request Timeout",
         413 => "Content Too Large",
         415 => "Unsupported Media Type",
+        422 => "Unprocessable Content",
         431 => "Request Header Fields Too Large",
         503 => "Service Unavailable",
         _ => "Unknown",

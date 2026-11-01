@@ -19,6 +19,7 @@ checks = [
   "the argument and time-limit tests of the opener in src/spawn/browser/tests.rs",
   "the drain test in src/spawn/stream/drain/tests.rs",
   "the refusal, separator, cancel, spawn, other-session and other-group tests in tests/runner.rs",
+  "the refusal, dash value, disconnect and shutdown tests in tests/routes.rs",
 ]
 note = "spawn has three operations. spawn::describe runs one of the fixed queries of spawn::Query. spawn::stream runs a runner::Argv, which only the runner builds after it checks the command and each value against the tool's model. On Unix both kill the child's whole process group when the child exits, before they reap the child. describe also kills the group when its time limit passes, and stream also stops the group when a run is cancelled, dropped or past an output limit. stream also signals the child itself when it has moved to another group. A descendant that leaves the group, such as one that calls setsid, is not stopped. When it holds a pipe open, describe's reads end at its deadline, and stream's reads end spawn::DRAIN_GRACE after the child is reaped. spawn::open_browser runs the system's opener with the opener page's path as its one argument, and at its time limit stops the opener alone, never the browser it starts. Each module's documentation states the five items of PROC-2."
 
@@ -26,7 +27,7 @@ note = "spawn has three operations. spawn::describe runs one of the fixed querie
 rule = "SVC-1"
 owners = ["src/spawn.rs", "src/spawn/stream.rs", "src/spawn/stream/follower.rs", "src/spawn/stream/readers.rs", "src/server.rs"]
 checks = ["clippy disallowed_methods (clippy.toml)", "the shutdown and stopped-reading tests in tests/runner.rs"]
-note = "flightdeck's own threads are the two pipe readers of spawn::describe and, on Unix, the thread that waits for the child to exit, and a std::thread::scope joins all three before describe returns. Each run of spawn::stream has one thread, which runner::Runs owns and joins once the run has ended or at shutdown, which dropping the runner also starts, and that thread joins its pipe readers and exit waiter in a scope of its own (src/spawn/stream/follower.rs and readers.rs). Server::run opens a std::thread::scope that holds the server's accept thread and one thread for each open connection, at most server::CONNECTION_LIMIT. When the server stops, run wakes the accept thread with a connection to itself, joins it, shuts down every open connection so its thread ends at its next read or write, and the scope joins every thread before run returns. signal-hook starts no thread, because flightdeck registers only flags."
+note = "flightdeck's own threads are the two pipe readers of spawn::describe and, on Unix, the thread that waits for the child to exit, and a std::thread::scope joins all three before describe returns. Each run of spawn::stream has one thread, which runner::Runs owns and joins once the run has ended or at shutdown, which dropping the runner also starts, and that thread joins its pipe readers and exit waiter in a scope of its own (src/spawn/stream/follower.rs and readers.rs). Server::run opens a std::thread::scope that holds the server's accept thread and one thread for each open connection, at most server::CONNECTION_LIMIT. When the server stops, run wakes the accept thread with a connection to itself, joins it, shuts the runner down, then shuts down the reading half of every open connection, so a thread that waits for a request ends at its next read while a stream can still write its ended line, and the scope joins every thread before run returns. signal-hook starts no thread, because flightdeck registers only flags."
 
 [[binding]]
 rule = "BASE-24"
@@ -36,12 +37,13 @@ note = "The launch code and the token are secrecy::SecretString values inside se
 
 [[binding]]
 rule = "SVC-4"
-owners = ["src/server/reply.rs"]
+owners = ["src/server/reply.rs", "src/server/document.rs"]
 checks = [
   "the test in src/server/reply/tests.rs that lists every code and status",
-  "the refusal tests in tests/server.rs",
+  "the schema tests in src/server/document/tests.rs",
+  "the refusal tests in tests/server.rs and tests/routes.rs",
 ]
-note = "flightdeck owns its error format, so every refusal is an RFC 9457 problem document with type about:blank, a title, the status and flightdeck's stable code."
+note = "flightdeck owns its error format. A refusal of the request itself, including a body that times out with 408, is an RFC 9457 problem document with type about:blank, a title, the status and flightdeck's stable code. A refusal of the runner, with 422, and a cancel that finds no run, with 404, carry a flightdeck/failure/v1 document in the shape of crumbkit's failure document, with the runner's stable code and its fields."
 
 [[binding]]
 rule = "SVC-5"
@@ -51,9 +53,25 @@ note = "flightdeck writes no request log. The test searches everything flightdec
 
 [[binding]]
 rule = "SVC-2"
-owners = ["src/runner/runs.rs", "src/spawn/stream.rs"]
-checks = ["the shutdown, closed and cancel-during-shutdown tests in tests/runner.rs"]
-note = "runner::Runner::shutdown marks the runner closed, so every new run is refused with flightdeck::run::closed, and a run that was starting is stopped. spawn::wait_ended then lets the runs end by themselves until the shutdown grace of the settings passes, while each stays where a cancel finds it. The shutdown then cancels the runs that are left and joins every run. A cancelled run ends within the graces of its escalation and spawn::DRAIN_GRACE, because once it is stopped the reader of a full queue drops lines instead of waiting for the caller."
+owners = ["src/runner/runs.rs", "src/spawn/stream.rs", "src/server.rs", "src/server/stream.rs"]
+checks = [
+  "the shutdown, closed and cancel-during-shutdown tests in tests/runner.rs",
+  "stopping_the_server_cancels_a_run_that_outlasts_the_shutdown_grace_and_ends_its_stream in tests/routes.rs",
+  "sigterm_during_a_streamed_run_lets_the_run_finish_and_its_stream_end_before_flightdeck_exits in tests/open.rs",
+]
+note = "On Ctrl-C, SIGTERM or the idle limit, Server::run stops accepting and calls runner::Runner::shutdown before its scope joins the connection threads. runner::Runner::shutdown marks the runner closed, so every new run is refused with flightdeck::run::closed, and a run that was starting is stopped. spawn::wait_ended then lets the runs end by themselves until the shutdown grace of the settings passes, while each stays where a cancel finds it. The shutdown then cancels the runs that are left and joins every run. A cancelled run ends within the graces of its escalation and spawn::DRAIN_GRACE, because once it is stopped the reader of a full queue drops lines instead of waiting for the caller."
+
+[[decision]]
+id = "readiness"
+requirement = "The page's server has no readiness endpoint, so SVC-6 has nothing to bind. The server answers once Server::new has returned, and it needs no store."
+reason = "flightdeck serves one browser tab on the machine of the person who started it. No orchestrator or load balancer polls it, and the tool it runs is a child process that each run starts afresh."
+realizations = ["src/server.rs"]
+
+[[decision]]
+id = "logging"
+requirement = "flightdeck writes no log, so SVC-9 has nothing to bind. `flightdeck open` prints two status lines to standard error, and every other output is a reply to the page."
+reason = "A log of a local server for one person would hold the commands that person ran and nothing an operator reads. Writing none also keeps the token, the launch code and the tool's output out of any file. The service profile's logging rule applies when flightdeck gains a log."
+realizations = ["src/open.rs", "src/server.rs"]
 
 [[binding]]
 rule = "BASE-5"
