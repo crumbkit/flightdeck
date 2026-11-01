@@ -28,6 +28,15 @@ clap = { version = "4.6.7", default-features = false, features = [
 # crumbkit parses flightdeck's own command line and mounts `commands list`,
 # `schemas list` and `schemas show`.
 crumbkit = { version = "0.1.0", default-features = false }
+# wait-timeout waits for a child process with a time limit, so a tool that
+# never exits is stopped. It has no features.
+wait-timeout = { version = "0.2.1", default-features = false }
+
+[target.'cfg(unix)'.dependencies]
+# rustix stops every process in the child's process group when the time limit
+# passes, through a safe function, so a descendant that holds the child's
+# output open is stopped too.
+rustix = { version = "1.1.6", default-features = false, features = ["std", "process"] }
 
 [dev-dependencies]
 # The convention tests check flightdeck's command tree, guide and codes with

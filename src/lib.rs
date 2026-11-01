@@ -4,9 +4,11 @@
 //!
 //! The library holds the whole program, and the `flightdeck` binary calls
 //! [`run_from`]. It exports the parser and the guide for flightdeck's
-//! convention tests. Its API makes no stability promise.
+//! convention tests, and the [`spawn`] module for its tests. Its API makes
+//! no stability promise.
 
 mod cli;
+pub mod spawn;
 
 use std::ffi::OsString;
 use std::process::ExitCode;

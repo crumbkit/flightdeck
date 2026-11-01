@@ -4,9 +4,24 @@
 schema = "rust-standards/adoption/v1"
 standards = { version = "0.1.0", commit = "7c9a7577fed4fe5ba0682960c0380af0a75dace4" }
 
-# flightdeck is a command-line program built on crumbkit, it will start the
-# tool it wraps as a child process, and it will serve a local web page.
+# flightdeck is a command-line program built on crumbkit, it starts the tool
+# it wraps as a child process, and it will serve a local web page.
 profiles = ["base", "cli", "child-process", "service"]
+
+[[binding]]
+rule = "PROC-1"
+owners = ["src/spawn.rs"]
+checks = [
+  "clippy disallowed_methods and disallowed_types (clippy.toml)",
+  "the argument vector test in src/spawn/tests.rs",
+]
+note = "spawn::describe runs one of the fixed queries of spawn::Query. The module's documentation states the five items of PROC-2. On Unix it stops the child's whole process group at the time limit; a descendant that leaves the group is not stopped."
+
+[[binding]]
+rule = "SVC-1"
+owners = ["src/spawn.rs"]
+checks = ["clippy disallowed_methods (clippy.toml)"]
+note = "The only threads are the two pipe readers of spawn::describe, which a std::thread::scope joins before describe returns."
 
 [[decision]]
 id = "lanes"
@@ -32,9 +47,9 @@ realizations = [".github/scripts/commit-check.sh", ".github/workflows/ci.yml"]
 
 [[decision]]
 id = "environment"
-requirement = "flightdeck reads no environment variable of its own, so its BASE-28 catalog is empty and clippy.toml forbids every reader. crumbkit reads its own variables, such as FLIGHTDECK_OUTPUT_BUDGET, and its documentation catalogs them. "
+requirement = "flightdeck reads no environment variable of its own, so its BASE-28 catalog is empty and clippy.toml forbids every reader. crumbkit reads its own variables, such as FLIGHTDECK_OUTPUT_BUDGET, and its documentation catalogs them. A child process inherits flightdeck's environment, plus the variables that spawn::Program::env adds."
 reason = "BASE-28's catalog test compares the catalog with the environment snapshot of BASE-6. With no variable read, there is no snapshot to compare, and the disallowed methods keep it that way until a variable is added with its catalog."
-realizations = ["clippy.toml"]
+realizations = ["clippy.toml", "src/spawn.rs"]
 
 [[exception]]
 rule = "CLI-7"
