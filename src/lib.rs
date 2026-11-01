@@ -1,14 +1,18 @@
-//! flightdeck will start a local web page that lists, runs and draws the
-//! commands of any tool built on crumbkit. It reads only the JSON documents
-//! that the tool prints about itself, and links nothing of the tool.
+//! flightdeck starts a local web page for any tool built on crumbkit. It
+//! reads only the JSON documents that the tool prints about itself, and
+//! links nothing of the tool.
 //!
 //! The library holds the whole program, and the `flightdeck` binary calls
 //! [`run_from`]. It exports the parser and the guide for flightdeck's
-//! convention tests, and the [`model`] and [`spawn`] modules for its model
-//! tests. Its API makes no stability promise.
+//! convention tests, and the [`model`], [`spawn`], [`opener`] and
+//! [`server`] modules for its other tests. Its API makes no stability
+//! promise.
 
 mod cli;
 pub mod model;
+mod open;
+pub mod opener;
+pub mod server;
 pub mod spawn;
 
 use std::ffi::OsString;
@@ -18,10 +22,11 @@ use clap::CommandFactory as _;
 
 pub use crate::cli::{Cli, GUIDE};
 use crate::cli::{CommandsCommand, Resource, SchemasCommand};
+pub use crate::open::{OpenError, SERVER_FAILED};
 
-/// Every failure code that flightdeck declares, which its convention tests
-/// pass to crumbkit-test's checks.
-pub const CODES: &[&crumbkit::Code] = model::LoadError::CODES;
+/// Every failure code that flightdeck declares, in one list for each error
+/// type, which its convention tests pass to crumbkit-test's checks.
+pub const CODES: &[&[&crumbkit::Code]] = &[model::LoadError::CODES, OpenError::CODES];
 
 /// Runs flightdeck on `args`, whose first item is the program's name, and
 /// returns the process's exit code.
@@ -42,6 +47,7 @@ where
     // Each command reads the command tree through `&mut output`, so it runs
     // before `finish` takes `output`.
     match cli.resource {
+        Resource::Open(args) => open::run(&mut output, &args),
         Resource::Commands {
             command: CommandsCommand::List(args),
         } => {

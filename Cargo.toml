@@ -35,6 +35,32 @@ serde = { version = "1.0.229", default-features = false, features = ["std", "der
 # serde_json parses those documents and holds each result's JSON Schema as a
 # `Value`.
 serde_json = { version = "1.0.151", default-features = false, features = ["std"] }
+# httparse reads the request line and headers of each request that the
+# page's server receives, into a fixed number of headers, with no
+# allocation of its own.
+httparse = { version = "1.10.1", default-features = false }
+# getrandom reads the page's launch code and token from the operating
+# system's random source.
+getrandom = { version = "0.4.3", default-features = false }
+# secrecy holds the launch code and the token, so their `Debug` prints a
+# placeholder and their memory is zeroed when they are dropped (BASE-24). The
+# `serde` feature reads the launch code that the page sends straight into a
+# secret.
+secrecy = { version = "0.10.3", default-features = false, features = ["serde"] }
+# signal-hook sets a flag on Ctrl-C and SIGTERM, which the server's loop
+# reads, so `flightdeck open` stops and removes its opener page.
+signal-hook = { version = "0.4.6", default-features = false }
+# subtle compares a presented token or launch code with the real one in
+# constant time.
+subtle = { version = "2.6.1", default-features = false }
+# tempfile creates the opener page's directory, private to the user, and
+# removes it when flightdeck stops. Each test that runs a tool also gives it
+# XDG directories in a temporary directory of its own.
+tempfile = { version = "3.27.0", default-features = false }
+# wait-timeout waits with a time limit for the program that opens the
+# browser, and on systems other than Unix for a tool's queries too. It has no
+# features.
+wait-timeout = { version = "0.2.1", default-features = false }
 
 [target.'cfg(unix)'.dependencies]
 # rustix waits for a child to exit without reaping it, kills the child's whole
@@ -45,11 +71,6 @@ serde_json = { version = "1.0.151", default-features = false, features = ["std"]
 # `event` holds `poll`.
 rustix = { version = "1.1.6", default-features = false, features = ["std", "process", "event"] }
 
-[target.'cfg(not(unix))'.dependencies]
-# wait-timeout waits for a child process with a time limit where rustix does
-# not run, so a tool that never exits is stopped. It has no features.
-wait-timeout = { version = "0.2.1", default-features = false }
-
 [dev-dependencies]
 # The convention tests check flightdeck's command tree, guide and codes with
 # crumbkit-test.
@@ -57,9 +78,6 @@ crumbkit-test = { version = "0.1.0", default-features = false }
 # The schema tests validate real documents against crumbkit's checked-in
 # JSON Schemas, which use draft 2020-12.
 jsonschema = { version = "0.60.2", default-features = false }
-# Each test that runs a tool gives it XDG directories in a temporary
-# directory of its own, and the fake tools live in one too.
-tempfile = { version = "3.27.0", default-features = false }
 
 [workspace]
 resolver = "3"

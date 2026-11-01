@@ -4,10 +4,11 @@ This reference is generated from the help of `flightdeck`. Edit the help in the 
 
 ## `flightdeck`
 
-Start a local web page for a crumbkit tool (in development)
+Start a local web page for a crumbkit tool
 
 ### Commands
 
+- [`flightdeck open`](#flightdeck-open): Open a local web page that lists and runs a tool's commands
 - [`flightdeck commands`](#flightdeck-commands): Explore flightdeck's commands
 - [`flightdeck schemas`](#flightdeck-schemas): Explore the JSON documents that flightdeck prints
 
@@ -17,6 +18,32 @@ Start a local web page for a crumbkit tool (in development)
 - `--fields <FIELD>`: Print only these comma-separated fields, in this order. The default prints the compact columns. Takes more than one value. Works after every subcommand.
 - `--long`: Add the long columns after the compact ones. The default prints only the compact columns. Works after every subcommand.
 - `--full`: With --json, print every field of every row. The default prints only the fields of the columns. Works after every subcommand.
+
+## `flightdeck open`
+
+Open a local web page that lists and runs a tool's commands
+
+### Arguments
+
+- `<TOOL>`: The crumbkit tool, by a name on PATH or a path. Required.
+- `--read-only`: Run only the tool's read-only commands from the page
+- `--no-browser`: Print the path of the page to open instead of opening the browser
+
+### Examples
+
+Open the page for shelf in the browser.
+
+```sh
+flightdeck open shelf
+```
+
+Serve a built shelf's read-only commands and print the page to open.
+
+```sh
+flightdeck open ./target/debug/shelf --read-only --no-browser
+```
+
+Effects: read-only, open-world.
 
 ## `flightdeck commands`
 

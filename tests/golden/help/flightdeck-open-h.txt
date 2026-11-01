@@ -1,0 +1,19 @@
+Open a local web page that lists and runs a tool's commands
+
+Usage: flightdeck open [OPTIONS] <TOOL>
+
+Arguments:
+  <TOOL>  The crumbkit tool, by a name on PATH or a path
+
+Options:
+      --read-only   Run only the tool's read-only commands from the page
+      --no-browser  Print the path of the page to open instead of opening the browser
+  -h, --help        Print help (see more with '--help')
+
+Examples:
+  flightdeck open shelf
+  flightdeck open ./target/debug/shelf --read-only --no-browser
+
+Effects: read-only, open-world.
+Output: no result on standard output, and --json prints a failure as JSON.
+Global flags: --json. `flightdeck open --help` describes them.

@@ -1,7 +1,7 @@
 # flightdeck
 
-flightdeck is a program in development that will start a local web page
-for any command-line tool built on
+flightdeck is a program in development that starts a local web page for
+any command-line tool built on
 [crumbkit](https://github.com/crumbkit/crumbkit). The page will list the
 tool's commands, draw a form for each one, run the command as a child
 process and draw its JSON result.
@@ -12,11 +12,30 @@ document and the listing envelope. It links none of the tool's code.
 
 ## Status
 
-The web page does not exist yet, and neither does `flightdeck open <TOOL>`,
-the command that will start it.
+`flightdeck open <TOOL>` starts the page's server and its sign-in. The page
+itself does not exist yet: the server serves a placeholder that says so, and
+it runs no command of the tool.
 
 What works today:
 
+- `flightdeck open shelf` loads shelf's model, listens on 127.0.0.1 on a
+  port the system picks, prints two lines to standard error and opens the
+  browser:
+
+  ```text
+  shelf 0.1.0 · 9 commands · http://127.0.0.1:52710
+  Opening the browser. Press Ctrl-C to stop flightdeck.
+  ```
+
+  With `--no-browser`, the second line names the opener page to open in a
+  browser, and flightdeck opens nothing. `--read-only` marks the page as one
+  that may run only the tool's read-only commands. The server stops on Ctrl-C,
+  on SIGTERM, and after 30 minutes without a request from the page.
+- The browser signs in with a one-time launch code that the opener page
+  holds in the URL's fragment, and exchanges it for a token that every API
+  request carries. `GET /api/model` returns the tool's model as JSON.
+  [docs/security.md](docs/security.md) states the threat model, every guard
+  of the server and the test that proves it.
 - `flightdeck commands list`, `flightdeck schemas list` and
   `flightdeck schemas show`, crumbkit's own commands, describe flightdeck
   itself. [docs/commands.md](docs/commands.md) is the reference.

@@ -22,6 +22,7 @@ mod tests;
 use std::io;
 use std::time::{Duration, Instant};
 
+use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 pub use self::argument::{Argument, Arity, CrumbkitFlag, Help, Kind};
@@ -40,8 +41,8 @@ use crate::spawn::{self, Exit, Program, Query, SpawnError, Stdout};
 /// The most document ids that one `schemas show` takes.
 pub(crate) const MOST_IDS: usize = 100;
 
-/// The model of one crumbkit tool.
-#[derive(Clone, Debug)]
+/// The model of one crumbkit tool, which serializes as the page reads it.
+#[derive(Clone, Debug, Serialize)]
 pub struct Tool {
     name: String,
     version: String,
@@ -160,7 +161,7 @@ impl Tool {
 }
 
 /// A goal heading of the tool's help and the commands under it.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Heading {
     title: String,
     commands: Vec<CommandPath>,

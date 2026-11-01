@@ -2,13 +2,15 @@
 
 use std::fmt;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::argument::{Argument, CrumbkitFlag};
 use super::wire::CommandRow;
 
-/// The words of a command below the tool's name, such as `books list`.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// The words of a command below the tool's name, such as `books list`. It
+/// serializes as the array of its words.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(transparent)]
 pub struct CommandPath {
     words: Vec<String>,
 }
@@ -66,7 +68,7 @@ impl fmt::Display for CommandPath {
 }
 
 /// One runnable command of a tool.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Command {
     path: CommandPath,
     about: Option<String>,
@@ -190,7 +192,7 @@ impl Command {
 }
 
 /// What a command prints.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct ResultSpec {
     document: Option<String>,
     form: Option<Form>,
@@ -220,7 +222,7 @@ impl ResultSpec {
 }
 
 /// The form of a command's output.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Form {
     /// One JSON document.
@@ -234,7 +236,7 @@ pub enum Form {
 }
 
 /// One example of a command, as a whole command line.
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Example {
     command: String,
     about: String,
@@ -255,7 +257,7 @@ impl Example {
 }
 
 /// One column of the rows a command prints.
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Column {
     name: String,
     long: bool,
@@ -284,7 +286,7 @@ impl Column {
 }
 
 /// An exit code, or a range of them, that a tool declares for a command.
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ExitMeaning {
     exit: u8,
     last: u8,
@@ -314,9 +316,9 @@ impl ExitMeaning {
 
 /// What a command changes. `commands list` prints `null` for a command that
 /// declares nothing, and a caller treats such a command as one that may
-/// destroy data.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
-#[serde(from = "Option<KnownEffects>")]
+/// destroy data. It serializes in the same form.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(from = "Option<KnownEffects>", into = "Option<KnownEffects>")]
 pub enum Effects {
     /// The command declares its effects with MCP's four hints.
     Known {
@@ -335,7 +337,7 @@ pub enum Effects {
 }
 
 /// The four hints of a command that declares its effects.
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 struct KnownEffects {
     read_only: bool,
     destructive: bool,
@@ -362,8 +364,27 @@ impl From<Option<KnownEffects>> for Effects {
     }
 }
 
+impl From<Effects> for Option<KnownEffects> {
+    fn from(effects: Effects) -> Self {
+        match effects {
+            Effects::Known {
+                read_only,
+                destructive,
+                idempotent,
+                open_world,
+            } => Some(KnownEffects {
+                read_only,
+                destructive,
+                idempotent,
+                open_world,
+            }),
+            Effects::Unknown => None,
+        }
+    }
+}
+
 /// How a command guards its writes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Writes {
     replaces: bool,
     expect: bool,
@@ -393,7 +414,7 @@ impl Writes {
 }
 
 /// How a write of several items ends when one of them fails.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Items {
     /// The command writes every item or none.

@@ -1,1 +1,13 @@
 flightdeck has no opt-outs from the conventions.
+
+flightdeck declares 3 customisations.
+
+root-verbs: flightdeck open
+  Declares: Each command sits directly under the root as a verb, and root help lists it under the heading Verbs.
+  Reason: flightdeck opens a page for a tool, and a tool is no resource of flightdeck's own.
+
+example-precondition: flightdeck open shelf
+  Declares: The example runs only in a test run that provides browser.
+
+example-precondition: flightdeck open ./target/debug/shelf --read-only --no-browser
+  Declares: The example runs only in a test run that provides browser.

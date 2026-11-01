@@ -1,9 +1,11 @@
 //! One argument of a command, and crumbkit's own flags among them.
 
+use serde::Serialize;
+
 use super::wire::ArgumentRow;
 
 /// One argument of a command.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Argument {
     name: String,
     short: Option<String>,
@@ -128,7 +130,8 @@ impl Argument {
 }
 
 /// Whether an argument is named or positional.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Kind {
     /// An option or a flag, such as `--limit`.
     Named,
@@ -136,8 +139,10 @@ pub enum Kind {
     Positional,
 }
 
-/// How many values an argument takes.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// How many values an argument takes. It serializes with its variant's
+/// name in `kind`, such as `{"kind": "many", "value_names": ["ID"]}`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
 pub enum Arity {
     /// A flag that takes no value.
     Flag,
@@ -168,7 +173,7 @@ impl Arity {
 }
 
 /// The help of an argument.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Help {
     line: Option<String>,
     long: Option<String>,
@@ -190,8 +195,9 @@ impl Help {
 }
 
 /// One of crumbkit's own flags, which flightdeck sets itself and never
-/// shows as a form field.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// shows as a form field. It serializes as its name, such as `--json`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(into = "&'static str")]
 pub enum CrumbkitFlag {
     /// `--json`, which prints the result as a JSON document.
     Json,
@@ -248,5 +254,11 @@ impl CrumbkitFlag {
     #[must_use]
     pub fn from_name(name: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|flag| flag.name() == name)
+    }
+}
+
+impl From<CrumbkitFlag> for &'static str {
+    fn from(flag: CrumbkitFlag) -> Self {
+        flag.name()
     }
 }
