@@ -204,8 +204,10 @@ pub(crate) enum Then {
 }
 
 /// Starts a server for `setup`, runs `test` against it, and returns how
-/// the server ended.
+/// the server ended. The tool's children start with SIGINT at its default,
+/// as under `flightdeck open`.
 pub(crate) fn serving(setup: Setup, test: impl FnOnce(&Running<'_>) -> Then) -> Ended {
+    crate::signals::interrupt_reaches_children();
     let dirs = tempfile::tempdir().unwrap();
     let loaded = setup.program_at(&setup.tool, &dirs);
     let tool = model::load(&loaded, TIME_LIMIT).unwrap();

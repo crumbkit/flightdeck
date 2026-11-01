@@ -40,7 +40,12 @@ fn shelf() -> PathBuf {
 /// Returns `flightdeck` with `args`, its streams piped, and shelf's XDG
 /// directories in `dirs`.
 fn flightdeck(args: &[&std::ffi::OsStr], dirs: &Path) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_flightdeck"));
+    run_flightdeck(Command::new(env!("CARGO_BIN_EXE_flightdeck")), args, dirs)
+}
+
+/// Returns `command`, which runs flightdeck, with `args`, its streams
+/// piped, and shelf's XDG directories in `dirs`.
+fn run_flightdeck(mut command: Command, args: &[&std::ffi::OsStr], dirs: &Path) -> Command {
     command
         .args(args)
         .env("XDG_CONFIG_HOME", dirs.join("config"))
@@ -72,12 +77,37 @@ impl Open {
     /// Starts flightdeck on the tool at `tool` and reads its two lines.
     fn start_on(tool: &Path) -> Self {
         let dirs = tempfile::tempdir().unwrap();
-        let mut child = flightdeck(
+        let command = flightdeck(
             &["open".as_ref(), tool.as_os_str(), "--no-browser".as_ref()],
             dirs.path(),
-        )
-        .spawn()
-        .unwrap();
+        );
+        Self::start_with(command, dirs)
+    }
+
+    /// Starts flightdeck on the tool at `tool` with SIGINT ignored, as a
+    /// background job of a non-interactive shell starts, and reads its two
+    /// lines. perl ignores the signal and then replaces itself with
+    /// flightdeck, which inherits the disposition.
+    fn start_ignoring_interrupt_on(tool: &Path) -> Self {
+        let dirs = tempfile::tempdir().unwrap();
+        let mut perl = Command::new("perl");
+        perl.args([
+            "-e",
+            r#"$SIG{INT} = "IGNORE"; exec @ARGV or die "exec: $!""#,
+        ])
+        .arg(env!("CARGO_BIN_EXE_flightdeck"));
+        let command = run_flightdeck(
+            perl,
+            &["open".as_ref(), tool.as_os_str(), "--no-browser".as_ref()],
+            dirs.path(),
+        );
+        Self::start_with(command, dirs)
+    }
+
+    /// Starts `command`, a flightdeck that serves until it is stopped, and
+    /// reads its two lines.
+    fn start_with(mut command: Command, dirs: tempfile::TempDir) -> Self {
+        let mut child = command.spawn().unwrap();
         let mut stderr = BufReader::new(child.stderr.take().unwrap());
         let mut read_line = || {
             let mut line = String::new();
@@ -322,4 +352,35 @@ fn sigterm_during_a_streamed_run_lets_the_run_finish_and_its_stream_end_before_f
         "the child outlived flightdeck"
     );
     assert!(!directory.exists(), "{} remains", directory.display());
+}
+
+#[test]
+fn a_cancel_ends_a_run_with_exit_130_when_flightdeck_starts_with_interrupt_ignored() {
+    // A child inherits flightdeck's signal dispositions. flightdeck handles
+    // SIGINT itself, and a handled signal resets to its default on exec, so
+    // the child can still handle the cancel's SIGINT.
+    let unruly = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/runner/unruly");
+    let open = Open::start_ignoring_interrupt_on(&unruly);
+    let port = open.port;
+    let token = exchange(
+        port,
+        &launch_code(&std::fs::read_to_string(&open.page).unwrap()),
+    );
+    let wait = json!({"path": ["child", "wait"]});
+    let mut lines = Call::post(port, "/api/runs", &wait.to_string())
+        .bearer(&token)
+        .stream(port);
+    let started = lines.next_event().unwrap();
+    assert_eq!(lines.next_event().unwrap()["event"], "line");
+    let run = started["run"].as_str().unwrap();
+
+    let cancelled = Call::post(port, &format!("/api/runs/{run}/cancel"), "{}")
+        .bearer(&token)
+        .send(port);
+    let rest = lines.rest();
+
+    assert_eq!(cancelled.status, 204);
+    let ended = rest.last().unwrap();
+    assert_eq!(ended["outcome"]["kind"], "cancelled", "{ended}");
+    assert_eq!(ended["exit"], 130, "{ended}");
 }

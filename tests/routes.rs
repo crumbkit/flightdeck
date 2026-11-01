@@ -12,6 +12,8 @@ mod http;
 #[path = "support/serving.rs"]
 #[expect(dead_code, reason = "these tests use only part of the shared harness")]
 mod serving;
+#[path = "support/signals.rs"]
+mod signals;
 
 use std::time::{Duration, Instant};
 

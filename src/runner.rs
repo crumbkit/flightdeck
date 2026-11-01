@@ -31,6 +31,13 @@
 //! such a command reads. Each child inherits flightdeck's environment, so
 //! the server keeps its token out of that environment, and the runner
 //! removes no variable.
+//!
+//! Each child also inherits the signal dispositions of the process that
+//! embeds the runner. A process that ignores SIGINT therefore makes every
+//! cancel escalate to SIGTERM or SIGKILL, because its children ignore the
+//! cancel's SIGINT. `flightdeck open` installs handlers for SIGINT and
+//! SIGTERM before it serves, and a handled signal resets to its default on
+//! exec, so its children start with SIGINT at its default.
 
 mod clock;
 mod confirmations;
@@ -161,6 +168,11 @@ impl Default for Settings {
 }
 
 /// Runs the commands of one tool for the whole flightdeck process.
+///
+/// A child inherits the embedding process's signal dispositions, so a
+/// process that ignores SIGINT makes every cancel escalate to SIGTERM or
+/// SIGKILL. Handle SIGINT before the first run, as `flightdeck open` does,
+/// so the children start with SIGINT at its default.
 #[derive(Debug)]
 pub struct Runner {
     tool: Tool,
