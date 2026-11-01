@@ -31,6 +31,7 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   with `flightdeck::run::no_document`, `flightdeck::run::spawn` or
   `flightdeck::run::output_limit` when the tool gives no document, will not
   start or prints too much. A run ends a second after its child exits even
-  when a process in another session holds its output open. A shutdown
+  when a process in another session holds its output open, and dropping a
+  run cancels it. A shutdown
   lets runs end within a grace, cancels the rest, and refuses new runs with
   `flightdeck::run::closed`.

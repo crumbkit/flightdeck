@@ -182,7 +182,7 @@
     },
     {
       "path": "unruly child wipe",
-      "about": "Wipe the name it is given, and refuse to preview the name bad",
+      "about": "Wipe the name it is given; its preview fails for the name bad and waits for SIGINT for the name slow",
       "long_about": null,
       "arguments": [
         {
@@ -292,6 +292,40 @@
           "one_of": []
         }
       ],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child adopt",
+      "about": "Move into its parent's process group, then ignore SIGINT and SIGTERM until killed",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child interrupt",
+      "about": "Print a document, and on SIGINT print 400 more and then a line that is no document",
+      "long_about": null,
+      "arguments": [],
       "examples": [],
       "columns": [],
       "form": "document",

@@ -705,3 +705,121 @@ fn a_run_id_is_read_only_from_decimal_digits() {
         assert_eq!(code(&failure), &RUN_NOT_RUNNING, "{text:?}");
     }
 }
+
+/// Starts a run of `request`, retrying while the runner is busy, and fails
+/// the test when no place frees within five seconds.
+fn run_when_free(runner: &Runner, request: &RunRequest) -> crumbkit_flightdeck::runner::Run {
+    let started = Instant::now();
+    loop {
+        match runner.run(request) {
+            Ok(run) => return run,
+            Err(failure) if code(&failure) == &RUN_BUSY => {
+                assert!(started.elapsed() < Duration::from_secs(5), "no place freed");
+            }
+            Err(failure) => panic!("{failure}"),
+        }
+    }
+}
+
+#[test]
+fn cancel_ends_a_child_that_moved_into_flightdecks_own_process_group() {
+    let unruly = unruly_session(settings());
+    let mut run = unruly.runner.run(&request(&["child", "adopt"])).unwrap();
+    let Some(RunEvent::Line(_)) = run.next() else {
+        panic!("the run's first event is not a line");
+    };
+    let started = Instant::now();
+
+    unruly.runner.cancel(run.id()).unwrap();
+    let (_, outcome) = finish(run);
+
+    // The child ignores SIGINT and SIGTERM and sleeps for thirty seconds, so
+    // only a SIGKILL sent to the child itself ends it this soon.
+    assert!(
+        started.elapsed() < Duration::from_secs(5),
+        "{:?}",
+        started.elapsed()
+    );
+    assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
+}
+
+#[test]
+fn dropping_a_run_stops_its_child_and_frees_its_place() {
+    let unruly = unruly_session(settings().most_runs(2));
+    let hang = request(&["child", "hang"]);
+    drop(unruly.runner.run(&hang).unwrap());
+    drop(unruly.runner.run(&hang).unwrap());
+
+    let run = run_when_free(&unruly.runner, &request(&["child", "pick"]));
+
+    let (_, outcome) = finish(run);
+    assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
+}
+
+#[test]
+fn a_cancelled_run_whose_queue_was_full_ends_by_the_last_line_that_its_child_printed() {
+    let unruly = unruly_session(settings());
+    let mut run = unruly
+        .runner
+        .run(&request(&["child", "interrupt"]))
+        .unwrap();
+    let Some(RunEvent::Line(_)) = run.next() else {
+        panic!("the run's first event is not a line");
+    };
+
+    // On SIGINT the child prints 400 documents, more than the queue holds,
+    // and then a line that is no document. The shutdown waits for the run
+    // to end while the test reads nothing.
+    unruly.runner.cancel(run.id()).unwrap();
+    unruly.runner.shutdown();
+    let (lines, outcome) = finish(run);
+
+    assert!(lines.len() < 400);
+    assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
+}
+
+#[test]
+fn a_cancelled_dry_run_that_ends_with_a_result_issues_no_confirmation() {
+    let unruly = unruly_session(settings());
+    let wipe = request(&["child", "wipe"]).value("<NAME>", one("slow"));
+    let mut preview = unruly.runner.preview(&wipe).unwrap();
+    let Some(RunEvent::Line(_)) = preview.next() else {
+        panic!("the dry run's first event is not a line");
+    };
+
+    unruly.runner.cancel(preview.run_id().unwrap()).unwrap();
+    let (_, outcome) = finish(&mut preview);
+
+    // The dry run exits with 0 on SIGINT after its document.
+    assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
+    assert!(preview.confirmation().is_none());
+}
+
+#[test]
+fn a_run_can_be_cancelled_while_a_shutdown_waits_for_it() {
+    let unruly = unruly_session(settings().most_runs(1));
+    let hang = unruly.runner.run(&request(&["child", "hang"])).unwrap();
+    let started = Instant::now();
+
+    std::thread::scope(|scope| {
+        scope.spawn(|| unruly.runner.shutdown());
+        // The only place is taken, so a run is refused as busy until the
+        // shutdown closes the runner.
+        loop {
+            let failure = unruly.runner.run(&request(&["child", "pick"])).unwrap_err();
+            if code(&failure) == &RUN_CLOSED {
+                break;
+            }
+        }
+        unruly.runner.cancel(hang.id()).unwrap();
+    });
+
+    // The shutdown's grace is five seconds, and the cancel ends it sooner.
+    assert!(
+        started.elapsed() < Duration::from_secs(4),
+        "{:?}",
+        started.elapsed()
+    );
+    let (_, outcome) = finish(hang);
+    assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
+}

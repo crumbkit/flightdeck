@@ -257,14 +257,16 @@ impl fmt::Display for RunFailure {
 
 /// Writes the sentence of a refusal of `argument` of `path`.
 fn refusal(f: &mut fmt::Formatter<'_>, path: &str, argument: &str, reason: &Reason) -> fmt::Result {
+    // The path of an unknown command and the name of an unknown argument
+    // are what the page sent, unchecked, so the sentences leave them out.
     match reason {
-        Reason::UnknownCommand => write!(f, "the tool lists no runnable command {path}"),
-        Reason::UnknownArgument => write!(f, "{path} takes no argument {argument}"),
+        Reason::UnknownCommand => f.write_str("the tool lists no runnable command at that path"),
+        Reason::UnknownArgument => write!(f, "{path} takes no argument of that name"),
         Reason::Reserved => write!(f, "flightdeck sets {argument} of {path} itself"),
         Reason::Arity { takes } => write!(f, "{argument} of {path} takes {}", takes.words()),
         // The value may be anything the page sent, so the sentence leaves it
         // out.
-        Reason::NotPossible { .. } => {
+        Reason::NotPossible => {
             write!(
                 f,
                 "{argument} of {path} does not take the value it was sent"
@@ -311,11 +313,9 @@ pub enum Reason {
         /// What the argument takes.
         takes: Takes,
     },
-    /// The value is not one of the argument's possible values.
-    NotPossible {
-        /// The value that was sent.
-        value: String,
-    },
+    /// The value is not one of the argument's possible values. The reason
+    /// leaves the value out, because it may be anything the page sent.
+    NotPossible,
     /// A value holds a control character, such as a NUL byte, a newline or
     /// an escape, or a bidirectional control. A NUL byte reaches no
     /// program, and the others would make the display line show something
@@ -346,7 +346,7 @@ impl Reason {
             Self::UnknownArgument => "unknown_argument",
             Self::Reserved => "reserved",
             Self::Arity { .. } => "arity",
-            Self::NotPossible { .. } => "not_possible",
+            Self::NotPossible => "not_possible",
             Self::Control => "control",
             Self::Skipped { .. } => "skipped",
             Self::Grouped => "grouped",

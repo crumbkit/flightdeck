@@ -117,10 +117,21 @@ fn a_value_of_the_wrong_arity_is_refused() {
 }
 
 #[test]
-fn a_value_that_holds_a_control_character_or_a_bidirectional_control_is_refused() {
+fn a_value_that_holds_a_character_that_a_display_line_would_hide_is_refused() {
     let tool = shelf();
 
-    for value in ["2\0", "2\n5", "\u{1b}[31m2", "\u{202e}2", "2\u{2066}"] {
+    let values = [
+        "2\0",
+        "2\n5",
+        "\u{1b}[31m2",
+        "\u{202e}2",
+        "2\u{2066}",
+        "2\u{2028}5",
+        "2\u{2029}5",
+        "2\u{200b}",
+        "\u{feff}2",
+    ];
+    for value in values {
         let request = RunRequest::new(["books", "show"]).value("<ID>", many(&[value]));
 
         let failure = build(&tool, &request).unwrap_err();

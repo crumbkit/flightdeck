@@ -61,6 +61,13 @@ case "$1 $2" in
     echo "unruly cannot preview a wipe of bad" >&2
     exit 3
     ;;
+  *" --dry-run -- slow "*)
+    # The preview prints its document, then exits with 0 on SIGINT.
+    trap 'exit 0' INT
+    echo '{"schema":"unruly/child-wipe/v1","dry_run":true,"data":{}}'
+    sleep 30 &
+    wait
+    ;;
   *" --dry-run "*)
     echo '{"schema":"unruly/child-wipe/v1","dry_run":true,"data":{}}'
     ;;
@@ -68,6 +75,22 @@ case "$1 $2" in
     echo '{"schema":"unruly/child-wipe/v1","data":{}}'
     ;;
   esac
+  ;;
+"child adopt")
+  # perl replaces the shell, joins the process group of the program that
+  # started it, and ignores SIGINT and SIGTERM, so a signal to the child's
+  # own group reaches nobody.
+  exec perl -e '$| = 1; $SIG{INT} = $SIG{TERM} = "IGNORE";
+    setpgrp(0, getpgrp(getppid())) or die "setpgrp: $!";
+    print qq({"schema":"unruly/child-adopt/v1","data":{}}\n); sleep 30'
+  ;;
+"child interrupt")
+  # On SIGINT it prints more documents than the runner's queue holds, and
+  # then a last line that is no document, and exits with 0.
+  trap 'seq 400 | sed "s/.*/{\"schema\":\"unruly\/child-interrupt\/v1\",\"data\":{}}/"; echo interrupted; exit 0' INT
+  echo '{"schema":"unruly/child-interrupt/v1","data":{}}'
+  sleep 30 &
+  wait
   ;;
 "child both" | "child pair")
   echo '{"schema":"unruly/child-both/v1","data":{}}'

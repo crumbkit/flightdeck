@@ -61,7 +61,7 @@ pub use self::stream::{
     DRAIN_GRACE, Escalation, INTERRUPT_GRACE, LINE_LIMIT, Limit, Limits, QUEUE, TERMINATE_GRACE,
     TOTAL_LIMIT,
 };
-pub(crate) use self::stream::{Ended, Event, Events, Running, Stop, finish, stream};
+pub(crate) use self::stream::{Ended, Event, Events, Running, Stop, stream, wait_ended};
 
 /// The time limit of each query.
 ///

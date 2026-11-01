@@ -164,8 +164,7 @@ pub(super) fn build<'tool>(
             }
             let possible = argument.possible_values();
             if !possible.is_empty() && !possible.contains(value) {
-                let value = value.clone();
-                return Err(refuse(argument.name(), Reason::NotPossible { value }));
+                return Err(refuse(argument.name(), Reason::NotPossible));
             }
         }
         match (argument.kind(), given.flag) {
@@ -298,8 +297,9 @@ fn push(text: &mut String, word: &str) {
     text.push_str(&quote_or_empty(word));
 }
 
-/// Returns true when `text` holds a control character or a bidirectional
-/// control, which a display line would show as something else or not at
+/// Returns true when `text` holds a control character, a bidirectional
+/// control, a line or paragraph separator, a zero-width space or a byte
+/// order mark, which a display line would show as something else or not at
 /// all.
 ///
 /// RUST-10: the runner refuses such a value, which is plainer than
@@ -312,7 +312,13 @@ fn has_control(text: &str) -> bool {
         c.is_control()
             || matches!(
                 c,
-                '\u{061c}' | '\u{200e}' | '\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}'
+                '\u{061c}'
+                    | '\u{200b}'
+                    | '\u{200e}'
+                    | '\u{200f}'
+                    | '\u{2028}'..='\u{202e}'
+                    | '\u{2066}'..='\u{2069}'
+                    | '\u{feff}'
             )
     })
 }

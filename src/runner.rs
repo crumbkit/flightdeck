@@ -346,6 +346,7 @@ impl Runner {
             line: vector.line(Extra::None),
             events: Some(events),
             last: None,
+            stopped: false,
             ending: Ending::new(&self.tool, command, vector.line(extra), limits),
         })
     }
@@ -417,16 +418,18 @@ pub enum RunEvent {
 /// A started run, which yields its events in order.
 ///
 /// The run holds at most [`QUEUE`] lines that the caller has not read, and
-/// then the child waits until the caller reads one. A caller that stops
-/// reading drops the run, so the lines after that are thrown away and the
-/// child is not held up. A cancel or a shutdown ends a run that nobody
-/// reads, and drops its lines that do not fit.
+/// then the child waits until the caller reads one. Dropping the run before
+/// its outcome cancels it, as [`Runner::cancel`] does, and frees its place
+/// among the runner's runs once the child has ended. After a cancel or a
+/// shutdown, a line that finds the queue full is dropped, and the outcome
+/// still reads the last line that the child printed.
 #[derive(Debug)]
 pub struct Run {
     id: RunId,
     line: String,
     events: Option<Events>,
     last: Option<String>,
+    stopped: bool,
     ending: Ending,
 }
 
@@ -458,11 +461,15 @@ impl Iterator for Run {
                 self.last = Some(line.clone());
                 return Some(RunEvent::Line(line));
             }
-            Some(Event::End(ended)) => ended,
+            Some(Event::End { ended, lost }) => {
+                self.last = lost.or_else(|| self.last.take());
+                ended
+            }
             None => Err(spawn::SpawnError::Read(std::io::Error::other(
                 "the run's end was already read",
             ))),
         };
+        self.stopped = ended.as_ref().is_ok_and(|ended| ended.stopped().is_some());
         self.events = None;
         let outcome = self.ending.outcome(self.last.as_deref(), ended);
         Some(RunEvent::Outcome(outcome))
@@ -472,9 +479,10 @@ impl Iterator for Run {
 /// A preview: the line it would confirm, the dry run when the command takes
 /// `--dry-run`, and the confirmation id once the preview has issued one.
 ///
-/// The preview yields the dry run's events. When the dry run ends with
-/// [`Outcome::Result`], the preview issues the id, and an outcome of any
-/// other kind issues none.
+/// The preview yields the dry run's events. When the dry run ends by itself
+/// with [`Outcome::Result`], the preview issues the id. An outcome of any
+/// other kind, and a dry run that was cancelled, issue none. Dropping the
+/// preview cancels its dry run.
 #[derive(Debug)]
 pub struct Preview {
     line: String,
@@ -516,9 +524,9 @@ impl Preview {
 }
 
 /// Yields each event of the dry run, and nothing for a command without
-/// `--dry-run`. When the dry run's outcome is [`Outcome::Result`] the
-/// preview issues its id, and when the system gives no random bytes for
-/// the id the outcome is [`RunFailure::Random`] instead.
+/// `--dry-run`. When the dry run ends by itself with [`Outcome::Result`]
+/// the preview issues its id, and when the system gives no random bytes
+/// for the id the outcome is [`RunFailure::Random`] instead.
 impl Iterator for Preview {
     type Item = RunEvent;
 
@@ -528,6 +536,9 @@ impl Iterator for Preview {
         let RunEvent::Outcome(Outcome::Result) = event else {
             return Some(event);
         };
+        if dry_run.run.stopped {
+            return Some(event);
+        }
         let now = dry_run.clock.now();
         Some(RunEvent::Outcome(
             match dry_run.confirmations.issue(dry_run.vector.clone(), now) {
