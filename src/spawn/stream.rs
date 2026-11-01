@@ -245,9 +245,12 @@ impl Running {
         Watch(self.stopper.lines.clone())
     }
 
-    /// Returns true when the run has ended and sent its last event.
+    /// Returns true once the run has sent its last event. The flag is set
+    /// before the caller can receive that event, so a caller that has read
+    /// the end finds the run finished. Its thread may still be returning,
+    /// and [`Running::join`] waits for that.
     pub(crate) fn is_finished(&self) -> bool {
-        self.thread.is_finished()
+        self.stopper.lines.has_ended()
     }
 
     /// Waits for the thread that follows the child to end.

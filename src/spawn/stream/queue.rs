@@ -104,6 +104,11 @@ impl Lines {
         lock(&self.0.state).reaped
     }
 
+    /// Returns true once the end has been sent.
+    pub(super) fn has_ended(&self) -> bool {
+        lock(&self.0.state).ended
+    }
+
     /// Waits until the end has been sent or `deadline` passes, and returns
     /// true when the end has been sent.
     pub(super) fn wait_ended(&self, deadline: Instant) -> bool {
