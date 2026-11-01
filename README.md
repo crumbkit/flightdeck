@@ -38,13 +38,13 @@ column to `books show`.
 flightdeck needs Rust 1.99 or later. Install it from GitHub:
 
 ```sh
-cargo install --git https://github.com/crumbkit/flightdeck crumbkit-flightdeck
+cargo install --locked --git https://github.com/crumbkit/flightdeck crumbkit-flightdeck
 ```
 
 Or install it from a checkout of this repository:
 
 ```sh
-cargo install --path .
+cargo install --locked --path .
 ```
 
 Either way, the binary is named `flightdeck`.
