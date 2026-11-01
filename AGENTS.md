@@ -23,6 +23,6 @@
 - `ui/tests/fixtures/shelf-model.json` is the server's `/api/model` reply
   for shelf, and an acceptance test fails when they differ. Rewrite it with
   `FIXTURES=overwrite pnpm run acceptance`, then `pnpm run fix`.
-- The journeys that run a command, and the one with goal headings, use the
-  stub of the server's API in `ui/tests/acceptance/stub.ts`. The others run
-  against the real server.
+- Every journey runs against the real server except the one with goal
+  headings, which uses the stub in `ui/tests/acceptance/stub.ts` because
+  the installed shelf prints no goal headings.
