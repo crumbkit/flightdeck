@@ -79,6 +79,7 @@ pub struct Command {
     exits: Vec<ExitMeaning>,
     effects: Effects,
     writes: Option<Writes>,
+    runs: u64,
 }
 
 impl Command {
@@ -99,6 +100,7 @@ impl Command {
             exits: row.exits,
             effects: row.effects,
             writes: row.writes,
+            runs: 0,
         }
     }
 
@@ -110,6 +112,11 @@ impl Command {
                 self.arguments.push(global.clone());
             }
         }
+    }
+
+    /// Records how often the command ran, from the tool's figures.
+    pub(super) const fn set_runs(&mut self, runs: u64) {
+        self.runs = runs;
     }
 
     /// Records the id of the document that the command prints.
@@ -188,6 +195,15 @@ impl Command {
     #[must_use]
     pub const fn writes(&self) -> Option<&Writes> {
         self.writes.as_ref()
+    }
+
+    /// Returns how often the command ran, from the tool's `self figures
+    /// list`, or 0 when the tool keeps no figures or the call failed. The
+    /// commands that the loader runs itself, such as `commands list`, are
+    /// always 0.
+    #[must_use]
+    pub const fn runs(&self) -> u64 {
+        self.runs
     }
 }
 

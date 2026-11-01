@@ -1,0 +1,32 @@
+{
+  // BASE-1. Vite bundles the code and tsc only checks it, so tsc emits
+  // nothing and resolves modules the way a bundler does.
+  "compilerOptions": {
+    "target": "es2024",
+    "lib": ["es2024", "dom"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "types": ["vite/client", "node"],
+    "noEmit": true,
+    "skipLibCheck": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["src", "tests", "*.ts"]
+}

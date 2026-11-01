@@ -10,6 +10,19 @@ readme = "README.md"
 keywords = ["cli", "crumbkit", "web"]
 categories = ["command-line-utilities"]
 
+# The package holds the built page in ui/dist, which the binary embeds, and
+# none of the page's sources, so building the crate never runs Node.
+include = [
+    "/src/**",
+    "/ui/dist/**",
+    "/Cargo.toml",
+    "/Cargo.lock",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE-APACHE",
+    "/LICENSE-MIT",
+]
+
 [[bin]]
 name = "flightdeck"
 path = "src/main.rs"

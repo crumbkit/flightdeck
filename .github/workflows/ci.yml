@@ -1,7 +1,8 @@
-# flightdeck's lanes, which rust-standards.toml records as the `lanes`
-# decision (BASE-25). `gate` runs the pull-request lane and is the one check
-# that branch protection requires. `advisories` runs daily, and `macos` runs
-# the tests on macOS once a week.
+# flightdeck's lanes, which rust-standards.toml and ui/typescript-standards.toml
+# record as their `lanes` decisions. `gate` runs the Rust pull-request lane
+# and then the page's, and branch protection requires it.
+# `advisories` runs daily for both, and `macos` runs the tests on macOS once
+# a week.
 name: CI
 
 on:
@@ -33,9 +34,10 @@ jobs:
   gate:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
-    # The pull-request lane's time budget (BASE-25). A run whose test tools
-    # are not cached builds shelf and reading first.
-    timeout-minutes: 15
+    # The pull-request lane's time budget (BASE-25), for the Rust lane and
+    # the page's together. A run whose test tools are not cached builds
+    # shelf and reading first.
+    timeout-minutes: 20
     permissions:
       contents: read # actions/checkout reads the repository.
     steps:
@@ -83,6 +85,64 @@ jobs:
         run: cargo nextest run --locked --workspace --all-features
       - name: doctests
         run: cargo test --locked --doc --workspace --all-features
+      # The page's lane runs in ui/ (BASE-16 of the TypeScript standards).
+      # pnpm/action-setup installs the pnpm that `packageManager` names, and
+      # setup-node the Node that .node-version names. setup-node caches
+      # pnpm's store, keyed by the lockfile.
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
+        with:
+          package_json_file: ui/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: ui/.node-version
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - name: install
+        run: pnpm install --frozen-lockfile
+        working-directory: ui
+      - name: lint
+        run: pnpm run lint
+        working-directory: ui
+      - name: typecheck
+        run: pnpm run typecheck
+        working-directory: ui
+      - name: knip
+        run: pnpm run knip
+        working-directory: ui
+      - name: test
+        run: pnpm run test
+        working-directory: ui
+      - name: build
+        run: pnpm run build
+        working-directory: ui
+      # The committed bundle matches its source (EMB-1).
+      - name: bundle
+        run: pnpm run bundle
+        working-directory: ui
+      - name: size
+        run: pnpm run size
+        working-directory: ui
+      # The browsers are cached by Playwright's version, which the lockfile
+      # fixes. The system libraries they need are installed on every run.
+      - id: playwright
+        run: echo "version=$(pnpm exec playwright --version)" >> "$GITHUB_OUTPUT"
+        working-directory: ui
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: browsers
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: ui
+      - name: acceptance
+        run: pnpm run acceptance
+        working-directory: ui
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-traces
+          path: ui/test-results/
+          retention-days: 7
 
   macos:
     if: github.event.schedule == '17 5 * * 1'
@@ -127,3 +187,14 @@ jobs:
           fallback: none
       - name: advisories
         run: cargo deny --locked check advisories
+      # pnpm audit reads ui's lockfile and asks the npm registry for
+      # advisories against every package in it.
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
+        with:
+          package_json_file: ui/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: ui/.node-version
+      - name: page advisories
+        working-directory: ui
+        run: pnpm audit

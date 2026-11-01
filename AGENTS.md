@@ -14,3 +14,15 @@
 - Test names are sentences, and no test repeats what another proves.
 - A deliberate shortcut gets a `RUST-10:` comment that says what it handles,
   what it misses and what replaces it.
+- The page lives in `ui/`. Before you push a change there, run `pnpm run
+  lint`, `typecheck`, `knip`, `test`, `build`, `size` and `acceptance` in
+  `ui/`, and commit the rebuilt `ui/dist`.
+- `pnpm run acceptance` starts `target/debug/flightdeck` with the shelf
+  under `target/test-tools/bin`, so build flightdeck and install the test
+  tools first.
+- `ui/tests/fixtures/shelf-model.json` is the server's `/api/model` reply
+  for shelf, and an acceptance test fails when they differ. Rewrite it with
+  `FIXTURES=overwrite pnpm run acceptance`, then `pnpm run fix`.
+- Every journey runs against the real server except the one with goal
+  headings, which uses the stub in `ui/tests/acceptance/stub.ts` because
+  the installed shelf prints no goal headings.

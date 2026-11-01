@@ -1,0 +1,44 @@
+# flightdeck's adoption map of Luke Randall's TypeScript standards
+# (https://github.com/crumbkit/typescript-standards, adoption.md), for the
+# page in ui/, which the flightdeck binary embeds and serves.
+
+schema = "typescript-standards/adoption/v1"
+standards = { version = "0.1.0", commit = "0531f36f78463deb184952832fc387a3dd5e6ed9" }
+
+profiles = ["base", "app", "embedded"]
+
+[[binding]]
+rule = "BASE-7"
+owners = ["src/api/client.ts", "src/storage.ts"]
+checks = [
+  "Biome noRestrictedGlobals, with the baseline's override for src/api/client.ts",
+  "a biome-ignore comment on each storage call in src/storage.ts",
+]
+note = "client.ts is the only caller of fetch. storage.ts is the storage owner: it keeps the session's token in sessionStorage and the theme choice in localStorage, and nothing else touches storage. The page reads no clock: a run's start time and duration come from the server."
+
+[[binding]]
+rule = "EMB-5"
+owners = ["dist/", "../src/server/assets.rs"]
+checks = ["every_built_file_of_the_page_is_served_with_its_bytes_and_its_media_type in ../tests/server.rs"]
+note = "src/server/assets.rs embeds each file of ui/dist with include_bytes!, under the fixed names that the build writes. The test requests every file in ui/dist from the running server and checks its status, its media type and its bytes."
+
+[[decision]]
+id = "lanes"
+requirement = """
+- Lane: `gate` in ../.github/workflows/ci.yml, on each pull request and each push to main. After the Rust lane's steps it runs every step of the pull-request lane from `install` on, in ui/. The `workflows` step is the Rust lane's, which checks the same files. Its budget is twenty minutes, the job's timeout, for both lanes together. A merge waits for it, and it is the one check that branch protection requires.
+- Lane: `advisories` in ../.github/workflows/ci.yml, daily at 06:43 UTC and on each push to main, runs `pnpm audit` in ui/ after the Rust advisories. Nothing waits for it.
+"""
+reason = "One required check covers the Rust lane and the page's, so branch protection names one job. flightdeck has no release yet, so an advisory found after merge only means a pull request that moves the affected pin."
+realizations = ["../.github/workflows/ci.yml"]
+
+[[decision]]
+id = "budgets"
+requirement = "The first load, index.html with assets/app.js and assets/index.css, stays under 150 kB with Brotli. Every built file together stays under 250 kB."
+reason = "The first load holds React, TanStack Query, zod and the page. The page has one screen and loads nothing lazily, so the two budgets cover the same files today."
+realizations = ["package.json"]
+
+[[decision]]
+id = "theme"
+requirement = "src/index.css holds each colour role once, as a light-dark() pair, and the root's color-scheme picks the value: the system's appearance by default, or the person's choice of System, Light or Dark, which the topbar's control writes to data-theme on the root element. Tailwind's dark: variant follows the same choice."
+reason = "APP-9 places the dark values under a prefers-color-scheme query. The signed-off design has a theme control, and a forced choice would need the dark values written twice, once in the query and once under data-theme. A light-dark() pair keeps each role in one place."
+realizations = ["src/index.css", "src/components/ThemeControl.tsx", "src/storage.ts"]

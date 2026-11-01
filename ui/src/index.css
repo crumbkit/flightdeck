@@ -1,0 +1,135 @@
+/* Tailwind reads class names only from src/, so a change elsewhere, such
+   as a test or a README, cannot change the built CSS (EMB-4). */
+@import "tailwindcss" source("./");
+@import "tw-animate-css";
+
+/* The token owner (APP-9). Every colour the page uses is a role named here.
+   Each role holds its light and its dark value in one light-dark() pair,
+   and the root's color-scheme picks one: the system's appearance by
+   default, or the person's choice, which the theme control writes to
+   data-theme on the root element. */
+
+/* The default palette is removed, so a utility such as bg-red-500 does not
+   exist and only the roles below can colour anything. */
+@theme {
+  --color-*: initial;
+}
+
+/* Tailwind's dark: variant follows the same choice as the tokens. */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+  &:where(:root[data-theme="dark"] *) {
+    @slot;
+  }
+}
+
+:root {
+  color-scheme: light dark;
+  --radius: 0.5rem;
+  --sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Surfaces: the page, a card, a quieter fill, the rail's tint and the
+     fill behind code. */
+  --background: light-dark(#f4f5f7, #111418);
+  --foreground: light-dark(#1a1d21, #e8ebef);
+  --card: light-dark(#ffffff, #181c21);
+  --muted: light-dark(#f1f3f6, #1e232a);
+  --muted-foreground: light-dark(#4f5864, #a4acb7);
+  --faint-foreground: light-dark(#5f6875, #8f98a4);
+  --rail: light-dark(#eef0f3, #14181d);
+  --code: light-dark(#eceff3, #0f1216);
+
+  /* Lines: one hairline, a stronger one for controls, and the focus ring. */
+  --border: light-dark(#dfe3e8, #2a3038);
+  --input: light-dark(#a9b0b9, #4a525c);
+  --ring: light-dark(#2563eb, #6d9cff);
+
+  /* The one accent: links, the primary button, flags and focus. */
+  --primary: light-dark(#2563eb, #6d9cff);
+  --primary-foreground: light-dark(#ffffff, #0b1020);
+  --accent: light-dark(#e4ecfd, #1d2a45);
+  --accent-foreground: light-dark(#1a1d21, #e8ebef);
+  --secondary: light-dark(#f1f3f6, #1e232a);
+  --secondary-foreground: light-dark(#1a1d21, #e8ebef);
+
+  /* Effects, each always shown with its word: read-only, additive and
+     destructive. Red also marks a failed exit, and nothing else. */
+  --read-only: light-dark(#1b6e45, #5fcf8f);
+  --read-only-soft: light-dark(#e1f3e8, #15291e);
+  --additive: light-dark(#7a5000, #e6b45a);
+  --additive-soft: light-dark(#fdf0d5, #2e2512);
+  --destructive: light-dark(#b42318, #ff7a6e);
+  --destructive-soft: light-dark(#fbe9e7, #3a1b18);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-white: #ffffff;
+  --color-transparent: transparent;
+  --color-current: currentcolor;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-faint-foreground: var(--faint-foreground);
+  --color-rail: var(--rail);
+  --color-code: var(--code);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-read-only: var(--read-only);
+  --color-read-only-soft: var(--read-only-soft);
+  --color-additive: var(--additive);
+  --color-additive-soft: var(--additive-soft);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background font-sans text-foreground;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  /* Every interactive element shows a 3 px ring in the accent when it has
+     keyboard focus. */
+  :focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 1px;
+  }
+}

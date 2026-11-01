@@ -1,24 +1,27 @@
 //! The model of one crumbkit tool, built from what the tool prints about
 //! itself.
 //!
-//! [`load`] runs four queries through [`crate::spawn`]: `--version`,
-//! `commands list`, `schemas list`, and `schemas show` of every document
-//! that `schemas list` names, at most 100 ids at a time, all within
-//! one time limit. It joins
-//! their documents into a [`Tool`]: its runnable commands, the goal headings
-//! that group them, the documents they print with their JSON Schemas, and
-//! the links that crumbkit's command grammar implies between them.
+//! [`load`] runs its queries through [`crate::spawn`], all within one time
+//! limit: `--version`, `commands list`, `schemas list`, `schemas show` of
+//! every document that `schemas list` names, at most 100 ids at a time,
+//! and `self figures list` when the tool mounts it. It joins their
+//! documents into a [`Tool`]: its runnable commands with how often each
+//! ran, the goal headings that group them, the documents they print with
+//! their JSON Schemas, and the links that crumbkit's command grammar
+//! implies between them.
 
 mod argument;
 mod command;
 mod documents;
 mod error;
+mod figures;
 mod links;
 mod wire;
 
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashMap;
 use std::io;
 use std::time::{Duration, Instant};
 
@@ -112,6 +115,16 @@ impl Tool {
     #[must_use]
     pub fn links(&self) -> &[Link] {
         &self.links
+    }
+
+    /// Gives each command the runs that `figures` holds for its path, such
+    /// as `books list`.
+    fn count_runs(&mut self, figures: &HashMap<String, u64>) {
+        for command in &mut self.commands {
+            if let Some(&runs) = figures.get(&command.path().to_string()) {
+                command.set_runs(runs);
+            }
+        }
     }
 
     /// Joins the tool's documents into its model: the first line of
@@ -225,6 +238,8 @@ impl Heading {
 /// exits with a code other than 0, passes the time limit, or prints
 /// something other than the document it names. A `schemas show` that leaves
 /// out an id that `schemas list` named is a document of the wrong shape.
+/// `self figures list` fails no load: when it fails, every command's runs
+/// stay 0.
 pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> {
     let tool = program.name().to_string_lossy();
     let deadline = Instant::now() + time_limit;
@@ -271,8 +286,17 @@ pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> 
         .zip(in_order)
         .map(|(row, schema)| Document::new(row, schema))
         .collect();
-    Tool::assemble(version_line, commands, documents)
-        .map_err(|problem| commands_answer.fail(Problem::NotDocument(problem)))
+    let mut tool = Tool::assemble(version_line, commands, documents)
+        .map_err(|problem| commands_answer.fail(Problem::NotDocument(problem)))?;
+
+    // The figures only order the page's palette, so a tool that does not
+    // mount them is never asked, and a failed call leaves every count at 0.
+    if tool.command(&figures::COMMAND).is_some()
+        && let Ok(answer) = ask(Query::FiguresList)
+    {
+        tool.count_runs(&figures::read(&answer.stdout));
+    }
+    Ok(tool)
 }
 
 /// The standard output of one query that exited with 0, and what a failure

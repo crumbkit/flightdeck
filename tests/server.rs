@@ -13,7 +13,7 @@ mod http;
 #[expect(dead_code, reason = "these tests use only part of the shared harness")]
 mod serving;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crumbkit_flightdeck::server::{
@@ -417,7 +417,7 @@ fn every_reply_carries_the_security_headers_and_no_cors_header() {
 }
 
 #[test]
-fn the_root_path_serves_the_placeholder_page_as_html() {
+fn the_root_path_serves_the_built_page_as_html() {
     serving(Setup::shelf(), |page| {
         let reply = Call::get(page.port, "/").send(page.port);
 
@@ -426,7 +426,64 @@ fn the_root_path_serves_the_placeholder_page_as_html() {
             reply.header("Content-Type"),
             Some("text/html; charset=utf-8")
         );
-        assert!(String::from_utf8_lossy(&reply.body).contains("not built yet"));
+        assert_eq!(
+            reply.body,
+            std::fs::read(ui_dist().join("index.html")).unwrap()
+        );
+        Then::Stop
+    });
+}
+
+/// The directory of the page's built files.
+fn ui_dist() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("ui/dist")
+}
+
+/// Returns every file under `directory`, by its path relative to `root`.
+fn files_under(root: &Path, directory: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    for entry in std::fs::read_dir(directory).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            files.extend(files_under(root, &path));
+        } else {
+            files.push(path.strip_prefix(root).unwrap().to_path_buf());
+        }
+    }
+    files
+}
+
+#[test]
+fn every_built_file_of_the_page_is_served_with_its_bytes_and_its_media_type() {
+    let root = ui_dist();
+    let files = files_under(&root, &root);
+    assert!(files.len() >= 3, "ui/dist holds {files:?}");
+    serving(Setup::shelf(), |page| {
+        for file in &files {
+            let name = file.to_str().unwrap();
+            let path = if name == "index.html" {
+                "/".to_owned()
+            } else {
+                format!("/{name}")
+            };
+            let reply = Call::get(page.port, &path).send(page.port);
+
+            let media_type = match file.extension().and_then(|ext| ext.to_str()) {
+                Some("html") => "text/html; charset=utf-8",
+                Some("js") => "text/javascript; charset=utf-8",
+                Some("css") => "text/css; charset=utf-8",
+                other => panic!(
+                    "ui/dist holds {name}, of a type the server has no media type for: {other:?}"
+                ),
+            };
+            assert_eq!(reply.status, 200, "{path}");
+            assert_eq!(reply.header("Content-Type"), Some(media_type), "{path}");
+            assert_eq!(
+                reply.body,
+                std::fs::read(root.join(file)).unwrap(),
+                "{path}"
+            );
+        }
         Then::Stop
     });
 }

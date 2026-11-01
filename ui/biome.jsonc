@@ -1,0 +1,98 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  // Biome formats and lints every file git tracks (BASE-2, BASE-10).
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": ["**", "!dist", "!playwright-report", "!test-results", "!pnpm-lock.yaml"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "css": {
+    "parser": { "tailwindDirectives": true }
+  },
+  "assist": {
+    "actions": { "source": { "organizeImports": "on" } }
+  },
+  "linter": {
+    "enabled": true,
+    // The types domain turns on Biome's type inference, which the promise
+    // and switch rules below need.
+    "domains": {
+      "react": "recommended",
+      "test": "recommended",
+      "types": "recommended",
+      "tailwind": "recommended",
+      "project": "recommended"
+    },
+    "rules": {
+      "preset": "recommended",
+      "a11y": "error", // APP-2
+      "correctness": {
+        "useExhaustiveDependencies": "error", // APP-2
+        "useHookAtTopLevel": "error", // APP-2
+        "noNestedComponentDefinitions": "error", // APP-2
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "error", // BASE-3
+        "noEnum": "error", // BASE-4
+        "noNamespace": "error", // BASE-4
+        "noNestedTernary": "error", // BASE-9
+        "noRestrictedGlobals": {
+          "level": "error",
+          "options": {
+            // BASE-7. A project that uses storage names its owner in an
+            // override below, as src/api/client.ts is named for fetch.
+            "deniedGlobals": {
+              "fetch": "Fetch only through src/api/client.ts (BASE-7).",
+              "localStorage": "Use storage only through its owner module (BASE-7).",
+              "sessionStorage": "Use storage only through its owner module (BASE-7)."
+            }
+          }
+        }
+      },
+      "suspicious": {
+        "noExplicitAny": "error", // BASE-3
+        "noTsIgnore": "error", // BASE-3
+        "noConsole": "error", // BASE-7
+        "noImportCycles": "error", // BASE-8
+        "noFocusedTests": "error", // BASE-12
+        "noSkippedTests": "error", // BASE-12
+        "noPlaywrightWaitForTimeout": "error" // BASE-25
+      },
+      "performance": {
+        "noBarrelFile": "error", // BASE-8
+        "noReExportAll": "error" // BASE-8
+      },
+      // Nursery rules can change in a minor release of Biome. The exact
+      // Biome pin (BASE-13) means a change arrives only in the weekly update
+      // pull request, where a new finding shows.
+      "nursery": {
+        "noUnsafeTypeAssertion": "error", // BASE-3
+        "noFloatingPromises": "error", // BASE-5
+        "noMisusedPromises": "error", // BASE-5
+        "useExhaustiveSwitchCases": "error", // BASE-6
+        "noTailwindRawColors": "error", // APP-1
+        "noTailwindArbitraryValue": "error", // APP-1
+        "useTailwindSortedClasses": { "level": "error", "fix": "safe" }
+      }
+    }
+  },
+  "overrides": [
+    {
+      // shadcn/ui writes these files (APP-5). They keep its arbitrary
+      // values, so a later `shadcn diff` still applies to them.
+      "includes": ["src/components/ui/**"],
+      "linter": { "rules": { "nursery": { "noTailwindArbitraryValue": "off" } } }
+    },
+    {
+      "includes": ["src/api/client.ts"],
+      "linter": { "rules": { "style": { "noRestrictedGlobals": "off" } } }
+    }
+  ]
+}

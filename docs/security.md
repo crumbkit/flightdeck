@@ -152,7 +152,7 @@ and has no `ended` line.
   token, which the idle limit ends after 30 minutes by either clock.
 - **The launch code stays in the browser's history.** The browser records
   the address with its fragment, so the code is in the history database.
-  The page that H4 builds removes the fragment with `history.replaceState`
+  The page removes the fragment with `history.replaceState`
   before it exchanges the code. The code that remains in the history works
   once and for at most 60 seconds, so by the time anyone reads it from
   there it opens nothing.
@@ -166,7 +166,3 @@ and has no `ended` line.
   editor, the page opens there and shows the launch code instead of using
   it. The file is private to the user, so this exposes nothing to anyone
   else.
-- **The placeholder page does not exchange the code.** The page that the
-  server embeds says that it is not built yet, so the launch code stays in
-  the address bar until it expires, and nothing in the browser uses the run
-  routes yet.
