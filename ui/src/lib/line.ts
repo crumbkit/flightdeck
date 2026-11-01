@@ -38,14 +38,18 @@ const answers = ["--yes", "--dry-run"];
 
 /**
  * Returns `text` without a leading `$ ` and the tool's name, which a line
- * copied from a terminal starts with. The name stays when one of the
- * tool's own commands starts with it.
+ * copied from a terminal starts with. The name goes only once a space
+ * follows it, so a person typing the name sees it until they type the
+ * space. The name stays when one of the tool's own commands starts with it.
  */
 export function stripPrompt(tool: Tool, text: string): string {
   const unprompted = text.replace(/^\s*\$\s+/, "");
-  const [first = ""] = unprompted.trimStart().split(/\s/, 1);
-  const named = first === tool.name && !tool.commands.some((each) => each.path[0] === tool.name);
-  return named ? unprompted.trimStart().slice(first.length).trimStart() : unprompted;
+  const trimmed = unprompted.trimStart();
+  const [first = ""] = trimmed.split(/\s/, 1);
+  const spaced = /\s/.test(trimmed.charAt(first.length));
+  const named =
+    spaced && first === tool.name && !tool.commands.some((each) => each.path[0] === tool.name);
+  return named ? trimmed.slice(first.length).trimStart() : unprompted;
 }
 
 /** Returns the line's text for `draft`: its command line without the tool's name. */

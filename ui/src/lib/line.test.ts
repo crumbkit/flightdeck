@@ -129,6 +129,12 @@ describe("stripPrompt", () => {
     expect(stripPrompt(shelf, "shelf books list")).toBe("books list");
     expect(stripPrompt(shelf, "books list")).toBe("books list");
   });
+
+  it("keeps the tool's name until a space follows it, so typing the name leaves it in place", () => {
+    expect(stripPrompt(shelf, "shelf")).toBe("shelf");
+    expect(stripPrompt(shelf, "$ shelf")).toBe("shelf");
+    expect(stripPrompt(shelf, "shelf ")).toBe("");
+  });
 });
 
 describe("the line and the form", () => {
