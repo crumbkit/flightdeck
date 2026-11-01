@@ -9,9 +9,17 @@ use crate::runner::{RunFailure, RunRequest, Value};
 /// pins.
 const SHELF: &str = include_str!("../../../tests/fixtures/newer/commands-list-with-goals.json");
 
+/// The fake tool unruly's `commands list` document.
+const UNRULY: &str = include_str!("../../../tests/fixtures/runner/unruly-commands-list.json");
+
 fn shelf() -> Tool {
     let commands: CommandsList = serde_json::from_str(SHELF).unwrap();
     Tool::assemble("shelf 0.1.0", commands, Vec::new()).unwrap()
+}
+
+fn unruly() -> Tool {
+    let commands: CommandsList = serde_json::from_str(UNRULY).unwrap();
+    Tool::assemble("unruly 0.1.0", commands, Vec::new()).unwrap()
 }
 
 fn many(texts: &[&str]) -> Value {
@@ -86,7 +94,7 @@ fn the_line_quotes_each_value_and_puts_the_separator_before_a_positional_that_st
     let (_, vector) = build(&tool, &request).unwrap();
 
     assert_eq!(
-        vector.line(),
+        vector.line(Extra::None),
         "shelf books show --from='my ids.txt' -- -2 5"
     );
 }
@@ -109,13 +117,30 @@ fn a_value_of_the_wrong_arity_is_refused() {
 }
 
 #[test]
-fn a_value_that_holds_a_nul_byte_is_refused() {
+fn a_value_that_holds_a_control_character_or_a_bidirectional_control_is_refused() {
     let tool = shelf();
-    let request = RunRequest::new(["books", "show"]).value("<ID>", many(&["2\0"]));
 
-    let failure = build(&tool, &request).unwrap_err();
+    for value in ["2\0", "2\n5", "\u{1b}[31m2", "\u{202e}2", "2\u{2066}"] {
+        let request = RunRequest::new(["books", "show"]).value("<ID>", many(&[value]));
 
-    assert_eq!(reason(&failure), r#"Text("nul")"#);
+        let failure = build(&tool, &request).unwrap_err();
+
+        assert_eq!(reason(&failure), r#"Text("control")"#, "{value:?}");
+    }
+}
+
+#[test]
+fn a_positional_value_is_refused_when_an_earlier_positional_has_none() {
+    let tool = unruly();
+    let one = |text: &str| Value::One(text.to_owned());
+    let second = RunRequest::new(["child", "pair"]).value("<SECOND>", one("x"));
+    let first = RunRequest::new(["child", "pair"]).value("<FIRST>", one("x"));
+
+    let failure = build(&tool, &second).unwrap_err();
+    let (_, vector) = build(&tool, &first).unwrap();
+
+    assert_eq!(reason(&failure), r#"Text("skipped")"#);
+    assert_eq!(vector.line(Extra::None), "unruly child pair x");
 }
 
 #[test]
@@ -129,6 +154,6 @@ fn a_false_flag_and_an_empty_list_are_left_out() {
     let (_, vector) = build(&tool, &request).unwrap();
     let (_, empty) = build(&tool, &empty).unwrap();
 
-    assert_eq!(vector.line(), "shelf books list --limit=2");
-    assert_eq!(empty.line(), "shelf books show");
+    assert_eq!(vector.line(Extra::None), "shelf books list --limit=2");
+    assert_eq!(empty.line(Extra::None), "shelf books show");
 }

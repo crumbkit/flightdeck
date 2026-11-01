@@ -2,11 +2,11 @@
 //! (SVC-1).
 
 use std::sync::Mutex;
-use std::sync::mpsc::Receiver;
+use std::time::Duration;
 
-use super::lock::lock;
 use super::{RunFailure, RunId};
-use crate::spawn::{Event, Running};
+use crate::lock::lock;
+use crate::spawn::{self, Events, Running};
 
 /// The runs of one runner.
 #[derive(Debug)]
@@ -15,11 +15,13 @@ pub(super) struct Runs {
     state: Mutex<State>,
 }
 
-/// The runs in progress and the id of the next one.
+/// The runs in progress, the id of the next one, and whether the runner
+/// has shut down.
 #[derive(Debug)]
 struct State {
     last: u64,
     running: Vec<(RunId, Running)>,
+    closed: bool,
 }
 
 impl Runs {
@@ -30,20 +32,25 @@ impl Runs {
             state: Mutex::new(State {
                 last: 0,
                 running: Vec::new(),
+                closed: false,
             }),
         }
     }
 
     /// Joins the runs that have ended, then starts a run with `start` when
-    /// fewer than the most are running, and returns its id and events.
+    /// the runner has not shut down and fewer than the most are running,
+    /// and returns its id and events.
     ///
     /// The lock is held while `start` runs, so two starts at once cannot
     /// pass the most between them.
     pub(super) fn start(
         &self,
-        start: impl FnOnce() -> Result<(Running, Receiver<Event>), RunFailure>,
-    ) -> Result<(RunId, Receiver<Event>), RunFailure> {
+        start: impl FnOnce() -> Result<(Running, Events), RunFailure>,
+    ) -> Result<(RunId, Events), RunFailure> {
         let mut state = lock(&self.state);
+        if state.closed {
+            return Err(RunFailure::Closed);
+        }
         let (ended, running): (Vec<_>, Vec<_>) = std::mem::take(&mut state.running)
             .into_iter()
             .partition(|(_, run)| run.is_finished());
@@ -73,14 +80,14 @@ impl Runs {
         }
     }
 
-    /// Stops every run and waits for each to end.
-    pub(super) fn shutdown(&self) {
-        let running = std::mem::take(&mut lock(&self.state).running);
-        for (_, run) in &running {
-            run.stop();
-        }
-        for (_, run) in running {
-            run.join();
-        }
+    /// Refuses every new run, lets the runs in progress end within `grace`,
+    /// then stops the rest and waits for each to end (SVC-2).
+    pub(super) fn shutdown(&self, grace: Duration) {
+        let running = {
+            let mut state = lock(&self.state);
+            state.closed = true;
+            std::mem::take(&mut state.running)
+        };
+        spawn::finish(running.into_iter().map(|(_, run)| run).collect(), grace);
     }
 }

@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 
 use super::RunFailure;
 use super::failure::ConfirmationProblem as Problem;
-use super::lock::lock;
 use super::vector::Vector;
+use crate::lock::lock;
 
 #[cfg(test)]
 mod tests;

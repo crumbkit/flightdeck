@@ -3,6 +3,19 @@
 `unruly` is a shell script that stands in for a crumbkit tool in
 `tests/runner.rs`. It prints `unruly-commands-list.json` for
 `commands list`, an empty `schemas list`, and one command for each way a
-real tool can misbehave: one that panics, one that ignores SIGINT and
-SIGTERM, one that prints a line longer than the test's limit, one that
-prints its `TRACEPARENT`, and one that takes a value from a fixed list.
+real tool can misbehave or a test needs:
+
+- `child panic` exits with 101 and prints a panic on standard error.
+- `child hang` prints two lines and ignores SIGINT and SIGTERM.
+- `child flood` prints a line longer than the test's limit.
+- `child trace` prints its `TRACEPARENT`.
+- `child pick` takes a value from a fixed list.
+- `child orphan` leaves a process in a session of its own that holds
+  standard output open for ten seconds. It needs `perl`.
+- `child chatter` prints more lines than the runner's queue holds, then
+  ignores SIGINT and SIGTERM.
+- `child nap` prints a document after a fifth of a second.
+- `child wipe` is destructive and takes `--dry-run`, whose preview of the
+  name `bad` fails without a document.
+- `child both` declares itself read-only and destructive at once.
+- `child pair` takes two optional positional values.

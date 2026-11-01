@@ -30,9 +30,9 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::io;
 use std::net::{Ipv4Addr, Shutdown, TcpListener, TcpStream};
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
-use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::thread::Scope;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -44,6 +44,7 @@ pub use self::http::{BODY_LIMIT, HEAD_LIMIT, HEADER_LIMIT, REQUEST_TIME, WRITE_T
 use self::reply::{Refusal, Replies, Reply};
 use self::request::{API, Address, Method};
 pub use self::session::{CODE_LIFETIME, Session};
+use crate::lock::lock;
 use crate::model::Tool;
 
 /// How long the server runs without an authenticated request.
@@ -451,13 +452,6 @@ fn finish(connection: &mut TcpStream) {
     // The client may already have closed the connection.
     connection.shutdown(Shutdown::Write).ok();
     http::drain(connection);
-}
-
-/// Locks `mutex`. A thread that panicked while it held the lock left the
-/// session in a state that each method keeps whole, so the lock is taken
-/// anyway.
-fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 /// The open connections, at most [`CONNECTION_LIMIT`], each with a handle

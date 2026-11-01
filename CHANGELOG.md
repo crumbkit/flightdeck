@@ -26,8 +26,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   streams each line of standard output, and ends each run with an outcome.
   It refuses requests that the model does not allow with
   `flightdeck::run::refused`, runs a destructive command only with a
-  confirmation id that a preview issued for the same vector, refuses every
-  command that is not read-only in read-only mode, and fails a run with
-  `flightdeck::run::no_document`, `flightdeck::run::spawn` or
+  confirmation id that a preview issues once its dry run succeeds, refuses
+  every command that is not read-only in read-only mode, and fails a run
+  with `flightdeck::run::no_document`, `flightdeck::run::spawn` or
   `flightdeck::run::output_limit` when the tool gives no document, will not
-  start or prints too much.
+  start or prints too much. A run ends a second after its child exits even
+  when a process in another session holds its output open. A shutdown
+  lets runs end within a grace, cancels the rest, and refuses new runs with
+  `flightdeck::run::closed`.

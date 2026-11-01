@@ -13,6 +13,7 @@ fn ending(form: Form) -> Ending {
             .unwrap();
     Ending {
         tool: "shelf".to_owned(),
+        path: "books show".to_owned(),
         line: "shelf books show 2 7".to_owned(),
         form: Some(form),
         exits,

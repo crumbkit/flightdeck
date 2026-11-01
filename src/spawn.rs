@@ -57,10 +57,11 @@ mod stream;
 mod tests;
 
 pub use self::browser::{BROWSER_TIME_LIMIT, open_browser};
-pub(crate) use self::stream::{Ended, Event, Running, Stop, stream};
 pub use self::stream::{
-    Escalation, INTERRUPT_GRACE, LINE_LIMIT, Limit, Limits, TERMINATE_GRACE, TOTAL_LIMIT,
+    DRAIN_GRACE, Escalation, INTERRUPT_GRACE, LINE_LIMIT, Limit, Limits, QUEUE, TERMINATE_GRACE,
+    TOTAL_LIMIT,
 };
+pub(crate) use self::stream::{Ended, Event, Events, Running, Stop, finish, stream};
 
 /// The time limit of each query.
 ///

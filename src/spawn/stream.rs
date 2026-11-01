@@ -9,18 +9,21 @@
 //! - Environment: the child inherits flightdeck's environment, plus the
 //!   variables of the [`Program`], which carry the run's `TRACEPARENT`.
 //! - Streams and deadline: standard input is closed. Standard output is
-//!   read line by line, each line goes to the caller as it arrives, and a
-//!   line or a total past the [`Limits`] stops the child. Standard error
-//!   keeps its last [`super::STDERR_LIMIT`] bytes. A run has no deadline of
-//!   its own; the caller stops it with [`Running::stop`].
+//!   read line by line into a queue of at most [`QUEUE`] lines, from which
+//!   the caller takes each line as it arrives, and a line or a total past
+//!   the [`Limits`] stops the child. Standard error keeps its last
+//!   [`super::STDERR_LIMIT`] bytes. A run has no deadline of its own; the
+//!   caller stops it with [`Running::stop`]. Once the child has been reaped,
+//!   both pipes are read for [`DRAIN_GRACE`] more and then closed.
 //! - End: one thread follows the child. On Unix it starts the child in a
 //!   process group of its own. A stop sends SIGINT to the group, then
 //!   SIGTERM and then SIGKILL after the graces of the [`Escalation`]. When
 //!   the child has exited, the thread kills what is left of the group and
 //!   then reaps the child, so the group's id cannot pass to another process
-//!   in between. A descendant that left the group is not stopped (PROC-3),
-//!   and while it holds standard output open the run does not end. A
-//!   stopped command can leave partial work, such as some of the books it
+//!   in between. A descendant that left the group, such as one that called
+//!   `setsid`, is not stopped (PROC-3). When it holds a pipe open, the run
+//!   ends after the drain grace without what it prints later. A stopped
+//!   command can leave partial work, such as some of the books it
 //!   removes.
 
 #![expect(
@@ -28,16 +31,21 @@
     reason = "spawn owns flightdeck's child processes (PROC-1)"
 )]
 
-use std::io::{self, BufRead, BufReader, Read as _};
-use std::process::{Child, ChildStdout};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender};
+use std::io::{self, BufRead, BufReader, PipeReader, Read as _};
+use std::process::{Child, ChildStderr, ChildStdout};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::thread::{JoinHandle, Scope, ScopedJoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
+pub use self::drain::DRAIN_GRACE;
+use self::drain::Drained;
+pub(crate) use self::queue::Events;
+use self::queue::Lines;
 use super::{Exit, Program, STDERR_LIMIT, SpawnError, exit_of, joined, read_tail, start};
 use crate::runner::Argv;
+
+mod drain;
+mod queue;
 
 #[cfg(test)]
 mod tests;
@@ -66,7 +74,7 @@ pub const TERMINATE_GRACE: Duration = Duration::from_secs(5);
 
 /// The most lines that wait for the caller to read them. When the caller
 /// falls behind, the reader waits, and the child waits on its full pipe.
-const QUEUE: usize = 256;
+pub const QUEUE: usize = 256;
 
 /// How often the thread that follows a child without process groups looks
 /// for a stop, while it waits for the child to exit.
@@ -202,17 +210,18 @@ enum Control {
     Exited,
 }
 
-/// Sends a stop to the thread that follows a child, once.
+/// Sends a stop to the thread that follows a child, once, and marks it in
+/// the queue, which then stops waiting for room.
 #[derive(Clone, Debug)]
 struct Stopper {
-    sent: Arc<AtomicBool>,
+    lines: Lines,
     control: Sender<Control>,
 }
 
 impl Stopper {
     /// Sends `stop`, unless a stop was already sent.
     fn stop(&self, stop: Stop) {
-        if !self.sent.swap(true, Ordering::SeqCst) {
+        if self.lines.stop() {
             // The thread drops the receiver only once the child is reaped,
             // and then there is nothing left to stop.
             let _ = self.control.send(Control::Stop(stop));
@@ -241,8 +250,26 @@ impl Running {
     /// Waits for the thread that follows the child to end.
     pub(crate) fn join(self) {
         // The thread returns nothing, and a panic in it has already ended
-        // the run without its last event, which the reader reports.
+        // the run with a read error, which the queue sends.
         let _ = self.thread.join();
+    }
+}
+
+/// Lets each of `runs` end by itself within `grace`, then stops those that
+/// have not and waits for every run to end (SVC-2).
+///
+/// A stopped run ends within the graces of its [`Escalation`] and the
+/// [`DRAIN_GRACE`], because the reader of a full queue drops lines once the
+/// run is stopped and the reads of its pipes end after the drain grace.
+pub(crate) fn finish(runs: Vec<Running>, grace: Duration) {
+    let deadline = Instant::now() + grace;
+    for run in &runs {
+        if !run.stopper.lines.wait_ended(deadline) {
+            run.stop();
+        }
+    }
+    for run in runs {
+        run.join();
     }
 }
 
@@ -257,11 +284,11 @@ pub(crate) fn stream(
     argv: &Argv,
     limits: Limits,
     escalation: Escalation,
-) -> Result<(Running, Receiver<Event>), SpawnError> {
-    let (events, received) = mpsc::sync_channel(QUEUE);
+) -> Result<(Running, Events), SpawnError> {
+    let (lines, end, events) = queue::queue(QUEUE);
     let (control, controls) = mpsc::channel();
     let stopper = Stopper {
-        sent: Arc::new(AtomicBool::new(false)),
+        lines: lines.clone(),
         control,
     };
     let (started, start_result) = mpsc::channel();
@@ -270,7 +297,6 @@ pub(crate) fn stream(
     let follower = Follower {
         limits,
         escalation,
-        events,
         stopper: stopper.clone(),
         controls,
     };
@@ -285,7 +311,7 @@ pub(crate) fn stream(
             match start(&program, &words) {
                 Ok(child) => {
                     let _ = started.send(Ok(()));
-                    follower.follow(child);
+                    end.send(follower.follow(child, &lines));
                 }
                 Err(error) => {
                     let _ = started.send(Err(error));
@@ -295,7 +321,7 @@ pub(crate) fn stream(
         .map_err(SpawnError::Start)?;
     let running = Running { stopper, thread };
     match start_result.recv() {
-        Ok(Ok(())) => Ok((running, received)),
+        Ok(Ok(())) => Ok((running, events)),
         Ok(Err(error)) => {
             running.join();
             Err(SpawnError::Start(error))
@@ -313,34 +339,34 @@ pub(crate) fn stream(
 struct Follower {
     limits: Limits,
     escalation: Escalation,
-    events: SyncSender<Event>,
     stopper: Stopper,
     controls: Receiver<Control>,
 }
 
 impl Follower {
-    /// Follows `child` to its end and sends the last event.
-    fn follow(self, mut child: Child) {
-        let ended = self.follow_child(&mut child);
-        // A caller that stopped reading has no use for the last event.
-        let _ = self.events.send(Event::End(ended));
-    }
-
-    /// Reads both of `child`'s streams while it runs, stops it when asked,
-    /// and returns how it ended.
-    fn follow_child(&self, child: &mut Child) -> Result<Ended, SpawnError> {
+    /// Follows `child` to its end, putting each line of its standard output
+    /// on `lines`, and returns how it ended.
+    fn follow(self, mut child: Child, lines: &Lines) -> Result<Ended, SpawnError> {
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
         std::thread::scope(|scope| {
-            let readers = Readers::start(scope, self, stdout, stderr, child);
-            let readers = match readers {
+            // The readers' pipes end a grace after this writer is dropped,
+            // which happens once the child is reaped or the readers fail to
+            // start, and before the scope joins the readers.
+            let readers = io::pipe().and_then(|(reaped, reaped_writer)| {
+                let readers =
+                    Readers::start(scope, &self, lines, (stdout, stderr), &reaped, &child)?;
+                Ok((readers, reaped_writer))
+            });
+            let (readers, reaped_writer) = match readers {
                 Ok(readers) => readers,
                 Err(error) => {
-                    kill_now(child);
+                    kill_now(&mut child);
                     return Err(SpawnError::Wait(error));
                 }
             };
-            let waited = self.wait(child);
+            let waited = self.wait(&mut child);
+            drop(reaped_writer);
             let stdout = joined(readers.stdout.join());
             let stderr = joined(readers.stderr.join());
             #[cfg(unix)]
@@ -450,13 +476,18 @@ impl<'scope> Readers<'scope> {
     fn start(
         scope: &'scope Scope<'scope, '_>,
         follower: &Follower,
-        stdout: Option<ChildStdout>,
-        stderr: Option<std::process::ChildStderr>,
+        lines: &Lines,
+        (stdout, stderr): (Option<ChildStdout>, Option<ChildStderr>),
+        reaped: &PipeReader,
         child: &Child,
     ) -> io::Result<Self> {
         let limits = follower.limits;
-        let events = follower.events.clone();
+        let lines = lines.clone();
         let stopper = follower.stopper.clone();
+        let stdout = stdout.map(|pipe| reaped.try_clone().map(|reaped| Drained::new(pipe, reaped)));
+        let stdout = stdout.transpose()?;
+        let stderr = stderr.map(|pipe| reaped.try_clone().map(|reaped| Drained::new(pipe, reaped)));
+        let stderr = stderr.transpose()?;
         #[cfg(unix)]
         let pid = rustix::process::Pid::from_child(child);
         #[cfg(unix)]
@@ -466,7 +497,7 @@ impl<'scope> Readers<'scope> {
         let named = |name: &str| std::thread::Builder::new().name(name.to_owned());
         Ok(Self {
             stdout: named("flightdeck stdout")
-                .spawn_scoped(scope, move || read_lines(stdout, limits, &events, &stopper))?,
+                .spawn_scoped(scope, move || read_lines(stdout, limits, &lines, &stopper))?,
             stderr: named("flightdeck stderr").spawn_scoped(scope, move || {
                 stderr.map_or_else(|| Ok(Vec::new()), |pipe| read_tail(pipe, STDERR_LIMIT))
             })?,
@@ -521,20 +552,20 @@ enum Delivered {
 /// When the output passes a limit, it stops the child and reads the rest of
 /// the pipe without keeping it, so the child never blocks on a full pipe.
 fn read_lines(
-    pipe: Option<ChildStdout>,
+    pipe: Option<Drained<ChildStdout>>,
     limits: Limits,
-    events: &SyncSender<Event>,
+    lines: &Lines,
     stopper: &Stopper,
 ) -> io::Result<()> {
     let Some(pipe) = pipe else {
         return Ok(());
     };
     let mut reader = BufReader::new(pipe);
-    // A caller that stopped reading leaves the run going, and the lines
+    // A caller that dropped its events leaves the run going, and the lines
     // after that are dropped.
     let mut listening = true;
     let delivered = deliver(&mut reader, limits, &mut |line| {
-        listening = listening && events.send(Event::Line(line)).is_ok();
+        listening = listening && lines.push(line);
     })?;
     if let Delivered::Over(limit) = delivered {
         stopper.stop(Stop::Limit(limit));

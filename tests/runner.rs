@@ -14,9 +14,10 @@ use std::time::{Duration, Instant};
 use crumbkit::{Failure as _, FieldValue};
 use crumbkit_flightdeck::model::{self, Tool};
 use crumbkit_flightdeck::runner::{
-    Clock, Escalation, Limits, Mode, Outcome, RUN_BUSY, RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION,
-    RUN_NO_DOCUMENT, RUN_NOT_RUNNING, RUN_OUTPUT_LIMIT, RUN_READ_ONLY, RUN_REFUSED, RUN_SPAWN, Run,
-    RunEvent, RunFailure, RunRequest, Runner, Settings, SystemClock, Value,
+    Clock, ConfirmationId, Escalation, Limits, Mode, Outcome, RUN_BUSY, RUN_CLOSED,
+    RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION, RUN_NO_DOCUMENT, RUN_NOT_RUNNING, RUN_OUTPUT_LIMIT,
+    RUN_READ_ONLY, RUN_REFUSED, RUN_SPAWN, RunEvent, RunFailure, RunId, RunRequest, Runner,
+    Settings, SystemClock, Value,
 };
 use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
 use tempfile::TempDir;
@@ -139,7 +140,7 @@ fn many(texts: &[&str]) -> Value {
 }
 
 /// Reads every event of `run` and returns its lines and its outcome.
-fn finish(run: Run) -> (Vec<String>, Outcome) {
+fn finish(run: impl Iterator<Item = RunEvent>) -> (Vec<String>, Outcome) {
     let mut lines = Vec::new();
     for event in run {
         match event {
@@ -178,6 +179,15 @@ fn book_ids(runner: &Runner) -> Vec<u64> {
         .iter()
         .map(|book| book["id"].as_u64().unwrap())
         .collect()
+}
+
+/// Previews `request`, reads its dry run to the end, and returns the
+/// confirmation id that the preview issued.
+fn confirmation_of(runner: &Runner, request: &RunRequest) -> ConfirmationId {
+    let mut preview = runner.preview(request).unwrap();
+    let (_, outcome) = finish(&mut preview);
+    assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
+    preview.confirmation().unwrap()
 }
 
 /// Returns the request to remove the book `id`.
@@ -325,11 +335,13 @@ fn books_remove_without_a_confirmation_is_refused_with_needs_confirmation() {
 fn a_preview_runs_a_dry_run_that_changes_nothing() {
     let shelf = session("shelf", Mode::Full);
 
-    let preview = shelf.runner.preview(&remove("2")).unwrap();
+    let mut preview = shelf.runner.preview(&remove("2")).unwrap();
     assert_eq!(preview.line(), "shelf books remove 2");
-    let (lines, outcome) = finish(preview.into_run().unwrap());
+    assert!(preview.confirmation().is_none());
+    let (lines, outcome) = finish(&mut preview);
 
     assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
+    assert!(preview.confirmation().is_some());
     let document: serde_json::Value = serde_json::from_str(&lines[0]).unwrap();
     assert_eq!(document["dry_run"], true);
     assert_eq!(document["data"][0]["title"], "Frankenstein");
@@ -339,9 +351,7 @@ fn a_preview_runs_a_dry_run_that_changes_nothing() {
 #[test]
 fn a_confirmation_removes_the_book_once_and_its_id_is_refused_the_second_time() {
     let shelf = session("shelf", Mode::Full);
-    let preview = shelf.runner.preview(&remove("2")).unwrap();
-    let confirmation = preview.confirmation();
-    finish(preview.into_run().unwrap());
+    let confirmation = confirmation_of(&shelf.runner, &remove("2"));
 
     let run = shelf.runner.confirm(&confirmation, &remove("2")).unwrap();
     let (_, outcome) = finish(run);
@@ -359,8 +369,7 @@ fn a_confirmation_removes_the_book_once_and_its_id_is_refused_the_second_time() 
 #[test]
 fn an_id_issued_for_removing_book_2_cannot_remove_book_3() {
     let shelf = session("shelf", Mode::Full);
-    let preview = shelf.runner.preview(&remove("2")).unwrap();
-    let confirmation = preview.confirmation();
+    let confirmation = confirmation_of(&shelf.runner, &remove("2"));
 
     let failure = shelf
         .runner
@@ -378,8 +387,7 @@ fn an_id_issued_for_removing_book_2_cannot_remove_book_3() {
 #[test]
 fn an_id_older_than_ten_minutes_is_refused_as_expired() {
     let shelf = session("shelf", Mode::Full);
-    let preview = shelf.runner.preview(&remove("2")).unwrap();
-    let confirmation = preview.confirmation();
+    let confirmation = confirmation_of(&shelf.runner, &remove("2"));
 
     shelf.clock.advance(Duration::from_secs(10 * 60));
     let failure = shelf
@@ -396,7 +404,7 @@ fn an_id_older_than_ten_minutes_is_refused_as_expired() {
 fn read_only_mode_refuses_books_remove_at_preview_and_at_confirm() {
     let shelf = session("shelf", Mode::ReadOnly);
     let full = session("shelf", Mode::Full);
-    let confirmation = full.runner.preview(&remove("2")).unwrap().confirmation();
+    let confirmation = confirmation_of(&full.runner, &remove("2"));
 
     let at_preview = shelf.runner.preview(&remove("2")).unwrap_err();
     let at_confirm = shelf
@@ -558,4 +566,142 @@ fn two_runs_of_one_runner_share_the_trace_id_and_differ_in_parent_id() {
     }
     assert_eq!(first[1], second[1]);
     assert_ne!(first[2], second[2]);
+}
+
+#[test]
+fn a_failed_dry_run_issues_no_confirmation_and_its_failure_names_the_dry_run_without_the_value() {
+    let unruly = unruly_session(settings());
+    let wipe = request(&["child", "wipe"]).value("<NAME>", one("bad"));
+
+    let mut preview = unruly.runner.preview(&wipe).unwrap();
+    let (_, outcome) = finish(&mut preview);
+
+    assert!(preview.confirmation().is_none());
+    let Outcome::Failed(failure) = outcome else {
+        panic!("{outcome:?}");
+    };
+    assert_eq!(code(&failure), &RUN_NO_DOCUMENT);
+    assert_eq!(
+        field(&failure, "line"),
+        Some(FieldValue::from("unruly child wipe --dry-run bad"))
+    );
+    assert_eq!(
+        field(&failure, "path"),
+        Some(FieldValue::from("child wipe"))
+    );
+    let display = failure.to_string();
+    let recovery = format!("{:?}", failure.recovery());
+    assert!(!display.contains("bad"), "{display}");
+    assert!(!recovery.contains("bad"), "{recovery}");
+}
+
+#[test]
+fn a_confirmation_refused_as_busy_keeps_its_id_for_when_a_run_ends() {
+    let unruly = unruly_session(settings().most_runs(1));
+    let wipe = request(&["child", "wipe"]).value("<NAME>", one("old"));
+    let confirmation = confirmation_of(&unruly.runner, &wipe);
+    let hang = unruly.runner.run(&request(&["child", "hang"])).unwrap();
+
+    let failure = unruly.runner.confirm(&confirmation, &wipe).unwrap_err();
+    assert_eq!(code(&failure), &RUN_BUSY);
+
+    unruly.runner.cancel(hang.id()).unwrap();
+    finish(hang);
+    let (_, outcome) = finish(unruly.runner.confirm(&confirmation, &wipe).unwrap());
+    assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
+}
+
+#[test]
+fn a_command_that_declares_itself_read_only_and_destructive_needs_a_confirmation() {
+    let unruly = unruly_session(settings());
+    let both = request(&["child", "both"]);
+
+    let failure = unruly.runner.run(&both).unwrap_err();
+    assert_eq!(code(&failure), &RUN_NEEDS_CONFIRMATION);
+
+    // The command takes no --dry-run, so its preview issues the id at once
+    // and runs nothing.
+    let mut preview = unruly.runner.preview(&both).unwrap();
+    let confirmation = preview.confirmation().unwrap();
+    assert!(preview.next().is_none());
+    let (_, outcome) = finish(unruly.runner.confirm(&confirmation, &both).unwrap());
+    assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
+}
+
+#[test]
+fn a_run_ends_soon_after_its_child_exits_while_a_process_in_another_session_holds_its_output() {
+    let unruly = unruly_session(settings());
+    let started = Instant::now();
+
+    let (lines, outcome) = finish(unruly.runner.run(&request(&["child", "orphan"])).unwrap());
+
+    // The process in the other session sleeps for ten seconds.
+    assert!(
+        started.elapsed() < Duration::from_secs(5),
+        "{:?}",
+        started.elapsed()
+    );
+    assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
+    assert_eq!(lines.len(), 1);
+}
+
+#[test]
+fn cancel_and_shutdown_end_a_run_whose_caller_stopped_reading_it() {
+    let unruly = unruly_session(settings());
+    let mut run = unruly.runner.run(&request(&["child", "chatter"])).unwrap();
+    let Some(RunEvent::Line(first)) = run.next() else {
+        panic!("the run's first event is not a line");
+    };
+
+    // The child prints more lines than the runner's queue holds, and the
+    // test reads none of them before the cancel and the shutdown.
+    unruly.runner.cancel(run.id()).unwrap();
+    unruly.runner.shutdown();
+    let (rest, outcome) = finish(run);
+
+    assert_eq!(first, "1");
+    assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
+    assert!(rest.len() < 1000);
+}
+
+#[test]
+fn shutdown_lets_a_run_finish_within_its_grace_and_cancels_a_run_that_outlasts_it() {
+    let unruly = unruly_session(settings().shutdown_grace(Duration::from_secs(1)));
+    let nap = unruly.runner.run(&request(&["child", "nap"])).unwrap();
+    let hang = unruly.runner.run(&request(&["child", "hang"])).unwrap();
+    let started = Instant::now();
+
+    unruly.runner.shutdown();
+
+    // The grace, the two graces of the cancel and the second in which the
+    // readers drain the pipes come to under three seconds.
+    assert!(
+        started.elapsed() < Duration::from_secs(5),
+        "{:?}",
+        started.elapsed()
+    );
+    let (_, napped) = finish(nap);
+    let (_, hung) = finish(hang);
+    assert!(matches!(napped, Outcome::Result), "{napped:?}");
+    assert!(matches!(hung, Outcome::Cancelled), "{hung:?}");
+}
+
+#[test]
+fn a_runner_that_has_shut_down_refuses_every_new_run_with_closed() {
+    let unruly = unruly_session(settings());
+    unruly.runner.shutdown();
+
+    let failure = unruly.runner.run(&request(&["child", "pick"])).unwrap_err();
+
+    assert_eq!(code(&failure), &RUN_CLOSED);
+}
+
+#[test]
+fn a_run_id_is_read_only_from_decimal_digits() {
+    assert_eq!("3".parse::<RunId>().unwrap().to_string(), "3");
+    for text in ["+3", "-3", " 3", ""] {
+        let failure = text.parse::<RunId>().unwrap_err();
+
+        assert_eq!(code(&failure), &RUN_NOT_RUNNING, "{text:?}");
+    }
 }

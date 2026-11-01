@@ -41,8 +41,8 @@ disallowed-methods = [
     { path = "tokio::process::Command::spawn", reason = "start processes through src/spawn.rs", allow-invalid = true },
     { path = "tokio::process::Command::status", reason = "start processes through src/spawn.rs", allow-invalid = true },
     { path = "tokio::process::Command::output", reason = "start processes through src/spawn.rs", allow-invalid = true },
-    # SVC-1: src/spawn.rs and src/spawn/stream.rs start every thread, and an
-    # owner joins each one. No other module spawns a thread or a task.
+    # SVC-1: every thread runs in a std::thread::scope that joins it, or
+    # starts in src/spawn/, whose owner joins it. No module spawns a task.
     { path = "std::thread::spawn", reason = "spawn inside a thread scope, which joins every thread" },
     { path = "std::thread::Builder::spawn", reason = "start threads in src/spawn/, whose owner joins each one" },
     { path = "std::thread::Builder::spawn_scoped", reason = "start threads in src/spawn/, whose owner joins each one" },

@@ -29,11 +29,12 @@ pub enum Outcome {
 }
 
 /// What the outcome of one run reads beside the run's output: the tool's
-/// name, the line that ran, the command's form and declared exits, and the
-/// limits of the run's output.
+/// name, the command's path, the line that ran, the command's form and
+/// declared exits, and the limits of the run's output.
 #[derive(Debug)]
 pub(super) struct Ending {
     tool: String,
+    path: String,
     line: String,
     form: Option<Form>,
     exits: Vec<ExitMeaning>,
@@ -43,10 +44,11 @@ pub(super) struct Ending {
 impl Ending {
     /// Returns the ending of a run of `command` of `tool` as `line` within
     /// `limits`.
-    pub(super) fn new(tool: &Tool, command: &Command, line: &str, limits: Limits) -> Self {
+    pub(super) fn new(tool: &Tool, command: &Command, line: String, limits: Limits) -> Self {
         Self {
             tool: tool.name().to_owned(),
-            line: line.to_owned(),
+            path: command.path().to_string(),
+            line,
             form: command.result().form(),
             exits: command.exits().to_vec(),
             limits,
@@ -134,7 +136,7 @@ pub(super) fn outcome(
                 Exit::Signal | Exit::TimedOut | Exit::Unknown => None,
             };
             Outcome::Failed(RunFailure::no_document(
-                ending.line.clone(),
+                (ending.path.clone(), ending.line.clone()),
                 exit,
                 meaning,
                 stderr,

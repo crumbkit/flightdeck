@@ -37,6 +37,41 @@ case "$1 $2" in
 "child pick")
   echo '{"schema":"unruly/child-pick/v1","data":{}}'
   ;;
+"child orphan")
+  # The background process leaves the child's process group for a session
+  # of its own, so no signal to the group reaches it, and it keeps standard
+  # output and standard error open after the child exits.
+  perl -MPOSIX -e 'POSIX::setsid(); sleep 10' &
+  echo '{"schema":"unruly/child-orphan/v1","data":{}}'
+  ;;
+"child chatter")
+  # More lines than the runner's queue holds, then a hang that only
+  # SIGKILL ends.
+  trap '' INT TERM
+  seq 1000
+  sleep 30
+  ;;
+"child nap")
+  sleep 0.2
+  echo '{"schema":"unruly/child-nap/v1","data":{}}'
+  ;;
+"child wipe")
+  case " $* " in
+  *" --dry-run -- bad "*)
+    echo "unruly cannot preview a wipe of bad" >&2
+    exit 3
+    ;;
+  *" --dry-run "*)
+    echo '{"schema":"unruly/child-wipe/v1","dry_run":true,"data":{}}'
+    ;;
+  *)
+    echo '{"schema":"unruly/child-wipe/v1","data":{}}'
+    ;;
+  esac
+  ;;
+"child both" | "child pair")
+  echo '{"schema":"unruly/child-both/v1","data":{}}'
+  ;;
 *)
   echo "unruly does not know $*" >&2
   exit 2

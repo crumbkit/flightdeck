@@ -9,6 +9,7 @@
 //! promise.
 
 mod cli;
+mod lock;
 pub mod model;
 mod open;
 pub mod opener;

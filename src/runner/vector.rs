@@ -23,7 +23,7 @@ pub(super) struct Vector {
     path: Vec<String>,
     options: Vec<String>,
     positionals: Vec<String>,
-    line: String,
+    line: Line,
     dry_run: bool,
     yes: bool,
 }
@@ -73,9 +73,15 @@ impl Vector {
 
     /// Returns the command line as a person would type it, POSIX-quoted and
     /// without the flags that flightdeck adds, such as
-    /// `shelf books remove 2`.
-    pub(super) fn line(&self) -> &str {
-        &self.line
+    /// `shelf books remove 2`. With [`Extra::DryRun`] it holds `--dry-run`
+    /// before the positional values, as the dry run ran. It never holds
+    /// `--yes`, which stands for the answer a person gives in a terminal.
+    pub(super) fn line(&self, extra: Extra) -> String {
+        let flag = match extra {
+            Extra::DryRun => format!(" {}", CrumbkitFlag::DryRun.name()),
+            Extra::None | Extra::Yes => String::new(),
+        };
+        format!("{}{flag}{}", self.line.head, self.line.tail)
     }
 
     /// Returns true when the command takes `--dry-run`.
@@ -90,9 +96,10 @@ impl Vector {
 ///
 /// Returns [`RunFailure::Refused`] when the tool lists no runnable command
 /// at the path, when the command takes no argument of a name, when a name is
-/// one of crumbkit's own flags other than `--limit` and `--all`, and when a
+/// one of crumbkit's own flags other than `--limit` and `--all`, when a
 /// value is of the wrong kind, is not one of the argument's possible values
-/// or holds a NUL byte.
+/// or holds a control character, and when a positional value follows a
+/// positional argument without one.
 pub(super) fn build<'tool>(
     tool: &'tool Tool,
     request: &RunRequest,
@@ -119,20 +126,41 @@ pub(super) fn build<'tool>(
     }
 
     let mut line = Line::new(tool.name(), request.path())
-        .map_err(|()| RunFailure::refused(path.clone(), None, Reason::Nul))?;
+        .map_err(|()| RunFailure::refused(path.clone(), None, Reason::Control))?;
     let mut options = Vec::new();
     let mut positionals = Vec::new();
+    // The first positional argument without a value. A value of a later
+    // positional argument would reach the tool as this one's.
+    let mut empty: Option<&str> = None;
     for argument in command.arguments() {
-        let Some(value) = request.values().get(argument.name()) else {
-            continue;
+        let given = match request.values().get(argument.name()) {
+            Some(value) => {
+                given(argument, value).map_err(|reason| refuse(argument.name(), reason))?
+            }
+            None => Given {
+                flag: false,
+                values: Vec::new(),
+            },
         };
-        let given = given(argument, value).map_err(|reason| refuse(argument.name(), reason))?;
-        if argument.name().contains('\0') {
-            return Err(refuse(argument.name(), Reason::Nul));
+        if argument.kind() == Kind::Positional && !given.flag {
+            match (empty, given.values.is_empty()) {
+                (None, true) => empty = Some(argument.name()),
+                (Some(earlier), false) => {
+                    let earlier = earlier.to_owned();
+                    return Err(refuse(argument.name(), Reason::Skipped { earlier }));
+                }
+                (None | Some(_), _) => {}
+            }
+        }
+        if given.values.is_empty() && !given.flag {
+            continue;
+        }
+        if has_control(argument.name()) {
+            return Err(refuse(argument.name(), Reason::Control));
         }
         for value in &given.values {
-            if value.contains('\0') {
-                return Err(refuse(argument.name(), Reason::Nul));
+            if has_control(value) {
+                return Err(refuse(argument.name(), Reason::Control));
             }
             let possible = argument.possible_values();
             if !possible.is_empty() && !possible.contains(value) {
@@ -166,7 +194,7 @@ pub(super) fn build<'tool>(
         path: request.path().to_vec(),
         options,
         positionals,
-        line: line.text,
+        line,
         dry_run: takes(CrumbkitFlag::DryRun),
         yes: takes(CrumbkitFlag::Yes),
     };
@@ -215,52 +243,78 @@ fn given(argument: &Argument, value: &Value) -> Result<Given, Reason> {
     }
 }
 
-/// The display line of a vector as it is built.
+/// The display line of a vector: the head, with the tool's name, the path
+/// and the options, and the tail, with the positional values. A flag of a
+/// run goes between the two.
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Line {
-    text: String,
+    head: String,
+    tail: String,
 }
 
 impl Line {
     /// Starts the line with the tool's name and the command's path, or
     /// refuses a word that holds a NUL byte.
     fn new(tool: &str, path: &[String]) -> Result<Self, ()> {
-        let mut text = quote(tool)?;
+        let mut head = quote(tool)?;
         for word in path {
-            text.push(' ');
-            text.push_str(&quote(word)?);
+            head.push(' ');
+            head.push_str(&quote(word)?);
         }
-        Ok(Self { text })
+        Ok(Self {
+            head,
+            tail: String::new(),
+        })
     }
 
     /// Adds a flag, such as `--all`.
     fn flag(&mut self, name: &str) {
-        self.push(name);
+        push(&mut self.head, name);
     }
 
     /// Adds an option as one word, such as `--limit=10` or
     /// `--from='my ids.txt'`.
     fn option(&mut self, name: &str, value: &str) {
         let word = format!("{}={}", quote_or_empty(name), quote_or_empty(value));
-        self.text.push(' ');
-        self.text.push_str(&word);
+        self.head.push(' ');
+        self.head.push_str(&word);
     }
 
     /// Adds the positional values, after `--` when one of them starts with
     /// `-`.
     fn positionals(&mut self, values: &[String]) {
         if values.iter().any(|value| value.starts_with('-')) {
-            self.push("--");
+            push(&mut self.tail, "--");
         }
         for value in values {
-            self.push(value);
+            push(&mut self.tail, value);
         }
     }
+}
 
-    /// Adds one quoted word.
-    fn push(&mut self, word: &str) {
-        self.text.push(' ');
-        self.text.push_str(&quote_or_empty(word));
-    }
+/// Adds one quoted word to `text`.
+fn push(text: &mut String, word: &str) {
+    text.push(' ');
+    text.push_str(&quote_or_empty(word));
+}
+
+/// Returns true when `text` holds a control character or a bidirectional
+/// control, which a display line would show as something else or not at
+/// all.
+///
+/// RUST-10: the runner refuses such a value, which is plainer than
+/// quoting it. It handles every value that a person types on one line, and
+/// it misses a value that holds a newline or a tab, such as a note of
+/// several lines. Quoting each such character as `$'\n'` or `$'\u{202e}'`
+/// replaces the refusal when a tool takes such a value.
+fn has_control(text: &str) -> bool {
+    text.chars().any(|c| {
+        c.is_control()
+            || matches!(
+                c,
+                '\u{061c}' | '\u{200e}' | '\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}'
+            )
+    })
 }
 
 /// Returns `word` quoted for a POSIX shell, or refuses a word that holds a
@@ -272,8 +326,8 @@ fn quote(word: &str) -> Result<String, ()> {
 }
 
 /// Returns `word` quoted for a POSIX shell. `build` refuses every name and
-/// value with a NUL byte before it reaches the line, so the empty word of a
-/// refused quote never prints.
+/// value with a control character, NUL among them, before it reaches the
+/// line, so the empty word of a refused quote never prints.
 fn quote_or_empty(word: &str) -> String {
     quote(word).unwrap_or_else(|()| "''".to_owned())
 }

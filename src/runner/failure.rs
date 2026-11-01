@@ -39,6 +39,9 @@ pub const RUN_BUSY: Code = Code::new("flightdeck", "run", "busy");
 /// The code of a cancel of a run that is not running.
 pub const RUN_NOT_RUNNING: Code = Code::new("flightdeck", "run", "not_running");
 
+/// The code of a run refused because the runner has shut down.
+pub const RUN_CLOSED: Code = Code::new("flightdeck", "run", "closed");
+
 /// The code of a system that gives no random bytes.
 pub const RUN_RANDOM: Code = Code::new("flightdeck", "run", "random");
 
@@ -95,10 +98,14 @@ pub enum RunFailure {
         problem: ConfirmationProblem,
     },
     /// The run ended without a document that explains its exit.
+    ///
+    /// Its sentence and its hint name only the command's path, because they
+    /// may reach a log. The line, with every value, is a field for the page.
     #[failure(
         code = RUN_NO_DOCUMENT,
-        hint = "run {line} in a terminal to see what it prints",
+        hint = "run the command line of the line field in a terminal to see what it prints",
         field(
+            path = path.as_str(),
             line = line.as_str(),
             exit = exit_code(*exit),
             meaning = text_or_null(meaning.as_deref()),
@@ -106,7 +113,9 @@ pub enum RunFailure {
         ),
     )]
     NoDocument {
-        /// The command line that ran.
+        /// The command's path, such as `books remove`.
+        path: String,
+        /// The command line that ran, with `--dry-run` for a dry run.
         line: String,
         /// How the child ended.
         exit: Exit,
@@ -155,6 +164,12 @@ pub enum RunFailure {
         /// The run's id, or `None` for text that is no run id.
         run: Option<RunId>,
     },
+    /// The runner has shut down, and starts no more runs.
+    #[failure(
+        code = RUN_CLOSED,
+        recovery = Recovery::None { reason: "flightdeck is shutting down".to_owned() },
+    )]
+    Closed,
     /// The system gave no random bytes for an id.
     #[failure(code = RUN_RANDOM, recovery = Recovery::Retry)]
     Random {
@@ -174,16 +189,17 @@ impl RunFailure {
         }
     }
 
-    /// Returns the failure of a run of `line` that ended with `exit` and no
-    /// document, with the declared `meaning` of its exit and the last lines
-    /// of `stderr`.
+    /// Returns the failure of a run of the command at `path` as `line` that
+    /// ended with `exit` and no document, with the declared `meaning` of its
+    /// exit and the last lines of `stderr`.
     pub(super) fn no_document(
-        line: String,
+        (path, line): (String, String),
         exit: Exit,
         meaning: Option<String>,
         stderr: &[u8],
     ) -> Self {
         Self::NoDocument {
+            path,
             line,
             exit,
             meaning,
@@ -217,12 +233,12 @@ impl fmt::Display for RunFailure {
                     "the confirmation id was issued for another command line"
                 }
             }),
-            Self::NoDocument { line, exit, .. } => match exit {
+            Self::NoDocument { path, exit, .. } => match exit {
                 Exit::Code(code) => {
-                    write!(f, "{line} exited with {code} and printed no document")
+                    write!(f, "{path} exited with {code} and printed no document")
                 }
                 Exit::Signal | Exit::TimedOut | Exit::Unknown => {
-                    write!(f, "{line} was ended by a signal and printed no document")
+                    write!(f, "{path} was ended by a signal and printed no document")
                 }
             },
             Self::Spawn { tool, .. } => write!(f, "cannot run {tool}"),
@@ -233,6 +249,7 @@ impl fmt::Display for RunFailure {
             Self::Busy { most } => write!(f, "{most} runs are running, which is the most at once"),
             Self::NotRunning { run: Some(run) } => write!(f, "run {} is not running", run.0),
             Self::NotRunning { run: None } => f.write_str("no run has that id"),
+            Self::Closed => f.write_str("flightdeck is shutting down and starts no more runs"),
             Self::Random { .. } => f.write_str("the system gave no random bytes"),
         }
     }
@@ -245,12 +262,21 @@ fn refusal(f: &mut fmt::Formatter<'_>, path: &str, argument: &str, reason: &Reas
         Reason::UnknownArgument => write!(f, "{path} takes no argument {argument}"),
         Reason::Reserved => write!(f, "flightdeck sets {argument} of {path} itself"),
         Reason::Arity { takes } => write!(f, "{argument} of {path} takes {}", takes.words()),
-        Reason::NotPossible { value } => {
-            write!(f, "{value} is not a value that {argument} of {path} takes")
+        // The value may be anything the page sent, so the sentence leaves it
+        // out.
+        Reason::NotPossible { .. } => {
+            write!(
+                f,
+                "{argument} of {path} does not take the value it was sent"
+            )
         }
-        Reason::Nul => write!(
+        Reason::Control => write!(
             f,
-            "a value of {argument} of {path} holds a NUL byte, which no program can receive"
+            "a value of {argument} of {path} holds a control character, which the command line cannot show"
+        ),
+        Reason::Skipped { earlier } => write!(
+            f,
+            "{argument} of {path} takes a value only when {earlier} has one"
         ),
         Reason::Grouped => write!(
             f,
@@ -290,8 +316,17 @@ pub enum Reason {
         /// The value that was sent.
         value: String,
     },
-    /// A value holds a NUL byte, which no program's argument can hold.
-    Nul,
+    /// A value holds a control character, such as a NUL byte, a newline or
+    /// an escape, or a bidirectional control. A NUL byte reaches no
+    /// program, and the others would make the display line show something
+    /// other than what runs.
+    Control,
+    /// A positional value follows a positional argument without one, which
+    /// the tool would read as the earlier argument's value.
+    Skipped {
+        /// The earlier positional argument, which has no value.
+        earlier: String,
+    },
     /// The argument takes several values in one occurrence.
     ///
     /// RUST-10: the runner writes each option as one `--name=value` word,
@@ -312,7 +347,8 @@ impl Reason {
             Self::Reserved => "reserved",
             Self::Arity { .. } => "arity",
             Self::NotPossible { .. } => "not_possible",
-            Self::Nul => "nul",
+            Self::Control => "control",
+            Self::Skipped { .. } => "skipped",
             Self::Grouped => "grouped",
         }
     }

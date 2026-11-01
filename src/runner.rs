@@ -10,7 +10,9 @@
 //!   refuses a destructive command, or one whose effects are unknown, with
 //!   [`RUN_NEEDS_CONFIRMATION`].
 //! - [`Runner::preview`] runs the command with `--dry-run` when it takes
-//!   that flag, and issues a [`ConfirmationId`] bound to the exact vector.
+//!   that flag. When the dry run ends with [`Outcome::Result`], or at once
+//!   for a command without `--dry-run`, the [`Preview`] holds a
+//!   [`ConfirmationId`] bound to the exact vector.
 //! - [`Runner::confirm`] runs the vector that the id was issued for, with
 //!   `--yes` when the command takes it. An id works once, for ten minutes by
 //!   default, and only for the same vector.
@@ -18,11 +20,21 @@
 //! In [`Mode::ReadOnly`] each of the three refuses every command that is
 //! not read-only. A started [`Run`] yields each line of standard output as
 //! it arrives, then its [`Outcome`], and [`Runner::cancel`] stops it.
+//!
+//! One runner serves the whole flightdeck process. Its limits, such as
+//! [`MOST_RUNS`] and the [`Limits`] of each run's output, are the caps on
+//! the memory and the children of every page that the process serves.
+//!
+//! The runner trusts its caller to be the page that holds the session's
+//! token. A read-only command still reads what its values name, such as a
+//! file that `--from FILE` names, so the token is the only guard on what
+//! such a command reads. Each child inherits flightdeck's environment, so
+//! the server keeps its token out of that environment, and the runner
+//! removes no variable.
 
 mod clock;
 mod confirmations;
 mod failure;
-mod lock;
 mod outcome;
 mod request;
 mod runs;
@@ -32,16 +44,15 @@ mod vector;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::sync::mpsc::Receiver;
 use std::time::Duration;
 
 pub use self::clock::{Clock, SystemClock};
 pub use self::confirmations::ConfirmationId;
 use self::confirmations::Confirmations;
 pub use self::failure::{
-    ConfirmationProblem, RUN_BUSY, RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION, RUN_NO_DOCUMENT,
-    RUN_NOT_RUNNING, RUN_OUTPUT_LIMIT, RUN_RANDOM, RUN_READ_ONLY, RUN_REFUSED, RUN_SPAWN, Reason,
-    RunFailure, Takes,
+    ConfirmationProblem, RUN_BUSY, RUN_CLOSED, RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION,
+    RUN_NO_DOCUMENT, RUN_NOT_RUNNING, RUN_OUTPUT_LIMIT, RUN_RANDOM, RUN_READ_ONLY, RUN_REFUSED,
+    RUN_SPAWN, Reason, RunFailure, Takes,
 };
 use self::outcome::Ending;
 pub use self::outcome::Outcome;
@@ -51,11 +62,15 @@ use self::trace::Trace;
 pub(crate) use self::vector::Argv;
 use self::vector::{Extra, Vector};
 use crate::model::{Command, Effects, Tool};
-use crate::spawn::{self, Event, Program};
-pub use crate::spawn::{Escalation, Limit, Limits};
+use crate::spawn::{self, Event, Events, Program};
+pub use crate::spawn::{DRAIN_GRACE, Escalation, Limit, Limits, QUEUE};
 
 /// How long a confirmation id works after the preview that issued it.
 pub const CONFIRMATION_LIFE: Duration = Duration::from_secs(10 * 60);
+
+/// How long a shutdown lets the runs in progress end by themselves before
+/// it cancels them.
+pub const SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
 
 /// The most runs of one runner at once.
 ///
@@ -81,11 +96,13 @@ pub struct Settings {
     escalation: Escalation,
     most_runs: usize,
     confirmation_life: Duration,
+    shutdown_grace: Duration,
 }
 
 impl Settings {
     /// Returns the default settings: [`Limits::default`],
-    /// [`Escalation::default`], [`MOST_RUNS`] and [`CONFIRMATION_LIFE`].
+    /// [`Escalation::default`], [`MOST_RUNS`], [`CONFIRMATION_LIFE`] and
+    /// [`SHUTDOWN_GRACE`].
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -93,6 +110,7 @@ impl Settings {
             escalation: Escalation::default(),
             most_runs: MOST_RUNS,
             confirmation_life: CONFIRMATION_LIFE,
+            shutdown_grace: SHUTDOWN_GRACE,
         }
     }
 
@@ -124,6 +142,14 @@ impl Settings {
         self.confirmation_life = life;
         self
     }
+
+    /// Returns the settings with a shutdown that lets runs end by
+    /// themselves for `grace` before it cancels them.
+    #[must_use]
+    pub const fn shutdown_grace(mut self, grace: Duration) -> Self {
+        self.shutdown_grace = grace;
+        self
+    }
 }
 
 impl Default for Settings {
@@ -132,7 +158,7 @@ impl Default for Settings {
     }
 }
 
-/// Runs the commands of one tool for one flightdeck session.
+/// Runs the commands of one tool for the whole flightdeck process.
 #[derive(Debug)]
 pub struct Runner {
     tool: Tool,
@@ -141,7 +167,7 @@ pub struct Runner {
     settings: Settings,
     clock: Arc<dyn Clock>,
     trace: Trace,
-    confirmations: Confirmations,
+    confirmations: Arc<Confirmations>,
     runs: Runs,
 }
 
@@ -165,7 +191,7 @@ impl Runner {
             tool,
             program,
             mode,
-            confirmations: Confirmations::new(settings.confirmation_life),
+            confirmations: Arc::new(Confirmations::new(settings.confirmation_life)),
             runs: Runs::new(settings.most_runs),
             settings,
             clock,
@@ -186,9 +212,9 @@ impl Runner {
     /// Returns [`RunFailure::Refused`] for a request that the model does not
     /// allow, [`RunFailure::ReadOnly`] in read-only mode,
     /// [`RunFailure::NeedsConfirmation`] for a destructive command or one
-    /// whose effects are unknown, [`RunFailure::Busy`] when the most runs
-    /// are running, and [`RunFailure::Spawn`] when the program will not
-    /// start.
+    /// whose effects are unknown, [`RunFailure::Closed`] after a shutdown,
+    /// [`RunFailure::Busy`] when the most runs are running, and
+    /// [`RunFailure::Spawn`] when the program will not start.
     pub fn run(&self, request: &RunRequest) -> Result<Run, RunFailure> {
         let (command, vector) = self.check(request)?;
         if Class::of(command) == Class::Destructive {
@@ -196,11 +222,13 @@ impl Runner {
                 path: command.path().to_string(),
             });
         }
-        self.start(command, &vector, Extra::None)
+        self.start(command, &vector, Extra::None, || Ok(()))
     }
 
-    /// Issues a confirmation id for the command of `request`, and runs it
-    /// with `--dry-run` when the command takes that flag.
+    /// Previews the command of `request`. A command that takes `--dry-run`
+    /// runs with it, and the [`Preview`] holds a confirmation id once that
+    /// dry run ends with [`Outcome::Result`]. A command without `--dry-run`
+    /// runs nothing, and its preview holds the id at once.
     ///
     /// # Errors
     ///
@@ -209,20 +237,28 @@ impl Runner {
     /// the system gives no random bytes for the id.
     pub fn preview(&self, request: &RunRequest) -> Result<Preview, RunFailure> {
         let (command, vector) = self.check(request)?;
-        let run = if vector.takes_dry_run() {
-            Some(self.start(command, &vector, Extra::DryRun)?)
-        } else {
-            None
-        };
-        let line = vector.line().to_owned();
+        let line = vector.line(Extra::None);
+        if vector.takes_dry_run() {
+            let run = self.start(command, &vector, Extra::DryRun, || Ok(()))?;
+            return Ok(Preview {
+                line,
+                confirmation: None,
+                dry_run: Some(DryRun {
+                    run,
+                    vector,
+                    confirmations: Arc::clone(&self.confirmations),
+                    clock: Arc::clone(&self.clock),
+                }),
+            });
+        }
         let confirmation = self
             .confirmations
             .issue(vector, self.clock.now())
             .map_err(|source| RunFailure::Random { source })?;
         Ok(Preview {
-            confirmation,
             line,
-            run,
+            confirmation: Some(confirmation),
+            dry_run: None,
         })
     }
 
@@ -234,17 +270,20 @@ impl Runner {
     /// Returns the failures of [`Runner::run`], except
     /// [`RunFailure::NeedsConfirmation`], and
     /// [`RunFailure::Confirmation`] for an id that is unknown, used,
-    /// expired or issued for another vector. A refused id is used up.
+    /// expired or issued for another vector. A refused id is used up. A
+    /// confirmation refused with [`RunFailure::Closed`] or
+    /// [`RunFailure::Busy`] keeps its id.
     pub fn confirm(
         &self,
         confirmation: &ConfirmationId,
         request: &RunRequest,
     ) -> Result<Run, RunFailure> {
         let (command, vector) = self.check(request)?;
-        self.confirmations
-            .take(confirmation, &vector, self.clock.now())
-            .map_err(|problem| RunFailure::Confirmation { problem })?;
-        self.start(command, &vector, Extra::Yes)
+        self.start(command, &vector, Extra::Yes, || {
+            self.confirmations
+                .take(confirmation, &vector, self.clock.now())
+                .map_err(|problem| RunFailure::Confirmation { problem })
+        })
     }
 
     /// Stops the run `id`: SIGINT, then SIGTERM and SIGKILL after the
@@ -259,9 +298,11 @@ impl Runner {
         self.runs.cancel(id)
     }
 
-    /// Cancels every run and waits for each to end.
+    /// Refuses every new run with [`RunFailure::Closed`], lets the runs in
+    /// progress end by themselves within the shutdown grace of the
+    /// settings, then cancels the rest and waits for each to end.
     pub fn shutdown(&self) {
-        self.runs.shutdown();
+        self.runs.shutdown(self.settings.shutdown_grace);
     }
 
     /// Returns the command and the vector of `request`, refusing a request
@@ -276,8 +317,15 @@ impl Runner {
         Ok((command, vector))
     }
 
-    /// Starts `vector` of `command` with `extra`.
-    fn start(&self, command: &Command, vector: &Vector, extra: Extra) -> Result<Run, RunFailure> {
+    /// Starts `vector` of `command` with `extra`, once the runner has room
+    /// for the run and `ready` allows it.
+    fn start(
+        &self,
+        command: &Command,
+        vector: &Vector,
+        extra: Extra,
+        ready: impl FnOnce() -> Result<(), RunFailure>,
+    ) -> Result<Run, RunFailure> {
         let program = self
             .program
             .clone()
@@ -287,6 +335,7 @@ impl Runner {
             limits, escalation, ..
         } = self.settings;
         let (id, events) = self.runs.start(|| {
+            ready()?;
             spawn::stream(&program, &argv, limits, escalation).map_err(|source| RunFailure::Spawn {
                 tool: self.tool.name().to_owned(),
                 source,
@@ -294,10 +343,10 @@ impl Runner {
         })?;
         Ok(Run {
             id,
-            line: vector.line().to_owned(),
+            line: vector.line(Extra::None),
             events: Some(events),
             last: None,
-            ending: Ending::new(&self.tool, command, vector.line(), limits),
+            ending: Ending::new(&self.tool, command, vector.line(extra), limits),
         })
     }
 }
@@ -314,16 +363,19 @@ enum Class {
 }
 
 impl Class {
-    /// Returns the class of `command`.
+    /// Returns the class of `command`. A command that declares itself
+    /// destructive is destructive, even when it also declares itself
+    /// read-only.
     const fn of(command: &Command) -> Self {
         match command.effects() {
             Effects::Known {
+                destructive: true, ..
+            }
+            | Effects::Unknown => Self::Destructive,
+            Effects::Known {
                 read_only: true, ..
             } => Self::ReadOnly,
-            Effects::Known {
-                destructive: false, ..
-            } => Self::Additive,
-            Effects::Known { .. } | Effects::Unknown => Self::Destructive,
+            Effects::Known { .. } => Self::Additive,
         }
     }
 }
@@ -339,14 +391,17 @@ impl fmt::Display for RunId {
     }
 }
 
-/// Reads a run id as the page sends it, such as `3`.
+/// Reads a run id as the page sends it, such as `3`, and refuses any text
+/// other than decimal digits, such as `+3`.
 impl FromStr for RunId {
     type Err = RunFailure;
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        text.parse()
-            .map(Self)
-            .map_err(|_| RunFailure::NotRunning { run: None })
+        let not_running = || RunFailure::NotRunning { run: None };
+        if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Err(not_running());
+        }
+        text.parse().map(Self).map_err(|_| not_running())
     }
 }
 
@@ -360,11 +415,17 @@ pub enum RunEvent {
 }
 
 /// A started run, which yields its events in order.
+///
+/// The run holds at most [`QUEUE`] lines that the caller has not read, and
+/// then the child waits until the caller reads one. A caller that stops
+/// reading drops the run, so the lines after that are thrown away and the
+/// child is not held up. A cancel or a shutdown ends a run that nobody
+/// reads, and drops its lines that do not fit.
 #[derive(Debug)]
 pub struct Run {
     id: RunId,
     line: String,
-    events: Option<Receiver<Event>>,
+    events: Option<Events>,
     last: Option<String>,
     ending: Ending,
 }
@@ -393,13 +454,13 @@ impl Iterator for Run {
     fn next(&mut self) -> Option<RunEvent> {
         let events = self.events.as_ref()?;
         let ended = match events.recv() {
-            Ok(Event::Line(line)) => {
+            Some(Event::Line(line)) => {
                 self.last = Some(line.clone());
                 return Some(RunEvent::Line(line));
             }
-            Ok(Event::End(ended)) => ended,
-            Err(_) => Err(spawn::SpawnError::Read(std::io::Error::other(
-                "the thread that followed the program stopped",
+            Some(Event::End(ended)) => ended,
+            None => Err(spawn::SpawnError::Read(std::io::Error::other(
+                "the run's end was already read",
             ))),
         };
         self.events = None;
@@ -408,19 +469,34 @@ impl Iterator for Run {
     }
 }
 
-/// What a preview issued: the confirmation id, the line it confirms, and
-/// the dry run when the command takes `--dry-run`.
+/// A preview: the line it would confirm, the dry run when the command takes
+/// `--dry-run`, and the confirmation id once the preview has issued one.
+///
+/// The preview yields the dry run's events. When the dry run ends with
+/// [`Outcome::Result`], the preview issues the id, and an outcome of any
+/// other kind issues none.
 #[derive(Debug)]
 pub struct Preview {
-    confirmation: ConfirmationId,
     line: String,
-    run: Option<Run>,
+    confirmation: Option<ConfirmationId>,
+    dry_run: Option<DryRun>,
+}
+
+/// A preview's dry run, and what it needs to issue the id when the dry run
+/// succeeds.
+#[derive(Debug)]
+struct DryRun {
+    run: Run,
+    vector: Vector,
+    confirmations: Arc<Confirmations>,
+    clock: Arc<dyn Clock>,
 }
 
 impl Preview {
-    /// Returns the id that [`Runner::confirm`] takes.
+    /// Returns the id that [`Runner::confirm`] takes, or `None` until the
+    /// dry run has ended with [`Outcome::Result`].
     #[must_use]
-    pub const fn confirmation(&self) -> ConfirmationId {
+    pub const fn confirmation(&self) -> Option<ConfirmationId> {
         self.confirmation
     }
 
@@ -431,9 +507,36 @@ impl Preview {
         &self.line
     }
 
-    /// Returns the dry run, or `None` for a command without `--dry-run`.
+    /// Returns the id of the dry run, which [`Runner::cancel`] takes, or
+    /// `None` for a command without `--dry-run`.
     #[must_use]
-    pub fn into_run(self) -> Option<Run> {
-        self.run
+    pub fn run_id(&self) -> Option<RunId> {
+        self.dry_run.as_ref().map(|dry_run| dry_run.run.id())
+    }
+}
+
+/// Yields each event of the dry run, and nothing for a command without
+/// `--dry-run`. When the dry run's outcome is [`Outcome::Result`] the
+/// preview issues its id, and when the system gives no random bytes for
+/// the id the outcome is [`RunFailure::Random`] instead.
+impl Iterator for Preview {
+    type Item = RunEvent;
+
+    fn next(&mut self) -> Option<RunEvent> {
+        let dry_run = self.dry_run.as_mut()?;
+        let event = dry_run.run.next()?;
+        let RunEvent::Outcome(Outcome::Result) = event else {
+            return Some(event);
+        };
+        let now = dry_run.clock.now();
+        Some(RunEvent::Outcome(
+            match dry_run.confirmations.issue(dry_run.vector.clone(), now) {
+                Ok(confirmation) => {
+                    self.confirmation = Some(confirmation);
+                    Outcome::Result
+                }
+                Err(source) => Outcome::Failed(RunFailure::Random { source }),
+            },
+        ))
     }
 }
