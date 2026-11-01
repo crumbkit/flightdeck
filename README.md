@@ -23,7 +23,7 @@ What works today:
   browser:
 
   ```text
-  http://127.0.0.1:52710 · shelf 0.1.0 · 9 commands
+  http://127.0.0.1:52710 · shelf 0.1.1 · 9 commands
   Opening the browser. Press Ctrl-C to stop flightdeck.
   ```
 

@@ -105,7 +105,7 @@ fn shelf_has_nine_runnable_commands_its_version_and_its_about_line() {
         ]
     );
     assert_eq!(shelf.name(), "shelf");
-    assert_eq!(shelf.version(), "0.1.0+git-31245d63b750");
+    assert_eq!(shelf.version(), "0.1.1+git-a85fa49c767a");
     assert_eq!(
         shelf.about(),
         Some("Browse a small catalogue of public-domain books")
@@ -221,6 +221,46 @@ fn a_command_whose_positional_is_not_an_id_is_never_a_link_target() {
             .links()
             .iter()
             .all(|link| link.target() != commands_list.path())
+    );
+}
+
+#[test]
+fn shelfs_goal_headings_hold_its_commands_in_help_order() {
+    let shelf = load("shelf");
+
+    let headings: Vec<(&str, Vec<String>)> = shelf
+        .headings()
+        .iter()
+        .map(|heading| {
+            let paths = heading.commands().iter().map(ToString::to_string).collect();
+            (heading.title(), paths)
+        })
+        .collect();
+    assert_eq!(
+        headings,
+        [
+            (
+                "Browse the catalogue",
+                vec![
+                    "books list".to_owned(),
+                    "books show".to_owned(),
+                    "books summarize".to_owned(),
+                    "books remove".to_owned(),
+                ]
+            ),
+            (
+                "Explore the commands",
+                vec![
+                    "commands list".to_owned(),
+                    "schemas list".to_owned(),
+                    "schemas show".to_owned(),
+                ]
+            ),
+            (
+                "Review how shelf is used",
+                vec!["self usage".to_owned(), "self figures list".to_owned()]
+            ),
+        ]
     );
 }
 
