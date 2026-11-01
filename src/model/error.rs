@@ -102,6 +102,9 @@ impl fmt::Display for LoadError {
                     (Problem::NotDocument(NotDocument::MissingSchema(id)), _) => {
                         write!(f, "printed no schema for {id}, which schemas list names")
                     }
+                    (Problem::NotDocument(NotDocument::Control), _) => {
+                        f.write_str("names a command or an argument with a control character")
+                    }
                     (Problem::NotDocument(_), _) => {
                         f.write_str("printed something other than the crumbkit document it names")
                     }
@@ -179,6 +182,9 @@ pub enum NotDocument {
     /// `schemas show` printed no schema for this id, which `schemas list`
     /// named.
     MissingSchema(String),
+    /// A command word or an argument name holds a control character, which
+    /// a command line that flightdeck shows could not show.
+    Control,
 }
 
 /// Returns the exit code that a failure's `exit` field holds, or null when
@@ -186,7 +192,7 @@ pub enum NotDocument {
 pub(crate) fn exit_code(exit: Exit) -> FieldValue<'static> {
     match exit {
         Exit::Code(code) => FieldValue::from(code),
-        Exit::Signal | Exit::TimedOut | Exit::Unknown => FieldValue::Null,
+        Exit::Signal(_) | Exit::TimedOut | Exit::Unknown => FieldValue::Null,
     }
 }
 

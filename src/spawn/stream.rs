@@ -284,11 +284,21 @@ pub(crate) struct Events {
     stopper: Stopper,
 }
 
+/// No line and no end arrived within the time that a caller waited.
+#[derive(Debug)]
+pub(crate) struct Silent;
+
 impl Events {
     /// Waits for the next line or the end, and returns `None` once the end
     /// has been returned.
     pub(crate) fn recv(&self) -> Option<Event> {
         self.receiver.recv()
+    }
+
+    /// Waits at most `timeout` for the next line or the end, as
+    /// [`Events::recv`] does, and returns [`Silent`] when neither arrived.
+    pub(crate) fn recv_timeout(&self, timeout: Duration) -> Result<Option<Event>, Silent> {
+        self.receiver.recv_by(Instant::now() + timeout)
     }
 }
 

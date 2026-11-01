@@ -24,6 +24,7 @@ use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+use unicode_general_category::{GeneralCategory, get_general_category};
 
 pub use self::argument::{Argument, Arity, CrumbkitFlag, Help, Kind};
 pub use self::command::{
@@ -143,6 +144,9 @@ impl Tool {
                     .collect(),
             }]
         });
+        if has_control(&name) || commands.iter().any(has_control_name) {
+            return Err(NotDocument::Control);
+        }
         let version = version_line
             .strip_prefix(&name)
             .unwrap_or(version_line)
@@ -159,6 +163,34 @@ impl Tool {
             links,
         })
     }
+}
+
+/// Returns true when a word of `command`'s path or the name of one of its
+/// arguments holds a character that [`has_control`] finds.
+fn has_control_name(command: &Command) -> bool {
+    command.path().words().iter().any(|word| has_control(word))
+        || command
+            .arguments()
+            .iter()
+            .any(|argument| has_control(argument.name()))
+}
+
+/// Returns true when `text` holds a control character, a format character
+/// (Unicode's category Cf, such as a bidirectional control, a zero-width
+/// space or a soft hyphen), or a line or paragraph separator, which a
+/// display line would show as something else or not at all.
+///
+/// RUST-10: flightdeck refuses such a name or value, which is plainer than
+/// quoting it. It handles every value that a person types on one line, and
+/// it misses a value that holds a newline or a tab, such as a note of
+/// several lines. Quoting each such character as `$'\n'` or `$'\u{202e}'`
+/// replaces the refusal when a tool takes such a value.
+pub(crate) fn has_control(text: &str) -> bool {
+    text.chars().any(|c| {
+        c.is_control()
+            || get_general_category(c) == GeneralCategory::Format
+            || matches!(c, '\u{2028}' | '\u{2029}')
+    })
 }
 
 /// A goal heading of the tool's help and the commands under it.
@@ -297,7 +329,7 @@ impl<'a> Answer<'a> {
             }),
             (Exit::Code(0), Stdout::OverLimit) => Err(fail(Problem::StdoutLimit)),
             (Exit::TimedOut, _) => Err(fail(Problem::TimeLimit)),
-            (Exit::Code(_) | Exit::Signal | Exit::Unknown, _) => Err(fail(Problem::Exit)),
+            (Exit::Code(_) | Exit::Signal(_) | Exit::Unknown, _) => Err(fail(Problem::Exit)),
         }
     }
 

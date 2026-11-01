@@ -62,7 +62,7 @@ pub use self::stream::{
     DRAIN_GRACE, Escalation, INTERRUPT_GRACE, LINE_LIMIT, Limit, Limits, QUEUE, TERMINATE_GRACE,
     TOTAL_LIMIT,
 };
-pub(crate) use self::stream::{Ended, Event, Events, Running, Stop, stream, wait_ended};
+pub(crate) use self::stream::{Ended, Event, Events, Running, Silent, Stop, stream, wait_ended};
 
 /// The time limit of each query.
 ///
@@ -163,8 +163,8 @@ impl<'a> Query<'a> {
 pub enum Exit {
     /// The child exited with this code.
     Code(i32),
-    /// A signal ended the child before it exited.
-    Signal,
+    /// A signal, by its number, ended the child before it exited.
+    Signal(i32),
     /// The time limit passed, and flightdeck stopped the child.
     TimedOut,
     /// flightdeck could not learn how the child ended, because waiting for it
@@ -400,9 +400,15 @@ fn wait<'scope>(
     }
 }
 
-/// Returns how a child with `status` ended.
+/// Returns how a child with `status` ended. A status has either a code or
+/// a signal on Unix, so the signal 0 never appears.
 fn exit_of(status: ExitStatus) -> Exit {
-    status.code().map_or(Exit::Signal, Exit::Code)
+    use std::os::unix::process::ExitStatusExt as _;
+
+    match status.code() {
+        Some(code) => Exit::Code(code),
+        None => Exit::Signal(status.signal().unwrap_or(0)),
+    }
 }
 
 /// Returns a reader thread's result, or a read error when the thread

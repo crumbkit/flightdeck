@@ -32,6 +32,7 @@ pub const CODES: &[&[&crumbkit::Code]] = &[
     model::LoadError::CODES,
     OpenError::CODES,
     runner::RunFailure::CODES,
+    runner::EndFailure::CODES,
 ];
 
 /// Runs flightdeck on `args`, whose first item is the program's name, and

@@ -3,7 +3,7 @@
 
 use serde_json::Value;
 
-use super::failure::RunFailure;
+use super::end_failure::EndFailure;
 use crate::model::{Command, ExitMeaning, Form, Tool, ToolFailure};
 use crate::spawn::{Ended, Exit, Limit, Limits, SpawnError, Stop};
 
@@ -27,7 +27,7 @@ pub enum Outcome {
     Cancelled,
     /// flightdeck's own failure: no document, an output limit, or a program
     /// that could not be followed.
-    Failed(RunFailure),
+    Failed(EndFailure),
 }
 
 /// What the outcome of one run reads beside the run's output: the tool's
@@ -62,7 +62,7 @@ impl Ending {
     pub(super) fn outcome(&self, last: Option<&str>, ended: Result<Ended, SpawnError>) -> Outcome {
         match ended {
             Ok(ended) => outcome(self, last, ended.exit(), ended.stopped(), ended.stderr()),
-            Err(source) => Outcome::Failed(RunFailure::Spawn {
+            Err(source) => Outcome::Failed(EndFailure::Spawn {
                 tool: self.tool.clone(),
                 source,
             }),
@@ -121,7 +121,7 @@ pub(super) fn outcome(
             Limit::Line => ending.limits.line(),
             Limit::Total => ending.limits.total(),
         };
-        return Outcome::Failed(RunFailure::OutputLimit { limit, bytes });
+        return Outcome::Failed(EndFailure::OutputLimit { limit, bytes });
     }
     let declared = |code: i32| code == 1 || ending.meaning(code).is_some();
     match (last_of(&ending.tool, last), exit) {
@@ -136,9 +136,9 @@ pub(super) fn outcome(
         _ => {
             let meaning = match exit {
                 Exit::Code(code) => ending.meaning(code).map(str::to_owned),
-                Exit::Signal | Exit::TimedOut | Exit::Unknown => None,
+                Exit::Signal(_) | Exit::TimedOut | Exit::Unknown => None,
             };
-            Outcome::Failed(RunFailure::no_document(
+            Outcome::Failed(EndFailure::no_document(
                 (ending.path.clone(), ending.line.clone()),
                 exit,
                 meaning,

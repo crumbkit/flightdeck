@@ -12,7 +12,7 @@ use std::io;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Instant;
 
-use super::{Ended, Event};
+use super::{Ended, Event, Silent};
 use crate::lock::{lock, wait, wait_for};
 use crate::spawn::SpawnError;
 
@@ -164,8 +164,32 @@ impl Receiver {
         while state.lines.is_empty() && !state.ended {
             state = wait(&shared.changed, state);
         }
+        shared.take(&mut state)
+    }
+
+    /// Waits for the next line or the end until `deadline`, as
+    /// [`Receiver::recv`] does, and returns [`Silent`] when neither arrived
+    /// by then.
+    pub(super) fn recv_by(&self, deadline: Instant) -> Result<Option<Event>, Silent> {
+        let shared = &*self.0;
+        let mut state = lock(&shared.state);
+        while state.lines.is_empty() && !state.ended {
+            let left = deadline.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                return Err(Silent);
+            }
+            state = wait_for(&shared.changed, state, left);
+        }
+        Ok(shared.take(&mut state))
+    }
+}
+
+impl Shared {
+    /// Takes the next line from `state`, or the end once no line is left,
+    /// and returns `None` once the end has been taken.
+    fn take(&self, state: &mut State) -> Option<Event> {
         if let Some(line) = state.lines.pop_front() {
-            shared.changed.notify_all();
+            self.changed.notify_all();
             return Some(Event::Line(line));
         }
         let lost = state.lost.take();
