@@ -4,14 +4,15 @@
 //!
 //! The library holds the whole program, and the `flightdeck` binary calls
 //! [`run_from`]. It exports the parser and the guide for flightdeck's
-//! convention tests, and the [`model`], [`spawn`], [`opener`] and
-//! [`server`] modules for its other tests. Its API makes no stability
+//! convention tests, and the [`model`], [`runner`], [`spawn`], [`opener`]
+//! and [`server`] modules for its other tests. Its API makes no stability
 //! promise.
 
 mod cli;
 pub mod model;
 mod open;
 pub mod opener;
+pub mod runner;
 pub mod server;
 pub mod spawn;
 
@@ -26,7 +27,11 @@ pub use crate::open::{OpenError, SERVER_FAILED};
 
 /// Every failure code that flightdeck declares, in one list for each error
 /// type, which its convention tests pass to crumbkit-test's checks.
-pub const CODES: &[&[&crumbkit::Code]] = &[model::LoadError::CODES, OpenError::CODES];
+pub const CODES: &[&[&crumbkit::Code]] = &[
+    model::LoadError::CODES,
+    OpenError::CODES,
+    runner::RunFailure::CODES,
+];
 
 /// Runs flightdeck on `args`, whose first item is the program's name, and
 /// returns the process's exit code.

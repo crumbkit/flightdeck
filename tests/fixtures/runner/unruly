@@ -1,0 +1,44 @@
+#!/bin/sh
+# unruly is a fake crumbkit tool for the runner's tests. It describes itself
+# with the documents beside it, and each of its commands misbehaves in one
+# way that a real tool might. It ignores crumbkit's own flags, which the
+# runner adds to every run.
+here=$(dirname "$0")
+
+case "$1 $2" in
+"--version ")
+  echo "unruly 0.1.0"
+  ;;
+"commands list")
+  cat "$here/unruly-commands-list.json"
+  ;;
+"schemas list")
+  echo '{"schema":"unruly/schemas-list/v1","data":[],"truncated":false}'
+  ;;
+"child panic")
+  echo "thread 'main' panicked at src/main.rs:3:5:" >&2
+  echo "the catalogue is gone" >&2
+  exit 101
+  ;;
+"child hang")
+  # The shell and its sleep both ignore SIGINT and SIGTERM, so only SIGKILL
+  # ends them.
+  trap '' INT TERM
+  echo '{"schema":"unruly/child-hang/v1","data":{"n":1}}'
+  echo '{"schema":"unruly/child-hang/v1","data":{"n":2}}'
+  sleep 30
+  ;;
+"child flood")
+  printf '%2000s\n' '' | tr ' ' a
+  ;;
+"child trace")
+  echo "{\"schema\":\"unruly/child-trace/v1\",\"data\":{\"traceparent\":\"$TRACEPARENT\"}}"
+  ;;
+"child pick")
+  echo '{"schema":"unruly/child-pick/v1","data":{}}'
+  ;;
+*)
+  echo "unruly does not know $*" >&2
+  exit 2
+  ;;
+esac

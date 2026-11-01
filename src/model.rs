@@ -34,6 +34,7 @@ pub use self::documents::{
     SchemasShow, StepCommand, ToolFailure,
 };
 pub use self::error::{LoadError, NotDocument, Problem, TOOL_LOAD, TOOL_NOT_FOUND};
+pub(crate) use self::error::{exit_code, last_lines};
 pub use self::links::Link;
 use self::wire::CommandRow;
 use crate::spawn::{self, Exit, Program, Query, SpawnError, Stdout};

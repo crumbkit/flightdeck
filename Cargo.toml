@@ -39,8 +39,8 @@ serde_json = { version = "1.0.151", default-features = false, features = ["std"]
 # page's server receives, into a fixed number of headers, with no
 # allocation of its own.
 httparse = { version = "1.10.1", default-features = false }
-# getrandom reads the page's launch code and token from the operating
-# system's random source.
+# getrandom reads the page's launch code and token, and the runner's
+# confirmation ids and trace id, from the operating system's random source.
 getrandom = { version = "0.4.3", default-features = false }
 # secrecy holds the launch code and the token, so their `Debug` prints a
 # placeholder and their memory is zeroed when they are dropped (BASE-24). The
@@ -61,12 +61,14 @@ tempfile = { version = "3.27.0", default-features = false }
 # browser, and on systems other than Unix for a tool's queries too. It has no
 # features.
 wait-timeout = { version = "0.2.1", default-features = false }
+# shlex quotes each word of a run's display line for a POSIX shell.
+shlex = { version = "2.0.1", default-features = false }
 
 [target.'cfg(unix)'.dependencies]
-# rustix waits for a child to exit without reaping it, kills the child's whole
-# process group once the child exits or the time limit passes, and bounds
-# each read of the child's pipes by the same deadline, all through safe
-# functions. The kill stops a descendant that holds the child's output open,
+# rustix waits for a child to exit without reaping it, signals the child's
+# whole process group once the child exits, the time limit passes or a run is
+# cancelled, and bounds each read of a query's pipes by its deadline, all
+# through safe functions. The kill stops a descendant that holds the child's output open,
 # unless it left the group. `process` holds the wait and the kill, and
 # `event` holds `poll`.
 rustix = { version = "1.1.6", default-features = false, features = ["std", "process", "event"] }

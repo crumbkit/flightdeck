@@ -1,10 +1,14 @@
 //! Starts a crumbkit tool as a child process and captures what it prints.
 //!
-//! This module is the only place that starts a process (PROC-1). It has two
-//! operations. [`open_browser`] opens the opener page in the default
-//! browser, and its module states its five items of PROC-2. `describe`
-//! runs one of the fixed queries that read a tool's description of itself.
-//! Each query states the five items of PROC-2:
+//! This module and its children are the only places that start a process
+//! (PROC-1), and the module and its child `stream` are the only places that
+//! start a thread (SVC-1). They have three operations. [`open_browser`]
+//! opens the opener page in the default browser, and its module states its
+//! five items of PROC-2. `stream` runs one command that the runner checked
+//! against the tool's model, and its module states its own five items of
+//! PROC-2. `describe` runs one of the fixed queries that read a tool's
+//! description of itself. Each query of `describe` states these five items
+//! of PROC-2:
 //!
 //! - Program: the name or path that the person gave. A name without a `/`
 //!   is found on the `PATH` that flightdeck inherited, and the person who
@@ -47,10 +51,16 @@ use std::thread::Scope;
 use std::time::{Duration, Instant};
 
 mod browser;
+mod stream;
+
 #[cfg(test)]
 mod tests;
 
 pub use self::browser::{BROWSER_TIME_LIMIT, open_browser};
+pub(crate) use self::stream::{Ended, Event, Running, Stop, stream};
+pub use self::stream::{
+    Escalation, INTERRUPT_GRACE, LINE_LIMIT, Limit, Limits, TERMINATE_GRACE, TOTAL_LIMIT,
+};
 
 /// The time limit of each query.
 ///

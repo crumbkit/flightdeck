@@ -1,0 +1,134 @@
+{
+  "schema": "unruly/commands-list/v1",
+  "data": [
+    {
+      "path": "unruly",
+      "about": "Misbehave in the ways a real tool might",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": null,
+      "exits": [],
+      "effects": null,
+      "writes": null
+    },
+    {
+      "path": "unruly child",
+      "about": "Run a child that misbehaves",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": null,
+      "exits": [],
+      "effects": null,
+      "writes": null
+    },
+    {
+      "path": "unruly child panic",
+      "about": "Exit with 101 and print a panic on standard error",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child hang",
+      "about": "Print two lines, then ignore SIGINT and SIGTERM until killed",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child flood",
+      "about": "Print one line of 2000 bytes",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child trace",
+      "about": "Print the TRACEPARENT variable",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child pick",
+      "about": "Take a colour from a fixed list",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "--colour",
+          "short": null,
+          "value_names": [
+            "COLOUR"
+          ],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [
+            "red",
+            "green"
+          ],
+          "help": null,
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    }
+  ],
+  "truncated": false
+}
