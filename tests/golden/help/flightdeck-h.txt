@@ -1,0 +1,15 @@
+Start a local web page for a crumbkit tool (in development)
+
+Usage: flightdeck [OPTIONS] <COMMAND>
+
+Commands:
+  commands  Explore flightdeck's commands
+  schemas   Explore the JSON documents that flightdeck prints
+
+Options:
+  -h, --help     Print help (see more with '--help')
+  -V, --version  Print version
+
+Global flags: --json, --fields <FIELD>, --long, --full. `flightdeck --help` describes them.
+Topics: exit-codes. `flightdeck help <TOPIC>` prints one.
+Next: flightdeck <COMMAND> -h

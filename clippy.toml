@@ -1,0 +1,58 @@
+# The union of the clippy.toml fragments of the profiles that flightdeck
+# adopts: base, cli, child-process and service. Each reason names the module
+# that owns the effect (BASE-5).
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-dbg-in-tests = true
+allow-print-in-tests = true
+allow-indexing-slicing-in-tests = true
+too-many-lines-threshold = 150 # BASE-10
+max-fn-params-bools = 3 # BASE-16
+
+disallowed-methods = [
+    # BASE-6: flightdeck reads no environment variable of its own. Its child
+    # processes inherit the environment through src/spawn.rs.
+    { path = "std::env::var", reason = "flightdeck reads no environment variable" },
+    { path = "std::env::var_os", reason = "flightdeck reads no environment variable" },
+    { path = "std::env::vars", reason = "flightdeck reads no environment variable" },
+    { path = "std::env::vars_os", reason = "flightdeck reads no environment variable" },
+    { path = "std::env::set_var", reason = "give a child its variables through spawn::Program::env" },
+    { path = "std::env::remove_var", reason = "give a child its variables through spawn::Program::env" },
+    { path = "std::env::current_dir", reason = "flightdeck reads no working directory" },
+    { path = "std::env::set_current_dir", reason = "pass the directory to the operation instead" },
+    # BASE-7
+    { path = "std::process::exit", reason = "return the exit code from main so destructors run" },
+    # BASE-11
+    { path = "std::thread::sleep", reason = "wait for an observable signal, such as a child's exit in src/spawn.rs" },
+    { path = "tokio::time::sleep", reason = "wait for an observable signal", allow-invalid = true },
+    # CLI-1: crumbkit's Output owns the standard streams.
+    { path = "std::io::stdout", reason = "write through crumbkit's Output" },
+    { path = "std::io::stderr", reason = "write through crumbkit's Output" },
+    { path = "std::io::stdin", reason = "read through crumbkit's Output, which knows whether input is a terminal" },
+    # PROC-1: src/spawn.rs starts every child process.
+    { path = "std::process::Command::new", reason = "start processes through src/spawn.rs" },
+    { path = "std::process::Command::spawn", reason = "start processes through src/spawn.rs" },
+    { path = "std::process::Command::status", reason = "start processes through src/spawn.rs" },
+    { path = "std::process::Command::output", reason = "start processes through src/spawn.rs" },
+    { path = "std::os::unix::process::CommandExt::exec", reason = "replacing this process bypasses src/spawn.rs" },
+    { path = "tokio::process::Command::new", reason = "start processes through src/spawn.rs", allow-invalid = true },
+    { path = "tokio::process::Command::spawn", reason = "start processes through src/spawn.rs", allow-invalid = true },
+    { path = "tokio::process::Command::status", reason = "start processes through src/spawn.rs", allow-invalid = true },
+    { path = "tokio::process::Command::output", reason = "start processes through src/spawn.rs", allow-invalid = true },
+    # SVC-1: a thread scope in src/spawn.rs joins its readers. No other
+    # module spawns a thread or a task.
+    { path = "std::thread::spawn", reason = "spawn inside a thread scope, which joins every thread" },
+    { path = "tokio::spawn", reason = "spawn through the task owner, which joins or aborts", allow-invalid = true },
+    { path = "tokio::task::spawn", reason = "spawn through the task owner, which joins or aborts", allow-invalid = true },
+    { path = "tokio::task::spawn_blocking", reason = "spawn through the task owner, which joins or aborts", allow-invalid = true },
+]
+
+disallowed-types = [
+    # PROC-1
+    { path = "std::process::Child", reason = "let src/spawn.rs hold the child, which owns its deadline and cleanup" },
+]
+
+# BASE-7: flightdeck uses no untyped-error crate.
+disallowed-macros = []

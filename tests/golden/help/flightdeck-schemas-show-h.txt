@@ -1,0 +1,16 @@
+Print the JSON Schema of each document
+
+Usage: flightdeck schemas show [OPTIONS] <ID>...
+
+Arguments:
+  <ID>...  The ids of the documents that `schemas list` lists, separated by spaces
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Examples:
+  flightdeck schemas show flightdeck/schemas-list/v1
+
+Effects: read-only, closed-world.
+Global flags: --json, --fields <FIELD>, --full. `flightdeck schemas show --help` describes them.
+Next: flightdeck schemas show --help explains each column.
