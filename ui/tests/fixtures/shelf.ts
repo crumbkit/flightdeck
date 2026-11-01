@@ -9,8 +9,9 @@ export const shelfReply: ModelReply = ModelReply.parse(model);
 export const shelf: Tool = shelfReply.tool;
 
 /**
- * shelf's model as a tool on crumbkit 0.1.0 gives it, whose help prints no
- * goal headings: one heading named after the tool holds every command.
+ * shelf's model with the headings that a tool on crumbkit 0.1.0 gives,
+ * whose help prints no goal headings: one heading named after the tool
+ * holds every command.
  */
 export const shelfWithoutGoals: Tool = {
   ...shelf,

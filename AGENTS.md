@@ -24,5 +24,6 @@
   for shelf, and an acceptance test fails when they differ. Rewrite it with
   `FIXTURES=overwrite pnpm run acceptance`, then `pnpm run fix`.
 - Every journey runs against the real server. A test of a tool without
-  goal headings, such as one built on crumbkit 0.1.0, reads a model with
-  none, as `shelfWithoutGoals` in `ui/tests/fixtures/shelf.ts` does.
+  goal headings, such as one built on crumbkit 0.1.0, reads a model that
+  has one heading named after the tool, as `shelfWithoutGoals` in
+  `ui/tests/fixtures/shelf.ts` does.
