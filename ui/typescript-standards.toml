@@ -25,10 +25,10 @@ note = "The server does not embed the bundle yet, so no test serves it. The test
 [[decision]]
 id = "lanes"
 requirement = """
-- Lane: `ui` in ../.github/workflows/ci.yml, on each pull request and each push to main, on ubuntu-24.04. It runs every step of the pull-request lane from `install` on, in ui/. The `workflows` step runs in the Rust lane's `gate` job, which checks the same files. Its budget is fifteen minutes, the job's timeout. A merge waits for it.
+- Lane: `gate` in ../.github/workflows/ci.yml, on each pull request and each push to main. After the Rust lane's steps it runs every step of the pull-request lane from `install` on, in ui/. The `workflows` step is the Rust lane's, which checks the same files. Its budget is twenty minutes, the job's timeout, for both lanes together. A merge waits for it, and it is the one check that branch protection requires.
 - Lane: `advisories` in ../.github/workflows/ci.yml, daily at 06:43 UTC and on each push to main, runs `pnpm audit` in ui/ after the Rust advisories. Nothing waits for it.
 """
-reason = "The page's lane runs beside the Rust lane, so neither waits for the other. flightdeck has no release yet, so an advisory found after merge only means a pull request that moves the affected pin."
+reason = "One required check covers the Rust lane and the page's, so branch protection names one job. flightdeck has no release yet, so an advisory found after merge only means a pull request that moves the affected pin."
 realizations = ["../.github/workflows/ci.yml"]
 
 [[decision]]
