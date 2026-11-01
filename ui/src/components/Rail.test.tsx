@@ -9,7 +9,7 @@ const paths = shelfWithoutGoals.commands.map((each) => each.path.join(" "));
 
 describe("a tool without goal headings", () => {
   it("has a rail with no heading and a button for every command", () => {
-    render(<Rail tool={shelfWithoutGoals} selected={null} onChoose={() => {}} />);
+    render(<Rail tool={shelfWithoutGoals} selected={null} readOnly={false} onChoose={() => {}} />);
     const rail = screen.getByRole("navigation", { name: "Commands" });
 
     expect(within(rail).queryAllByRole("heading")).toHaveLength(0);
