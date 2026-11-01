@@ -425,7 +425,8 @@ fn a_program_that_cannot_be_started_for_another_reason_is_tool_load_with_no_exit
 #[test]
 fn the_time_limit_covers_every_query_of_a_load_together() {
     // Each query takes 0.4 seconds, well within the limit of 1 second, but
-    // the third query passes the limit for the load as a whole.
+    // the load as a whole passes it. Which query passes it depends on how
+    // fast the machine starts each one, so the test names none.
     let (_directory, path) = fake_crumbkit_tool(
         r#"{"schema":"fake/schemas-show/v1","data":[{"id":"fake/things-list/v1","schema":{}}]}"#,
         "0.4",
@@ -437,11 +438,5 @@ fn the_time_limit_covers_every_query_of_a_load_together() {
     assert_eq!(
         field(&error, "problem"),
         Some(FieldValue::from("time_limit"))
-    );
-    assert_eq!(
-        field(&error, "command"),
-        Some(FieldValue::from(
-            "schemas list --json --full --all --no-input"
-        ))
     );
 }
