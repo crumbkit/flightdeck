@@ -1,7 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import { ApiError } from "@/api/client";
 import { describeFailure, fieldErrorOf, isSignedOut } from "@/api/failure";
-import type { Command, Example, ModelReply } from "@/api/model";
+import type { Command, Example, Link, ModelReply } from "@/api/model";
 import { type RunRequest, streamRun } from "@/api/runs";
 import { Composer, type FieldError } from "@/components/Composer";
 import { Palette } from "@/components/Palette";
@@ -12,6 +12,7 @@ import { Transcript } from "@/components/Transcript";
 import { Welcome } from "@/components/Welcome";
 import { requestOfExample } from "@/lib/example";
 import { type Draft, draftFrom, emptyDraft, lineOf, missing, requestOf } from "@/lib/form";
+import { cellLinkOf, filled } from "@/lib/links";
 import { whyNotRunnable } from "@/lib/rail";
 import { withPageSize } from "@/lib/table";
 import { transcript } from "@/lib/transcript";
@@ -131,6 +132,14 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     }
   };
 
+  // An inferred link fills the target's composer and runs nothing.
+  const openLink = (link: Link, value: string) => {
+    const target = tool.commands.find((each) => each.path.join(" ") === link.target.join(" "));
+    if (target !== undefined) {
+      choose(target, filled(target, link.argument, value));
+    }
+  };
+
   const showRun = (number: number) => {
     document.getElementById(`run-${number}`)?.scrollIntoView({ block: "nearest" });
   };
@@ -160,16 +169,22 @@ export function ToolPage({ reply, onSignedOut }: Props) {
         <main className="flex min-w-0 flex-1 flex-col">
           <Transcript size={size}>
             <Welcome tool={tool} onExample={runExample} />
-            {runs.map((run) => (
-              <RunCard
-                key={run.number}
-                run={run}
-                command={commandAt(run.request)}
-                onEdit={() => edit(run.number)}
-                onRunAgain={() => start(run.request)}
-                onPageSize={(pageSize) => start(withPageSize(run.request, pageSize))}
-              />
-            ))}
+            {runs.map((run) => {
+              const command = commandAt(run.request);
+              const link = command === undefined ? null : cellLinkOf(tool, command);
+              return (
+                <RunCard
+                  key={run.number}
+                  run={run}
+                  command={command}
+                  link={link}
+                  onEdit={() => edit(run.number)}
+                  onRunAgain={() => start(run.request)}
+                  onPageSize={(pageSize) => start(withPageSize(run.request, pageSize))}
+                  onOpenLink={(value) => link !== null && openLink(link, value)}
+                />
+              );
+            })}
           </Transcript>
           {composing === null ? (
             <p className="bg-card text-muted-foreground m-0 border-t px-4 py-3">
@@ -177,6 +192,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
             </p>
           ) : (
             <Composer
+              tool={tool}
               command={composing.command}
               draft={composing.draft}
               editing={composing.editing}

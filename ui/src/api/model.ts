@@ -7,7 +7,7 @@ import { getJson } from "./client";
 // Schemas.
 
 /** A command's words below the tool's name, such as ["books", "list"]. */
-const CommandPath = z.array(z.string()).min(1);
+export const CommandPath = z.array(z.string()).min(1);
 export type CommandPath = z.infer<typeof CommandPath>;
 
 const Arity = z.discriminatedUnion("kind", [
@@ -73,12 +73,24 @@ const Heading = z.object({
   commands: z.array(CommandPath),
 });
 
+/**
+ * A link that the model inferred: the `id` column of the source's rows
+ * fills the target's argument, such as `<ID>`.
+ */
+const Link = z.object({
+  source: CommandPath,
+  target: CommandPath,
+  argument: z.string(),
+});
+export type Link = z.infer<typeof Link>;
+
 const Tool = z.object({
   name: z.string().min(1),
   version: z.string(),
   about: z.string().nullable(),
   headings: z.array(Heading),
   commands: z.array(Command),
+  links: z.array(Link),
 });
 export type Tool = z.infer<typeof Tool>;
 

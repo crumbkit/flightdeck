@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, useState } from "react";
-import type { Command } from "@/api/model";
+import type { Command, Link } from "@/api/model";
+import { cellLinkWords, isLinkColumn } from "@/lib/links";
 import {
   allColumnsOf,
   columnsOf,
@@ -21,6 +22,9 @@ type Props = {
   onView: (view: View) => void;
   onPageSize: (size: PageSize) => void;
   label: string;
+  /** The link that each `id` cell opens, or null for none. */
+  link: Link | null;
+  onOpenLink: (value: string) => void;
 };
 
 const sizeLabels: Record<PageSize, string> = {
@@ -37,7 +41,17 @@ const sizeLabels: Record<PageSize, string> = {
  * listing ends with crumbkit's footer and its page sizes, each of which
  * runs the command again in a new card.
  */
-export function ResultTable({ command, rows, listing, view, onView, onPageSize, label }: Props) {
+export function ResultTable({
+  command,
+  rows,
+  listing,
+  view,
+  onView,
+  onPageSize,
+  label,
+  link,
+  onOpenLink,
+}: Props) {
   const [open, setOpen] = useState<number | null>(null);
   const columns = columnsOf(command, rows, view);
   const every = allColumnsOf(command, rows);
@@ -144,7 +158,11 @@ export function ResultTable({ command, rows, listing, view, onView, onPageSize, 
                           : "border-b px-2.5 py-1.5 align-top"
                       }
                     >
-                      <CellValue value={row[column.name]} />
+                      <Cell
+                        value={row[column.name]}
+                        link={isLinkColumn(column.name) ? link : null}
+                        onOpenLink={onOpenLink}
+                      />
                     </td>
                   ))}
                 </tr>
@@ -182,5 +200,31 @@ export function ResultTable({ command, rows, listing, view, onView, onPageSize, 
         </div>
       )}
     </div>
+  );
+}
+
+type CellProps = { value: unknown; link: Link | null; onOpenLink: (value: string) => void };
+
+/**
+ * One cell. An `id` cell that an inferred link starts from has a dotted
+ * underline and fills the linked command's composer when pressed. It runs
+ * nothing.
+ */
+function Cell({ value, link, onOpenLink }: CellProps) {
+  if (link === null || (typeof value !== "string" && typeof value !== "number")) {
+    return <CellValue value={value} />;
+  }
+  const text = String(value);
+  const words = cellLinkWords(link, text);
+  return (
+    <button
+      type="button"
+      title={words}
+      aria-label={words}
+      onClick={() => onOpenLink(text)}
+      className="cursor-pointer underline decoration-dotted underline-offset-4"
+    >
+      {text}
+    </button>
   );
 }

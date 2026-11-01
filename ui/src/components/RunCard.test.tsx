@@ -34,9 +34,11 @@ describe("RunCard", () => {
       <RunCard
         run={run}
         command={command(shelf, "books show")}
+        link={null}
         onEdit={noop}
         onRunAgain={noop}
         onPageSize={noop}
+        onOpenLink={noop}
       />,
     );
 
@@ -56,9 +58,11 @@ describe("RunCard", () => {
       <RunCard
         run={run}
         command={command(shelf, "books show")}
+        link={null}
         onEdit={noop}
         onRunAgain={noop}
         onPageSize={noop}
+        onOpenLink={noop}
       />,
     );
 

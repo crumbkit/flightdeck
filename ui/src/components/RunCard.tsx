@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { useState } from "react";
 import { notStartedWord } from "@/api/failure";
-import type { Command } from "@/api/model";
+import type { Command, Link } from "@/api/model";
 import { resultOf } from "@/api/result";
 import { elapsedWords } from "@/lib/duration";
 import type { PageSize, View } from "@/lib/table";
@@ -14,9 +14,12 @@ import { ResultTable } from "./ResultTable";
 type Props = {
   run: Run;
   command: Command | undefined;
+  /** The link that each `id` cell of the result opens, or null for none. */
+  link: Link | null;
   onEdit: () => void;
   onRunAgain: () => void;
   onPageSize: (size: PageSize) => void;
+  onOpenLink: (value: string) => void;
 };
 
 /** The status of a run as a word, and whether it failed. */
@@ -56,7 +59,7 @@ function timeOf(iso: string | null): string | null {
  * One run in the transcript: its line, start time, duration and exit, its
  * result, and Edit, Run again, Copy and a JSON view.
  */
-export function RunCard({ run, command, onEdit, onRunAgain, onPageSize }: Props) {
+export function RunCard({ run, command, link, onEdit, onRunAgain, onPageSize, onOpenLink }: Props) {
   const [view, setView] = useState<View>({ long: false, fields: null });
   const [json, setJson] = useState(false);
   const { state } = run;
@@ -104,7 +107,15 @@ export function RunCard({ run, command, onEdit, onRunAgain, onPageSize }: Props)
         {json ? (
           <JsonView run={run} />
         ) : (
-          <Body run={run} command={command} view={view} onView={setView} onPageSize={onPageSize} />
+          <Body
+            run={run}
+            command={command}
+            view={view}
+            onView={setView}
+            onPageSize={onPageSize}
+            link={link}
+            onOpenLink={onOpenLink}
+          />
         )}
       </div>
     </section>
@@ -130,9 +141,11 @@ type BodyProps = {
   view: View;
   onView: (view: View) => void;
   onPageSize: (size: PageSize) => void;
+  link: Link | null;
+  onOpenLink: (value: string) => void;
 };
 
-function Body({ run, command, view, onView, onPageSize }: BodyProps) {
+function Body({ run, command, view, onView, onPageSize, link, onOpenLink }: BodyProps) {
   const { state } = run;
   switch (state.kind) {
     case "starting":
@@ -179,6 +192,8 @@ function Body({ run, command, view, onView, onPageSize }: BodyProps) {
                   onView={onView}
                   onPageSize={onPageSize}
                   label={label}
+                  link={link}
+                  onOpenLink={onOpenLink}
                 />
               )}
               <ItemFailures failures={result.failures} />
