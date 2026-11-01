@@ -1,6 +1,8 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { makeQueryClient } from "@/queryClient";
 import { ToolPage } from "@/routes/ToolPage";
 import { shelfReply } from "../../tests/fixtures/shelf";
 
@@ -24,7 +26,11 @@ afterEach(() => {
 });
 
 function renderPage() {
-  render(<ToolPage reply={shelfReply} onSignedOut={() => undefined} />);
+  render(
+    <QueryClientProvider client={makeQueryClient()}>
+      <ToolPage reply={shelfReply} onSignedOut={() => undefined} />
+    </QueryClientProvider>,
+  );
   return { user: userEvent.setup(), line: screen.getByRole("textbox", { name: /Command line/ }) };
 }
 

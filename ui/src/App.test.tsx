@@ -13,10 +13,16 @@ type Sent = { path: string; method: string; headers: Headers; body: string | nul
 
 /**
  * Stubs fetch with the server's routes: the session exchange, which accepts
- * only `code`, the model and a run of books show, with a keepalive line.
- * With `cut`, the run's stream closes before its ended line.
+ * only `code`, the model, a cancel, and a run of books show, with a
+ * keepalive line. With `cut`, the run's stream closes before its ended
+ * line. With `runBody`, the run answers with that stream instead.
  */
-function stubServer(code: string, cut = false, runStatus = 200): Sent[] {
+function stubServer(
+  code: string,
+  cut = false,
+  runStatus = 200,
+  runBody: ReadableStream<Uint8Array> | null = null,
+): Sent[] {
   const sent: Sent[] = [];
   vi.stubGlobal("fetch", async (path: string, init: RequestInit) => {
     const body = typeof init.body === "string" ? init.body : null;
@@ -28,6 +34,12 @@ function stubServer(code: string, cut = false, runStatus = 200): Sent[] {
     }
     if (path === "/api/model") {
       return Response.json(shelfReply);
+    }
+    if (path.endsWith("/cancel")) {
+      return new Response(null, { status: 204 });
+    }
+    if (runBody !== null) {
+      return new Response(runBody, { headers: { "Content-Type": "application/x-ndjson" } });
     }
     if (runStatus !== 200) {
       return Response.json(
@@ -60,6 +72,45 @@ function stubServer(code: string, cut = false, runStatus = 200): Sent[] {
   return sent;
 }
 
+/**
+ * Returns a run's stream that sends `started` with the id r1 and the line
+ * of books show 2 with its result, and then breaks, or, with `open`, stays
+ * open until the test ends.
+ */
+function streamThen(end: "break" | "open"): ReadableStream<Uint8Array> {
+  const lines = [
+    { event: "started", run: "r1", line: "shelf books show 2", started_at: "2026-11-02T09:00:00Z" },
+    {
+      event: "line",
+      text: JSON.stringify({
+        schema: "shelf/books-show/v1",
+        data: [{ id: 2, title: "Frankenstein" }],
+      }),
+    },
+  ];
+  const bytes = new TextEncoder().encode(lines.map((line) => `${JSON.stringify(line)}\n`).join(""));
+  let pulls = 0;
+  return new ReadableStream({
+    pull(controller) {
+      pulls += 1;
+      if (pulls === 1) {
+        controller.enqueue(bytes);
+      } else if (end === "break") {
+        controller.error(new TypeError("network error"));
+      }
+    },
+  });
+}
+
+/** Opens books show in the composer, enters 2 and presses Run. */
+async function runBooksShow(user: ReturnType<typeof userEvent.setup>) {
+  await screen.findByRole("region", { name: "Welcome to shelf" });
+  const rail = screen.getByRole("navigation", { name: "Commands" });
+  await user.click(within(rail).getByRole("button", { name: /books show/ }));
+  await user.type(screen.getByLabelText(/The ids of the books to show/), "2 ");
+  await user.click(screen.getByRole("button", { name: /Run/ }));
+}
+
 function renderApp(code: string | null) {
   return render(
     <QueryClientProvider client={makeQueryClient()}>
@@ -81,7 +132,6 @@ describe("App", () => {
     expect(await screen.findByRole("region", { name: "Welcome to shelf" })).toBeInTheDocument();
     expect(readToken()).toBe("token-for-test");
     const kept = Object.keys(window.localStorage).map((key) => window.localStorage.getItem(key));
-    expect(kept).not.toContain("token-for-test");
     expect(kept.join(" ")).not.toContain("token-for-test");
     expect(sent.filter((each) => each.path === "/api/session")).toHaveLength(1);
     const model = sent.find((each) => each.path === "/api/model");
@@ -151,5 +201,37 @@ describe("App", () => {
       await screen.findByRole("region", { name: "This page is not signed in" }),
     ).toBeInTheDocument();
     expect(readToken()).toBeNull();
+  });
+
+  it("keeps the rows drawn when the connection breaks mid-run, and says that it broke", async () => {
+    stubServer("launch-code-for-test", false, 200, streamThen("break"));
+    const user = userEvent.setup();
+    renderApp("launch-code-for-test");
+
+    await runBooksShow(user);
+
+    const card = await screen.findByRole("region", { name: /Run 1: shelf books show 2, cut off/ });
+    expect(within(card).getByText("Frankenstein")).toBeInTheDocument();
+    expect(within(card).getByRole("alert")).toHaveTextContent(
+      /connection to flightdeck broke before the run ended/,
+    );
+    expect(within(card).getByRole("alert")).not.toHaveTextContent(/[Rr]eload/);
+  });
+
+  it("never cancels a run on Esc, and cancels the newest running run on ⌘.", async () => {
+    const sent = stubServer("launch-code-for-test", false, 200, streamThen("open"));
+    const user = userEvent.setup();
+    renderApp("launch-code-for-test");
+    await runBooksShow(user);
+    await screen.findByRole("button", { name: "Cancel" });
+
+    await user.keyboard("{Escape}");
+    expect(sent.filter((each) => each.path.endsWith("/cancel"))).toHaveLength(0);
+    await user.keyboard("{Meta>}.{/Meta}");
+
+    const cancels = sent.filter((each) => each.path.endsWith("/cancel"));
+    expect(cancels.map((each) => [each.method, each.path])).toEqual([
+      ["POST", "/api/runs/r1/cancel"],
+    ]);
   });
 });

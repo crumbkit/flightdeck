@@ -15,6 +15,11 @@ type Props = {
   command: Command;
   draft: Draft;
   editing: number | null;
+  /**
+   * Changes each time the composer should take focus, such as on each Edit,
+   * or null when it should not.
+   */
+  focus: number | null;
   readOnly: boolean;
   fieldError: FieldError | null;
   /** True while the line holds a word the tool would refuse, which keeps Run off. */
@@ -31,27 +36,34 @@ type Props = {
  * or Ctrl-↩ presses from anywhere in the form. It sends structured values.
  */
 export function Composer(props: Props) {
-  const { command, draft, editing, readOnly, lineRefused, onRun, onStopEditing, onShowRun } = props;
+  const { command, draft, editing, focus, readOnly, lineRefused, onRun, onStopEditing, onShowRun } =
+    props;
   const form = formOf(command);
   const unset = missing(command, draft);
   const blocked = whyNotRunnable(command, readOnly);
   const runnable = blocked === null && unset.length === 0 && !lineRefused;
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Edit moves focus to the first text field or list and selects its
-  // text, so the person can type the new value at once.
+  // Each Edit moves focus to the first field, which may be a text field, a
+  // chips field, a list or a checkbox, and selects its text, so the person
+  // can type the new value at once. A first field under "More options" opens
+  // that section first.
   useEffect(() => {
-    if (editing === null) {
+    if (focus === null) {
       return;
     }
     const field = formRef.current?.querySelector<HTMLInputElement | HTMLSelectElement>(
-      "input[type=text], select",
+      "input[type=text], input[type=checkbox], select",
     );
+    const section = field?.closest("details");
+    if (section !== null && section !== undefined) {
+      section.open = true;
+    }
     field?.focus();
-    if (field instanceof HTMLInputElement) {
+    if (field instanceof HTMLInputElement && field.type === "text") {
       field.select();
     }
-  }, [editing]);
+  }, [focus]);
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();

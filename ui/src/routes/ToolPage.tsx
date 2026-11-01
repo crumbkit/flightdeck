@@ -1,8 +1,10 @@
+import { useMutation } from "@tanstack/react-query";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { ApiError } from "@/api/client";
 import { describeFailure, fieldErrorOf, isSignedOut } from "@/api/failure";
 import type { Command, Example, ModelReply } from "@/api/model";
-import { type RunRequest, streamRun, type Value } from "@/api/runs";
+import { cancelRun, type RunEvent, type RunRequest, streamRun, type Value } from "@/api/runs";
+import { frameQueue } from "@/clock";
 import { Composer, type FieldError } from "@/components/Composer";
 import { LineEditor, shownLine, type Typed } from "@/components/LineEditor";
 import { Palette } from "@/components/Palette";
@@ -27,8 +29,20 @@ import { whyNotRunnable } from "@/lib/rail";
 import { withPageSize } from "@/lib/table";
 import { transcript } from "@/lib/transcript";
 
-/** The composer's command, what it holds, and the run it edits, if any. */
-type Composing = { command: Command; draft: Draft; editing: number | null };
+/**
+ * The composer's command, what it holds, the run it edits, if any, and a
+ * number that changes each time the composer should take focus.
+ */
+type Composing = { command: Command; draft: Draft; editing: number | null; focus: number | null };
+
+/** Returns the page's words for a failed cancel, or null when the run had already ended. */
+function cancelFailure(error: unknown): string | null {
+  const ended =
+    error instanceof ApiError &&
+    error.failure.kind === "status" &&
+    error.failure.problem?.code === "flightdeck::run::not_running";
+  return ended ? null : describeFailure(error);
+}
 
 type Props = {
   reply: ModelReply;
@@ -48,6 +62,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
   const [typed, setTyped] = useState<Typed | null>(null);
   const [finding, setFinding] = useState(false);
   const counter = useRef(0);
+  const focuses = useRef(0);
   // Each running run's controller, by its number. Leaving the page aborts
   // every run, which closes its stream, and the server cancels the run.
   const controllers = useRef(new Map<number, AbortController>());
@@ -74,6 +89,29 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  // The page holds each streamed run in the transcript's reducer, and a
+  // cancel in a mutation (APP-11 in typescript-standards.toml).
+  const cancel = useMutation({ mutationFn: cancelRun });
+  const { mutate: cancelById } = cancel;
+
+  // ⌘. or Ctrl-. cancels the newest running run, as in a terminal. Esc never
+  // cancels, because it also closes the palette, and a stray Esc must not
+  // stop a run.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "." || !(event.metaKey || event.ctrlKey)) {
+        return;
+      }
+      const newest = runs.findLast((run) => run.state.kind === "running" && run.state.id !== null);
+      if (newest?.state.kind === "running" && newest.state.id !== null) {
+        event.preventDefault();
+        cancelById(newest.state.id);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [runs, cancelById]);
+
   const commandAt = (request: RunRequest) =>
     tool.commands.find((each) => each.path.join(" ") === request.path.join(" "));
 
@@ -88,16 +126,31 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     apply({ type: "add", number, request, line: lineOf(tool.name, command, request), long });
     const controller = new AbortController();
     controllers.current.set(number, controller);
-    streamRun({
-      request,
-      onEvent: (event) => apply({ type: "event", number, event }),
-      signal: controller.signal,
-    })
-      .then(() => apply({ type: "closed", number }))
+    // The events of one frame reach the transcript together, so a fast
+    // stream draws once per frame. A tool's refusal of the line marks the
+    // composer's field, as the server's does.
+    const queue = frameQueue<RunEvent>((events) => {
+      apply({ type: "events", number, events });
+      for (const event of events) {
+        if (event.event === "ended" && event.outcome.kind === "tool_failure") {
+          const { failure } = event.outcome;
+          const marked = fieldErrorOf(failure, failure.message ?? "");
+          if (marked !== null) {
+            setFieldError(marked);
+          }
+        }
+      }
+    });
+    streamRun({ request, onEvent: queue.push, signal: controller.signal })
+      .then(() => {
+        queue.flush();
+        apply({ type: "closed", number });
+      })
       .catch((error: unknown) => {
         if (controller.signal.aborted) {
           return;
         }
+        queue.flush();
         if (isSignedOut(error)) {
           onSignedOut();
           return;
@@ -118,8 +171,27 @@ export function ToolPage({ reply, onSignedOut }: Props) {
   };
 
   const choose = (command: Command, draft: Draft = emptyDraft(command)) => {
-    setComposing({ command, draft, editing: null });
+    setComposing({ command, draft, editing: null, focus: null });
     setFieldError(null);
+  };
+
+  const nextFocus = () => {
+    focuses.current += 1;
+    return focuses.current;
+  };
+
+  // A chip fills the composer and moves focus to it, and runs nothing.
+  const compose = (request: RunRequest) => {
+    const command = commandAt(request);
+    if (command !== undefined) {
+      setComposing({
+        command,
+        draft: draftFrom(command, request),
+        editing: null,
+        focus: nextFocus(),
+      });
+      setFieldError(null);
+    }
   };
 
   const runExample = (command: Command, example: Example) => {
@@ -142,7 +214,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
   const fromLine = (command: Command, values: Record<string, Value>): Composing => {
     const draft = draftFrom(command, { path: command.path, values });
     if (composing === null || composing.command !== command) {
-      return { command, draft, editing: null };
+      return { command, draft, editing: null, focus: null };
     }
     return {
       ...composing,
@@ -164,7 +236,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     const command = run === undefined ? undefined : commandAt(run.request);
     if (run !== undefined && command !== undefined) {
       const draft = setValue(draftFrom(command, run.request), "--long", run.long ? true : null);
-      setComposing({ command, draft, editing: number });
+      setComposing({ command, draft, editing: number, focus: nextFocus() });
     }
   };
 
@@ -214,10 +286,20 @@ export function ToolPage({ reply, onSignedOut }: Props) {
               <RunCard
                 key={run.number}
                 run={run}
+                tool={tool}
                 command={commandAt(run.request)}
+                cancelWords={
+                  cancel.isError &&
+                  run.state.kind === "running" &&
+                  cancel.variables === run.state.id
+                    ? cancelFailure(cancel.error)
+                    : null
+                }
                 onEdit={() => edit(run.number)}
                 onRunAgain={() => start(run.request, run.long)}
+                onCancel={cancelById}
                 onPageSize={(pageSize) => start(withPageSize(run.request, pageSize), run.long)}
+                onCompose={compose}
               />
             ))}
           </Transcript>
@@ -234,6 +316,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
                 command={composing.command}
                 draft={composing.draft}
                 editing={composing.editing}
+                focus={composing.focus}
                 readOnly={reply.read_only}
                 fieldError={fieldError}
                 lineRefused={lineRefused}

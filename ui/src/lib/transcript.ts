@@ -4,7 +4,8 @@ import type { Outcome, RunEvent, RunRequest } from "@/api/runs";
 /** Where one run is. */
 export type RunState =
   | { kind: "starting" }
-  | { kind: "running"; startedAt: string; lines: string[] }
+  /** `id` is the id that the cancel route takes, or null when the server gave none. */
+  | { kind: "running"; id: string | null; startedAt: string; lines: string[] }
   | {
       kind: "ended";
       startedAt: string | null;
@@ -34,7 +35,8 @@ export type Run = {
 
 export type Action =
   | { type: "add"; number: number; request: RunRequest; line: string; long: boolean }
-  | { type: "event"; number: number; event: RunEvent }
+  /** The events of one run that arrived during one animation frame, in order. */
+  | { type: "events"; number: number; events: RunEvent[] }
   | { type: "refused"; number: number; problem: FailureDocument | null; words: string }
   | { type: "broken"; number: number; words: string }
   | { type: "closed"; number: number };
@@ -66,8 +68,8 @@ export function transcript(runs: Run[], action: Action): Run[] {
           : { ...run, state: { kind: "broken", words } },
       );
     }
-    case "event":
-      return change(action.number, (run) => applyEvent(run, action.event));
+    case "events":
+      return change(action.number, (run) => action.events.reduce(applyEvent, run));
     case "closed":
       return change(action.number, closeRun);
   }
@@ -91,6 +93,7 @@ function applyEvent(run: Run, event: RunEvent): Run {
   const { state } = run;
   const lines = state.kind === "running" ? state.lines : [];
   const startedAt = state.kind === "running" ? state.startedAt : null;
+  const id = state.kind === "running" ? state.id : null;
   switch (event.event) {
     case "alive":
       return run;
@@ -98,12 +101,12 @@ function applyEvent(run: Run, event: RunEvent): Run {
       return {
         ...run,
         line: event.line,
-        state: { kind: "running", startedAt: event.started_at, lines: [] },
+        state: { kind: "running", id: event.run, startedAt: event.started_at, lines: [] },
       };
     case "line":
       return {
         ...run,
-        state: { kind: "running", startedAt: startedAt ?? "", lines: [...lines, event.text] },
+        state: { kind: "running", id, startedAt: startedAt ?? "", lines: [...lines, event.text] },
       };
     case "ended":
       return {
