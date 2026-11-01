@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { resultOf } from "./result";
+import { describe, expect, it, vi } from "vitest";
+import { resultOf, streamReader } from "./result";
 
 const frankenstein = { id: 2, title: "Frankenstein" };
 const notFound = (key: string, index: number) => ({
@@ -116,5 +116,25 @@ describe("resultOf", () => {
   it("finds no result in no output or in output that is not JSON", () => {
     expect(resultOf([], "document").result).toEqual({ kind: "none" });
     expect(resultOf(["Showing 4 of 6 books."], "document").result).toEqual({ kind: "none" });
+  });
+});
+
+describe("streamReader", () => {
+  it("parses each line of a growing stream once, however often it reads", () => {
+    const item = (position: number) =>
+      JSON.stringify({ schema: "reading/entries-stream/v1", data: { position } });
+    const read = streamReader();
+    const parse = vi.spyOn(JSON, "parse");
+
+    read([item(1), item(2)]);
+    const output = read([item(1), item(2), item(3)]);
+
+    expect(parse).toHaveBeenCalledTimes(3);
+    parse.mockRestore();
+    expect(output.result).toMatchObject({
+      kind: "table",
+      entries: [{ row: { position: 1 } }, { row: { position: 2 } }, { row: { position: 3 } }],
+    });
+    expect(output.document).toHaveLength(3);
   });
 });

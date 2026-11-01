@@ -81,8 +81,7 @@ function parse(line: string): unknown {
  */
 export function resultOf(lines: string[], form: Command["result"]["form"]): Output {
   if (form === "stream") {
-    const values = lines.map(parse);
-    return { document: values, result: streamOf(values), next: [] };
+    return streamReader()(lines);
   }
   const last = lines.at(-1);
   const document = last === undefined ? undefined : parse(last);
@@ -101,16 +100,37 @@ export function rowsOf(entries: Entry[]): Row[] {
   return entries.flatMap((entry) => (entry.kind === "row" ? [entry.row] : []));
 }
 
-function streamOf(values: unknown[]): Result {
-  const entries = values.flatMap((value): Entry[] => {
-    const item = StreamItem.safeParse(value);
-    if (item.success) {
-      return [{ kind: "row", row: item.data.data }];
+/** The entry of one line of a stream: a row, a failure, or none. */
+function streamEntryOf(value: unknown): Entry[] {
+  const item = StreamItem.safeParse(value);
+  if (item.success) {
+    return [{ kind: "row", row: item.data.data }];
+  }
+  const failure = ItemFailure.safeParse(value);
+  return failure.success ? [{ kind: "failure", failure: failure.data }] : [];
+}
+
+/**
+ * Returns a reader of one run's stream, which `resultOf` describes. A
+ * running card reads its lines again on every new line, so the reader
+ * keeps what it parsed and parses only the lines added since its last
+ * read. Lines fewer than it has read start it again.
+ */
+export function streamReader(): (lines: string[]) => Output {
+  let values: unknown[] = [];
+  let entries: Entry[] = [];
+  return (lines) => {
+    if (lines.length < values.length) {
+      values = [];
+      entries = [];
     }
-    const failure = ItemFailure.safeParse(value);
-    return failure.success ? [{ kind: "failure", failure: failure.data }] : [];
-  });
-  return { kind: "table", entries, listing: null };
+    if (lines.length > values.length) {
+      const added = lines.slice(values.length).map(parse);
+      values = [...values, ...added];
+      entries = [...entries, ...added.flatMap(streamEntryOf)];
+    }
+    return { document: values, result: { kind: "table", entries, listing: null }, next: [] };
+  };
 }
 
 /**
