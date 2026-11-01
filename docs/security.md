@@ -81,6 +81,22 @@ framing it. A navigation to an `/api/` path is refused.
 - **A refusal for a connection over the limit is written by the accept
   thread.** While it writes the 503 reply and waits up to half a second for
   the client to close, the server accepts no other connection.
+- **The launch code stays in the browser's history.** The browser records
+  the address with its fragment, so the code is in the history database.
+  The page that H4 builds removes the fragment with `history.replaceState`
+  before it exchanges the code. The code that remains in the history works
+  once and for at most 60 seconds, so by the time anyone reads it from
+  there it opens nothing.
+- **With `--no-browser`, the person has 60 seconds to open the page.** The
+  launch code's lifetime starts when flightdeck starts, so a person who
+  opens the opener page later than that gets a refusal and runs
+  `flightdeck open` again.
+- **The system's opener may open the page in an editor.** flightdeck hands
+  the opener page, an `.html` file, to `open` or `xdg-open`, which use the
+  system's association for HTML files. Where that association names an
+  editor, the page opens there and shows the launch code instead of using
+  it. The file is private to the user, so this exposes nothing to anyone
+  else.
 - **The placeholder page does not exchange the code.** The page that the
   server embeds says that it is not built yet, so the launch code stays in
   the address bar until it expires.
