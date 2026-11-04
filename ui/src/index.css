@@ -4,6 +4,7 @@
 /* Hallmark · pre-emit critique: P3 H3 E4 S2 R4 V3 · weakest: S, the look is any component-library tool; the direction branches answer it */
 /* Hallmark · waive 64 · the mono face marks commands, arguments, column names and run figures, which are code and figures · a developer reads a command name as the thing they would type */
 /* Hallmark · waive 39b · input.caret-foreground is a transparent overlay inside the 36px command box, and the box is the control · the overlay keeps the caret and selection over the highlighted line */
+/* Hallmark · waive 72 · div.bg-card is the composer pane, whose fields scroll inside it · the lines past its bottom edge are the scrolled rest of the form, and the Run row under it stays in reach */
 /* Hallmark · dismissed 49 · the long labels are the tool's own example sentences and a screen-reader note, shown as the tool wrote them */
 /* Hallmark · dismissed F1 · the straight quotes sit in the tool's own command descriptions, which the page shows verbatim */
 /* Hallmark · dismissed F4 · the example buttons are typographic links with no fill; the page's one filled button is Run */
@@ -41,6 +42,8 @@
 :root {
   color-scheme: light dark;
   --radius: 0.5rem;
+  /* The chips' corners: round by default, a direction may square them. */
+  --pill: 9999px;
   --sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
@@ -139,6 +142,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-pill: var(--pill);
 }
 
 @layer base {

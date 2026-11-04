@@ -21,7 +21,7 @@ export function Chip({ primary, title, onClick, children }: Props) {
       title={title}
       onClick={onClick}
       className={cn(
-        "transition-tint min-h-8 rounded-full border px-3 py-1 font-mono text-xs active:brightness-90",
+        "transition-tint rounded-pill min-h-8 border px-3 py-1 font-mono text-xs active:brightness-90",
         primary
           ? "bg-primary text-primary-foreground border-primary hover:bg-primary-hover"
           : "bg-muted text-foreground hover:bg-accent hover:border-input",

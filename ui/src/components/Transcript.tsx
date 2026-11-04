@@ -67,7 +67,7 @@ export function Transcript({ size, children }: Props) {
           <button
             type="button"
             onClick={toBottom}
-            className="bg-card text-primary hover:bg-accent lift-menu transition-tint active:bg-muted inline-flex min-h-8 items-center gap-1 rounded-full border px-3 py-1 text-xs"
+            className="bg-card text-primary hover:bg-accent lift-menu transition-tint active:bg-muted rounded-pill inline-flex min-h-8 items-center gap-1 border px-3 py-1 text-xs"
           >
             New rows
             <ArrowDown aria-hidden="true" className="size-3.5" />

@@ -96,43 +96,49 @@ export function Composer(props: Props) {
         event.preventDefault();
         runIfRunnable();
       }}
+      className="flex min-h-0 flex-col"
     >
-      <div className="mb-1 flex flex-wrap items-baseline gap-2.5">
-        <h2 className="m-0 text-lg font-semibold">
-          <CommandPathText command={command} />
-        </h2>
-        {editing !== null && (
-          <span className="text-muted-foreground text-xs">
-            Editing run {editing}{" "}
-            <button
-              type="button"
-              className="text-primary hover:underline"
-              onClick={() => onShowRun(editing)}
-            >
-              Show run {editing}
-            </button>
-          </span>
+      {/* The fields scroll on their own, so the Run row below stays in view. */}
+      <div className="-mx-1 min-h-0 overflow-y-auto px-1">
+        <div className="mb-1 flex flex-wrap items-baseline gap-2.5">
+          <h2 className="m-0 text-lg font-semibold">
+            <CommandPathText command={command} />
+          </h2>
+          {editing !== null && (
+            <span className="text-muted-foreground text-xs">
+              Editing run {editing}{" "}
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => onShowRun(editing)}
+              >
+                Show run {editing}
+              </button>
+            </span>
+          )}
+        </div>
+        {command.about !== null && (
+          <p className="text-muted-foreground mt-0 mb-2">{command.about}</p>
+        )}
+        <div className="flex flex-col gap-2.5">
+          {form.required.map((group) => (
+            <Field key={group.choices[0]?.name} group={group} {...props} />
+          ))}
+        </div>
+        {form.more.length > 0 && (
+          <details className="mt-2.5">
+            <summary className="text-primary inline-flex min-h-8 cursor-pointer items-center text-xs hover:underline">
+              More options
+            </summary>
+            <div className="mt-2 flex flex-col gap-2.5">
+              {form.more.map((group) => (
+                <Field key={group.choices[0]?.name} group={group} {...props} />
+              ))}
+            </div>
+          </details>
         )}
       </div>
-      {command.about !== null && <p className="text-muted-foreground mt-0 mb-2">{command.about}</p>}
-      <div className="flex flex-col gap-2.5">
-        {form.required.map((group) => (
-          <Field key={group.choices[0]?.name} group={group} {...props} />
-        ))}
-      </div>
-      {form.more.length > 0 && (
-        <details className="mt-2.5">
-          <summary className="text-primary inline-flex min-h-8 cursor-pointer items-center text-xs hover:underline">
-            More options
-          </summary>
-          <div className="mt-2 flex flex-col gap-2.5">
-            {form.more.map((group) => (
-              <Field key={group.choices[0]?.name} group={group} {...props} />
-            ))}
-          </div>
-        </details>
-      )}
-      <div className="mt-3 flex flex-wrap items-center gap-3">
+      <div className="mt-3 flex shrink-0 flex-wrap items-center gap-3">
         {blocked === null ? (
           <Button type="submit" size="sm" disabled={!runnable}>
             {needsConfirmation(command) ? (

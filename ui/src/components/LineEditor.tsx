@@ -204,7 +204,7 @@ export function LineEditor({ tool, canonical, typed, onTyped, onApply, onRun }: 
           {fix !== null && (
             <button
               type="button"
-              className="border-destructive bg-card rounded-full border px-2"
+              className="border-destructive bg-card rounded-pill border px-2"
               onClick={() => {
                 const { start, end, text: replacement } = fix;
                 finish(text.slice(0, start) + replacement + text.slice(end), onApply);
