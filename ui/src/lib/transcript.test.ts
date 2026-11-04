@@ -6,8 +6,20 @@ const request = { path: ["books", "show"], values: { "<ID>": ["2"] } };
 describe("transcript", () => {
   it("keeps the old runs when a new one starts", () => {
     let runs: Run[] = [];
-    runs = transcript(runs, { type: "add", number: 1, request, line: "shelf books show 2" });
-    runs = transcript(runs, { type: "add", number: 2, request, line: "shelf books show 2" });
+    runs = transcript(runs, {
+      type: "add",
+      number: 1,
+      request,
+      line: "shelf books show 2",
+      long: false,
+    });
+    runs = transcript(runs, {
+      type: "add",
+      number: 2,
+      request,
+      line: "shelf books show 2",
+      long: false,
+    });
 
     expect(runs.map((run) => [run.number, run.state.kind])).toEqual([
       [1, "starting"],
@@ -16,7 +28,7 @@ describe("transcript", () => {
   });
 
   it("follows a run from its start through its lines to its end, in one frame's batch of events", () => {
-    let runs = transcript([], { type: "add", number: 1, request, line: "page line" });
+    let runs = transcript([], { type: "add", number: 1, request, line: "page line", long: false });
     const events = [
       {
         event: "started",
@@ -33,6 +45,7 @@ describe("transcript", () => {
       number: 1,
       request,
       line: "shelf books show 2",
+      long: false,
       state: {
         kind: "ended",
         startedAt: "2026-11-02T09:00:00Z",
@@ -45,7 +58,7 @@ describe("transcript", () => {
   });
 
   it("ignores the keepalive lines of a quiet run", () => {
-    let runs = transcript([], { type: "add", number: 1, request, line: "page line" });
+    let runs = transcript([], { type: "add", number: 1, request, line: "page line", long: false });
     const started = {
       event: "started",
       run: "r1",
@@ -60,7 +73,7 @@ describe("transcript", () => {
   });
 
   it("shows a stream that closes before its ended line as cut off, with the lines so far", () => {
-    let runs = transcript([], { type: "add", number: 1, request, line: "page line" });
+    let runs = transcript([], { type: "add", number: 1, request, line: "page line", long: false });
     const started = {
       event: "started",
       run: "r1",
@@ -80,7 +93,7 @@ describe("transcript", () => {
   });
 
   it("keeps an ended run as it is when its stream closes", () => {
-    let runs = transcript([], { type: "add", number: 1, request, line: "page line" });
+    let runs = transcript([], { type: "add", number: 1, request, line: "page line", long: false });
     const ended = { event: "ended", outcome: { kind: "result" }, exit: 0, duration_ms: 1 } as const;
     runs = transcript(runs, { type: "events", number: 1, events: [ended] });
     const before = runs;
@@ -90,7 +103,7 @@ describe("transcript", () => {
   });
 
   it("keeps the lines of a stream that breaks after it started, as a cut-off run with the error", () => {
-    let runs = transcript([], { type: "add", number: 1, request, line: "page line" });
+    let runs = transcript([], { type: "add", number: 1, request, line: "page line", long: false });
     const started = {
       event: "started",
       run: "r1",

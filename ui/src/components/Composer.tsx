@@ -22,6 +22,8 @@ type Props = {
   focus: number | null;
   readOnly: boolean;
   fieldError: FieldError | null;
+  /** True while the line holds a word the tool would refuse, which keeps Run off. */
+  lineRefused: boolean;
   onChange: (draft: Draft) => void;
   onRun: () => void;
   onStopEditing: () => void;
@@ -29,15 +31,17 @@ type Props = {
 };
 
 /**
- * The composer, docked under the transcript: the command's required
+ * The composer's form, under the command line: the command's required
  * fields, then its other options under "More options", and Run, which ⌘↩
  * or Ctrl-↩ presses from anywhere in the form. It sends structured values.
  */
 export function Composer(props: Props) {
-  const { command, draft, editing, focus, readOnly, onRun, onStopEditing, onShowRun } = props;
+  const { command, draft, editing, focus, readOnly, lineRefused, onRun, onStopEditing, onShowRun } =
+    props;
   const form = formOf(command);
   const unset = missing(command, draft);
   const blocked = whyNotRunnable(command, readOnly);
+  const runnable = blocked === null && unset.length === 0 && !lineRefused;
   const formRef = useRef<HTMLFormElement>(null);
 
   // Each Edit moves focus to the first field, which may be a text field, a
@@ -63,7 +67,7 @@ export function Composer(props: Props) {
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
-      if (blocked === null && unset.length === 0) {
+      if (runnable) {
         onRun();
       }
     } else if (event.key === "Escape" && editing !== null) {
@@ -81,7 +85,6 @@ export function Composer(props: Props) {
         event.preventDefault();
         onRun();
       }}
-      className="bg-card max-h-1/2 shrink-0 overflow-y-auto border-t px-4 py-3"
     >
       <div className="mb-1 flex flex-wrap items-baseline gap-2.5">
         <h2 className="m-0 text-lg font-semibold">
@@ -113,7 +116,7 @@ export function Composer(props: Props) {
         </details>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button type="submit" size="sm" disabled={blocked !== null || unset.length > 0}>
+        <Button type="submit" size="sm" disabled={!runnable}>
           <Play aria-hidden="true" />
           Run
           <kbd className="font-mono text-xs opacity-80">⌘↩</kbd>
@@ -181,7 +184,8 @@ type InputProps = {
 /** The input of one argument: a checkbox, a text field, a list or chips. */
 function Input({ argument, value, error, onValue }: InputProps) {
   const id = useId();
-  const label = argument.help.line ?? argument.name;
+  const label =
+    argument.crumbkit_flag === "--long" ? "Long columns" : (argument.help.line ?? argument.name);
   const errorId = `${id}-error`;
   const name = (
     <span className="text-faint-foreground font-mono text-xs font-normal">{argument.name}</span>

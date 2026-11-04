@@ -186,6 +186,44 @@ test("Run again appends a card and keeps the old one", async ({ page, served }) 
   await expect(first).toBeVisible();
 });
 
+test("a pasted line fills the form, Enter runs it, and the card shows the long columns it asked for", async ({
+  page,
+  served,
+}) => {
+  await signIn(page, served);
+  const line = page.getByRole("textbox", { name: /Command line/ });
+
+  await line.fill("$ shelf books show 2 5 --long");
+  await line.press("Enter");
+
+  await expect(line).toHaveValue("books show 2 5 --long");
+  const card = page.getByRole("region", { name: /^Run 1: shelf books show 2 5, exit 0/ });
+  await expect(card.getByRole("checkbox", { name: "Long columns" })).toBeChecked();
+  await expect(card.getByRole("columnheader").filter({ hasText: "reading" })).toHaveCount(1);
+});
+
+test("a refused word in the line is underlined with the tool's words and fixed with one click", async ({
+  page,
+  served,
+}) => {
+  await signIn(page, served);
+  const line = page.getByRole("textbox", { name: /Command line/ });
+
+  await line.fill("books list --limti 2");
+  await line.blur();
+
+  await expect(page.getByText("unexpected argument '--limti' found")).toBeVisible();
+  await expectNoAccessibilityViolations(page);
+  await page.getByRole("button", { name: "Change to --limit" }).click();
+  await expect(line).toHaveValue("books list --limit 2");
+  await line.press("End");
+  await line.press("Enter");
+  // The card shows the server's line, which joins each option to its value.
+  await expect(
+    page.getByRole("region", { name: /^Run 1: shelf books list --limit=2, exit 0/ }),
+  ).toBeVisible();
+});
+
 test("books show 2 7 9 draws Frankenstein, then a failure card for 7 and one for 9", async ({
   page,
   served,

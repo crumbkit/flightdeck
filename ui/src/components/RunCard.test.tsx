@@ -20,7 +20,13 @@ function renderCard(
   { line = "shelf books show 2 7 9", shown = command(shelf, "books show") } = {},
 ) {
   const composed: RunRequest[] = [];
-  const run: Run = { number: 1, request: { path: shown.path, values: {} }, line, state };
+  const run: Run = {
+    number: 1,
+    request: { path: shown.path, values: {} },
+    line,
+    long: false,
+    state,
+  };
   render(
     <RunCard
       run={run}

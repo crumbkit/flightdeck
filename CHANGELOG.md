@@ -64,3 +64,9 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   tool's message. A result's next steps follow its footer as chips, three
   at first and the rest behind "+N more". A stream that breaks mid-run
   keeps its rows and says that the connection to flightdeck broke.
+- The page's command line edits the same run as the form, in both
+  directions. It colours flags and positional values, fills the form from
+  each finished word, rewrites itself in the form's order when the person
+  leaves it, marks a word the tool would refuse with crumbkit's words and a
+  one-click fix, drops a pasted `$ ` and tool name, and takes out
+  `--json`, `--full`, `--no-input`, `--yes` and `--dry-run` with a note.

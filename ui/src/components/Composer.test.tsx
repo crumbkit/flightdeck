@@ -16,6 +16,7 @@ function composer(shown: Command, focus: number | null) {
       focus={focus}
       readOnly={false}
       fieldError={null}
+      lineRefused={false}
       onChange={noop}
       onRun={noop}
       onStopEditing={noop}

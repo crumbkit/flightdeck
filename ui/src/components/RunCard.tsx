@@ -133,7 +133,7 @@ function LineText({ line, state }: { line: string; state: RunState }) {
  */
 export function RunCard(props: Props) {
   const { run, command, cancelWords, onEdit, onRunAgain, onCancel } = props;
-  const [view, setView] = useState<View>({ long: false, fields: null });
+  const [view, setView] = useState<View>({ long: run.long, fields: null });
   const [json, setJson] = useState(false);
   const { state } = run;
   const [readStream] = useState(() => streamReader());

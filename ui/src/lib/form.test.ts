@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { command, shelf } from "../../tests/fixtures/shelf";
-import { draftFrom, emptyDraft, formOf, lineOf, missing, requestOf, setValue } from "./form";
+import {
+  draftFrom,
+  emptyDraft,
+  formOf,
+  lineOf,
+  lineOfDraft,
+  longOf,
+  missing,
+  requestOf,
+  setValue,
+} from "./form";
 
 const show = command(shelf, "books show");
 const list = command(shelf, "books list");
@@ -14,19 +24,19 @@ describe("formOf", () => {
     const form = formOf(show);
 
     expect(names(form.required)).toEqual([["<ID>", "--from"]]);
-    expect(names(form.more)).toEqual([]);
+    expect(names(form.more)).toEqual([["--long"]]);
   });
 
-  it("puts flags with defaults and crumbkit's paging flags under more options", () => {
+  it("puts flags with defaults, crumbkit's paging flags and --long under more options", () => {
     const form = formOf(list);
 
     expect(names(form.required)).toEqual([]);
-    expect(names(form.more)).toEqual([["--limit"], ["--all"]]);
+    expect(names(form.more)).toEqual([["--limit"], ["--all"], ["--long"]]);
   });
 
-  it("leaves out crumbkit's own flags, which flightdeck sets itself", () => {
-    const remove = formOf(command(shelf, "books remove"));
-    const every = [...remove.required, ...remove.more].flatMap((group) =>
+  it("leaves out crumbkit's own flags, which flightdeck sets itself, and --long when no column is long", () => {
+    const summarize = formOf(command(shelf, "books summarize"));
+    const every = [...summarize.required, ...summarize.more].flatMap((group) =>
       group.choices.map((choice) => choice.name),
     );
 
@@ -60,6 +70,17 @@ describe("requestOf", () => {
     draft = setValue(draft, "--limit", "");
 
     expect(requestOf(list, draft).values).toEqual({ "--all": true });
+  });
+});
+
+describe("--long", () => {
+  it("stays out of the run request and in the line, and asks for the table's long columns", () => {
+    const draft = setValue(setValue(emptyDraft(show), "<ID>", ["2"]), "--long", true);
+
+    expect(requestOf(show, draft).values).toEqual({ "<ID>": ["2"] });
+    expect(lineOfDraft("shelf", show, draft)).toBe("shelf books show 2 --long");
+    expect(longOf(draft)).toBe(true);
+    expect(longOf(emptyDraft(show))).toBe(false);
   });
 });
 
