@@ -1,7 +1,7 @@
-/* Hallmark · shape: app screen · genre: modern-minimal · built: the project · redesign: polish
- * nav: kept (the topbar and the rail) · signature: the run card: the line, its status and its result · states: loading, empty, running, ended, failed, cancelled, awaiting confirmation
- * contrast: pass · v2.0.0 */
-/* Hallmark · pre-emit critique: P3 H3 E4 S2 R4 V3 · weakest: S, the look is any component-library tool; the direction branches answer it */
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: custom · redesign: full
+ * nav: kept (the topbar and the rail) · signature: the run card: the line, its status and its result table, a dark panel with inset hairlines · states: loading, empty, running, ended, failed, cancelled, awaiting confirmation · wayfind: dark first, one cyan, Plex Sans with JetBrains Mono for code
+ * axes: dark/sans/cool · posture: committed · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S3 R4 V4 · weakest: S, dark-with-cyan is the look of many developer tools; the 3px corners and the hairline panels keep it from the glow-and-gradient kind */
 /* Hallmark · waive 64 · the mono face marks commands, arguments, column names and run figures, which are code and figures · a developer reads a command name as the thing they would type */
 /* Hallmark · waive 39b · input.caret-foreground is a transparent overlay inside the 36px command box, and the box is the control · the overlay keeps the caret and selection over the highlighted line */
 /* Hallmark · waive 72 · div.bg-card is the composer pane, whose fields scroll inside it · the lines past its bottom edge are the scrolled rest of the form, and the Run row under it stays in reach */
@@ -14,6 +14,37 @@
    as a test or a README, cannot change the built CSS (EMB-4). */
 @import "tailwindcss" source("./");
 @import "tw-animate-css";
+
+/* IBM Plex Sans for the page's words and JetBrains Mono for code and
+   figures, served from the page itself. */
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("/fonts/jetbrains-mono-latin-wght-normal.woff2") format("woff2");
+}
 
 /* The token owner (APP-9). Every colour the page uses is a role named here.
    Each role holds its light and its dark value in one light-dark() pair,
@@ -41,12 +72,12 @@
 
 :root {
   color-scheme: light dark;
-  --radius: 0.5rem;
+  --radius: 0.1875rem;
   /* The chips' corners: round by default, a direction may square them. */
-  --pill: 9999px;
+  --pill: var(--radius);
   --sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   /* The faces by role: the sans is the body and the mono is the outlier,
      for code and figures. */
   --font-body: var(--sans);
@@ -54,48 +85,48 @@
 
   /* Surfaces: the page, a card, a quieter fill, the rail's tint and the
      fill behind code. */
-  --background: light-dark(#f4f5f7, #111418);
-  --foreground: light-dark(#1a1d21, #e8ebef);
-  --card: light-dark(#ffffff, #181c21);
-  --popover: light-dark(#ffffff, #1e232a);
-  --muted: light-dark(#f1f3f6, #1e232a);
-  --muted-foreground: light-dark(#4f5864, #a4acb7);
-  --faint-foreground: light-dark(#5f6875, #8f98a4);
-  --rail: light-dark(#eef0f3, #14181d);
-  --code: light-dark(#eceff3, #0f1216);
+  --background: light-dark(oklch(97% 0.005 240), oklch(14% 0.01 240));
+  --foreground: light-dark(oklch(18% 0.015 240), oklch(93% 0.006 240));
+  --card: light-dark(oklch(99.5% 0.002 240), oklch(17% 0.01 240));
+  --popover: light-dark(oklch(99.5% 0.002 240), oklch(20% 0.01 240));
+  --muted: light-dark(oklch(94% 0.006 240), oklch(20% 0.01 240));
+  --muted-foreground: light-dark(oklch(42% 0.015 240), oklch(74% 0.01 240));
+  --faint-foreground: light-dark(oklch(50% 0.015 240), oklch(64% 0.012 240));
+  --rail: light-dark(oklch(95.5% 0.005 240), oklch(15.5% 0.01 240));
+  --code: light-dark(oklch(93% 0.006 240), oklch(11% 0.01 240));
 
   /* Lines: one hairline, a stronger one for controls, and the focus outline. */
-  --border: light-dark(#dfe3e8, #2a3038);
-  --input: light-dark(#7c8591, #6b7480);
-  --ring: light-dark(#2563eb, #6d9cff);
-  --selection: light-dark(#cfe0ff, #2a4a8a);
+  --border: light-dark(oklch(86% 0.01 240), oklch(28% 0.012 240));
+  --input: light-dark(oklch(58% 0.012 240), oklch(55% 0.012 240));
+  --ring: light-dark(oklch(46% 0.15 230), oklch(78% 0.13 225));
+  --selection: light-dark(oklch(88% 0.06 230), oklch(35% 0.08 230));
   /* Shadows: faint in light, off in dark, where a lighter surface does the
      lifting. */
-  --shadow-ink: light-dark(rgb(0 0 0 / 0.06), transparent);
+  --shadow-ink: light-dark(transparent, transparent);
   --shadow-card: 0 1px 2px var(--shadow-ink);
   --shadow-menu: 0 4px 12px var(--shadow-ink);
   --shadow-dialog: 0 12px 32px var(--shadow-ink);
 
   /* The one accent: links, the primary button, flags and focus. */
-  --primary: light-dark(#2563eb, #6d9cff);
+  --primary: light-dark(oklch(46% 0.15 230), oklch(78% 0.13 225));
   /* The filled button under the pointer: a solid step, so its label keeps
      4.5:1 over the whole transition. */
-  --primary-hover: light-dark(#1d4fd8, #86adff);
-  --primary-foreground: light-dark(#ffffff, #0b1020);
-  --accent: light-dark(#e4ecfd, #1d2a45);
-  --accent-foreground: light-dark(#1a1d21, #e8ebef);
-  --secondary: light-dark(#f1f3f6, #1e232a);
-  --secondary-foreground: light-dark(#1a1d21, #e8ebef);
+  --primary-hover: light-dark(oklch(40% 0.15 230), oklch(84% 0.12 225));
+  --primary-foreground: light-dark(oklch(99.5% 0.002 240), oklch(14% 0.02 230));
+  --accent: light-dark(oklch(92% 0.04 230), oklch(26% 0.06 230));
+  --accent-foreground: light-dark(oklch(30% 0.1 230), oklch(88% 0.09 225));
+  --secondary: light-dark(oklch(94% 0.006 240), oklch(20% 0.01 240));
+  --secondary-foreground: light-dark(oklch(18% 0.015 240), oklch(93% 0.006 240));
 
   /* Effects, each always shown with its word: read-only, additive and
      destructive. Red also marks a failed exit, and nothing else. */
-  --read-only: light-dark(#1b6e45, #5fcf8f);
-  --read-only-soft: light-dark(#e1f3e8, #15291e);
-  --additive: light-dark(#7a5000, #e6b45a);
-  --additive-soft: light-dark(#fdf0d5, #2e2512);
-  --destructive: light-dark(#b42318, #ff7a6e);
-  --destructive-soft: light-dark(#fbe9e7, #3a1b18);
-  --destructive-foreground: light-dark(#ffffff, #1a0b09);
+  --read-only: light-dark(oklch(47% 0.12 150), oklch(78% 0.14 150));
+  --read-only-soft: light-dark(oklch(93% 0.05 150), oklch(24% 0.05 150));
+  --additive: light-dark(oklch(50% 0.13 75), oklch(82% 0.14 80));
+  --additive-soft: light-dark(oklch(94% 0.07 85), oklch(26% 0.06 80));
+  --destructive: light-dark(oklch(50% 0.2 27), oklch(74% 0.17 25));
+  --destructive-soft: light-dark(oklch(94% 0.04 27), oklch(25% 0.07 25));
+  --destructive-foreground: light-dark(oklch(99.5% 0.002 240), oklch(14% 0.02 230));
 }
 
 :root[data-theme="light"] {

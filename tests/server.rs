@@ -474,6 +474,7 @@ fn every_built_file_of_the_page_is_served_with_its_bytes_and_its_media_type() {
                 Some("html") => "text/html; charset=utf-8",
                 Some("js") => "text/javascript; charset=utf-8",
                 Some("css") => "text/css; charset=utf-8",
+                Some("woff2") => "font/woff2",
                 other => panic!(
                     "ui/dist holds {name}, of a type the server has no media type for: {other:?}"
                 ),

@@ -40,6 +40,26 @@ pub(super) const ALL: &[Asset] = &[
         content_type: "text/css; charset=utf-8",
         body: include_bytes!("../../ui/dist/assets/index.css"),
     },
+    Asset {
+        path: "/fonts/jetbrains-mono-latin-wght-normal.woff2",
+        content_type: "font/woff2",
+        body: include_bytes!("../../ui/dist/fonts/jetbrains-mono-latin-wght-normal.woff2"),
+    },
+    Asset {
+        path: "/fonts/ibm-plex-sans-latin-400-normal.woff2",
+        content_type: "font/woff2",
+        body: include_bytes!("../../ui/dist/fonts/ibm-plex-sans-latin-400-normal.woff2"),
+    },
+    Asset {
+        path: "/fonts/ibm-plex-sans-latin-500-normal.woff2",
+        content_type: "font/woff2",
+        body: include_bytes!("../../ui/dist/fonts/ibm-plex-sans-latin-500-normal.woff2"),
+    },
+    Asset {
+        path: "/fonts/ibm-plex-sans-latin-600-normal.woff2",
+        content_type: "font/woff2",
+        body: include_bytes!("../../ui/dist/fonts/ibm-plex-sans-latin-600-normal.woff2"),
+    },
 ];
 
 /// Returns the asset at `path`, such as `/`.
