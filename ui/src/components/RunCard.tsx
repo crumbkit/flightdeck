@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { type ReactNode, useState } from "react";
 import { notStartedWord } from "@/api/failure";
-import type { Command, Tool } from "@/api/model";
+import type { Command, Link, Tool } from "@/api/model";
 import { type ItemFailure, type Output, resultOf, rowsOf, streamReader } from "@/api/result";
 import type { RunRequest } from "@/api/runs";
 import { useNow, useSampled } from "@/clock";
@@ -21,12 +21,15 @@ type Props = {
   run: Run;
   tool: Tool;
   command: Command | undefined;
+  /** The link that each `id` cell of the result opens, or null for none. */
+  link: Link | null;
   /** The page's words for a cancel of this run that failed, or null. */
   cancelWords: string | null;
   onEdit: () => void;
   onRunAgain: () => void;
   onCancel: (id: string) => void;
   onPageSize: (size: PageSize) => void;
+  onOpenLink: (value: string) => void;
   /** What follows the result, such as a preview's question. */
   children?: ReactNode;
   /** Fills the composer with a request, such as a failure's recovery, and runs nothing. */
@@ -347,7 +350,9 @@ function headingOf(failure: ItemFailure): string | null {
 }
 
 /** A result as the page draws it: a table, a record, prose or a note. */
-function Drawn({ run, tool, command, view, onView, onPageSize, onCompose, output }: BodyProps) {
+function Drawn(props: BodyProps) {
+  const { run, tool, command, view, onView, onPageSize, onCompose, output, link, onOpenLink } =
+    props;
   const { result } = output;
   const label = `Result of run ${run.number}`;
   const drawFailure = (failure: ItemFailure) => (
@@ -371,6 +376,8 @@ function Drawn({ run, tool, command, view, onView, onPageSize, onCompose, output
           onPageSize={onPageSize}
           label={label}
           drawFailure={drawFailure}
+          link={link}
+          onOpenLink={onOpenLink}
         />
       );
     case "record":

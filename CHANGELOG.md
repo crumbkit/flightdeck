@@ -77,3 +77,14 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   fails because the tool asks for `--yes` opens the same card. Under
   `--read-only`, the page keeps the other commands in the rail, dimmed and
   locked, and says why it cannot run them.
+- An `id` cell that an inferred link starts from has a dotted underline
+  and "inferred" in its tooltip and accessible name, and fills the linked
+  command's form without running it. The IDs chooser of a field that an
+  inferred link fills lists the source's rows, each labelled by its other
+  compact columns, and still takes a typed value.
+- `POST /api/choices` runs the read-only source of a link that the model
+  inferred and answers with at most 1,000 of its `id` values. It refuses
+  any other source with `flightdeck::run::refused`, shares the run cap,
+  and answers 502 with `flightdeck::choices::no_listing` or 504 with
+  `flightdeck::choices::time_limit` when the source gives no listing within
+  eight seconds.

@@ -30,6 +30,21 @@ pub enum Outcome {
     Failed(EndFailure),
 }
 
+impl Outcome {
+    /// Returns the outcome's kind as the stream's `ended` line tags it,
+    /// such as `tool_failure`.
+    #[must_use]
+    pub const fn kind(&self) -> &'static str {
+        match self {
+            Self::Result => "result",
+            Self::ResultWithFailures => "result_with_failures",
+            Self::ToolFailure(_) => "tool_failure",
+            Self::Cancelled => "cancelled",
+            Self::Failed(_) => "failed",
+        }
+    }
+}
+
 /// What the outcome of one run reads beside the run's output: the tool's
 /// name, the command's path, the line that ran, the command's form and
 /// declared exits, and the limits of the run's output.

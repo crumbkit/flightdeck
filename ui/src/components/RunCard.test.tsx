@@ -32,12 +32,14 @@ function renderCard(
       run={run}
       tool={shelf}
       command={shown}
+      link={null}
       cancelWords={null}
       onEdit={noop}
       onRunAgain={noop}
       onCancel={noop}
       onPageSize={noop}
       onCompose={(request) => composed.push(request)}
+      onOpenLink={noop}
     />,
   );
   return composed;

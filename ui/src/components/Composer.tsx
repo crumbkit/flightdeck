@@ -1,17 +1,20 @@
 import { Eye, Play } from "lucide-react";
 import { type KeyboardEvent, useEffect, useId, useRef } from "react";
-import type { Argument, Command } from "@/api/model";
+import type { Argument, Command, Tool } from "@/api/model";
 import type { Value } from "@/api/runs";
 import { Button } from "@/components/ui/button";
 import { chosenOf, type Draft, type FieldGroup, formOf, missing, setValue } from "@/lib/form";
+import { chooserLinkOf } from "@/lib/links";
 import { needsConfirmation, whyNotRunnable } from "@/lib/rail";
 import { ChipsInput } from "./ChipsInput";
+import { IdChooser } from "./IdChooser";
 import { CommandPathText } from "./Rail";
 
 /** A refused argument and the words the server gave for it. */
 export type FieldError = { name: string; words: string };
 
 type Props = {
+  tool: Tool;
   command: Command;
   draft: Draft;
   editing: number | null;
@@ -149,13 +152,17 @@ export function Composer(props: Props) {
 
 type FieldProps = Props & { group: FieldGroup };
 
-/** One field, with a switch between alternatives when it has them. */
-function Field({ group, draft, onChange, fieldError }: FieldProps) {
+/**
+ * One field, with a switch between alternatives when it has them, and the
+ * IDs chooser when an inferred link fills the chosen argument.
+ */
+function Field({ tool, command, group, draft, onChange, fieldError }: FieldProps) {
   const chosen = chosenOf(draft, group);
   const [first] = group.choices;
   if (chosen === undefined || first === undefined) {
     return null;
   }
+  const link = chooserLinkOf(tool, command, chosen.name);
   const error =
     fieldError !== null && group.choices.some((each) => each.name === fieldError.name)
       ? fieldError.words
@@ -190,6 +197,15 @@ function Field({ group, draft, onChange, fieldError }: FieldProps) {
         error={error}
         onValue={(value) => onChange(setValue(draft, chosen.name, value))}
       />
+      {link !== null && (
+        <IdChooser
+          tool={tool}
+          link={link}
+          many={chosen.arity.kind === "many"}
+          value={draft.values[chosen.name]}
+          onValue={(value) => onChange(setValue(draft, chosen.name, value))}
+        />
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { ApiError } from "@/api/client";
 import { describeFailure, fieldErrorOf, isSignedOut } from "@/api/failure";
-import type { Command, Example, ModelReply } from "@/api/model";
+import type { Command, Example, Link, ModelReply } from "@/api/model";
 import {
   cancelRun,
   type RunCall,
@@ -36,6 +36,7 @@ import {
   setValue,
 } from "@/lib/form";
 import { textOf } from "@/lib/line";
+import { cellLinkOf, filled } from "@/lib/links";
 import { needsConfirmation, whyNotRunnable } from "@/lib/rail";
 import { withPageSize } from "@/lib/table";
 import { type Run, transcript } from "@/lib/transcript";
@@ -328,6 +329,14 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     }
   };
 
+  // An inferred link fills the target's composer and runs nothing.
+  const openLink = (link: Link, value: string) => {
+    const target = tool.commands.find((each) => each.path.join(" ") === link.target.join(" "));
+    if (target !== undefined) {
+      choose(target, filled(target, link.argument, value));
+    }
+  };
+
   const showRun = (number: number) => {
     document.getElementById(`run-${number}`)?.scrollIntoView({ block: "nearest" });
   };
@@ -373,12 +382,14 @@ export function ToolPage({ reply, onSignedOut }: Props) {
             <Welcome tool={tool} onExample={runExample} />
             {runs.map((run) => {
               const command = commandAt(run.request);
+              const link = command === undefined ? null : cellLinkOf(tool, command);
               return (
                 <RunCard
                   key={run.number}
                   run={run}
                   tool={tool}
                   command={command}
+                  link={link}
                   cancelWords={
                     cancel.isError &&
                     run.state.kind === "running" &&
@@ -393,6 +404,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
                     begin(withPageSize(run.request, pageSize), run.long, null)
                   }
                   onCompose={compose}
+                  onOpenLink={(value) => link !== null && openLink(link, value)}
                 >
                   {command !== undefined && (
                     <Confirmation
@@ -423,6 +435,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
               </p>
             ) : (
               <Composer
+                tool={tool}
                 command={composing.command}
                 draft={composing.draft}
                 editing={composing.editing}

@@ -12,6 +12,10 @@ let runs: unknown[] = [];
 beforeEach(() => {
   runs = [];
   vi.stubGlobal("fetch", async (path: string, init: RequestInit) => {
+    // The IDs chooser asks for its choices, which these tests leave unlisted.
+    if (path === "/api/choices") {
+      return Response.json({ code: "test::no_choices", title: path }, { status: 404 });
+    }
     runs.push({ path, body: JSON.parse(typeof init.body === "string" ? init.body : "null") });
     const lines = [
       { event: "started", run: "r1", line: "shelf", started_at: "2026-11-02T09:00:00Z" },

@@ -38,6 +38,10 @@ function stubServer(
     if (path.endsWith("/cancel")) {
       return new Response(null, { status: 204 });
     }
+    // The IDs chooser asks for its choices, which these tests leave unlisted.
+    if (path === "/api/choices") {
+      return Response.json({ code: "test::no_choices", title: path }, { status: 404 });
+    }
     if (runBody !== null) {
       return new Response(runBody, { headers: { "Content-Type": "application/x-ndjson" } });
     }

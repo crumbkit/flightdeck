@@ -186,6 +186,42 @@ test("Run again appends a card and keeps the old one", async ({ page, served }) 
   await expect(first).toBeVisible();
 });
 
+test("the 2 cell of books list opens books show with 2 filled and runs nothing", async ({
+  page,
+  served,
+}) => {
+  await signIn(page, served);
+  await page.getByRole("button", { name: "Print the first page of books" }).click();
+  const card = page.getByRole("region", { name: /^Run 1: shelf books list/ });
+  const words = "Opens books show with id 2 · inferred from the books resource";
+  const cell = card.getByRole("button", { name: words });
+  await expect(cell).toHaveAttribute("title", words);
+
+  await cell.click();
+
+  const composer = page.getByRole("form", { name: "Composer" });
+  await expect(composer.getByRole("heading")).toHaveText("books show");
+  await expect(composer.getByRole("button", { name: "Remove 2" })).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Run / })).toHaveCount(1);
+  await expectNoAccessibilityViolations(page);
+});
+
+test("the chooser of books show lists the six books of books list", async ({ page, served }) => {
+  await signIn(page, served);
+
+  await page
+    .getByRole("navigation", { name: "Commands" })
+    .getByRole("button", { name: /books show/ })
+    .click();
+
+  const composer = page.getByRole("form", { name: "Composer" });
+  const choices = composer.getByRole("group", { name: "Choices" });
+  await expect(choices.getByRole("checkbox")).toHaveCount(6);
+  await expect(choices).toContainText("Frankenstein · Mary Shelley · 1818");
+  await expect(composer.getByText("From shelf books list, column id · inferred")).toBeVisible();
+  await expectNoAccessibilityViolations(page);
+});
+
 test("a pasted line fills the form, Enter runs it, and the card shows the long columns it asked for", async ({
   page,
   served,
