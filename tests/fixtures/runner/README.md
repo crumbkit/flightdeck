@@ -37,3 +37,9 @@ and one command for each way a real tool can misbehave or a test needs:
 - `child ledger` lists rows with an `id` column too, but exits with 101
   and prints no document.
 - `child visit` takes the `<ID>` of a roster row.
+- `child whole` lists `--json` and `--no-input` but not `--full`, and
+  refuses `--full` as crumbkit does, with `unruly::cli::usage` and exit
+  code 2.
+- `child answer` prints a headed answer and lists `--full`, and refuses
+  `--full` in the same way, as a tool on a crumbkit before 0.1.1 does.
+- `child rows` lists `--full`, and fails unless the run passes it.

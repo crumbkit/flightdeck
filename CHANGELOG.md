@@ -16,6 +16,16 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   line that starts with `{` to the end of the output. Before, they read
   only the last line, so such a run ended with
   `flightdeck::run::no_document`.
+- A run of a command that does not offer `--full` reaches its result.
+  crumbkit refuses `--full` with `<tool>::cli::usage` and exit code 2 on a
+  command whose JSON already holds every field, and the runner added
+  `--full` to every run, so such a run failed before the tool did any
+  work. The runner now adds `--full` only when the command's row in
+  `commands list` lists it, as the command's own argument or a global one
+  that it inherits, and the command does not print a headed answer or
+  bytes, which never offer `--full`. It adds `--no-input` only when the
+  command lists it too, because a tool that cannot ask a question need not
+  declare it. It still adds `--json` to every run.
 
 ## [0.1.0] - 2026-11-04
 
