@@ -1,11 +1,12 @@
 import { cn } from "cn";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { notStartedWord } from "@/api/failure";
 import type { Command, Tool } from "@/api/model";
 import { type ItemFailure, type Output, resultOf, rowsOf, streamReader } from "@/api/result";
 import type { RunRequest } from "@/api/runs";
 import { useNow, useSampled } from "@/clock";
 import { elapsedWords } from "@/lib/duration";
+import { needsConfirmation } from "@/lib/rail";
 import { refusedSpan } from "@/lib/refusal";
 import type { PageSize, View } from "@/lib/table";
 import { copiedLine } from "@/lib/table";
@@ -26,6 +27,8 @@ type Props = {
   onRunAgain: () => void;
   onCancel: (id: string) => void;
   onPageSize: (size: PageSize) => void;
+  /** What follows the result, such as a preview's question. */
+  children?: ReactNode;
   /** Fills the composer with a request, such as a failure's recovery, and runs nothing. */
   onCompose: (request: RunRequest) => void;
 };
@@ -46,12 +49,21 @@ function rowWords(count: number): string {
  * The status of a run in words, and whether it failed. `rows` is the
  * number of rows its table holds, or null for a result that is no table.
  */
-function statusOf(state: RunState, rows: number | null): { words: string; failed: boolean } {
+function statusOf(run: Run, rows: number | null): { words: string; failed: boolean } {
+  const { state, ask } = run;
+  if (ask?.answer === "declined") {
+    return { words: "not confirmed", failed: false };
+  }
+  if (ask?.answer === "open" && ask.confirmation !== null) {
+    return { words: "awaiting confirmation", failed: false };
+  }
   const counted = rows === null ? "" : ` · ${rowWords(rows)}`;
   switch (state.kind) {
     case "starting":
     case "running":
-      return { words: `running${counted}`, failed: false };
+      return { words: ask?.answer === "open" ? "previewing" : `running${counted}`, failed: false };
+    case "issued":
+      return { words: "awaiting confirmation", failed: false };
     case "refused":
       return { words: notStartedWord(state.problem), failed: true };
     case "broken":
@@ -129,10 +141,13 @@ function LineText({ line, state }: { line: string; state: RunState }) {
 /**
  * One run in the transcript: its line, start time, duration and exit, its
  * result, and Edit, Run again, Copy and a JSON view. A running card shows
- * the time since the run started, its rows so far and Cancel.
+ * the time since the run started, its rows so far and Cancel. A preview
+ * card adds crumbkit's dry-run sentence above its rows, and its question
+ * as `children`. A command that needs a confirmation has Preview again in
+ * place of Run again.
  */
 export function RunCard(props: Props) {
-  const { run, command, cancelWords, onEdit, onRunAgain, onCancel } = props;
+  const { run, command, cancelWords, onEdit, onRunAgain, onCancel, children } = props;
   const [view, setView] = useState<View>({ long: run.long, fields: null });
   const [json, setJson] = useState(false);
   const { state } = run;
@@ -141,7 +156,7 @@ export function RunCard(props: Props) {
   const output = form === "stream" ? readStream(linesOf(state)) : resultOf(linesOf(state), form);
   const { result } = output;
   const rows = result.kind === "table" ? rowsOf(result.entries).length : null;
-  const status = statusOf(state, rows);
+  const status = statusOf(run, rows);
   const running = state.kind === "starting" || state.kind === "running";
   const cancelled = state.kind === "ended" && state.outcome.kind === "cancelled";
   const startedAt =
@@ -187,7 +202,7 @@ export function RunCard(props: Props) {
             Edit
           </button>
           <button type="button" className="text-primary" onClick={onRunAgain}>
-            Run again
+            {command !== undefined && needsConfirmation(command) ? "Preview again" : "Run again"}
           </button>
           <CopyButton text={line} label="Copy line" />
           <label className="inline-flex items-center gap-1">
@@ -206,6 +221,11 @@ export function RunCard(props: Props) {
         </div>
       )}
       <div className="px-3 py-2.5">
+        {isDryRun(run) && (
+          <p className="bg-muted mt-0 mb-2 rounded-md px-2.5 py-1.5">
+            <span className="font-semibold">Dry run.</span> This was a dry run, so nothing changed.
+          </p>
+        )}
         {cancelWords !== null && (
           <p role="alert" className="mt-0">
             {cancelWords}
@@ -216,8 +236,19 @@ export function RunCard(props: Props) {
         ) : (
           <Body {...props} view={view} onView={setView} output={output} />
         )}
+        {children}
       </div>
     </section>
+  );
+}
+
+/** Returns true for a preview card whose dry run ended with a result. */
+function isDryRun(run: Run): boolean {
+  return (
+    run.ask !== undefined &&
+    run.ask.answer !== "confirmed" &&
+    run.state.kind === "ended" &&
+    run.state.outcome.kind === "result"
   );
 }
 
@@ -240,6 +271,8 @@ function Body(props: BodyProps) {
   switch (state.kind) {
     case "starting":
       return <p className="text-muted-foreground">Running…</p>;
+    case "issued":
+      return <p className="m-0">This command has no preview.</p>;
     case "running":
       return output.result.kind === "table" && output.result.entries.length > 0 ? (
         <Drawn {...props} />

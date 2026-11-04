@@ -70,3 +70,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   leaves it, marks a word the tool would refuse with crumbkit's words and a
   one-click fix, drops a pasted `$ ` and tool name, and takes out
   `--json`, `--full`, `--no-input`, `--yes` and `--dry-run` with a note.
+- The page previews a destructive command, or one that declares no
+  effects, and asks for confirmation in the preview's card, which names the
+  verb and the count. Cancel has focus, ⌘↩ never confirms, and a change to
+  the composer after the preview disables the confirm button. A run that
+  fails because the tool asks for `--yes` opens the same card. Under
+  `--read-only`, the page keeps the other commands in the rail, dimmed and
+  locked, and says why it cannot run them.

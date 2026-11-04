@@ -1,10 +1,10 @@
-import { Play } from "lucide-react";
+import { Eye, Play } from "lucide-react";
 import { type KeyboardEvent, useEffect, useId, useRef } from "react";
 import type { Argument, Command } from "@/api/model";
 import type { Value } from "@/api/runs";
 import { Button } from "@/components/ui/button";
 import { chosenOf, type Draft, type FieldGroup, formOf, missing, setValue } from "@/lib/form";
-import { whyNotRunnable } from "@/lib/rail";
+import { needsConfirmation, whyNotRunnable } from "@/lib/rail";
 import { ChipsInput } from "./ChipsInput";
 import { CommandPathText } from "./Rail";
 
@@ -33,7 +33,10 @@ type Props = {
 /**
  * The composer's form, under the command line: the command's required
  * fields, then its other options under "More options", and Run, which ⌘↩
- * or Ctrl-↩ presses from anywhere in the form. It sends structured values.
+ * or Ctrl-↩ presses from anywhere in the form. A command that needs a
+ * confirmation has Preview in place of Run, and `onRun` previews it. Under
+ * `--read-only` a command that is not read-only shows why in place of the
+ * button. It sends structured values.
  */
 export function Composer(props: Props) {
   const { command, draft, editing, focus, readOnly, lineRefused, onRun, onStopEditing, onShowRun } =
@@ -64,12 +67,17 @@ export function Composer(props: Props) {
       field.select();
     }
   }, [focus]);
+  // Enter in a text field submits the form even when no Run button
+  // shows, so both ways in check that the command may run.
+  const runIfRunnable = () => {
+    if (runnable) {
+      onRun();
+    }
+  };
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
-      if (runnable) {
-        onRun();
-      }
+      runIfRunnable();
     } else if (event.key === "Escape" && editing !== null) {
       onStopEditing();
     }
@@ -83,7 +91,7 @@ export function Composer(props: Props) {
       onKeyDown={onKeyDown}
       onSubmit={(event) => {
         event.preventDefault();
-        onRun();
+        runIfRunnable();
       }}
     >
       <div className="mb-1 flex flex-wrap items-baseline gap-2.5">
@@ -116,12 +124,24 @@ export function Composer(props: Props) {
         </details>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button type="submit" size="sm" disabled={!runnable}>
-          <Play aria-hidden="true" />
-          Run
-          <kbd className="font-mono text-xs opacity-80">⌘↩</kbd>
-        </Button>
-        {blocked !== null && <span className="text-muted-foreground text-xs">{blocked}</span>}
+        {blocked === null ? (
+          <Button type="submit" size="sm" disabled={!runnable}>
+            {needsConfirmation(command) ? (
+              <>
+                <Eye aria-hidden="true" />
+                Preview
+              </>
+            ) : (
+              <>
+                <Play aria-hidden="true" />
+                Run
+              </>
+            )}
+            <kbd className="font-mono text-xs opacity-80">⌘↩</kbd>
+          </Button>
+        ) : (
+          <p className="text-muted-foreground m-0">{blocked}</p>
+        )}
       </div>
     </form>
   );

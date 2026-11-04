@@ -122,3 +122,78 @@ describe("transcript", () => {
     });
   });
 });
+
+describe("a preview card", () => {
+  const remove = { path: ["books", "remove"], values: { "<ID>": ["2"] } };
+  const started = {
+    event: "started",
+    run: "r1",
+    line: "shelf books remove 2",
+    started_at: "2026-11-02T09:00:00Z",
+    preview: true,
+    confirmation: null,
+  } as const;
+
+  function previewed(): Run[] {
+    return transcript([], {
+      type: "preview",
+      number: 1,
+      request: remove,
+      line: "shelf books remove 2",
+      long: false,
+      basis: null,
+    });
+  }
+
+  it("holds the confirmation id that its dry run ended with", () => {
+    let runs = previewed();
+    runs = transcript(runs, { type: "events", number: 1, events: [started] });
+    const ended = {
+      event: "ended",
+      outcome: { kind: "result" },
+      exit: 0,
+      duration_ms: 4,
+      confirmation: "c1",
+    } as const;
+    runs = transcript(runs, { type: "events", number: 1, events: [ended] });
+
+    expect(runs[0]?.ask).toEqual({ basis: null, confirmation: "c1", answer: "open" });
+    expect(runs[0]?.state.kind).toBe("ended");
+  });
+
+  it("is complete at the started line of a command without a dry run", () => {
+    let runs = previewed();
+    const issued = { ...started, run: null, preview: false, confirmation: "c1" } as const;
+    runs = transcript(runs, { type: "events", number: 1, events: [issued] });
+    runs = transcript(runs, { type: "closed", number: 1 });
+
+    expect(runs[0]?.state).toEqual({ kind: "issued" });
+    expect(runs[0]?.ask?.confirmation).toBe("c1");
+  });
+
+  it("starts again as a run when the person confirms it", () => {
+    let runs = previewed();
+    runs = transcript(runs, { type: "answer", number: 1, answer: "confirmed" });
+
+    expect(runs[0]?.ask?.answer).toBe("confirmed");
+    expect(runs[0]?.state).toEqual({ kind: "starting" });
+  });
+
+  it("keeps its rows when the person cancels it", () => {
+    let runs = previewed();
+    runs = transcript(runs, { type: "events", number: 1, events: [started] });
+    const before = runs[0]?.state;
+    runs = transcript(runs, { type: "answer", number: 1, answer: "declined" });
+
+    expect(runs[0]?.ask?.answer).toBe("declined");
+    expect(runs[0]?.state).toBe(before);
+  });
+
+  it("takes only the first answer", () => {
+    let runs = previewed();
+    runs = transcript(runs, { type: "answer", number: 1, answer: "declined" });
+    runs = transcript(runs, { type: "answer", number: 1, answer: "confirmed" });
+
+    expect(runs[0]?.ask?.answer).toBe("declined");
+  });
+});

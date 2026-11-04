@@ -70,21 +70,29 @@ async function openerOf(child: ChildProcess): Promise<string> {
  * whose `entries stream` prints each line only when the test calls
  * `release`. Each test starts its own flightdeck, because a launch code
  * works once, and stops it when the test ends. The Rust lane builds both
- * before this lane runs.
+ * before this lane runs. `test.use({ readOnly: true })` starts it with
+ * `--read-only`.
  */
 export const test = checked.extend<{
   tool: "shelf" | "reading" | "slow reading";
+  readOnly: boolean;
   served: Served;
 }>({
   tool: ["shelf", { option: true }],
-  served: async ({ tool }, use) => {
+  readOnly: [false, { option: true }],
+  served: async ({ tool, readOnly }, use) => {
     const home = await mkdtemp(path.join(tmpdir(), "flightdeck-acceptance-"));
     const data = path.join(home, "data");
     const installed = (name: string) => path.join(root, "target/test-tools/bin", name);
     const slow = tool === "slow reading" ? await slowReading(home, installed("reading")) : null;
     const child = spawn(
       path.join(root, "target/debug/flightdeck"),
-      ["open", slow?.program ?? installed(tool), "--no-browser"],
+      [
+        "open",
+        slow?.program ?? installed(tool),
+        "--no-browser",
+        ...(readOnly ? ["--read-only"] : []),
+      ],
       {
         env: {
           ...process.env,

@@ -114,7 +114,7 @@ describe("LineEditor", () => {
     expect(line).toHaveValue("books show 2 5 --long");
   });
 
-  it("takes --yes out of a pasted line, says why, and runs nothing", async () => {
+  it("takes --yes out of a pasted line, says why, and previews it in place of running it", async () => {
     const { user, line } = renderPage();
 
     await user.click(line);
@@ -123,7 +123,9 @@ describe("LineEditor", () => {
 
     expect(line).toHaveValue("books remove 2");
     expect(screen.getByText(/so --yes was taken out of the line/)).toBeInTheDocument();
-    expect(runs).toEqual([]);
+    expect(runs).toEqual([
+      { path: "/api/previews", body: { path: ["books", "remove"], values: { "<ID>": ["2"] } } },
+    ]);
   });
 
   it("runs the line on Enter with structured values", async () => {

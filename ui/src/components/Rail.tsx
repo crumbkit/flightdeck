@@ -1,9 +1,15 @@
 import { cn } from "cn";
+import { Lock } from "lucide-react";
 import type { Command, Tool } from "@/api/model";
-import { effectOf, railGroups } from "@/lib/rail";
+import { effectOf, railGroups, whyNotRunnable } from "@/lib/rail";
 import { EffectBadge } from "./EffectBadge";
 
-type Props = { tool: Tool; selected: Command | null; onChoose: (command: Command) => void };
+type Props = {
+  tool: Tool;
+  selected: Command | null;
+  readOnly: boolean;
+  onChoose: (command: Command) => void;
+};
 
 /** A command's path with its resource greyed, such as books list. */
 export function CommandPathText({ command }: { command: Command }) {
@@ -20,9 +26,11 @@ export function CommandPathText({ command }: { command: Command }) {
 
 /**
  * The rail of commands, grouped under the goal headings of the tool's help
- * in help order, each command with its effect badge and its word.
+ * in help order, each command with its effect badge and its word. Under
+ * `--read-only` a command that is not read-only stays in the rail, dimmed
+ * and with a lock, and choosing it shows its form with the reason.
  */
-export function Rail({ tool, selected, onChoose }: Props) {
+export function Rail({ tool, selected, readOnly, onChoose }: Props) {
   return (
     <nav aria-label="Commands" className="bg-rail w-64 shrink-0 overflow-y-auto border-r px-2 py-2">
       <p className="px-2 pb-1 font-semibold">
@@ -37,24 +45,34 @@ export function Rail({ tool, selected, onChoose }: Props) {
             </h2>
           )}
           <ul className="m-0 p-0">
-            {group.commands.map((command) => (
-              <li key={command.path.join(" ")} className="list-none">
-                <button
-                  type="button"
-                  aria-current={selected === command ? "true" : undefined}
-                  onClick={() => onChoose(command)}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-md py-1 pr-1 pl-3 text-left",
-                    selected === command && "bg-card font-semibold shadow-xs",
-                  )}
-                >
-                  <span className="min-w-0 flex-1 truncate">
-                    <CommandPathText command={command} />
-                  </span>
-                  <EffectBadge effect={effectOf(command)} />
-                </button>
-              </li>
-            ))}
+            {group.commands.map((command) => {
+              const locked = whyNotRunnable(command, readOnly) !== null;
+              return (
+                <li key={command.path.join(" ")} className="list-none">
+                  <button
+                    type="button"
+                    aria-current={selected === command ? "true" : undefined}
+                    onClick={() => onChoose(command)}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-md py-1 pr-1 pl-3 text-left",
+                      selected === command && "bg-card font-semibold shadow-xs",
+                      locked && "text-faint-foreground",
+                    )}
+                  >
+                    <span className="min-w-0 flex-1 truncate">
+                      <CommandPathText command={command} />
+                    </span>
+                    {locked && (
+                      <>
+                        <Lock aria-hidden="true" className="size-3" />
+                        <span className="sr-only">turned off by --read-only</span>
+                      </>
+                    )}
+                    <EffectBadge effect={effectOf(command)} />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}

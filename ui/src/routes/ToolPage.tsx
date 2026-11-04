@@ -3,9 +3,19 @@ import { useEffect, useReducer, useRef, useState } from "react";
 import { ApiError } from "@/api/client";
 import { describeFailure, fieldErrorOf, isSignedOut } from "@/api/failure";
 import type { Command, Example, ModelReply } from "@/api/model";
-import { cancelRun, type RunEvent, type RunRequest, streamRun, type Value } from "@/api/runs";
+import {
+  cancelRun,
+  type RunCall,
+  type RunEvent,
+  type RunRequest,
+  streamConfirmation,
+  streamPreview,
+  streamRun,
+  type Value,
+} from "@/api/runs";
 import { frameQueue } from "@/clock";
 import { Composer, type FieldError } from "@/components/Composer";
+import { Confirmation } from "@/components/Confirmation";
 import { LineEditor, shownLine, type Typed } from "@/components/LineEditor";
 import { Palette } from "@/components/Palette";
 import { Rail } from "@/components/Rail";
@@ -13,6 +23,7 @@ import { RunCard } from "@/components/RunCard";
 import { Topbar } from "@/components/Topbar";
 import { Transcript } from "@/components/Transcript";
 import { Welcome } from "@/components/Welcome";
+import { asksForYes } from "@/lib/confirm";
 import { requestOfExample } from "@/lib/example";
 import {
   type Draft,
@@ -25,9 +36,9 @@ import {
   setValue,
 } from "@/lib/form";
 import { textOf } from "@/lib/line";
-import { whyNotRunnable } from "@/lib/rail";
+import { needsConfirmation, whyNotRunnable } from "@/lib/rail";
 import { withPageSize } from "@/lib/table";
-import { transcript } from "@/lib/transcript";
+import { type Run, transcript } from "@/lib/transcript";
 
 /**
  * The composer's command, what it holds, the run it edits, if any, and a
@@ -115,15 +126,13 @@ export function ToolPage({ reply, onSignedOut }: Props) {
   const commandAt = (request: RunRequest) =>
     tool.commands.find((each) => each.path.join(" ") === request.path.join(" "));
 
-  const start = (request: RunRequest, long: boolean) => {
-    const command = commandAt(request);
-    if (command === undefined) {
-      return;
-    }
-    counter.current += 1;
-    const number = counter.current;
-    setFieldError(null);
-    apply({ type: "add", number, request, line: lineOf(tool.name, command, request), long });
+  /**
+   * Streams the events of `open` into card `number`, and closes the card
+   * when the stream ends. A refused request marks the card, and marks a
+   * composer field when the refusal names one. A refused token signs the
+   * page out. It resolves once the stream has ended either way.
+   */
+  const follow = (number: number, open: (call: Omit<RunCall, "request">) => Promise<void>) => {
     const controller = new AbortController();
     controllers.current.set(number, controller);
     // The events of one frame reach the transcript together, so a fast
@@ -141,7 +150,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
         }
       }
     });
-    streamRun({ request, onEvent: queue.push, signal: controller.signal })
+    return open({ onEvent: queue.push, signal: controller.signal })
       .then(() => {
         queue.flush();
         apply({ type: "closed", number });
@@ -168,6 +177,85 @@ export function ToolPage({ reply, onSignedOut }: Props) {
         }
       })
       .finally(() => controllers.current.delete(number));
+  };
+
+  /** Returns the number of a new card. */
+  const nextNumber = () => {
+    counter.current += 1;
+    setFieldError(null);
+    return counter.current;
+  };
+
+  /**
+   * Runs `request` in a new card. When the run ends with crumbkit's
+   * needs_yes failure, the page opens a preview card for the same request,
+   * so the person can confirm it.
+   */
+  const start = (request: RunRequest, long: boolean) => {
+    const command = commandAt(request);
+    if (command === undefined) {
+      return;
+    }
+    const number = nextNumber();
+    apply({ type: "add", number, request, line: lineOf(tool.name, command, request), long });
+    let needsYes = false;
+    void follow(number, (call) =>
+      streamRun({
+        ...call,
+        request,
+        onEvent: (event) => {
+          needsYes ||= asksForYes(event);
+          call.onEvent(event);
+        },
+      }),
+    ).then(() => {
+      if (needsYes) {
+        preview(request, long, null);
+      }
+    });
+  };
+
+  /**
+   * Previews `request` in a new card, which asks its question once the
+   * server issues a confirmation id. `basis` is the composer's draft it was
+   * made from, or null.
+   */
+  const preview = (request: RunRequest, long: boolean, basis: Draft | null) => {
+    const command = commandAt(request);
+    if (command === undefined) {
+      return;
+    }
+    const number = nextNumber();
+    const line = lineOf(tool.name, command, request);
+    apply({ type: "preview", number, request, line, long, basis });
+    void follow(number, (call) => streamPreview({ ...call, request }));
+  };
+
+  /**
+   * Runs `request` at once, or previews it when it needs a confirmation.
+   * `long` asks for the long columns.
+   */
+  const begin = (request: RunRequest, long: boolean, basis: Draft | null) => {
+    const command = commandAt(request);
+    if (command !== undefined && needsConfirmation(command)) {
+      preview(request, long, basis);
+    } else {
+      start(request, long);
+    }
+  };
+
+  /**
+   * Runs a preview card's request with its confirmation id, once, in the
+   * same card. The server refuses an id that is stale, used or issued for
+   * another request, and the card then shows that failure.
+   */
+  const confirm = (run: Run) => {
+    const id = run.ask?.confirmation;
+    if (run.ask?.answer !== "open" || id === undefined || id === null) {
+      return;
+    }
+    apply({ type: "answer", number: run.number, answer: "confirmed" });
+    void follow(run.number, (call) => streamConfirmation(id, { ...call, request: run.request }));
   };
 
   const choose = (command: Command, draft: Draft = emptyDraft(command)) => {
@@ -203,7 +291,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     const draft = draftFrom(command, request);
     choose(command, draft);
     if (whyNotRunnable(command, reply.read_only) === null && missing(command, draft).length === 0) {
-      start(request, false);
+      begin(request, false, draft);
     }
   };
 
@@ -227,7 +315,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     setComposing({ ...next, editing: null });
     const { command, draft } = next;
     if (whyNotRunnable(command, reply.read_only) === null && missing(command, draft).length === 0) {
-      start(requestOf(command, draft), longOf(draft));
+      begin(requestOf(command, draft), longOf(draft), draft);
     }
   };
 
@@ -277,31 +365,53 @@ export function ToolPage({ reply, onSignedOut }: Props) {
         <Rail
           tool={tool}
           selected={composing?.command ?? null}
+          readOnly={reply.read_only}
           onChoose={(command) => choose(command)}
         />
         <main className="flex min-w-0 flex-1 flex-col">
           <Transcript size={size}>
             <Welcome tool={tool} onExample={runExample} />
-            {runs.map((run) => (
-              <RunCard
-                key={run.number}
-                run={run}
-                tool={tool}
-                command={commandAt(run.request)}
-                cancelWords={
-                  cancel.isError &&
-                  run.state.kind === "running" &&
-                  cancel.variables === run.state.id
-                    ? cancelFailure(cancel.error)
-                    : null
-                }
-                onEdit={() => edit(run.number)}
-                onRunAgain={() => start(run.request, run.long)}
-                onCancel={cancelById}
-                onPageSize={(pageSize) => start(withPageSize(run.request, pageSize), run.long)}
-                onCompose={compose}
-              />
-            ))}
+            {runs.map((run) => {
+              const command = commandAt(run.request);
+              return (
+                <RunCard
+                  key={run.number}
+                  run={run}
+                  tool={tool}
+                  command={command}
+                  cancelWords={
+                    cancel.isError &&
+                    run.state.kind === "running" &&
+                    cancel.variables === run.state.id
+                      ? cancelFailure(cancel.error)
+                      : null
+                  }
+                  onEdit={() => edit(run.number)}
+                  onRunAgain={() => begin(run.request, run.long, null)}
+                  onCancel={cancelById}
+                  onPageSize={(pageSize) =>
+                    begin(withPageSize(run.request, pageSize), run.long, null)
+                  }
+                  onCompose={compose}
+                >
+                  {command !== undefined && (
+                    <Confirmation
+                      run={run}
+                      command={command}
+                      stale={
+                        run.ask !== undefined &&
+                        run.ask.basis !== null &&
+                        run.ask.basis !== composing?.draft
+                      }
+                      onConfirm={() => confirm(run)}
+                      onDecline={() =>
+                        apply({ type: "answer", number: run.number, answer: "declined" })
+                      }
+                    />
+                  )}
+                </RunCard>
+              );
+            })}
           </Transcript>
           {/* The line stays in one place in the page, so it keeps its focus
               when the first command it names opens the form. */}
