@@ -1,7 +1,7 @@
 use crumbkit::Failure as _;
 
 use super::{Extra, build};
-use crate::model::{CommandsList, Tool};
+use crate::model::{CommandsList, Document, Tool};
 use crate::runner::failure::RUN_REFUSED;
 use crate::runner::{RunFailure, RunRequest, Value};
 
@@ -17,9 +17,46 @@ fn shelf() -> Tool {
     Tool::assemble("shelf 0.1.1", commands, Vec::new()).unwrap()
 }
 
+/// crumbkit's `commands list` schema at the commit that the install script
+/// pins, which declares `prints_no_result`.
+const COMMANDS_LIST_SCHEMA: &str =
+    include_str!("../../../tests/fixtures/crumbkit/commands-list-v1.json");
+
+/// unruly as its model loads without documents, as a tool on a crumbkit
+/// before crumbkit/crumbkit#291 does, whose `commands list` cannot mark a
+/// command that prints no result.
 fn unruly() -> Tool {
     let commands: CommandsList = serde_json::from_str(UNRULY).unwrap();
     Tool::assemble("unruly 0.1.0", commands, Vec::new()).unwrap()
+}
+
+/// unruly with `commands list` as `edit` leaves it, and with crumbkit's
+/// `commands list` schema as its own, as a tool on a crumbkit that marks a
+/// command that prints no result.
+fn marking_unruly(edit: impl FnOnce(&mut serde_json::Value)) -> Tool {
+    let mut document: serde_json::Value = serde_json::from_str(UNRULY).unwrap();
+    edit(&mut document);
+    let commands: CommandsList = serde_json::from_value(document).unwrap();
+    let schema = serde_json::from_str(COMMANDS_LIST_SCHEMA).unwrap();
+    let documents = vec![Document::output("unruly/commands-list/v1", schema)];
+    let tool = Tool::assemble("unruly 0.1.0", commands, documents).unwrap();
+    assert!(tool.marks_no_result());
+    tool
+}
+
+/// Removes `prints_no_result` from the row of `child silent`, which then
+/// stands for a command without a document.
+fn unmark_silent(document: &mut serde_json::Value) {
+    let rows = document["data"].as_array_mut().unwrap();
+    let silent = rows
+        .iter_mut()
+        .find(|row| row["path"] == "unruly child silent")
+        .unwrap();
+    silent
+        .as_object_mut()
+        .unwrap()
+        .remove("prints_no_result")
+        .unwrap();
 }
 
 fn many(texts: &[&str]) -> Value {
@@ -115,13 +152,9 @@ fn full_is_passed_to_a_command_that_lists_it_as_its_own_argument() {
     );
 }
 
-/// `commands list` gives no form to a command that prints no result and to
-/// one with no document, so this pins the runner's RUST-10 trade-off: the
-/// second loses `--full` too.
 #[test]
-fn full_is_left_out_for_a_command_without_a_form_even_when_it_might_print_rows_that_are_not_whole()
-{
-    let tool = unruly();
+fn full_is_left_out_for_a_command_that_commands_list_marks_as_printing_no_result() {
+    let tool = marking_unruly(|_| {});
 
     let (_, vector) = build(&tool, &RunRequest::new(["child", "silent"])).unwrap();
 
@@ -132,14 +165,42 @@ fn full_is_left_out_for_a_command_without_a_form_even_when_it_might_print_rows_t
 }
 
 #[test]
-fn full_is_passed_to_the_twin_of_that_command_that_declares_a_document() {
-    let tool = unruly();
+fn full_is_passed_to_a_command_without_a_form_that_a_marking_tool_leaves_unmarked() {
+    let tool = marking_unruly(unmark_silent);
+
+    let (_, vector) = build(&tool, &RunRequest::new(["child", "silent"])).unwrap();
+
+    assert_eq!(
+        vector.argv(Extra::None).words(),
+        ["child", "silent", "--json", "--full", "--no-input", "--"]
+    );
+}
+
+#[test]
+fn full_is_passed_to_a_command_that_declares_a_document() {
+    let tool = marking_unruly(|_| {});
 
     let (_, vector) = build(&tool, &RunRequest::new(["child", "said"])).unwrap();
 
     assert_eq!(
         vector.argv(Extra::None).words(),
         ["child", "said", "--json", "--full", "--no-input", "--"]
+    );
+}
+
+/// A tool whose crumbkit cannot mark a command that prints no result gives
+/// that command and a command without a document the same row, so this
+/// pins the runner's RUST-10 trade-off: the second loses `--full` too.
+#[test]
+fn full_is_left_out_for_a_command_without_a_form_when_the_tool_cannot_mark_one_that_prints_no_result()
+ {
+    let tool = unruly();
+
+    let (_, vector) = build(&tool, &RunRequest::new(["child", "silent"])).unwrap();
+
+    assert_eq!(
+        vector.argv(Extra::None).words(),
+        ["child", "silent", "--json", "--no-input", "--"]
     );
 }
 

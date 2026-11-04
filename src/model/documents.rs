@@ -226,6 +226,26 @@ impl Document {
         }
     }
 
+    /// Returns an output document with the id `id` and the schema `schema`,
+    /// which no command lists.
+    #[cfg(test)]
+    pub(crate) fn output(id: &str, schema: Value) -> Self {
+        Self {
+            id: id.to_owned(),
+            kind: DocumentKind::Output,
+            form: DocumentForm::Document,
+            description: None,
+            commands: Vec::new(),
+            schema,
+        }
+    }
+
+    /// Returns true when an object of the document's schema lists `name`
+    /// among its `properties`.
+    pub(super) fn declares_property(&self, name: &str) -> bool {
+        declares(&self.schema, name)
+    }
+
     /// Returns the commands that print the document.
     #[must_use]
     pub fn commands(&self) -> &[CommandPath] {
@@ -389,4 +409,20 @@ pub enum Recovery {
         /// Why no step repairs it.
         reason: String,
     },
+}
+
+/// Returns true when `schema`, or a schema inside it, lists `name` among its
+/// `properties`.
+fn declares(schema: &Value, name: &str) -> bool {
+    match schema {
+        Value::Object(object) => {
+            object
+                .get("properties")
+                .and_then(Value::as_object)
+                .is_some_and(|properties| properties.contains_key(name))
+                || object.values().any(|value| declares(value, name))
+        }
+        Value::Array(items) => items.iter().any(|item| declares(item, name)),
+        _ => false,
+    }
 }
