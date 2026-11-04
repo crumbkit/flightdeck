@@ -43,7 +43,7 @@ export function Welcome({ tool, onExample }: Props) {
                         type="button"
                         title={example.command}
                         onClick={() => onExample(command, example)}
-                        className="text-primary active:text-foreground -mx-1 min-h-8 max-w-full truncate px-1 text-xs hover:underline"
+                        className="text-primary active:text-foreground -mx-1 min-h-8 max-w-full truncate px-1 text-xs not-first:border-l not-first:pl-3 hover:underline"
                       >
                         {example.about}
                       </button>

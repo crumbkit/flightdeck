@@ -17,7 +17,7 @@ export function Topbar({ name, version, readOnly, onFind }: Props) {
         </span>
       )}
       {readOnly && (
-        <span className="bg-muted inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium">
+        <span className="bg-muted rounded-pill inline-flex items-center gap-1 border px-2 py-0.5 text-xs font-medium">
           <Lock aria-hidden="true" className="size-3" />
           read-only
         </span>
@@ -27,11 +27,11 @@ export function Topbar({ name, version, readOnly, onFind }: Props) {
           <button
             type="button"
             onClick={onFind}
-            className="bg-muted text-muted-foreground hover:bg-accent hover:text-foreground transition-tint active:bg-muted inline-flex h-8 items-center gap-2 rounded-md border px-2.5 text-xs"
+            className="bg-muted text-muted-foreground hover:bg-accent hover:text-foreground transition-tint active:bg-muted inline-flex h-8 items-center gap-2 rounded-md border px-2.5 text-xs whitespace-nowrap"
           >
             <Search aria-hidden="true" className="size-3.5" />
             Find a command
-            <kbd className="font-mono">⌘K</kbd>
+            <kbd className="hidden font-mono md:inline">⌘K</kbd>
           </button>
         )}
         <ThemeControl />

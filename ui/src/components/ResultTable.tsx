@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, type ReactNode, useState } from "react";
 import type { Command, Link } from "@/api/model";
@@ -79,6 +80,12 @@ export function ResultTable(props: Props) {
   const [open, setOpen] = useState<number | null>(null);
   const rows = rowsOf(entries);
   const columns = columnsOf(command, rows, view);
+  // The columns whose figures sit right-aligned, so their heads do too.
+  const numeric = new Set(
+    columns
+      .filter((column) => rows.some((row) => typeof row[column.name] === "number"))
+      .map((column) => column.name),
+  );
   const every = allColumnsOf(command, rows);
   const hasLong = every.some((column) => column.long);
   const footer = listing === null ? null : footerOf(command, rows.length, listing);
@@ -142,10 +149,17 @@ export function ResultTable(props: Props) {
                 <span className="sr-only">Record</span>
               </th>
               {columns.map((column) => (
-                <th key={column.name} scope="col" className="border-b px-2.5 py-1.5 align-bottom">
+                <th
+                  key={column.name}
+                  scope="col"
+                  className={cn(
+                    "border-b px-2.5 py-1.5 align-bottom",
+                    numeric.has(column.name) && "text-right",
+                  )}
+                >
                   <span className="block font-mono text-xs font-semibold">{column.name}</span>
                   {column.description !== null && (
-                    <span className="text-muted-foreground block max-w-56 text-xs font-normal">
+                    <span className="text-muted-foreground hidden max-w-44 text-xs font-normal md:block">
                       {column.description}
                     </span>
                   )}
@@ -184,7 +198,7 @@ export function ResultTable(props: Props) {
                         key={column.name}
                         className={
                           typeof item.row[column.name] === "number"
-                            ? "border-b px-2.5 py-1.5 text-right align-top tabular-nums"
+                            ? "border-b px-2.5 py-1.5 text-right align-top font-mono tabular-nums"
                             : "border-b px-2.5 py-1.5 align-top"
                         }
                       >
