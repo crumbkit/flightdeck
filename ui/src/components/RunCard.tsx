@@ -173,7 +173,7 @@ export function RunCard(props: Props) {
     <section
       id={`run-${run.number}`}
       aria-label={`Run ${run.number}: ${run.line}, ${status.words}`}
-      className="bg-card mb-3 overflow-hidden rounded-lg border shadow-xs"
+      className="bg-card lift-card mb-3 overflow-hidden rounded-lg border"
     >
       <header
         className={cn(
@@ -194,17 +194,25 @@ export function RunCard(props: Props) {
           {state.kind === "running" && state.id !== null && (
             <button
               type="button"
-              className="text-primary hover:underline"
+              className="text-primary active:text-foreground -my-1.5 min-h-8 hover:underline"
               title="Cancel the run (⌘.)"
               onClick={() => state.id !== null && onCancel(state.id)}
             >
               Cancel
             </button>
           )}
-          <button type="button" className="text-primary hover:underline" onClick={onEdit}>
+          <button
+            type="button"
+            className="text-primary active:text-foreground -my-1.5 min-h-8 hover:underline"
+            onClick={onEdit}
+          >
             Edit
           </button>
-          <button type="button" className="text-primary hover:underline" onClick={onRunAgain}>
+          <button
+            type="button"
+            className="text-primary active:text-foreground -my-1.5 min-h-8 hover:underline"
+            onClick={onRunAgain}
+          >
             {command !== undefined && needsConfirmation(command) ? "Preview again" : "Run again"}
           </button>
           <CopyButton text={line} label="Copy line" />
@@ -299,7 +307,7 @@ function Body(props: BodyProps) {
         <>
           {kept && <Drawn {...props} />}
           <p role="alert" className="mb-0">
-            The run's output stopped before the run ended, so its result is incomplete.{" "}
+            The run’s output stopped before the run ended, so its result is incomplete.{" "}
             {state.words ??
               "Check that flightdeck open is still running in your terminal, then run it again."}
           </p>

@@ -26,7 +26,7 @@ export function Loading() {
           ))}
         </nav>
         <main aria-busy="true" className="min-w-0 flex-1 px-4 pt-3">
-          <div className="bg-card flex flex-col gap-3 rounded-lg border px-4 py-4 shadow-xs">
+          <div className="bg-card lift-card flex flex-col gap-3 rounded-lg border px-4 py-4">
             <Bar width="w-32" />
             <Bar width="w-2/3" />
             <Bar width="w-1/2" />

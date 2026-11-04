@@ -42,9 +42,7 @@ export function Rail({ tool, selected, readOnly, onChoose }: Props) {
       {railGroups(tool).map((group, index) => (
         <div key={group.title ?? "commands"} className={cn(index > 0 && "mt-4")}>
           {group.title !== null && (
-            <h2 className="text-faint-foreground mx-2 mb-1 text-xs font-semibold tracking-wide uppercase">
-              {group.title}
-            </h2>
+            <h2 className="text-faint-foreground mx-2 mb-1 text-xs font-semibold">{group.title}</h2>
           )}
           <ul className="m-0 p-0">
             {group.commands.map((command) => {
@@ -56,9 +54,9 @@ export function Rail({ tool, selected, readOnly, onChoose }: Props) {
                     aria-current={selected === command ? "true" : undefined}
                     onClick={() => onChoose(command)}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-md py-1 pr-2 pl-2 text-left transition-colors",
+                      "transition-tint active:bg-muted flex min-h-8 w-full items-center gap-2 rounded-md py-1 pr-2 pl-2 text-left",
                       selected === command
-                        ? "bg-card font-semibold shadow-xs"
+                        ? "bg-card lift-card font-semibold"
                         : "hover:bg-card/60 dark:hover:bg-muted",
                       locked && "text-faint-foreground",
                     )}
