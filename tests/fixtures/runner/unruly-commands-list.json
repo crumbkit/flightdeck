@@ -493,6 +493,164 @@
         "open_world": false
       },
       "writes": null
+    },
+    {
+      "path": "unruly child whole",
+      "about": "Print a document whose JSON already holds every field, and refuse --full as crumbkit does",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "--json",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Print the result as one JSON document",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--no-input",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Fail instead of asking a question",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child answer",
+      "about": "Print a headed answer, and refuse --full as crumbkit does",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "--json",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Print the result as one JSON document",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--full",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "With --json, print every field of every row",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--no-input",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Fail instead of asking a question",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "headed",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child rows",
+      "about": "Print rows, and fail unless the run passes --full",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "--json",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Print the result as one JSON document",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--full",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "With --json, print every field of every row",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--no-input",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Fail instead of asking a question",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
     }
   ],
   "truncated": false

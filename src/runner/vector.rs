@@ -3,13 +3,18 @@
 
 use super::failure::{Reason, RunFailure, Takes};
 use super::request::{RunRequest, Value};
-use crate::model::{Argument, Arity, Command, CrumbkitFlag, Kind, Tool, has_control};
+use crate::model::{Argument, Arity, Command, CrumbkitFlag, Form, Kind, Tool, has_control};
 
 #[cfg(test)]
 mod tests;
 
-/// The flags that flightdeck adds to every run, after the command's own
-/// options: a JSON document, every field of every row, and no question.
+/// The flags that flightdeck adds to a run, after the command's own
+/// options, in this order: `--json` for a JSON document, on every run;
+/// `--full` for every field of every row, when the command offers it; and
+/// `--no-input` for no question, when the command takes it. crumbkit
+/// refuses `--full` with `<tool>::cli::usage` on a command whose JSON
+/// already holds every field, and a tool that cannot ask a question need
+/// not declare `--no-input`.
 const RUNNER_FLAGS: [CrumbkitFlag; 3] = [
     CrumbkitFlag::Json,
     CrumbkitFlag::Full,
@@ -24,6 +29,8 @@ pub(super) struct Vector {
     options: Vec<String>,
     positionals: Vec<String>,
     line: Line,
+    full: bool,
+    no_input: bool,
     dry_run: bool,
     yes: bool,
 }
@@ -55,12 +62,17 @@ impl Argv {
 
 impl Vector {
     /// Returns the argument vector: the path, each option as one word, the
-    /// flags that flightdeck adds, `extra`, then `--` and the positional
-    /// values.
+    /// flags of [`RUNNER_FLAGS`] that the command takes, `extra`, then `--`
+    /// and the positional values.
     pub(super) fn argv(&self, extra: Extra) -> Argv {
         let mut words = self.path.clone();
         words.extend(self.options.iter().cloned());
-        words.extend(RUNNER_FLAGS.iter().map(|flag| flag.name().to_owned()));
+        let added = RUNNER_FLAGS.into_iter().filter(|flag| match flag {
+            CrumbkitFlag::Full => self.full,
+            CrumbkitFlag::NoInput => self.no_input,
+            _ => true,
+        });
+        words.extend(added.map(|flag| flag.name().to_owned()));
         match extra {
             Extra::DryRun => words.push(CrumbkitFlag::DryRun.name().to_owned()),
             Extra::Yes if self.yes => words.push(CrumbkitFlag::Yes.name().to_owned()),
@@ -189,11 +201,17 @@ pub(super) fn build<'tool>(
     line.positionals(&positionals);
 
     let takes = |flag: CrumbkitFlag| command.crumbkit_flags().any(|(own, _)| own == flag);
+    // crumbkit lists a global `--full` on every command below the one that
+    // declares it, also on a command that refuses it. A headed or bytes
+    // result never offers `--full`, so the form rules those out.
+    let whole = matches!(command.result().form(), Some(Form::Headed | Form::Bytes));
     let vector = Vector {
         path: request.path().to_vec(),
         options,
         positionals,
         line,
+        full: takes(CrumbkitFlag::Full) && !whole,
+        no_input: takes(CrumbkitFlag::NoInput),
         dry_run: takes(CrumbkitFlag::DryRun),
         yes: takes(CrumbkitFlag::Yes),
     };

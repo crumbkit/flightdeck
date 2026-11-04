@@ -90,6 +90,44 @@ fn dry_run_and_yes_go_after_flightdecks_flags_and_before_the_separator() {
 }
 
 #[test]
+fn full_is_left_out_for_a_command_that_does_not_list_it_or_prints_a_headed_answer() {
+    let tool = unruly();
+
+    for path in [["child", "whole"], ["child", "answer"]] {
+        let (_, vector) = build(&tool, &RunRequest::new(path)).unwrap();
+
+        assert_eq!(
+            vector.argv(Extra::None).words(),
+            ["child", path[1], "--json", "--no-input", "--"]
+        );
+    }
+}
+
+#[test]
+fn full_is_passed_to_a_command_that_lists_it_as_its_own_argument() {
+    let tool = unruly();
+
+    let (_, vector) = build(&tool, &RunRequest::new(["child", "rows"])).unwrap();
+
+    assert_eq!(
+        vector.argv(Extra::None).words(),
+        ["child", "rows", "--json", "--full", "--no-input", "--"]
+    );
+}
+
+#[test]
+fn no_input_is_left_out_for_a_command_that_does_not_take_it() {
+    let tool = unruly();
+
+    let (_, vector) = build(&tool, &RunRequest::new(["child", "nap"])).unwrap();
+
+    assert_eq!(
+        vector.argv(Extra::None).words(),
+        ["child", "nap", "--json", "--"]
+    );
+}
+
+#[test]
 fn the_line_quotes_each_value_and_puts_the_separator_before_a_positional_that_starts_with_a_dash() {
     let tool = shelf();
     let request = RunRequest::new(["books", "show"])

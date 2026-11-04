@@ -125,7 +125,10 @@ What works today:
   argument, the reason, and, where they apply, the item of a list value,
   what the argument takes and the earlier positional argument. It builds the argument vector itself, with each option as one
   `--name=value` word and the positional values after `--`, and it never
-  runs a shell. It delivers each line of standard output as it arrives and
+  runs a shell. It adds `--json` to every run, `--full` when the command
+  lists it and prints neither a headed answer nor bytes, and `--no-input`
+  when the command lists it, because crumbkit refuses `--full` on a
+  command whose JSON already holds every field. It delivers each line of standard output as it arrives and
   ends with an outcome, which it reads from the run's last document. That
   document starts at the last line that starts with `{` and runs to the end
   of the output, so the runner reads a document on one line and one that a

@@ -572,6 +572,35 @@ fn a_child_that_exits_101_without_a_document_is_no_document_with_its_standard_er
 }
 
 #[test]
+fn a_command_that_refuses_full_runs_to_its_result_because_the_runner_leaves_full_out() {
+    let unruly = unruly_session(settings());
+
+    for path in [["child", "whole"], ["child", "answer"]] {
+        let run = unruly.runner.run(&request(&path)).unwrap();
+        let (lines, outcome) = finish(run);
+
+        assert!(matches!(outcome, Outcome::Result), "{path:?}: {outcome:?}");
+        assert_eq!(lines, [r#"{"schema":"unruly/child-whole/v1","data":{}}"#]);
+    }
+}
+
+#[test]
+fn a_command_that_lists_full_runs_with_it_and_prints_every_field() {
+    let unruly = unruly_session(settings());
+
+    let run = unruly.runner.run(&request(&["child", "rows"])).unwrap();
+    let (lines, outcome) = finish(run);
+
+    assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
+    assert_eq!(
+        lines,
+        [
+            r#"{"schema":"unruly/child-rows/v1","data":[{"id":1,"note":"every field"}],"truncated":false}"#
+        ]
+    );
+}
+
+#[test]
 fn a_program_that_does_not_exist_is_refused_with_spawn() {
     let (dirs, program) = isolated(test_tool("shelf"));
     let tool: Tool = model::load(&program, TIME_LIMIT).unwrap();
