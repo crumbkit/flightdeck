@@ -14,7 +14,7 @@ export function Welcome({ tool, onExample }: Props) {
   return (
     <section
       aria-label={`Welcome to ${tool.name}`}
-      className="mb-3 rounded-lg border border-dashed px-4 py-3"
+      className="bg-card mb-3 rounded-lg border px-4 py-3.5 shadow-xs"
     >
       <h1 className="m-0 text-base font-semibold">
         <span className="font-mono">{tool.name}</span>{" "}
@@ -22,13 +22,13 @@ export function Welcome({ tool, onExample }: Props) {
       </h1>
       {tool.about !== null && <p className="text-muted-foreground mt-0.5 mb-2">{tool.about}</p>}
       {railGroups(tool).map((group) => (
-        <div key={group.title ?? "commands"} className="mt-3">
+        <div key={group.title ?? "commands"} className="mt-4">
           {group.title !== null && (
-            <h2 className="text-faint-foreground m-0 mb-1 text-xs font-semibold tracking-wide uppercase">
+            <h2 className="text-faint-foreground m-0 mb-1.5 text-xs font-semibold tracking-wide uppercase">
               {group.title}
             </h2>
           )}
-          <ul className="m-0 flex flex-col gap-2 p-0">
+          <ul className="m-0 flex flex-col gap-2.5 p-0">
             {group.commands.map((command) => (
               <li key={command.path.join(" ")} className="list-none">
                 <div className="flex flex-wrap items-center gap-2">
@@ -46,7 +46,7 @@ export function Welcome({ tool, onExample }: Props) {
                         type="button"
                         title={example.command}
                         onClick={() => onExample(command, example)}
-                        className="bg-muted rounded-full border px-2.5 py-0.5 text-xs"
+                        className="bg-muted hover:bg-accent hover:border-input rounded-full border px-2.5 py-0.5 text-xs transition-colors"
                       >
                         {example.about}
                       </button>

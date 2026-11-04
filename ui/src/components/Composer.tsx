@@ -104,7 +104,11 @@ export function Composer(props: Props) {
         {editing !== null && (
           <span className="text-muted-foreground text-xs">
             Editing run {editing}{" "}
-            <button type="button" className="text-primary" onClick={() => onShowRun(editing)}>
+            <button
+              type="button"
+              className="text-primary hover:underline"
+              onClick={() => onShowRun(editing)}
+            >
               Show run {editing}
             </button>
           </span>
@@ -118,7 +122,9 @@ export function Composer(props: Props) {
       </div>
       {form.more.length > 0 && (
         <details className="mt-2.5">
-          <summary className="text-primary cursor-pointer text-xs">More options</summary>
+          <summary className="text-primary cursor-pointer text-xs hover:underline">
+            More options
+          </summary>
           <div className="mt-2 flex flex-col gap-2.5">
             {form.more.map((group) => (
               <Field key={group.choices[0]?.name} group={group} {...props} />
@@ -226,8 +232,10 @@ function Input({ argument, value, error, onValue }: InputProps) {
   const name = (
     <span className="text-faint-foreground font-mono text-xs font-normal">{argument.name}</span>
   );
+  // Red marks a destructive effect and a failed exit, and nothing else, so
+  // the word stays quiet.
   const required = argument.required ? (
-    <span className="text-destructive text-xs font-medium">required</span>
+    <span className="text-faint-foreground text-xs font-normal">required</span>
   ) : null;
   const message =
     error === null ? null : (
@@ -263,7 +271,7 @@ function Input({ argument, value, error, onValue }: InputProps) {
             aria-invalid={invalid}
             aria-describedby={described}
             onChange={(event) => onValue(event.target.value === "" ? null : event.target.value)}
-            className="border-input bg-card w-max rounded-md border px-2 py-1"
+            className="border-input bg-card focus-visible:border-ring w-max rounded-md border px-2 py-1 transition-colors"
           >
             <option value="">{argument.defaults[0] ?? "None"}</option>
             {argument.possible_values.map((possible) => (
@@ -281,12 +289,12 @@ function Input({ argument, value, error, onValue }: InputProps) {
             aria-invalid={invalid}
             aria-describedby={described}
             onChange={(event) => onValue(event.target.value === "" ? null : event.target.value)}
-            className="border-input bg-card max-w-sm rounded-md border px-2 py-1 font-mono"
+            className="border-input bg-card focus-visible:border-ring max-w-sm rounded-md border px-2 py-1 font-mono transition-colors"
           />
         );
       return (
         <div className="flex flex-col gap-1">
-          <label htmlFor={id} className="flex flex-wrap items-baseline gap-2 text-xs font-semibold">
+          <label htmlFor={id} className="flex flex-wrap items-baseline gap-2 text-xs font-medium">
             {label} {name} {required}
           </label>
           {control}

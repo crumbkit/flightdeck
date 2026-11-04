@@ -107,7 +107,7 @@ export function ResultTable(props: Props) {
           </label>
         )}
         <details className="relative">
-          <summary className="text-primary cursor-pointer">Columns</summary>
+          <summary className="text-primary cursor-pointer hover:underline">Columns</summary>
           <fieldset className="bg-card absolute z-10 mt-1 flex min-w-48 flex-col gap-1 rounded-md border p-2 shadow-md">
             <legend className="sr-only">Columns to show</legend>
             {every.map((column) => (
@@ -170,7 +170,7 @@ export function ResultTable(props: Props) {
                         aria-expanded={open === item.index}
                         aria-label={`Full record of row ${item.index + 1}`}
                         onClick={() => setOpen(open === item.index ? null : item.index)}
-                        className="text-faint-foreground rounded p-0.5"
+                        className="text-faint-foreground hover:bg-muted hover:text-foreground rounded p-0.5 transition-colors"
                       >
                         {open === item.index ? (
                           <ChevronDown aria-hidden="true" className="size-3.5" />
@@ -220,7 +220,7 @@ export function ResultTable(props: Props) {
                 <button
                   key={size}
                   type="button"
-                  className="text-foreground rounded border px-1.5"
+                  className="text-foreground hover:bg-muted rounded border px-1.5 transition-colors"
                   onClick={() => onPageSize(size)}
                 >
                   {sizeLabels[size]}

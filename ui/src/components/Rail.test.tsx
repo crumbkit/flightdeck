@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { effectOf } from "@/lib/rail";
 import { shelfWithoutGoals } from "../../tests/fixtures/shelf";
 import { Rail } from "./Rail";
 import { Welcome } from "./Welcome";
@@ -17,6 +18,17 @@ describe("a tool without goal headings", () => {
     expect(buttons).toHaveLength(paths.length);
     for (const [index, path] of paths.entries()) {
       expect(buttons[index]).toHaveTextContent(path);
+    }
+  });
+
+  it("names each command's effect in a word, so its colour never stands alone", () => {
+    render(<Rail tool={shelfWithoutGoals} selected={null} readOnly={false} onChoose={() => {}} />);
+    const rail = screen.getByRole("navigation", { name: "Commands" });
+
+    expect(rail).not.toHaveTextContent(shelfWithoutGoals.version);
+    const buttons = within(rail).getAllByRole("button");
+    for (const [index, command] of shelfWithoutGoals.commands.entries()) {
+      expect(buttons[index]).toHaveTextContent(effectOf(command));
     }
   });
 

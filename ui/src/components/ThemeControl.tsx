@@ -30,7 +30,7 @@ export function ThemeControl() {
       {choices.map((choice) => (
         <label
           key={choice.theme}
-          className="text-muted-foreground has-checked:bg-muted has-checked:text-foreground has-focus-visible:outline-ring cursor-pointer rounded px-2 py-0.5 has-checked:font-semibold has-focus-visible:outline-2"
+          className="text-muted-foreground has-checked:bg-muted has-checked:text-foreground has-focus-visible:outline-ring hover:text-foreground cursor-pointer rounded px-2 py-0.5 transition-colors has-checked:font-semibold has-focus-visible:outline-2"
         >
           <input
             type="radio"

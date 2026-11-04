@@ -89,7 +89,7 @@ export function Palette({ tool, onOpen, onClose }: Props) {
             onClick={() => choose(index)}
             onKeyDown={onKeyDown}
             onMouseMove={() => setActive(index)}
-            className="aria-selected:bg-accent flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5"
+            className="aria-selected:bg-accent hover:bg-muted flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5"
           >
             <span className="shrink-0">
               <CommandPathText command={match.command} />

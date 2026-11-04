@@ -173,7 +173,7 @@ export function RunCard(props: Props) {
     <section
       id={`run-${run.number}`}
       aria-label={`Run ${run.number}: ${run.line}, ${status.words}`}
-      className="bg-card mb-3 overflow-hidden rounded-lg border"
+      className="bg-card mb-3 overflow-hidden rounded-lg border shadow-xs"
     >
       <header
         className={cn(
@@ -194,17 +194,17 @@ export function RunCard(props: Props) {
           {state.kind === "running" && state.id !== null && (
             <button
               type="button"
-              className="text-primary"
+              className="text-primary hover:underline"
               title="Cancel the run (⌘.)"
               onClick={() => state.id !== null && onCancel(state.id)}
             >
               Cancel
             </button>
           )}
-          <button type="button" className="text-primary" onClick={onEdit}>
+          <button type="button" className="text-primary hover:underline" onClick={onEdit}>
             Edit
           </button>
-          <button type="button" className="text-primary" onClick={onRunAgain}>
+          <button type="button" className="text-primary hover:underline" onClick={onRunAgain}>
             {command !== undefined && needsConfirmation(command) ? "Preview again" : "Run again"}
           </button>
           <CopyButton text={line} label="Copy line" />
@@ -220,7 +220,7 @@ export function RunCard(props: Props) {
       </header>
       {running && (
         <div aria-hidden="true" className="bg-muted h-0.5 overflow-hidden">
-          <div className="bg-primary h-full w-1/3 motion-safe:animate-pulse" />
+          <div className="bg-primary motion-safe:animate-running-bar h-full w-1/3" />
         </div>
       )}
       <div className="px-3 py-2.5">

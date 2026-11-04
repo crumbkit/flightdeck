@@ -133,3 +133,20 @@
     outline-offset: 1px;
   }
 }
+
+/* The bar under a running card's header: a short bar that slides across
+   the card's width and starts again, so it reads as "still going" rather
+   than as a stuck fraction. It plays only when the person has not asked
+   for reduced motion. */
+@keyframes running-bar {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+@utility animate-running-bar {
+  animation: running-bar 1.4s ease-in-out infinite;
+}

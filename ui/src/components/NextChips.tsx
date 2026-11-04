@@ -53,7 +53,11 @@ export function NextChips({ steps, tool, onCompose }: Props) {
             </Chip>
           ))}
           {more > 0 && (
-            <button type="button" className="text-primary" onClick={() => setAll(true)}>
+            <button
+              type="button"
+              className="text-primary hover:underline"
+              onClick={() => setAll(true)}
+            >
               +{more} more
             </button>
           )}
