@@ -7,6 +7,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-04
+
 ### Added
 
 - `flightdeck open <TOOL> [--read-only] [--no-browser]` starts a local
@@ -88,3 +90,6 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and answers 502 with `flightdeck::choices::no_listing` or 504 with
   `flightdeck::choices::time_limit` when the source gives no listing within
   eight seconds.
+
+[Unreleased]: https://github.com/crumbkit/flightdeck/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/crumbkit/flightdeck/releases/tag/v0.1.0
