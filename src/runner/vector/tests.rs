@@ -115,8 +115,12 @@ fn full_is_passed_to_a_command_that_lists_it_as_its_own_argument() {
     );
 }
 
+/// `commands list` gives no form to a command that prints no result and to
+/// one with no document, so this pins the runner's RUST-10 trade-off: the
+/// second loses `--full` too.
 #[test]
-fn full_is_left_out_for_a_command_that_lists_it_but_prints_no_document() {
+fn full_is_left_out_for_a_command_without_a_form_even_when_it_might_print_rows_that_are_not_whole()
+{
     let tool = unruly();
 
     let (_, vector) = build(&tool, &RunRequest::new(["child", "silent"])).unwrap();
@@ -128,7 +132,7 @@ fn full_is_left_out_for_a_command_that_lists_it_but_prints_no_document() {
 }
 
 #[test]
-fn full_is_passed_to_the_same_command_when_it_declares_a_document() {
+fn full_is_passed_to_the_twin_of_that_command_that_declares_a_document() {
     let tool = unruly();
 
     let (_, vector) = build(&tool, &RunRequest::new(["child", "said"])).unwrap();

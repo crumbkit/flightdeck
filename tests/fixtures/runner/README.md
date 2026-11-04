@@ -41,12 +41,13 @@ and one command for each way a real tool can misbehave or a test needs:
   refuses `--full` as crumbkit does, with `unruly::cli::usage` and exit
   code 2.
 - `child answer` prints a headed answer and lists `--full`, and refuses
-  `--full` in the same way, as a tool on a crumbkit before 0.1.1 does.
+  `--full` in the same way, as a tool on a crumbkit revision before #270,
+  earlier than 0.1.0, does.
 - `child bytes` prints bytes and lists `--full`, and refuses `--full` in
   the same way.
 - `child silent` lists `--full` but declares no form, as a command that
-  crumbkit declares with `prints_no_result` does, and refuses `--full` in
-  the same way, as every crumbkit does.
+  crumbkit declares with `prints_no_result` does, and refuses `--full`
+  with crumbkit's refusal for a command that prints no result.
 - `child rows` lists `--full`, and fails unless the run passes it.
 - `child said` is the twin of `child silent` with a document form, and
-  fails unless the run passes `--full`.
+  fails unless the run passes `--full`. Only the vector tests use it.
