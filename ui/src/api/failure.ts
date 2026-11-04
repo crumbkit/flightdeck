@@ -13,6 +13,8 @@ export function describeFailure(error: unknown): string {
   switch (failure.kind) {
     case "network":
       return "The flightdeck server did not answer. Check that flightdeck open is still running in your terminal, then try again.";
+    case "broken":
+      return "The connection to flightdeck broke before the run ended. Check that flightdeck open is still running in your terminal, then run the command again.";
     case "shape":
       return "The server sent data that this page cannot read. Check that this page and flightdeck come from the same version.";
     case "status": {
@@ -40,18 +42,28 @@ export function isSignedOut(error: unknown): boolean {
   );
 }
 
+/** Returns true for crumbkit's refusal of a command line, such as `shelf::cli::usage`. */
+function isUsageFailure(problem: FailureDocument | null): boolean {
+  return problem?.code.endsWith("::cli::usage") === true;
+}
+
 /**
  * Returns the composer field that a refusal marks, and its words. Only a
- * failure document whose code is `flightdeck::run::refused` marks a field,
- * whatever the reply's status. The refusal's `argument` names the field. When it carries `earlier`, the
- * earlier argument that needs a value first is marked instead, and when it
- * carries `index`, the words name the refused value's place in its list.
+ * failure document whose code is `flightdeck::run::refused`, the server's
+ * refusal whatever the reply's status, or a tool's own `<tool>::cli::usage`
+ * marks a field. The refusal's `argument` names the field. When it carries
+ * `earlier`, the earlier argument that needs a value first is marked
+ * instead, and when it carries `index`, the words name the refused value's
+ * place in its list.
  */
 export function fieldErrorOf(
   problem: FailureDocument | null,
   words: string,
 ): { name: string; words: string } | null {
-  if (problem?.code !== "flightdeck::run::refused") {
+  if (problem === null) {
+    return null;
+  }
+  if (problem.code !== "flightdeck::run::refused" && !isUsageFailure(problem)) {
     return null;
   }
   const fields = problem.fields ?? {};

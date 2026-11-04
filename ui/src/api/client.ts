@@ -2,16 +2,50 @@ import { z } from "@/api/zod";
 import { forgetToken, readToken, writeToken } from "@/storage";
 
 /**
+ * What a failure says to do next, tagged by kind: run a command, run the
+ * same one again later, follow a hint, or nothing, for a reason. A `run`
+ * with `all` runs the call once with every value of the failure's field
+ * that `all` names in place of the call's placeholder.
+ */
+const Recovery = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("run"), call: z.string(), all: z.string().optional() }),
+  z.object({ kind: z.literal("retry") }),
+  z.object({ kind: z.literal("hint"), text: z.string() }),
+  z.object({ kind: z.literal("none"), reason: z.string() }),
+]);
+export type Recovery = z.infer<typeof Recovery>;
+
+/**
+ * A place in a source that a failure points at: the span's byte offset and
+ * length, and, when the tool could read the span, its 1-based line and
+ * column and the lines around it.
+ */
+const Label = z.object({
+  offset: z.number().int().nonnegative(),
+  length: z.number().int().nonnegative(),
+  line: z.number().int().positive().optional(),
+  column: z.number().int().positive().optional(),
+  name: z.string().optional(),
+  text: z.string().optional(),
+  excerpt: z.object({ line: z.number().int().positive(), text: z.string() }).optional(),
+});
+export type Label = z.infer<typeof Label>;
+
+/**
  * A failure document, with the fields the page reads: crumbkit's failure
  * document, which a tool prints and the runner answers with, or the
  * server's problem document of a refused request, which carries a `title`
- * in place of a `message`. Each has a stable `code`.
+ * in place of a `message`. Each has a stable `code`. A recovery, an
+ * alternative or a label of a kind the page does not know is dropped, so
+ * a newer tool's failure still draws.
  */
 export const FailureDocument = z.object({
   code: z.string(),
   message: z.string().optional(),
   cause: z.string().optional(),
-  recovery: z.unknown().optional(),
+  recovery: Recovery.optional().catch(undefined),
+  alternatives: z.array(Recovery).optional().catch(undefined),
+  labels: z.array(Label).optional().catch(undefined),
   fields: z.record(z.string(), z.unknown()).optional(),
   title: z.string().optional(),
 });
@@ -21,7 +55,9 @@ export type FailureDocument = z.infer<typeof FailureDocument>;
 export type ApiFailure =
   | { kind: "status"; status: number; problem: FailureDocument | null }
   | { kind: "shape"; issues: string }
-  | { kind: "network" };
+  | { kind: "network" }
+  /** The connection broke while the page read an answer that had begun. */
+  | { kind: "broken" };
 
 export class ApiError extends Error {
   readonly failure: ApiFailure;
@@ -167,4 +203,17 @@ export async function postStream(
     throw new ApiError({ kind: "shape", issues: "the answer has no body" });
   }
   return response.body;
+}
+
+/**
+ * Sends a POST without a body, for a route that answers 204 with none, such
+ * as a run's cancel. TanStack Query gives a mutation no signal, so the
+ * deadline alone ends the request.
+ */
+export async function postEmpty(path: string): Promise<void> {
+  await send(path, {
+    method: "POST",
+    signal: AbortSignal.timeout(deadlineMs),
+    headers: headers(true),
+  });
 }

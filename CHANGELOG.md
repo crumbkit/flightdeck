@@ -52,3 +52,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `ui/dist`. The page lists the tool's commands grouped by goal, finds one
   with ⌘K, builds a run from a form and shows each run as a card with its
   result as a table or a record.
+- The page draws a stream's rows as they arrive, once per animation frame,
+  with the time since the run started and a count of its rows. Cancel and
+  ⌘. stop a run, which then reads "cancelled · exit 130 · N rows kept" and
+  keeps its rows; Esc never cancels. A failure card shows the failure's
+  message, cause, code, fields and labels, with its recovery as the
+  primary chip and its alternatives as quiet chips, each of which fills
+  the form and runs nothing. A batch's failures stand in their keys' places
+  among the rows, headed such as "7 (index 1)". A refusal of the line
+  underlines the word at fault and marks its field in the form with the
+  tool's message. A result's next steps follow its footer as chips, three
+  at first and the rest behind "+N more". A stream that breaks mid-run
+  keeps its rows and says that the connection to flightdeck broke.
