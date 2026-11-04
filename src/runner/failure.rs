@@ -45,8 +45,16 @@ pub const RUN_CLOSED: Code = Code::new("flightdeck", "run", "closed");
 /// The code of a system that gives no random bytes.
 pub const RUN_RANDOM: Code = Code::new("flightdeck", "run", "random");
 
-/// A run that the runner refused, or that could not start. How a started
-/// run fails is an [`EndFailure`](super::EndFailure).
+/// The code of a choices source that ended without a listing to read.
+pub const CHOICES_NO_LISTING: Code = Code::new("flightdeck", "choices", "no_listing");
+
+/// The code of a choices source that had not ended within the choices
+/// time.
+pub const CHOICES_TIME_LIMIT: Code = Code::new("flightdeck", "choices", "time_limit");
+
+/// A run that the runner refused, or that could not start, and a choices
+/// run that gave no choices. How a started run fails is an
+/// [`EndFailure`](super::EndFailure).
 #[derive(Debug, Failure)]
 pub enum RunFailure {
     /// The tool's model does not allow the request.
@@ -142,6 +150,30 @@ pub enum RunFailure {
         /// Why the system gave none.
         source: getrandom::Error,
     },
+    /// The source of a choices run ended without a listing to read.
+    #[failure(
+        code = CHOICES_NO_LISTING,
+        hint = "type the value, or run {path} to see why it fails",
+        field(path = path.as_str(), outcome = *outcome),
+    )]
+    NoListing {
+        /// The source's path.
+        path: String,
+        /// How the source ended: the kind of its outcome, or `not_listing`
+        /// for a result that is not one listing.
+        outcome: &'static str,
+    },
+    /// The source of a choices run had not ended within the choices time,
+    /// and the runner stopped it.
+    #[failure(
+        code = CHOICES_TIME_LIMIT,
+        hint = "type the value, or run {path} to list every row",
+        field(path = path.as_str()),
+    )]
+    ChoicesTime {
+        /// The source's path.
+        path: String,
+    },
 }
 
 impl RunFailure {
@@ -192,6 +224,12 @@ impl fmt::Display for RunFailure {
             Self::NotRunning { run: None } => f.write_str("no run has that id"),
             Self::Closed => f.write_str("flightdeck is shutting down and starts no more runs"),
             Self::Random { .. } => f.write_str("the system gave no random bytes"),
+            Self::NoListing { path, .. } => {
+                write!(f, "{path} ended without a listing of choices")
+            }
+            Self::ChoicesTime { path } => {
+                write!(f, "{path} did not list its choices in time")
+            }
         }
     }
 }
@@ -224,6 +262,15 @@ fn refusal(f: &mut fmt::Formatter<'_>, path: &str, argument: &str, reason: &Reas
         Reason::Grouped => write!(
             f,
             "flightdeck cannot set {argument} of {path}, which takes several values at once"
+        ),
+        // The page sent the source, target and argument unchecked, so the
+        // sentence leaves them out.
+        Reason::NotInferred => {
+            f.write_str("the tool's model infers no link from that command to that argument")
+        }
+        Reason::NotReadOnly => write!(
+            f,
+            "{path} is not read-only, so flightdeck does not run it to list choices"
         ),
     }
 }
@@ -283,6 +330,11 @@ pub enum Reason {
     /// tools have none. Writing the name and each value as separate words
     /// replaces this when a tool needs one.
     Grouped,
+    /// The model inferred no link from the source command to the target's
+    /// argument, so the runner does not run the source for choices.
+    NotInferred,
+    /// The source of the choices is not read-only.
+    NotReadOnly,
 }
 
 impl Reason {
@@ -299,6 +351,8 @@ impl Reason {
             Self::Control { .. } => "control",
             Self::Skipped { .. } => "skipped",
             Self::Grouped => "grouped",
+            Self::NotInferred => "not_inferred",
+            Self::NotReadOnly => "not_read_only",
         }
     }
 

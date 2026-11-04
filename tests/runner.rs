@@ -7,6 +7,9 @@
 
 #![cfg(test)]
 
+#[path = "support/signals.rs"]
+mod signals;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -100,8 +103,10 @@ struct Session {
 }
 
 /// Loads `program`'s model and returns a runner of it in `mode` with
-/// `settings`.
+/// `settings`. Its children start with SIGINT at its default, as under
+/// `flightdeck open`.
 fn session_of(dirs: TempDir, program: Program, mode: Mode, settings: Settings) -> Session {
+    signals::interrupt_reaches_children();
     let tool = model::load(&program, TIME_LIMIT).unwrap();
     let clock = TestClock::new();
     let runner = Runner::new(tool, program, mode, clock.clone(), settings).unwrap();

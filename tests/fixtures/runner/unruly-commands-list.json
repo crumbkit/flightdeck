@@ -404,6 +404,95 @@
         "open_world": false
       },
       "writes": null
+    },
+    {
+      "path": "unruly child roster",
+      "about": "List rows with an id column, but print nothing and wait until a signal ends it",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [
+        {
+          "name": "id",
+          "long": false,
+          "description": "The row's id."
+        },
+        {
+          "name": "name",
+          "long": false,
+          "description": "The row's name."
+        }
+      ],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child ledger",
+      "about": "List rows with an id column, but exit with 101 and no document",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [
+        {
+          "name": "id",
+          "long": false,
+          "description": "The row's id."
+        },
+        {
+          "name": "name",
+          "long": false,
+          "description": "The row's name."
+        }
+      ],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child visit",
+      "about": "Take the id of a roster row",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "<ID>",
+          "short": null,
+          "value_names": [
+            "ID"
+          ],
+          "required": true,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": null,
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
     }
   ],
   "truncated": false

@@ -67,16 +67,11 @@ export function needsConfirmation(command: Command): boolean {
 
 /**
  * Returns why the page cannot run `command`, or null when it can. Under
- * `--read-only` the server runs only read-only commands, and it runs a
- * command that needs a confirmation only after a preview, which the page
- * does not offer yet.
+ * `--read-only` the server runs only read-only commands.
  */
 export function whyNotRunnable(command: Command, readOnly: boolean): string | null {
   if (readOnly && effectOf(command) !== "read-only") {
-    return "flightdeck was started with --read-only, so it runs only read-only commands.";
-  }
-  if (needsConfirmation(command)) {
-    return "This command may change or delete data, and flightdeck cannot yet preview and confirm it.";
+    return "Turned off by --read-only. Start flightdeck without it to run this command.";
   }
   return null;
 }

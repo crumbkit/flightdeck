@@ -1,22 +1,32 @@
-import { Play } from "lucide-react";
+import { Eye, Play } from "lucide-react";
 import { type KeyboardEvent, useEffect, useId, useRef } from "react";
-import type { Argument, Command } from "@/api/model";
+import type { Argument, Command, Tool } from "@/api/model";
 import type { Value } from "@/api/runs";
 import { Button } from "@/components/ui/button";
 import { chosenOf, type Draft, type FieldGroup, formOf, missing, setValue } from "@/lib/form";
-import { whyNotRunnable } from "@/lib/rail";
+import { chooserLinkOf } from "@/lib/links";
+import { needsConfirmation, whyNotRunnable } from "@/lib/rail";
 import { ChipsInput } from "./ChipsInput";
+import { IdChooser } from "./IdChooser";
 import { CommandPathText } from "./Rail";
 
 /** A refused argument and the words the server gave for it. */
 export type FieldError = { name: string; words: string };
 
 type Props = {
+  tool: Tool;
   command: Command;
   draft: Draft;
   editing: number | null;
+  /**
+   * Changes each time the composer should take focus, such as on each Edit,
+   * or null when it should not.
+   */
+  focus: number | null;
   readOnly: boolean;
   fieldError: FieldError | null;
+  /** True while the line holds a word the tool would refuse, which keeps Run off. */
+  lineRefused: boolean;
   onChange: (draft: Draft) => void;
   onRun: () => void;
   onStopEditing: () => void;
@@ -24,37 +34,53 @@ type Props = {
 };
 
 /**
- * The composer, docked under the transcript: the command's required
+ * The composer's form, under the command line: the command's required
  * fields, then its other options under "More options", and Run, which ⌘↩
- * or Ctrl-↩ presses from anywhere in the form. It sends structured values.
+ * or Ctrl-↩ presses from anywhere in the form. A command that needs a
+ * confirmation has Preview in place of Run, and `onRun` previews it. Under
+ * `--read-only` a command that is not read-only shows why in place of the
+ * button. It sends structured values.
  */
 export function Composer(props: Props) {
-  const { command, draft, editing, readOnly, onRun, onStopEditing, onShowRun } = props;
+  const { command, draft, editing, focus, readOnly, lineRefused, onRun, onStopEditing, onShowRun } =
+    props;
   const form = formOf(command);
   const unset = missing(command, draft);
   const blocked = whyNotRunnable(command, readOnly);
+  const runnable = blocked === null && unset.length === 0 && !lineRefused;
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Edit moves focus to the first text field or list and selects its
-  // text, so the person can type the new value at once.
+  // Each Edit moves focus to the first field, which may be a text field, a
+  // chips field, a list or a checkbox, and selects its text, so the person
+  // can type the new value at once. A first field under "More options" opens
+  // that section first.
   useEffect(() => {
-    if (editing === null) {
+    if (focus === null) {
       return;
     }
     const field = formRef.current?.querySelector<HTMLInputElement | HTMLSelectElement>(
-      "input[type=text], select",
+      "input[type=text], input[type=checkbox], select",
     );
+    const section = field?.closest("details");
+    if (section !== null && section !== undefined) {
+      section.open = true;
+    }
     field?.focus();
-    if (field instanceof HTMLInputElement) {
+    if (field instanceof HTMLInputElement && field.type === "text") {
       field.select();
     }
-  }, [editing]);
+  }, [focus]);
+  // Enter in a text field submits the form even when no Run button
+  // shows, so both ways in check that the command may run.
+  const runIfRunnable = () => {
+    if (runnable) {
+      onRun();
+    }
+  };
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
-      if (blocked === null && unset.length === 0) {
-        onRun();
-      }
+      runIfRunnable();
     } else if (event.key === "Escape" && editing !== null) {
       onStopEditing();
     }
@@ -68,9 +94,8 @@ export function Composer(props: Props) {
       onKeyDown={onKeyDown}
       onSubmit={(event) => {
         event.preventDefault();
-        onRun();
+        runIfRunnable();
       }}
-      className="bg-card max-h-1/2 shrink-0 overflow-y-auto border-t px-4 py-3"
     >
       <div className="mb-1 flex flex-wrap items-baseline gap-2.5">
         <h2 className="m-0 text-lg font-semibold">
@@ -102,12 +127,24 @@ export function Composer(props: Props) {
         </details>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button type="submit" size="sm" disabled={blocked !== null || unset.length > 0}>
-          <Play aria-hidden="true" />
-          Run
-          <kbd className="font-mono text-xs opacity-80">⌘↩</kbd>
-        </Button>
-        {blocked !== null && <span className="text-muted-foreground text-xs">{blocked}</span>}
+        {blocked === null ? (
+          <Button type="submit" size="sm" disabled={!runnable}>
+            {needsConfirmation(command) ? (
+              <>
+                <Eye aria-hidden="true" />
+                Preview
+              </>
+            ) : (
+              <>
+                <Play aria-hidden="true" />
+                Run
+              </>
+            )}
+            <kbd className="font-mono text-xs opacity-80">⌘↩</kbd>
+          </Button>
+        ) : (
+          <p className="text-muted-foreground m-0">{blocked}</p>
+        )}
       </div>
     </form>
   );
@@ -115,13 +152,17 @@ export function Composer(props: Props) {
 
 type FieldProps = Props & { group: FieldGroup };
 
-/** One field, with a switch between alternatives when it has them. */
-function Field({ group, draft, onChange, fieldError }: FieldProps) {
+/**
+ * One field, with a switch between alternatives when it has them, and the
+ * IDs chooser when an inferred link fills the chosen argument.
+ */
+function Field({ tool, command, group, draft, onChange, fieldError }: FieldProps) {
   const chosen = chosenOf(draft, group);
   const [first] = group.choices;
   if (chosen === undefined || first === undefined) {
     return null;
   }
+  const link = chooserLinkOf(tool, command, chosen.name);
   const error =
     fieldError !== null && group.choices.some((each) => each.name === fieldError.name)
       ? fieldError.words
@@ -156,6 +197,15 @@ function Field({ group, draft, onChange, fieldError }: FieldProps) {
         error={error}
         onValue={(value) => onChange(setValue(draft, chosen.name, value))}
       />
+      {link !== null && (
+        <IdChooser
+          tool={tool}
+          link={link}
+          many={chosen.arity.kind === "many"}
+          value={draft.values[chosen.name]}
+          onValue={(value) => onChange(setValue(draft, chosen.name, value))}
+        />
+      )}
     </div>
   );
 }
@@ -170,7 +220,8 @@ type InputProps = {
 /** The input of one argument: a checkbox, a text field, a list or chips. */
 function Input({ argument, value, error, onValue }: InputProps) {
   const id = useId();
-  const label = argument.help.line ?? argument.name;
+  const label =
+    argument.crumbkit_flag === "--long" ? "Long columns" : (argument.help.line ?? argument.name);
   const errorId = `${id}-error`;
   const name = (
     <span className="text-faint-foreground font-mono text-xs font-normal">{argument.name}</span>
