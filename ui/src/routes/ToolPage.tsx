@@ -364,6 +364,13 @@ export function ToolPage({ reply, onSignedOut }: Props) {
 
   return (
     <div className="flex h-full flex-col">
+      {/* The first Tab stop: a keyboard reader skips the topbar and the rail. */}
+      <a
+        href="#transcript"
+        className="bg-card absolute -top-20 left-4 z-50 rounded-md border px-3 py-2 focus:top-2"
+      >
+        Skip to the transcript
+      </a>
       <Topbar
         name={tool.name}
         version={tool.version}
@@ -377,7 +384,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
           readOnly={reply.read_only}
           onChoose={(command) => choose(command)}
         />
-        <main className="flex min-w-0 flex-1 flex-col">
+        <main id="transcript" className="flex min-w-0 flex-1 flex-col">
           <Transcript size={size}>
             <Welcome tool={tool} onExample={runExample} />
             {runs.map((run) => {
@@ -427,7 +434,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
           </Transcript>
           {/* The line stays in one place in the page, so it keeps its focus
               when the first command it names opens the form. */}
-          <div className="bg-card sticky bottom-0 flex max-h-1/2 shrink-0 flex-col border-t px-4 py-3">
+          <div className="bg-card pb-safe sticky bottom-0 flex max-h-1/2 shrink-0 flex-col border-t px-4 pt-3">
             {line}
             {composing === null ? (
               <p className="text-muted-foreground m-0 text-xs">

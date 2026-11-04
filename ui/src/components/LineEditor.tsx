@@ -145,8 +145,9 @@ export function LineEditor({ tool, canonical, typed, onTyped, onApply, onRun }: 
       <div
         className={cn(
           // The input draws no outline of its own, so the box around it shows
-          // the page's 3 px focus outline.
-          "bg-code border-input focus-within:outline-ring flex min-w-0 items-center gap-2.5 rounded-lg border px-3 py-2 font-mono text-xs focus-within:outline-3 focus-within:outline-offset-1 focus-within:outline-solid",
+          // the page's 3 px focus outline. The line is the largest type on
+          // the page: the prompt is the one thing a command-line tool has.
+          "bg-background border-input focus-within:outline-ring flex min-w-0 items-center gap-2.5 rounded-md border px-3 py-2 font-mono text-base focus-within:outline-3 focus-within:outline-offset-1 focus-within:outline-solid",
           problem !== null && "border-destructive",
         )}
       >

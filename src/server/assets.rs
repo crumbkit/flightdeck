@@ -40,6 +40,16 @@ pub(super) const ALL: &[Asset] = &[
         content_type: "text/css; charset=utf-8",
         body: include_bytes!("../../ui/dist/assets/index.css"),
     },
+    Asset {
+        path: "/fonts/source-serif-4-latin-wght-normal.woff2",
+        content_type: "font/woff2",
+        body: include_bytes!("../../ui/dist/fonts/source-serif-4-latin-wght-normal.woff2"),
+    },
+    Asset {
+        path: "/fonts/source-code-pro-latin-wght-normal.woff2",
+        content_type: "font/woff2",
+        body: include_bytes!("../../ui/dist/fonts/source-code-pro-latin-wght-normal.woff2"),
+    },
 ];
 
 /// Returns the asset at `path`, such as `/`.

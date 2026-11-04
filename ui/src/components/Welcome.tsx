@@ -9,13 +9,12 @@ type Props = { tool: Tool; onExample: (command: Command, example: Example) => vo
  * The first card of the transcript, built from the tool's own description:
  * its about line, then each heading's commands with their about text,
  * effect and examples. An example chip runs the example in a new card.
+ * It is the tool's manual, so it sits on the page itself, with no box; the
+ * runs after it are the cards.
  */
 export function Welcome({ tool, onExample }: Props) {
   return (
-    <section
-      aria-label={`Welcome to ${tool.name}`}
-      className="bg-card lift-card mb-3 rounded-lg border px-4 py-3.5"
-    >
+    <section aria-label={`Welcome to ${tool.name}`} className="mb-3 px-4 py-3.5">
       <h1 className="m-0 font-mono text-base font-semibold">{tool.name}</h1>
       {tool.about !== null && <p className="text-muted-foreground mt-0.5 mb-2">{tool.about}</p>}
       {railGroups(tool).map((group) => (

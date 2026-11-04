@@ -15,6 +15,23 @@
 @import "tailwindcss" source("./");
 @import "tw-animate-css";
 
+/* Source Serif 4 for the page's words and Source Code Pro for commands,
+   arguments and figures, served from the page itself. */
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("/fonts/source-serif-4-latin-wght-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Code Pro";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("/fonts/source-code-pro-latin-wght-normal.woff2") format("woff2");
+}
+
 /* The token owner (APP-9). Every colour the page uses is a role named here.
    Each role holds its light and its dark value in one light-dark() pair,
    and the root's color-scheme picks one: the system's appearance by
@@ -41,12 +58,11 @@
 
 :root {
   color-scheme: light dark;
-  --radius: 0.5rem;
+  --radius: 0.25rem;
   /* The chips' corners: round by default, a direction may square them. */
-  --pill: 9999px;
-  --sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --pill: var(--radius);
+  --sans: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono: "Source Code Pro", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   /* The faces by role: the sans is the body and the mono is the outlier,
      for code and figures. */
   --font-body: var(--sans);
@@ -54,38 +70,38 @@
 
   /* Surfaces: the page, a card, a quieter fill, the rail's tint and the
      fill behind code. */
-  --background: light-dark(#f4f5f7, #111418);
-  --foreground: light-dark(#1a1d21, #e8ebef);
-  --card: light-dark(#ffffff, #181c21);
-  --popover: light-dark(#ffffff, #1e232a);
-  --muted: light-dark(#f1f3f6, #1e232a);
-  --muted-foreground: light-dark(#4f5864, #a4acb7);
-  --faint-foreground: light-dark(#5f6875, #8f98a4);
-  --rail: light-dark(#eef0f3, #14181d);
-  --code: light-dark(#eceff3, #0f1216);
+  --background: light-dark(#ffffff, #000000);
+  --foreground: light-dark(#000000, #ececec);
+  --card: light-dark(#ffffff, #1c1c1c);
+  --popover: light-dark(#ffffff, #262626);
+  --muted: light-dark(#efefef, #2a2a2a);
+  --muted-foreground: light-dark(#4d4d4d, #b3b3b3);
+  --faint-foreground: light-dark(#5e5e5e, #a1a1a1);
+  --rail: light-dark(#f4f4f4, #121212);
+  --code: light-dark(#f1f1f1, #0d0d0d);
 
   /* Lines: one hairline, a stronger one for controls, and the focus outline. */
-  --border: light-dark(#dfe3e8, #2a3038);
-  --input: light-dark(#7c8591, #6b7480);
-  --ring: light-dark(#2563eb, #6d9cff);
-  --selection: light-dark(#cfe0ff, #2a4a8a);
+  --border: light-dark(#c9c9c9, #3d3d3d);
+  --input: light-dark(#767676, #8a8a8a);
+  --ring: light-dark(#000000, #ececec);
+  --selection: light-dark(#dcdcdc, #4a4a4a);
   /* Shadows: faint in light, off in dark, where a lighter surface does the
      lifting. */
-  --shadow-ink: light-dark(rgb(0 0 0 / 0.06), transparent);
+  --shadow-ink: light-dark(transparent, transparent);
   --shadow-card: 0 1px 2px var(--shadow-ink);
   --shadow-menu: 0 4px 12px var(--shadow-ink);
   --shadow-dialog: 0 12px 32px var(--shadow-ink);
 
   /* The one accent: links, the primary button, flags and focus. */
-  --primary: light-dark(#2563eb, #6d9cff);
+  --primary: light-dark(#000000, #ececec);
   /* The filled button under the pointer: a solid step, so its label keeps
      4.5:1 over the whole transition. */
-  --primary-hover: light-dark(#1d4fd8, #86adff);
-  --primary-foreground: light-dark(#ffffff, #0b1020);
-  --accent: light-dark(#e4ecfd, #1d2a45);
-  --accent-foreground: light-dark(#1a1d21, #e8ebef);
-  --secondary: light-dark(#f1f3f6, #1e232a);
-  --secondary-foreground: light-dark(#1a1d21, #e8ebef);
+  --primary-hover: light-dark(#333333, #ffffff);
+  --primary-foreground: light-dark(#ffffff, #000000);
+  --accent: light-dark(#e6e6e6, #353535);
+  --accent-foreground: light-dark(#000000, #ececec);
+  --secondary: light-dark(#efefef, #2a2a2a);
+  --secondary-foreground: light-dark(#000000, #ececec);
 
   /* Effects, each always shown with its word: read-only, additive and
      destructive. Red also marks a failed exit, and nothing else. */
@@ -136,6 +152,9 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-popover: var(--popover);
   --color-primary-hover: var(--primary-hover);
+  /* The small size is 13px rather than 12px: a serif needs the extra pixel. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.4;
   --font-sans: var(--sans);
   --font-mono: var(--mono);
   --radius-sm: calc(var(--radius) - 4px);
@@ -164,8 +183,12 @@
   body {
     @apply bg-background font-sans text-foreground;
     margin: 0;
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.5;
+    /* Figures take one width each, so a column of them lines up. */
+    font-variant-numeric: tabular-nums;
+    /* A tap acts at once; the page's own active states show the press. */
+    -webkit-tap-highlight-color: transparent;
     /* Code set in the mono face takes the sans face's x-height, so a
        command name in a sentence reads at the sentence's size. */
     font-size-adjust: ex-height from-font;
@@ -177,6 +200,47 @@
   h1,
   h2 {
     text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  a,
+  button,
+  input,
+  select,
+  label {
+    touch-action: manipulation;
+  }
+  /* Below the md breakpoint a field's text is 16px, so a phone does not
+     zoom the page when the field takes focus. */
+  @media (width < 48rem) {
+    input,
+    select,
+    textarea {
+      font-size: 1rem;
+    }
+  }
+  /* A native select names its own colours, so a dark page on Windows does
+     not get a white menu with white text. */
+  select {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+  /* A scroll that reaches a dialog's end stops there, instead of moving the
+     page behind it. */
+  [role="dialog"] {
+    overscroll-behavior: contain;
+  }
+  /* A link shares the ink with the text around it, so its underline tells
+     it apart: pencil at rest, ink under the pointer. */
+  :is(a, button).text-primary {
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-decoration-color: var(--input);
+    text-underline-offset: 0.15em;
+  }
+  :is(a, button).text-primary:hover {
+    text-decoration-color: currentColor;
   }
   /* Every interactive element shows a 3 px outline in the accent when it has
      keyboard focus. */
@@ -202,6 +266,11 @@
 }
 @utility lift-dialog {
   box-shadow: var(--shadow-dialog);
+}
+/* The composer's bottom padding, or a phone's bottom safe area when that
+   is taller. */
+@utility pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
 
 /* The bar under a running card's header: a short bar that slides across
