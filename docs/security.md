@@ -148,8 +148,8 @@ command for it, so the route accepts much less than the run routes do.
   read-only commands in either mode.
 - **The runner builds the vector from the model.** The vector is the
   source's path as the model holds it, `--all` when the source takes it,
-  then `--json`, `--full` and `--no-input` where the source takes them, and
-  `--`. No word of it comes from
+  then `--json`, `--full` when the source offers it and `--no-input` when
+  the source takes it, and `--`. No word of it comes from
   the request, and the source runs with no value of its own, so it reads
   only what it reads when a person runs it bare.
 - **The run is an ordinary run of the runner.** It passes the token, the

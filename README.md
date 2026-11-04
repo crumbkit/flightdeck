@@ -126,9 +126,15 @@ What works today:
   what the argument takes and the earlier positional argument. It builds the argument vector itself, with each option as one
   `--name=value` word and the positional values after `--`, and it never
   runs a shell. It adds `--json` to every run, `--full` when the command
-  lists it and prints neither a headed answer nor bytes, and `--no-input`
-  when the command lists it, because crumbkit refuses `--full` on a
-  command whose JSON already holds every field. It delivers each line of standard output as it arrives and
+  lists it and declares a document or a stream, and `--no-input` when the
+  command lists it. The runner leaves `--full` out for a command that
+  prints a headed answer, bytes or no document, because crumbkit before
+  0.1.1 refuses `--full` on a command whose JSON already holds every field
+  and every crumbkit refuses it on a command that prints no result. A
+  command whose document is prose, has no envelope or holds whole rows
+  keeps `--full`. crumbkit 0.1.1 accepts `--full` there with a note, and
+  crumbkit before 0.1.1 refuses it, so such a run fails on an older tool.
+  It delivers each line of standard output as it arrives and
   ends with an outcome, which it reads from the run's last document. That
   document starts at the last line that starts with `{` and runs to the end
   of the output, so the runner reads a document on one line and one that a

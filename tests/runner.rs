@@ -575,7 +575,12 @@ fn a_child_that_exits_101_without_a_document_is_no_document_with_its_standard_er
 fn a_command_that_refuses_full_runs_to_its_result_because_the_runner_leaves_full_out() {
     let unruly = unruly_session(settings());
 
-    for path in [["child", "whole"], ["child", "answer"]] {
+    for path in [
+        ["child", "whole"],
+        ["child", "answer"],
+        ["child", "bytes"],
+        ["child", "silent"],
+    ] {
         let run = unruly.runner.run(&request(&path)).unwrap();
         let (lines, outcome) = finish(run);
 

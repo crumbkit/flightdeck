@@ -90,10 +90,10 @@ fn dry_run_and_yes_go_after_flightdecks_flags_and_before_the_separator() {
 }
 
 #[test]
-fn full_is_left_out_for_a_command_that_does_not_list_it_or_prints_a_headed_answer() {
+fn full_is_left_out_for_a_command_that_does_not_list_it_or_prints_a_headed_answer_or_bytes() {
     let tool = unruly();
 
-    for path in [["child", "whole"], ["child", "answer"]] {
+    for path in [["child", "whole"], ["child", "answer"], ["child", "bytes"]] {
         let (_, vector) = build(&tool, &RunRequest::new(path)).unwrap();
 
         assert_eq!(
@@ -112,6 +112,30 @@ fn full_is_passed_to_a_command_that_lists_it_as_its_own_argument() {
     assert_eq!(
         vector.argv(Extra::None).words(),
         ["child", "rows", "--json", "--full", "--no-input", "--"]
+    );
+}
+
+#[test]
+fn full_is_left_out_for_a_command_that_lists_it_but_prints_no_document() {
+    let tool = unruly();
+
+    let (_, vector) = build(&tool, &RunRequest::new(["child", "silent"])).unwrap();
+
+    assert_eq!(
+        vector.argv(Extra::None).words(),
+        ["child", "silent", "--json", "--no-input", "--"]
+    );
+}
+
+#[test]
+fn full_is_passed_to_the_same_command_when_it_declares_a_document() {
+    let tool = unruly();
+
+    let (_, vector) = build(&tool, &RunRequest::new(["child", "said"])).unwrap();
+
+    assert_eq!(
+        vector.argv(Extra::None).words(),
+        ["child", "said", "--json", "--full", "--no-input", "--"]
     );
 }
 

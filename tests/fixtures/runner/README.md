@@ -42,4 +42,11 @@ and one command for each way a real tool can misbehave or a test needs:
   code 2.
 - `child answer` prints a headed answer and lists `--full`, and refuses
   `--full` in the same way, as a tool on a crumbkit before 0.1.1 does.
+- `child bytes` prints bytes and lists `--full`, and refuses `--full` in
+  the same way.
+- `child silent` lists `--full` but declares no form, as a command that
+  crumbkit declares with `prints_no_result` does, and refuses `--full` in
+  the same way, as every crumbkit does.
 - `child rows` lists `--full`, and fails unless the run passes it.
+- `child said` is the twin of `child silent` with a document form, and
+  fails unless the run passes `--full`.

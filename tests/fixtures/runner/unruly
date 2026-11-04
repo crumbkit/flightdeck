@@ -121,9 +121,10 @@ case "$1 $2" in
   echo "thread 'main' panicked at src/main.rs:9:5:" >&2
   exit 101
   ;;
-"child whole" | "child answer")
+"child whole" | "child answer" | "child bytes" | "child silent")
   # crumbkit refuses --full on a command whose JSON already holds every
-  # field, as a refused command line with exit code 2.
+  # field or that prints no result, as a refused command line with exit
+  # code 2.
   case " $* " in
   *" --full "*)
     echo '{"schema":"unruly/failure/v1","code":"unruly::cli::usage","message":"--full prints every field of every row, and this command'"'"'s JSON already holds every field","fields":{"argument":"--full"},"recovery":{"kind":"hint","text":"drop --full, because --json already prints the whole result"}}'
@@ -132,13 +133,13 @@ case "$1 $2" in
   esac
   echo '{"schema":"unruly/child-whole/v1","data":{}}'
   ;;
-"child rows")
+"child rows" | "child said")
   case " $* " in
   *" --full "*)
     echo '{"schema":"unruly/child-rows/v1","data":[{"id":1,"note":"every field"}],"truncated":false}'
     ;;
   *)
-    echo "unruly child rows needs --full" >&2
+    echo "unruly $1 $2 needs --full" >&2
     exit 3
     ;;
   esac

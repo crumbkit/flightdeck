@@ -12,8 +12,9 @@ mod tests;
 /// options, in this order: `--json` for a JSON document, on every run;
 /// `--full` for every field of every row, when the command offers it; and
 /// `--no-input` for no question, when the command takes it. crumbkit
-/// refuses `--full` with `<tool>::cli::usage` on a command whose JSON
-/// already holds every field, and a tool that cannot ask a question need
+/// before 0.1.1 refuses `--full` with `<tool>::cli::usage` on a command
+/// whose JSON already holds every field, and every crumbkit refuses it on
+/// a command that prints no result. A tool that cannot ask a question need
 /// not declare `--no-input`.
 const RUNNER_FLAGS: [CrumbkitFlag; 3] = [
     CrumbkitFlag::Json,
@@ -202,15 +203,21 @@ pub(super) fn build<'tool>(
 
     let takes = |flag: CrumbkitFlag| command.crumbkit_flags().any(|(own, _)| own == flag);
     // crumbkit lists a global `--full` on every command below the one that
-    // declares it, also on a command that refuses it. A headed or bytes
-    // result never offers `--full`, so the form rules those out.
-    let whole = matches!(command.result().form(), Some(Form::Headed | Form::Bytes));
+    // declares it, also on a command that refuses it, so the form decides.
+    // A headed or bytes result never offers `--full`. A command without a
+    // form prints no result or no document, and every crumbkit refuses
+    // `--full` on a command declared with `prints_no_result`; flightdeck has
+    // no columns to show for either. A document keeps `--full` even when it
+    // is prose, has no envelope or holds `Row::WHOLE` rows. crumbkit 0.1.1
+    // accepts `--full` on those with a note, and crumbkit before 0.1.1
+    // refuses it.
+    let offers_full = matches!(command.result().form(), Some(Form::Document | Form::Stream));
     let vector = Vector {
         path: request.path().to_vec(),
         options,
         positionals,
         line,
-        full: takes(CrumbkitFlag::Full) && !whole,
+        full: takes(CrumbkitFlag::Full) && offers_full,
         no_input: takes(CrumbkitFlag::NoInput),
         dry_run: takes(CrumbkitFlag::DryRun),
         yes: takes(CrumbkitFlag::Yes),
