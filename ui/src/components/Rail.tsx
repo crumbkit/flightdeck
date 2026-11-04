@@ -26,21 +26,23 @@ export function CommandPathText({ command }: { command: Command }) {
 
 /**
  * The rail of commands, grouped under the goal headings of the tool's help
- * in help order, each command with its effect badge and its word. Under
- * `--read-only` a command that is not read-only stays in the rail, dimmed
- * and with a lock, and choosing it shows its form with the reason.
+ * in help order, each command with its effect's dot and word. The topbar
+ * names the tool, so the rail does not. Under `--read-only` a command that
+ * is not read-only stays in the rail, dimmed and with a lock, and choosing
+ * it shows its form with the reason. A window narrower than the `md`
+ * breakpoint hides the rail, and the welcome card and ⌘K list the
+ * commands instead.
  */
 export function Rail({ tool, selected, readOnly, onChoose }: Props) {
   return (
-    <nav aria-label="Commands" className="bg-rail w-64 shrink-0 overflow-y-auto border-r px-2 py-2">
-      <p className="px-2 pb-1 font-semibold">
-        {tool.name}{" "}
-        <span className="text-faint-foreground font-mono text-xs font-normal">{tool.version}</span>
-      </p>
-      {railGroups(tool).map((group) => (
-        <div key={group.title ?? "commands"} className="mt-2">
+    <nav
+      aria-label="Commands"
+      className="bg-rail hidden w-64 shrink-0 overflow-y-auto border-r px-2 py-3 md:block"
+    >
+      {railGroups(tool).map((group, index) => (
+        <div key={group.title ?? "commands"} className={cn(index > 0 && "mt-4")}>
           {group.title !== null && (
-            <h2 className="text-faint-foreground mx-2 mb-0.5 text-xs font-semibold tracking-wide uppercase">
+            <h2 className="text-faint-foreground mx-2 mb-1 text-xs font-semibold tracking-wide uppercase">
               {group.title}
             </h2>
           )}
@@ -54,8 +56,10 @@ export function Rail({ tool, selected, readOnly, onChoose }: Props) {
                     aria-current={selected === command ? "true" : undefined}
                     onClick={() => onChoose(command)}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-md py-1 pr-1 pl-3 text-left",
-                      selected === command && "bg-card font-semibold shadow-xs",
+                      "flex w-full items-center gap-2 rounded-md py-1 pr-2 pl-2 text-left transition-colors",
+                      selected === command
+                        ? "bg-card font-semibold shadow-xs"
+                        : "hover:bg-card/60 dark:hover:bg-muted",
                       locked && "text-faint-foreground",
                     )}
                   >
@@ -68,7 +72,7 @@ export function Rail({ tool, selected, readOnly, onChoose }: Props) {
                         <span className="sr-only">turned off by --read-only</span>
                       </>
                     )}
-                    <EffectBadge effect={effectOf(command)} />
+                    <EffectBadge effect={effectOf(command)} quiet />
                   </button>
                 </li>
               );
