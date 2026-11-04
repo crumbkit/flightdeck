@@ -90,10 +90,10 @@ fn dry_run_and_yes_go_after_flightdecks_flags_and_before_the_separator() {
 }
 
 #[test]
-fn full_is_left_out_for_a_command_that_does_not_list_it_or_prints_a_headed_answer() {
+fn full_is_left_out_for_a_command_that_does_not_list_it_or_prints_a_headed_answer_or_bytes() {
     let tool = unruly();
 
-    for path in [["child", "whole"], ["child", "answer"]] {
+    for path in [["child", "whole"], ["child", "answer"], ["child", "bytes"]] {
         let (_, vector) = build(&tool, &RunRequest::new(path)).unwrap();
 
         assert_eq!(
@@ -112,6 +112,34 @@ fn full_is_passed_to_a_command_that_lists_it_as_its_own_argument() {
     assert_eq!(
         vector.argv(Extra::None).words(),
         ["child", "rows", "--json", "--full", "--no-input", "--"]
+    );
+}
+
+/// `commands list` gives no form to a command that prints no result and to
+/// one with no document, so this pins the runner's RUST-10 trade-off: the
+/// second loses `--full` too.
+#[test]
+fn full_is_left_out_for_a_command_without_a_form_even_when_it_might_print_rows_that_are_not_whole()
+{
+    let tool = unruly();
+
+    let (_, vector) = build(&tool, &RunRequest::new(["child", "silent"])).unwrap();
+
+    assert_eq!(
+        vector.argv(Extra::None).words(),
+        ["child", "silent", "--json", "--no-input", "--"]
+    );
+}
+
+#[test]
+fn full_is_passed_to_the_twin_of_that_command_that_declares_a_document() {
+    let tool = unruly();
+
+    let (_, vector) = build(&tool, &RunRequest::new(["child", "said"])).unwrap();
+
+    assert_eq!(
+        vector.argv(Extra::None).words(),
+        ["child", "said", "--json", "--full", "--no-input", "--"]
     );
 }
 

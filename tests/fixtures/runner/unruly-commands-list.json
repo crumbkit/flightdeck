@@ -651,6 +651,177 @@
         "open_world": false
       },
       "writes": null
+    },
+    {
+      "path": "unruly child bytes",
+      "about": "Print bytes, and refuse --full as crumbkit does",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "--json",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Print the result as one JSON document",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--full",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "With --json, print every field of every row",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--no-input",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Fail instead of asking a question",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "bytes",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child silent",
+      "about": "Declare no result, and refuse --full as crumbkit does",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "--json",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Print the result as one JSON document",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--full",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "With --json, print every field of every row",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--no-input",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Fail instead of asking a question",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": null,
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child said",
+      "about": "Declare a document, and fail unless the run passes --full",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "--json",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Print the result as one JSON document",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--full",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "With --json, print every field of every row",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--no-input",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Fail instead of asking a question",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
     }
   ],
   "truncated": false

@@ -12,9 +12,10 @@ mod tests;
 /// options, in this order: `--json` for a JSON document, on every run;
 /// `--full` for every field of every row, when the command offers it; and
 /// `--no-input` for no question, when the command takes it. crumbkit
-/// refuses `--full` with `<tool>::cli::usage` on a command whose JSON
-/// already holds every field, and a tool that cannot ask a question need
-/// not declare `--no-input`.
+/// revisions before crumbkit/crumbkit#270, earlier than 0.1.0, refuse `--full` with
+/// `<tool>::cli::usage` on a command whose JSON already holds every field,
+/// and every crumbkit refuses it on a command that prints no result. A
+/// tool that cannot ask a question need not declare `--no-input`.
 const RUNNER_FLAGS: [CrumbkitFlag; 3] = [
     CrumbkitFlag::Json,
     CrumbkitFlag::Full,
@@ -202,15 +203,29 @@ pub(super) fn build<'tool>(
 
     let takes = |flag: CrumbkitFlag| command.crumbkit_flags().any(|(own, _)| own == flag);
     // crumbkit lists a global `--full` on every command below the one that
-    // declares it, also on a command that refuses it. A headed or bytes
-    // result never offers `--full`, so the form rules those out.
-    let whole = matches!(command.result().form(), Some(Form::Headed | Form::Bytes));
+    // declares it, also on a command that refuses it, so the form decides.
+    // A headed or bytes result already holds every field, so it goes
+    // without `--full`. A document keeps `--full` even when it is prose,
+    // has no envelope or holds `Row::WHOLE` rows. Every released crumbkit
+    // accepts `--full` on those with a note, and crumbkit revisions before
+    // crumbkit/crumbkit#270, earlier than 0.1.0, refuse it.
+    //
+    // RUST-10: a command without a form goes without `--full`. It handles a
+    // command declared with `prints_no_result`, on which every crumbkit
+    // refuses `--full`. It misses a command with no document whose handler
+    // prints enveloped rows that are not whole: that command offers
+    // `--full`, and without it the run shows only the rows' columns.
+    // `commands list` gives both commands no form, so flightdeck cannot
+    // tell them apart, and a partial result is better than a refused run.
+    // A `commands list` field in crumbkit that marks a command that prints
+    // no result replaces this rule.
+    let offers_full = matches!(command.result().form(), Some(Form::Document | Form::Stream));
     let vector = Vector {
         path: request.path().to_vec(),
         options,
         positionals,
         line,
-        full: takes(CrumbkitFlag::Full) && !whole,
+        full: takes(CrumbkitFlag::Full) && offers_full,
         no_input: takes(CrumbkitFlag::NoInput),
         dry_run: takes(CrumbkitFlag::DryRun),
         yes: takes(CrumbkitFlag::Yes),
