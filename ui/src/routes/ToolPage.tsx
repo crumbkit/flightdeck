@@ -427,11 +427,12 @@ export function ToolPage({ reply, onSignedOut }: Props) {
           </Transcript>
           {/* The line stays in one place in the page, so it keeps its focus
               when the first command it names opens the form. */}
-          <div className="bg-card max-h-1/2 shrink-0 overflow-y-auto border-t px-4 py-3">
+          <div className="bg-card sticky bottom-0 max-h-1/2 shrink-0 overflow-y-auto border-t px-4 py-3">
             {line}
             {composing === null ? (
               <p className="text-muted-foreground m-0 text-xs">
-                Type a line, pick a command in the rail, or press ⌘K.
+                Type a line, <span className="hidden md:inline">pick a command in the rail, </span>
+                or press ⌘K.
               </p>
             ) : (
               <Composer

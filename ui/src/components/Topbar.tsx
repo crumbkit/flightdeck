@@ -27,7 +27,7 @@ export function Topbar({ name, version, readOnly, onFind }: Props) {
           <button
             type="button"
             onClick={onFind}
-            className="bg-muted text-muted-foreground hover:bg-accent hover:text-foreground inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs transition-colors"
+            className="bg-muted text-muted-foreground hover:bg-accent hover:text-foreground transition-tint active:bg-muted inline-flex h-8 items-center gap-2 rounded-md border px-2.5 text-xs"
           >
             <Search aria-hidden="true" className="size-3.5" />
             Find a command

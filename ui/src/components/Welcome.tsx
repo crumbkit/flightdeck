@@ -14,17 +14,14 @@ export function Welcome({ tool, onExample }: Props) {
   return (
     <section
       aria-label={`Welcome to ${tool.name}`}
-      className="bg-card mb-3 rounded-lg border px-4 py-3.5 shadow-xs"
+      className="bg-card lift-card mb-3 rounded-lg border px-4 py-3.5"
     >
-      <h1 className="m-0 text-base font-semibold">
-        <span className="font-mono">{tool.name}</span>{" "}
-        <span className="text-faint-foreground font-mono text-xs font-normal">{tool.version}</span>
-      </h1>
+      <h1 className="m-0 font-mono text-base font-semibold">{tool.name}</h1>
       {tool.about !== null && <p className="text-muted-foreground mt-0.5 mb-2">{tool.about}</p>}
       {railGroups(tool).map((group) => (
         <div key={group.title ?? "commands"} className="mt-4">
           {group.title !== null && (
-            <h2 className="text-faint-foreground m-0 mb-1.5 text-xs font-semibold tracking-wide uppercase">
+            <h2 className="text-faint-foreground m-0 mb-1.5 text-xs font-semibold">
               {group.title}
             </h2>
           )}
@@ -39,14 +36,14 @@ export function Welcome({ tool, onExample }: Props) {
                   )}
                 </div>
                 {command.examples.length > 0 && (
-                  <div className="mt-1 flex flex-wrap gap-1.5">
+                  <div className="-mb-1 flex flex-wrap gap-x-3">
                     {command.examples.map((example) => (
                       <button
                         key={example.command}
                         type="button"
                         title={example.command}
                         onClick={() => onExample(command, example)}
-                        className="bg-muted hover:bg-accent hover:border-input rounded-full border px-2.5 py-0.5 text-xs transition-colors"
+                        className="text-primary active:text-foreground -mx-1 min-h-8 max-w-full truncate px-1 text-xs hover:underline"
                       >
                         {example.about}
                       </button>

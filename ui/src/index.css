@@ -1,3 +1,14 @@
+/* Hallmark · shape: app screen · genre: modern-minimal · built: the project · redesign: polish
+ * nav: kept (the topbar and the rail) · signature: the run card: the line, its status and its result · states: loading, empty, running, ended, failed, cancelled, awaiting confirmation
+ * contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P3 H3 E4 S2 R4 V3 · weakest: S, the look is any component-library tool; the direction branches answer it */
+/* Hallmark · waive 64 · the mono face marks commands, arguments, column names and run figures, which are code and figures · a developer reads a command name as the thing they would type */
+/* Hallmark · waive 39b · input.caret-foreground is a transparent overlay inside the 36px command box, and the box is the control · the overlay keeps the caret and selection over the highlighted line */
+/* Hallmark · dismissed 49 · the long labels are the tool's own example sentences and a screen-reader note, shown as the tool wrote them */
+/* Hallmark · dismissed F1 · the straight quotes sit in the tool's own command descriptions, which the page shows verbatim */
+/* Hallmark · dismissed F4 · the example buttons are typographic links with no fill; the page's one filled button is Run */
+/* Hallmark · reworded "shelf 0.1.1+git-a85fa49c767a" to "shelf" · the version now shows once, in the topbar, and the welcome heading keeps the name */
+/* Hallmark · dropped "21:13, 2ms, 3ms" · the run clock and durations differ between captures, and the after capture shows its own */
 /* Tailwind reads class names only from src/, so a change elsewhere, such
    as a test or a README, cannot change the built CSS (EMB-4). */
 @import "tailwindcss" source("./");
@@ -33,25 +44,40 @@
   --sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  /* The faces by role: the sans is the body and the mono is the outlier,
+     for code and figures. */
+  --font-body: var(--sans);
+  --font-outlier: var(--mono);
 
   /* Surfaces: the page, a card, a quieter fill, the rail's tint and the
      fill behind code. */
   --background: light-dark(#f4f5f7, #111418);
   --foreground: light-dark(#1a1d21, #e8ebef);
   --card: light-dark(#ffffff, #181c21);
+  --popover: light-dark(#ffffff, #1e232a);
   --muted: light-dark(#f1f3f6, #1e232a);
   --muted-foreground: light-dark(#4f5864, #a4acb7);
   --faint-foreground: light-dark(#5f6875, #8f98a4);
   --rail: light-dark(#eef0f3, #14181d);
   --code: light-dark(#eceff3, #0f1216);
 
-  /* Lines: one hairline, a stronger one for controls, and the focus ring. */
+  /* Lines: one hairline, a stronger one for controls, and the focus outline. */
   --border: light-dark(#dfe3e8, #2a3038);
-  --input: light-dark(#a9b0b9, #4a525c);
+  --input: light-dark(#7c8591, #6b7480);
   --ring: light-dark(#2563eb, #6d9cff);
+  --selection: light-dark(#cfe0ff, #2a4a8a);
+  /* Shadows: faint in light, off in dark, where a lighter surface does the
+     lifting. */
+  --shadow-ink: light-dark(rgb(0 0 0 / 0.06), transparent);
+  --shadow-card: 0 1px 2px var(--shadow-ink);
+  --shadow-menu: 0 4px 12px var(--shadow-ink);
+  --shadow-dialog: 0 12px 32px var(--shadow-ink);
 
   /* The one accent: links, the primary button, flags and focus. */
   --primary: light-dark(#2563eb, #6d9cff);
+  /* The filled button under the pointer: a solid step, so its label keeps
+     4.5:1 over the whole transition. */
+  --primary-hover: light-dark(#1d4fd8, #86adff);
   --primary-foreground: light-dark(#ffffff, #0b1020);
   --accent: light-dark(#e4ecfd, #1d2a45);
   --accent-foreground: light-dark(#1a1d21, #e8ebef);
@@ -66,6 +92,7 @@
   --additive-soft: light-dark(#fdf0d5, #2e2512);
   --destructive: light-dark(#b42318, #ff7a6e);
   --destructive-soft: light-dark(#fbe9e7, #3a1b18);
+  --destructive-foreground: light-dark(#ffffff, #1a0b09);
 }
 
 :root[data-theme="light"] {
@@ -103,6 +130,9 @@
   --color-additive-soft: var(--additive-soft);
   --color-destructive: var(--destructive);
   --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-popover: var(--popover);
+  --color-primary-hover: var(--primary-hover);
   --font-sans: var(--sans);
   --font-mono: var(--mono);
   --radius-sm: calc(var(--radius) - 4px);
@@ -120,18 +150,54 @@
   #root {
     height: 100%;
   }
+  html,
+  body {
+    overflow-x: clip;
+  }
+  html {
+    scrollbar-color: var(--input) var(--background);
+  }
   body {
     @apply bg-background font-sans text-foreground;
     margin: 0;
     font-size: 13px;
     line-height: 1.5;
+    /* Code set in the mono face takes the sans face's x-height, so a
+       command name in a sentence reads at the sentence's size. */
+    font-size-adjust: ex-height from-font;
   }
-  /* Every interactive element shows a 3 px ring in the accent when it has
+  ::selection {
+    background: var(--selection);
+    color: var(--foreground);
+  }
+  h1,
+  h2 {
+    text-wrap: balance;
+  }
+  /* Every interactive element shows a 3 px outline in the accent when it has
      keyboard focus. */
   :focus-visible {
     outline: 3px solid var(--ring);
     outline-offset: 1px;
   }
+}
+
+/* The page's colour transition leaves the outline alone, so the focus
+   outline appears at once instead of fading in. */
+@utility transition-tint {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: var(--default-transition-timing-function);
+  transition-duration: var(--default-transition-duration);
+}
+/* Named lift-*, since shadow-* would also read as a shadow colour. */
+@utility lift-card {
+  box-shadow: var(--shadow-card);
+}
+@utility lift-menu {
+  box-shadow: var(--shadow-menu);
+}
+@utility lift-dialog {
+  box-shadow: var(--shadow-dialog);
 }
 
 /* The bar under a running card's header: a short bar that slides across

@@ -122,7 +122,7 @@ export function Composer(props: Props) {
       </div>
       {form.more.length > 0 && (
         <details className="mt-2.5">
-          <summary className="text-primary cursor-pointer text-xs hover:underline">
+          <summary className="text-primary inline-flex min-h-8 cursor-pointer items-center text-xs hover:underline">
             More options
           </summary>
           <div className="mt-2 flex flex-col gap-2.5">
@@ -176,12 +176,12 @@ function Field({ tool, command, group, draft, onChange, fieldError }: FieldProps
   return (
     <div className="flex flex-col gap-1">
       {group.choices.length > 1 && (
-        <fieldset className="flex w-max gap-0.5 rounded-md border p-0.5 text-xs">
+        <fieldset className="flex min-h-8 w-max gap-0.5 rounded-md border p-1 text-xs">
           <legend className="sr-only">Give {first.name} or another argument</legend>
           {group.choices.map((choice) => (
             <label
               key={choice.name}
-              className="has-checked:bg-muted has-focus-visible:outline-ring cursor-pointer rounded px-2 py-0.5 font-mono has-checked:font-semibold has-focus-visible:outline-2"
+              className="has-checked:bg-muted has-focus-visible:outline-ring inline-flex cursor-pointer items-center rounded px-2 font-mono has-checked:font-semibold has-focus-visible:outline-2"
             >
               <input
                 type="radio"
@@ -271,7 +271,7 @@ function Input({ argument, value, error, onValue }: InputProps) {
             aria-invalid={invalid}
             aria-describedby={described}
             onChange={(event) => onValue(event.target.value === "" ? null : event.target.value)}
-            className="border-input bg-card focus-visible:border-ring w-max rounded-md border px-2 py-1 transition-colors"
+            className="border-input bg-background focus-visible:border-ring transition-tint min-h-8 w-max rounded-md border px-2 py-1"
           >
             <option value="">{argument.defaults[0] ?? "None"}</option>
             {argument.possible_values.map((possible) => (
@@ -289,7 +289,7 @@ function Input({ argument, value, error, onValue }: InputProps) {
             aria-invalid={invalid}
             aria-describedby={described}
             onChange={(event) => onValue(event.target.value === "" ? null : event.target.value)}
-            className="border-input bg-card focus-visible:border-ring max-w-sm rounded-md border px-2 py-1 font-mono transition-colors"
+            className="border-input bg-background focus-visible:border-ring transition-tint min-h-8 max-w-sm rounded-md border px-2 py-1 font-mono"
           />
         );
       return (

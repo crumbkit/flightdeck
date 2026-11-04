@@ -144,9 +144,9 @@ export function LineEditor({ tool, canonical, typed, onTyped, onApply, onRun }: 
     <div className="mb-2.5 flex flex-col gap-1">
       <div
         className={cn(
-          // The input draws no ring of its own, so the box around it shows
-          // the page's 3 px focus ring.
-          "bg-code focus-within:outline-ring flex min-w-0 items-center gap-2.5 rounded-lg border px-3 py-2 font-mono text-xs focus-within:outline-3 focus-within:outline-offset-1 focus-within:outline-solid",
+          // The input draws no outline of its own, so the box around it shows
+          // the page's 3 px focus outline.
+          "bg-code border-input focus-within:outline-ring flex min-w-0 items-center gap-2.5 rounded-lg border px-3 py-2 font-mono text-xs focus-within:outline-3 focus-within:outline-offset-1 focus-within:outline-solid",
           problem !== null && "border-destructive",
         )}
       >

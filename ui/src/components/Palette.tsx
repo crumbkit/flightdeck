@@ -53,7 +53,7 @@ export function Palette({ tool, onOpen, onClose }: Props) {
       }}
       aria-label="Find a command"
       onClose={onClose}
-      className="bg-card text-foreground backdrop:bg-foreground/30 mx-auto mt-16 w-full max-w-xl rounded-xl border p-0 shadow-lg"
+      className="bg-card text-foreground backdrop:bg-foreground/30 lift-dialog mx-auto mt-16 w-full max-w-xl rounded-xl border p-0"
     >
       <div className="flex items-center gap-2.5 border-b px-3.5 py-2.5">
         <Search aria-hidden="true" className="text-faint-foreground size-4" />

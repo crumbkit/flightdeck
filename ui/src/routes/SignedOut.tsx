@@ -15,7 +15,7 @@ export function SignedOut() {
           This page is not signed in
         </h1>
         <p className="text-muted-foreground mb-3">
-          Its sign-in has expired or was already used. Run this in your terminal, with the tool's
+          Its sign-in has expired or was already used. Run this in your terminal, with the tool’s
           name, to start again:
         </p>
         <div className="bg-code flex items-center gap-3 rounded-md border px-3 py-2 font-mono">
