@@ -67,12 +67,34 @@ function parse(line: string): unknown {
 }
 
 /**
+ * Returns the text of the last document in `lines`: the last line that
+ * starts with `{` and every line after it, or every line when none starts
+ * with `{`. A one-line document is its own line. A crumbkit tool that sets
+ * `JsonLayout::Pretty` prints a document across many lines, which start
+ * with a `{` line and indent every line after it but the closing `}`. The
+ * server's runner finds a run's last document the same way.
+ *
+ * This is a shortcut. It finds the start of a document from the layout that
+ * crumbkit prints, so it reads both layouts without knowing the tool's, and
+ * misses a document that does not start with `{` at the start of a line. A
+ * parser that reads every JSON value of the output whatever its layout
+ * replaces it if a tool prints another layout.
+ */
+function lastDocument(lines: string[]): string | undefined {
+  if (lines.length === 0) {
+    return undefined;
+  }
+  const start = lines.findLastIndex((line) => line.startsWith("{"));
+  return lines.slice(Math.max(start, 0)).join("\n");
+}
+
+/**
  * Reads a run's lines of standard output as the command's `form` says.
  *
- * A document command prints one document on its last line. A listing
- * becomes a table, one row or an object becomes a record, and text becomes
- * prose. `document` is that line's JSON, for the card's JSON view, or null
- * when the line is not JSON.
+ * A document command prints one document last, on one line or indented
+ * across many. A listing becomes a table, one row or an object becomes a
+ * record, and text becomes prose. `document` is that document's JSON, for
+ * the card's JSON view, or null when it is not JSON.
  *
  * A stream command prints each item on its own line, in crumbkit's
  * envelope, and a failure document in the place of an item that failed.
@@ -83,7 +105,7 @@ export function resultOf(lines: string[], form: Command["result"]["form"]): Outp
   if (form === "stream") {
     return streamReader()(lines);
   }
-  const last = lines.at(-1);
+  const last = lastDocument(lines);
   const document = last === undefined ? undefined : parse(last);
   if (document === undefined) {
     return { document: null, result: { kind: "none" }, next: [] };

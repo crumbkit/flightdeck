@@ -1,6 +1,6 @@
 use crumbkit::{Failure as _, FieldValue};
 
-use super::{Ending, Outcome, outcome};
+use super::{Ending, Outcome, Tail, outcome};
 use crate::model::{ExitMeaning, Form};
 use crate::runner::failure::RUN_NO_DOCUMENT;
 use crate::spawn::{Exit, Limits, Stop};
@@ -127,4 +127,56 @@ fn a_cancel_after_the_tool_printed_its_failure_keeps_the_failure() {
         panic!("{outcome:?}");
     };
     assert_eq!(failure.code(), "shelf::cli::interrupted");
+}
+
+/// Returns the tail of a run that printed `output`, line by line.
+fn tail_of(output: &str) -> Tail {
+    let mut tail = Tail::default();
+    for line in output.lines() {
+        tail.push(line);
+    }
+    tail
+}
+
+#[test]
+fn the_tail_starts_again_at_each_line_that_starts_with_a_brace() {
+    let tail = tail_of("{\"n\":1}\nnot json\n{\n  \"n\": 2\n}");
+
+    assert_eq!(tail.get(), Some("{\n  \"n\": 2\n}"));
+}
+
+#[test]
+fn an_indented_document_with_exit_0_is_a_result() {
+    let document =
+        "{\n  \"schema\": \"shelf/books-show/v1\",\n  \"data\": {\n    \"id\": 2\n  }\n}";
+    let tail = tail_of(document);
+
+    let outcome = outcome(
+        &ending(Form::Document),
+        tail.get(),
+        Exit::Code(0),
+        None,
+        b"",
+    );
+
+    assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
+}
+
+#[test]
+fn an_indented_failure_document_is_the_tools_failure() {
+    let failure = "{\n  \"schema\": \"shelf/failure/v1\",\n  \"code\": \"shelf::books::not_found\",\n  \"message\": \"no book 7\",\n  \"recovery\": {\n    \"kind\": \"retry\"\n  }\n}";
+    let tail = tail_of(failure);
+
+    let outcome = outcome(
+        &ending(Form::Document),
+        tail.get(),
+        Exit::Code(3),
+        None,
+        b"",
+    );
+
+    let Outcome::ToolFailure(failure) = outcome else {
+        panic!("{outcome:?}");
+    };
+    assert_eq!(failure.code(), "shelf::books::not_found");
 }

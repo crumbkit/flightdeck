@@ -7,6 +7,16 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- A run of a crumbkit tool that sets `JsonLayout::Pretty` ends with its
+  result, or with its failure and the failure's code, and the page draws
+  its result as a table or a record as it does for a document on one line.
+  The runner and the page now read a run's last document from the last
+  line that starts with `{` to the end of the output. Before, they read
+  only the last line, so such a run ended with
+  `flightdeck::run::no_document`.
+
 ## [0.1.0] - 2026-11-04
 
 ### Added

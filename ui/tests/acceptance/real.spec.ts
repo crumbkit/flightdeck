@@ -381,6 +381,44 @@ test.describe("slow reading", () => {
   });
 });
 
+test.describe("pretty shelf", () => {
+  test.use({ tool: "pretty shelf" });
+
+  test("a shelf that indents its JSON draws books list as a table and books show as a record", async ({
+    page,
+    served,
+  }) => {
+    await signIn(page, served);
+
+    await page.getByRole("button", { name: "Print the first page of books" }).click();
+    const list = page.getByRole("region", { name: /^Run 1: shelf books list, exit 0/ });
+    await expect(list.getByText("Showing 4 of 6 books")).toBeVisible();
+    await expect(list.getByRole("row")).toHaveCount(5);
+    const composer = await compose(page, "books show");
+    await composer.getByLabel(/The ids of the books to show/).pressSequentially("2 ");
+    await pressRun(page, composer);
+
+    const show = page.getByRole("region", { name: /^Run 2: shelf books show 2, exit 0/ });
+    await expect(show.getByText("Frankenstein")).toBeVisible();
+    await expectNoAccessibilityViolations(page);
+  });
+
+  test("a shelf that indents its JSON fails books list --limit 101 with crumbkit's code and message", async ({
+    page,
+    served,
+  }) => {
+    await signIn(page, served);
+    const composer = await compose(page, "books list");
+    await composer.getByText("More options").click();
+    await composer.getByLabel(/--limit/).fill("101");
+    await pressRun(page, composer);
+
+    const card = page.getByRole("region", { name: /^Run 1: shelf books list --limit=101, exit 2/ });
+    await expect(card.getByText("shelf::cli::usage")).toBeVisible();
+    await expect(composer.getByLabel(/--limit/)).toHaveAttribute("aria-invalid", "true");
+  });
+});
+
 test.describe("reading", () => {
   test.use({ tool: "reading" });
 

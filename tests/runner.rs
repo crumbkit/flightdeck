@@ -1,6 +1,7 @@
 //! The runner against real crumbkit tools. These tests run shelf and
-//! reading, crumbkit's example tools, and `unruly`, a fake tool under
-//! `tests/fixtures/runner/` whose commands misbehave on purpose.
+//! reading, crumbkit's example tools, `unruly`, a fake tool under
+//! `tests/fixtures/runner/` whose commands misbehave on purpose, and the
+//! shelf under `tests/fixtures/pretty/`, which indents shelf's JSON.
 //! `scripts/install-test-tools.sh` installs shelf and reading under
 //! `target/test-tools/bin`, and every test that needs them fails with the
 //! script's name when they are missing.
@@ -17,7 +18,7 @@ use std::time::{Duration, Instant};
 use crumbkit::{Failure as _, FieldValue};
 use crumbkit_flightdeck::model::{self, Tool};
 use crumbkit_flightdeck::runner::{
-    Clock, ConfirmationId, Escalation, Limits, Mode, Outcome, RUN_BUSY, RUN_CLOSED,
+    ChoicesRequest, Clock, ConfirmationId, Escalation, Limits, Mode, Outcome, RUN_BUSY, RUN_CLOSED,
     RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION, RUN_NO_DOCUMENT, RUN_NOT_RUNNING, RUN_OUTPUT_LIMIT,
     RUN_READ_ONLY, RUN_REFUSED, RUN_SPAWN, RunEvent, RunId, RunRequest, Runner, Settings,
     SystemClock, Value,
@@ -42,6 +43,14 @@ fn test_tool(name: &str) -> PathBuf {
 /// Returns the path of the fake tool `unruly`.
 fn unruly() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/runner/unruly")
+}
+
+/// Returns the path of the shelf under `tests/fixtures/pretty/`, which runs
+/// the installed shelf and indents its JSON as a crumbkit tool that sets
+/// `JsonLayout::Pretty` does.
+fn pretty_shelf() -> PathBuf {
+    test_tool("shelf");
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/pretty/shelf")
 }
 
 /// Returns `program` with its XDG directories in a new temporary directory,
@@ -121,6 +130,12 @@ fn session_of(dirs: TempDir, program: Program, mode: Mode, settings: Settings) -
 fn session(name: &str, mode: Mode) -> Session {
     let (dirs, program) = isolated(test_tool(name));
     session_of(dirs, program, mode, settings())
+}
+
+/// Returns a runner of the shelf that indents its JSON.
+fn pretty_session() -> Session {
+    let (dirs, program) = isolated(pretty_shelf());
+    session_of(dirs, program, Mode::Full, settings())
 }
 
 /// Returns a runner of the fake tool `unruly` with `settings`.
@@ -324,6 +339,61 @@ fn books_list_runs_at_once_and_its_one_line_is_shelfs_listing_document() {
     let document: serde_json::Value = serde_json::from_str(&lines[0]).unwrap();
     assert_eq!(document["schema"], "shelf/books-list/v1");
     assert_eq!(document["total"], 6);
+}
+
+#[test]
+fn books_show_of_a_tool_that_indents_its_json_ends_as_a_result_whose_lines_are_its_document() {
+    let shelf = pretty_session();
+
+    let run = shelf
+        .runner
+        .run(&request(&["books", "show"]).value("<ID>", many(&["2"])))
+        .unwrap();
+    let (lines, outcome) = finish(run);
+
+    assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
+    assert!(lines.len() > 1, "{lines:?}");
+    let document: serde_json::Value = serde_json::from_str(&lines.join("\n")).unwrap();
+    assert_eq!(document["schema"], "shelf/books-show/v1");
+    assert_eq!(document["data"][0]["title"], "Frankenstein");
+}
+
+#[test]
+fn an_indented_failure_document_ends_the_run_as_the_tools_failure() {
+    let shelf = pretty_session();
+
+    let run = shelf
+        .runner
+        .run(&request(&["books", "list"]).value("--limit", one("-1")))
+        .unwrap();
+    let (lines, outcome) = finish(run);
+
+    assert!(lines.len() > 1, "{lines:?}");
+    let Outcome::ToolFailure(failure) = outcome else {
+        panic!("{outcome:?}");
+    };
+    assert_eq!(failure.code(), "shelf::cli::usage");
+}
+
+#[test]
+fn the_choices_of_a_tool_that_indents_its_json_are_the_rows_of_its_listing() {
+    let shelf = pretty_session();
+
+    let choices = shelf
+        .runner
+        .choices(&ChoicesRequest::new(
+            ["books", "list"],
+            ["books", "show"],
+            "<ID>",
+        ))
+        .unwrap();
+
+    let values: Vec<&str> = choices
+        .choices()
+        .iter()
+        .map(|choice| choice.value())
+        .collect();
+    assert_eq!(values, ["1", "2", "3", "4", "5", "6"]);
 }
 
 #[test]

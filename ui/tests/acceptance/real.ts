@@ -68,13 +68,14 @@ async function openerOf(child: ChildProcess): Promise<string> {
  * page for `tool`, shelf by default, or reading, as
  * scripts/install-test-tools.sh installs them. "slow reading" is reading
  * whose `entries stream` prints each line only when the test calls
- * `release`. Each test starts its own flightdeck, because a launch code
+ * `release`. "pretty shelf" is tests/fixtures/pretty/shelf, which indents
+ * shelf's JSON as a crumbkit tool that sets `JsonLayout::Pretty` does. Each test starts its own flightdeck, because a launch code
  * works once, and stops it when the test ends. The Rust lane builds both
  * before this lane runs. `test.use({ readOnly: true })` starts it with
  * `--read-only`.
  */
 export const test = checked.extend<{
-  tool: "shelf" | "reading" | "slow reading";
+  tool: "shelf" | "reading" | "slow reading" | "pretty shelf";
   readOnly: boolean;
   served: Served;
 }>({
@@ -85,14 +86,11 @@ export const test = checked.extend<{
     const data = path.join(home, "data");
     const installed = (name: string) => path.join(root, "target/test-tools/bin", name);
     const slow = tool === "slow reading" ? await slowReading(home, installed("reading")) : null;
+    const pretty = path.join(root, "tests/fixtures/pretty/shelf");
+    const program = slow?.program ?? (tool === "pretty shelf" ? pretty : installed(tool));
     const child = spawn(
       path.join(root, "target/debug/flightdeck"),
-      [
-        "open",
-        slow?.program ?? installed(tool),
-        "--no-browser",
-        ...(readOnly ? ["--read-only"] : []),
-      ],
+      ["open", program, "--no-browser", ...(readOnly ? ["--read-only"] : [])],
       {
         env: {
           ...process.env,
