@@ -133,7 +133,7 @@ case "$1 $2" in
   echo '{"schema":"unruly/child-whole/v1","data":{}}'
   ;;
 "child whole" | "child answer" | "child bytes")
-  # crumbkit revisions before #270, earlier than 0.1.0, refuse --full on a
+  # crumbkit revisions before crumbkit/crumbkit#270, earlier than 0.1.0, refuse --full on a
   # command whose JSON already holds every field, as a refused command
   # line with exit code 2.
   case " $* " in

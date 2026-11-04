@@ -41,7 +41,7 @@ and one command for each way a real tool can misbehave or a test needs:
   refuses `--full` as crumbkit does, with `unruly::cli::usage` and exit
   code 2.
 - `child answer` prints a headed answer and lists `--full`, and refuses
-  `--full` in the same way, as a tool on a crumbkit revision before #270,
+  `--full` in the same way, as a tool on a crumbkit revision before crumbkit/crumbkit#270,
   earlier than 0.1.0, does.
 - `child bytes` prints bytes and lists `--full`, and refuses `--full` in
   the same way.

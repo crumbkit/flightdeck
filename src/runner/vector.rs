@@ -12,7 +12,7 @@ mod tests;
 /// options, in this order: `--json` for a JSON document, on every run;
 /// `--full` for every field of every row, when the command offers it; and
 /// `--no-input` for no question, when the command takes it. crumbkit
-/// revisions before #270, earlier than 0.1.0, refuse `--full` with
+/// revisions before crumbkit/crumbkit#270, earlier than 0.1.0, refuse `--full` with
 /// `<tool>::cli::usage` on a command whose JSON already holds every field,
 /// and every crumbkit refuses it on a command that prints no result. A
 /// tool that cannot ask a question need not declare `--no-input`.
@@ -208,7 +208,7 @@ pub(super) fn build<'tool>(
     // without `--full`. A document keeps `--full` even when it is prose,
     // has no envelope or holds `Row::WHOLE` rows. Every released crumbkit
     // accepts `--full` on those with a note, and crumbkit revisions before
-    // #270, earlier than 0.1.0, refuse it.
+    // crumbkit/crumbkit#270, earlier than 0.1.0, refuse it.
     //
     // RUST-10: a command without a form goes without `--full`. It handles a
     // command declared with `prints_no_result`, on which every crumbkit
