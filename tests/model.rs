@@ -31,19 +31,28 @@ fn test_tool(name: &str) -> PathBuf {
     path
 }
 
+/// The XDG variables that each test sets, and the directory of each under
+/// the test's temporary directory.
+const XDG: [(&str, &str); 4] = [
+    ("XDG_CONFIG_HOME", "config"),
+    ("XDG_DATA_HOME", "data"),
+    ("XDG_STATE_HOME", "state"),
+    ("XDG_CACHE_HOME", "cache"),
+];
+
+/// Returns `program` with its XDG directories in `dirs`.
+fn within(program: impl Into<std::ffi::OsString>, dirs: &Path) -> Program {
+    XDG.iter()
+        .fold(Program::new(program), |program, (name, directory)| {
+            program.env(name, dirs.join(directory))
+        })
+}
+
 /// Returns `program` with its XDG directories in a new temporary directory,
 /// which lives as long as the returned guard.
 fn isolated(program: impl Into<std::ffi::OsString>) -> (TempDir, Program) {
     let dirs = tempfile::tempdir().unwrap();
-    let mut program = Program::new(program);
-    for (name, directory) in [
-        ("XDG_CONFIG_HOME", "config"),
-        ("XDG_DATA_HOME", "data"),
-        ("XDG_STATE_HOME", "state"),
-        ("XDG_CACHE_HOME", "cache"),
-    ] {
-        program = program.env(name, dirs.path().join(directory));
-    }
+    let program = within(program, dirs.path());
     (dirs, program)
 }
 
@@ -79,6 +88,38 @@ fn field(error: &LoadError, name: &str) -> Option<FieldValue<'static>> {
         .into_iter()
         .find(|field| field.name() == name)
         .map(|field| field.value().clone().into_owned())
+}
+
+#[test]
+fn a_tool_that_indents_its_json_loads_the_same_model_and_figures_as_one_that_prints_one_line() {
+    let shelf = test_tool("shelf");
+    let pretty = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/pretty/shelf");
+    let dirs = tempfile::tempdir().unwrap();
+    // One run of books list gives `self figures list` a count to print.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the test runs shelf directly so that its usage log counts one run"
+    )]
+    let ran = std::process::Command::new(&shelf)
+        .args(["books", "list"])
+        .envs(XDG.map(|(name, directory)| (name, dirs.path().join(directory))))
+        .output()
+        .unwrap();
+    assert!(ran.status.success(), "{ran:?}");
+
+    let one_line = model::load(&within(&shelf, dirs.path()), TIME_LIMIT).unwrap();
+    let indented = model::load(&within(&pretty, dirs.path()), TIME_LIMIT).unwrap();
+
+    assert_eq!(
+        serde_json::to_value(&indented).unwrap(),
+        serde_json::to_value(&one_line).unwrap()
+    );
+    let books_list = indented
+        .commands()
+        .iter()
+        .find(|command| command.path().to_string() == "books list")
+        .unwrap();
+    assert_eq!(books_list.runs(), 1);
 }
 
 #[test]

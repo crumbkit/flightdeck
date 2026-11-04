@@ -113,6 +113,23 @@ describe("resultOf", () => {
     expect(resultOf([plain], "document").next).toEqual([]);
   });
 
+  it("draws a document indented across many lines as it draws the same document on one line", () => {
+    const document = { schema: "shelf/books-show/v1", data: [frankenstein], failures: [] };
+    const indented = JSON.stringify(document, null, 2).split("\n");
+
+    expect(indented.length).toBeGreaterThan(1);
+    expect(resultOf(indented, "document")).toEqual(
+      resultOf([JSON.stringify(document)], "document"),
+    );
+  });
+
+  it("reads the last document when a run prints more than one", () => {
+    const first = JSON.stringify({ schema: "s", data: "first" });
+    const last = JSON.stringify({ schema: "s", data: "last" }, null, 2).split("\n");
+
+    expect(resultOf([first, ...last], "document").result).toEqual({ kind: "prose", text: "last" });
+  });
+
   it("finds no result in no output or in output that is not JSON", () => {
     expect(resultOf([], "document").result).toEqual({ kind: "none" });
     expect(resultOf(["Showing 4 of 6 books."], "document").result).toEqual({ kind: "none" });

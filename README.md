@@ -63,7 +63,9 @@ What works today:
   `schemas show` and joins them into a model of the tool's runnable
   commands, their arguments, the goal headings that group them, the
   documents they print with their JSON Schemas, and the links between
-  them. It sets crumbkit's own flags, such as `--json` and `--limit`, apart
+  them. It reads each query's whole output as one document, so a tool that
+  prints its JSON on one line and one that indents it load alike. It sets
+  crumbkit's own flags, such as `--json` and `--limit`, apart
   from the tool's own arguments. It refuses a tool whose name, command
   words or argument names hold a control character. When the tool mounts
   `self figures list`, the model also counts how often the tool's usage log
@@ -124,7 +126,12 @@ What works today:
   what the argument takes and the earlier positional argument. It builds the argument vector itself, with each option as one
   `--name=value` word and the positional values after `--`, and it never
   runs a shell. It delivers each line of standard output as it arrives and
-  ends with an outcome. A destructive command, or one that declares no
+  ends with an outcome, which it reads from the run's last document. That
+  document starts at the last line that starts with `{` and runs to the end
+  of the output, so the runner reads a document on one line and one that a
+  crumbkit tool that sets `JsonLayout::Pretty` indents across many lines,
+  and the page draws both the same way. A stream's items are one to a line
+  in either layout. A destructive command, or one that declares no
   effects, runs only with a confirmation id for the same vector, which a
   preview issues once its dry run succeeds. A cancel sends SIGINT, SIGTERM
   and SIGKILL to the child's process group in turn.

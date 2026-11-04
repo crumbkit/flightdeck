@@ -1,5 +1,5 @@
-//! How a run ended, read from its last line, its exit and why flightdeck
-//! stopped it.
+//! How a run ended, read from its last document, its exit and why
+//! flightdeck stopped it.
 
 use serde_json::Value;
 
@@ -72,7 +72,7 @@ impl Ending {
         }
     }
 
-    /// Returns the outcome of a run whose last line was `last` and which
+    /// Returns the outcome of a run whose [`Tail`] is `last` and which
     /// ended as `ended`.
     pub(super) fn outcome(&self, last: Option<&str>, ended: Result<Ended, SpawnError>) -> Outcome {
         match ended {
@@ -93,7 +93,52 @@ impl Ending {
     }
 }
 
-/// What the last line of a run holds.
+/// The end of a run's standard output that may hold its last document:
+/// the last line that starts with `{`, and every line after it, joined by
+/// line feeds. A one-line document is its own line. A document that a
+/// crumbkit tool that sets `JsonLayout::Pretty` prints starts with a `{`
+/// line, and every line after it is indented or closes it, so the tail
+/// holds the whole document. A stream's items are one line each, so the
+/// tail is its last line. It is `None` until the run prints a line.
+///
+/// RUST-10: the tail finds the start of a document from the layout that
+/// crumbkit prints, so the runner keeps one document and not the whole
+/// output, and needs no knowledge of the tool's layout. It handles a
+/// document on one line and one indented as `serde_json::to_writer_pretty`
+/// writes it. It misses a document that does not start with `{` at the
+/// start of a line, and an indented document whose lines a full queue
+/// dropped after a cancel or a shutdown, which then ends without a
+/// document. Output with no line that starts with `{` stays in the tail
+/// whole, within the run's output limit. A parser that reads every JSON value of standard output
+/// whatever its layout replaces it if a tool prints another layout.
+#[derive(Debug, Default)]
+pub(super) struct Tail(Option<String>);
+
+impl Tail {
+    /// Returns the tail that holds `line` alone.
+    pub(super) const fn of(line: String) -> Self {
+        Self(Some(line))
+    }
+
+    /// Adds `line`, the next line of standard output. A line that starts
+    /// with `{` starts the tail again.
+    pub(super) fn push(&mut self, line: &str) {
+        match &mut self.0 {
+            Some(tail) if !line.starts_with('{') => {
+                tail.push('\n');
+                tail.push_str(line);
+            }
+            _ => self.0 = Some(line.to_owned()),
+        }
+    }
+
+    /// Returns the tail, or `None` when the run printed no line.
+    pub(super) fn get(&self) -> Option<&str> {
+        self.0.as_deref()
+    }
+}
+
+/// What the last document of a run holds.
 enum Last {
     /// Nothing, or something other than a crumbkit document.
     Nothing,
@@ -103,11 +148,11 @@ enum Last {
     Failure(Box<ToolFailure>),
 }
 
-/// Returns what `line` holds for the tool `tool`. A document is a JSON
-/// object with a `schema` string, and the failure document's schema is
-/// `<tool>/failure/v1`.
-fn last_of(tool: &str, line: Option<&str>) -> Last {
-    let Some(Value::Object(document)) = line.and_then(|line| serde_json::from_str(line).ok())
+/// Returns what `tail`, a run's [`Tail`], holds for the tool `tool`. A
+/// document is a JSON object with a `schema` string, and the failure
+/// document's schema is `<tool>/failure/v1`.
+fn last_of(tool: &str, tail: Option<&str>) -> Last {
+    let Some(Value::Object(document)) = tail.and_then(|tail| serde_json::from_str(tail).ok())
     else {
         return Last::Nothing;
     };
@@ -121,7 +166,7 @@ fn last_of(tool: &str, line: Option<&str>) -> Last {
     }
 }
 
-/// Returns the outcome of a run of `ending` whose last line was `last`,
+/// Returns the outcome of a run of `ending` whose [`Tail`] is `last`,
 /// which ended with `exit`, was stopped for `stopped`, and printed `stderr`
 /// on standard error.
 pub(super) fn outcome(

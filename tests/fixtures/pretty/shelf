@@ -1,0 +1,66 @@
+#!/bin/sh
+# This shelf stands in for a crumbkit tool that sets JsonLayout::Pretty. It
+# runs the shelf that scripts/install-test-tools.sh installs, and re-indents
+# each line that starts with `{` as serde_json::to_writer_pretty writes it,
+# two spaces for each level, as crumbkit does for such a tool. Every other
+# line passes through, and it exits as shelf does.
+here=$(dirname "$0")
+exec perl -e '
+use strict;
+use warnings;
+$| = 1;
+
+# Returns `compact`, JSON on one line, laid out with each field and item on
+# a line of its own. Bytes inside a string are copied unchanged, and an
+# empty object or array stays on one line.
+sub indent {
+  my ($compact) = @_;
+  my @bytes = split //, $compact;
+  my ($depth, $in_string, $escaped, $out) = (0, 0, 0, "");
+  for (my $i = 0; $i < @bytes; $i++) {
+    my $byte = $bytes[$i];
+    if ($in_string) {
+      $out .= $byte;
+      if ($escaped) { $escaped = 0 }
+      elsif ($byte eq "\\") { $escaped = 1 }
+      elsif ($byte eq "\"") { $in_string = 0 }
+      next;
+    }
+    if ($byte eq "\"") {
+      $in_string = 1;
+      $out .= $byte;
+    } elsif ($byte eq "{" || $byte eq "[") {
+      my $close = $byte eq "{" ? "}" : "]";
+      if (($bytes[$i + 1] // "") eq $close) {
+        $out .= $byte . $close;
+        $i++;
+      } else {
+        $depth++;
+        $out .= $byte . "\n" . ("  " x $depth);
+      }
+    } elsif ($byte eq "}" || $byte eq "]") {
+      $depth--;
+      $out .= "\n" . ("  " x $depth) . $byte;
+    } elsif ($byte eq ",") {
+      $out .= ",\n" . ("  " x $depth);
+    } elsif ($byte eq ":") {
+      $out .= ": ";
+    } else {
+      $out .= $byte;
+    }
+  }
+  return $out;
+}
+
+open(my $shelf, "-|", @ARGV) or die "cannot run $ARGV[0]: $!\n";
+while (my $line = <$shelf>) {
+  if ($line =~ /^\{/) {
+    chomp $line;
+    print indent($line), "\n";
+  } else {
+    print $line;
+  }
+}
+close $shelf;
+exit($? & 127 ? 128 + ($? & 127) : $? >> 8);
+' "$here/../../../target/test-tools/bin/shelf" "$@"

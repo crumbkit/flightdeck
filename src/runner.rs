@@ -74,8 +74,8 @@ pub use self::failure::{
     RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION, RUN_NO_DOCUMENT, RUN_NOT_RUNNING, RUN_OUTPUT_LIMIT,
     RUN_RANDOM, RUN_READ_ONLY, RUN_REFUSED, RUN_SPAWN, Reason, RunFailure, Takes,
 };
-use self::outcome::Ending;
 pub use self::outcome::Outcome;
+use self::outcome::{Ending, Tail};
 pub use self::request::{RunRequest, Value};
 use self::runs::Runs;
 use self::trace::Trace;
@@ -478,7 +478,7 @@ impl Runner {
             id,
             line: vector.line(Extra::None),
             events: Some(events),
-            last: None,
+            last: Tail::default(),
             exit: None,
             ending: Ending::new(&self.tool, command, vector.line(extra), limits),
         })
@@ -577,7 +577,7 @@ pub struct Run {
     id: RunId,
     line: String,
     events: Option<Events>,
-    last: Option<String>,
+    last: Tail,
     exit: Option<Exit>,
     ending: Ending,
 }
@@ -615,21 +615,26 @@ impl Run {
     }
 
     /// Returns the run's event for `event`, the next event of its child,
-    /// and keeps the last line for the outcome.
+    /// and keeps the tail of the output that holds the last document for
+    /// the outcome.
     fn read(&mut self, event: Option<Event>) -> Option<RunEvent> {
         let ended = match event? {
             Event::Line(line) => {
-                self.last = Some(line.clone());
+                self.last.push(&line);
                 return Some(RunEvent::Line(line));
             }
             Event::End { ended, lost } => {
-                self.last = lost.or_else(|| self.last.take());
+                // Lines before a lost line may be lost too, so the lost line
+                // stands alone.
+                if let Some(lost) = lost {
+                    self.last = Tail::of(lost);
+                }
                 ended
             }
         };
         self.events = None;
         self.exit = ended.as_ref().ok().map(spawn::Ended::exit);
-        let outcome = self.ending.outcome(self.last.as_deref(), ended);
+        let outcome = self.ending.outcome(self.last.get(), ended);
         Some(RunEvent::Outcome(outcome))
     }
 }
