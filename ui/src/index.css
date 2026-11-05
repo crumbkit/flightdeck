@@ -1,15 +1,3 @@
-/* Hallmark · shape: app screen · genre: modern-minimal · theme: custom · redesign: full
- * nav: kept (the topbar and the rail) · signature: the run card: the line, its status and its result table, a dark panel with inset hairlines · states: loading, empty, running, ended, failed, cancelled, awaiting confirmation · wayfind: dark first, one cyan, Plex Sans with JetBrains Mono for code
- * axes: dark/sans/cool · posture: committed · contrast: pass · v2.0.0 */
-/* Hallmark · pre-emit critique: P4 H4 E4 S3 R4 V4 · weakest: S, dark-with-cyan is the look of many developer tools; the 3px corners and the hairline panels keep it from the glow-and-gradient kind */
-/* Hallmark · waive 64 · the mono face marks commands, arguments, column names and run figures, which are code and figures · a developer reads a command name as the thing they would type */
-/* Hallmark · waive 39b · input.caret-foreground is a transparent overlay inside the 36px command box, and the box is the control · the overlay keeps the caret and selection over the highlighted line */
-/* Hallmark · waive 72 · div.bg-card is the composer pane, whose fields scroll inside it · the lines past its bottom edge are the scrolled rest of the form, and the Run row under it stays in reach */
-/* Hallmark · dismissed 49 · the long labels are the tool's own example sentences and a screen-reader note, shown as the tool wrote them */
-/* Hallmark · dismissed F1 · the straight quotes sit in the tool's own command descriptions, which the page shows verbatim */
-/* Hallmark · dismissed F4 · the example buttons are typographic links with no fill; the page's one filled button is Run */
-/* Hallmark · reworded "shelf 0.1.1+git-a85fa49c767a" to "shelf" · the version now shows once, in the topbar, and the welcome heading keeps the name */
-/* Hallmark · dropped "21:13, 2ms, 3ms" · the run clock and durations differ between captures, and the after capture shows its own */
 /* Tailwind reads class names only from src/, so a change elsewhere, such
    as a test or a README, cannot change the built CSS (EMB-4). */
 @import "tailwindcss" source("./");
@@ -100,8 +88,9 @@
   --input: light-dark(oklch(58% 0.012 240), oklch(55% 0.012 240));
   --ring: light-dark(oklch(46% 0.15 230), oklch(78% 0.13 225));
   --selection: light-dark(oklch(88% 0.06 230), oklch(35% 0.08 230));
-  /* Shadows: faint in light, off in dark, where a lighter surface does the
-     lifting. */
+  /* Shadows are off in both appearances: hairlines and a lighter surface
+     do the lifting. The tokens stay so the utilities that use them keep
+     working. */
   --shadow-ink: light-dark(transparent, transparent);
   --shadow-card: 0 1px 2px var(--shadow-ink);
   --shadow-menu: 0 4px 12px var(--shadow-ink);
@@ -169,8 +158,9 @@
   --color-primary-hover: var(--primary-hover);
   --font-sans: var(--sans);
   --font-mono: var(--mono);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  /* Controls and cards share the 3px corner. */
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-pill: var(--pill);

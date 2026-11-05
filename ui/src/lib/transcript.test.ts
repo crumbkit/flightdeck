@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Run, transcript } from "./transcript";
+import { drawnKey, type Run, transcript } from "./transcript";
 
 const request = { path: ["books", "show"], values: { "<ID>": ["2"] } };
 
@@ -195,5 +195,38 @@ describe("a preview card", () => {
     runs = transcript(runs, { type: "answer", number: 1, answer: "confirmed" });
 
     expect(runs[0]?.ask?.answer).toBe("declined");
+  });
+});
+
+describe("drawnKey", () => {
+  const run = (state: Run["state"]): Run => ({
+    number: 1,
+    request: { path: ["books", "list"], values: {} },
+    line: "books list",
+    long: false,
+    state,
+  });
+
+  it("changes when a starting run is refused, though the refusal adds no lines", () => {
+    const starting = drawnKey([run({ kind: "starting" })]);
+    const refused = drawnKey([run({ kind: "refused", problem: null, words: "refused" })]);
+
+    expect(refused).not.toBe(starting);
+  });
+
+  it("changes when a running run ends without lines", () => {
+    const running = drawnKey([run({ kind: "running", id: null, startedAt: "", lines: [] })]);
+    const ended = drawnKey([
+      run({
+        kind: "ended",
+        startedAt: null,
+        lines: [],
+        exit: 0,
+        durationMs: 1,
+        outcome: { kind: "result" },
+      }),
+    ]);
+
+    expect(ended).not.toBe(running);
   });
 });

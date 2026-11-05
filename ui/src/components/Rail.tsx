@@ -26,7 +26,7 @@ export function CommandPathText({ command }: { command: Command }) {
 
 /**
  * The rail of commands, grouped under the goal headings of the tool's help
- * in help order, each command with its effect's dot and word. The topbar
+ * in help order, each command with its effect in a word. The topbar
  * names the tool, so the rail does not. Under `--read-only` a command that
  * is not read-only stays in the rail, dimmed and with a lock, and choosing
  * it shows its form with the reason. A window narrower than the `md`
@@ -54,10 +54,13 @@ export function Rail({ tool, selected, readOnly, onChoose }: Props) {
                     aria-current={selected === command ? "true" : undefined}
                     onClick={() => onChoose(command)}
                     className={cn(
-                      "transition-tint active:bg-muted flex min-h-8 w-full items-center gap-2 rounded-md py-1 pr-2 pl-2 text-left",
+                      "transition-tint active:bg-muted flex min-h-8 w-full items-center gap-2 rounded-md border-l-2 py-1 pr-2 pl-2 text-left",
+                      // The selected row has the accent's fill and edge, which
+                      // stand out more than the hover's quiet fill in both
+                      // appearances.
                       selected === command
-                        ? "bg-card lift-card font-semibold"
-                        : "hover:bg-card/60 dark:hover:bg-muted",
+                        ? "bg-accent border-l-primary font-semibold"
+                        : "hover:bg-card/60 dark:hover:bg-muted border-l-transparent",
                       locked && "text-faint-foreground",
                     )}
                   >

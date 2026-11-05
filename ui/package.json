@@ -54,9 +54,10 @@
       "path": [
         "dist/index.html",
         "dist/assets/app.js",
-        "dist/assets/index.css"
+        "dist/assets/index.css",
+        "dist/fonts/*.woff2"
       ],
-      "limit": "150 kB"
+      "limit": "245 kB"
     },
     {
       "name": "every file",

@@ -479,3 +479,32 @@ test("with a form open the composer takes at most 40% of the window, and the new
   await expect(card.getByText("Run 1", { exact: true })).toBeInViewport();
   await expect(card.getByText("Frankenstein")).toBeInViewport();
 });
+
+test("a refused run's failure shows above the open form", async ({ page, served, errors }) => {
+  await signIn(page, served);
+  const composer = await compose(page, "books show");
+  await composer.getByLabel(/The ids of the books to show/).pressSequentially("2 ");
+  await pressRun(page, composer);
+  await expect(
+    page.getByRole("region", { name: /^Run 1: shelf books show 2, exit 0/ }),
+  ).toBeVisible();
+  // The runner refuses a path that shelf does not have, as it would a
+  // request from a stale page.
+  await page.route("**/api/runs", async (route) => {
+    const body = JSON.parse(route.request().postData() ?? "{}");
+    await route.continue({ postData: JSON.stringify({ ...body, path: ["books", "shelve"] }) });
+  });
+
+  await pressRun(page, composer);
+
+  const card = page.getByRole("region", { name: /^Run 2:/ });
+  const failure = card.getByRole("alert");
+  await expect(failure).toBeVisible();
+  await settle(page);
+  await expect(failure).toBeInViewport({ ratio: 1 });
+  // Chrome logs the refusal's 422 as an error. It is the one error this
+  // test expects, so the check of the page's errors leaves it out.
+  const refusal = errors.findIndex((error) => error.includes("status of 422"));
+  expect(refusal).toBeGreaterThanOrEqual(0);
+  errors.splice(refusal, 1);
+});

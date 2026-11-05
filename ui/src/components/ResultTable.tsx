@@ -159,7 +159,7 @@ export function ResultTable(props: Props) {
                 >
                   <span className="block font-mono text-xs font-semibold">{column.name}</span>
                   {column.description !== null && (
-                    <span className="text-muted-foreground hidden max-w-44 text-xs font-normal md:block">
+                    <span className="text-muted-foreground sr-only max-w-44 text-xs font-normal md:not-sr-only md:block">
                       {column.description}
                     </span>
                   )}

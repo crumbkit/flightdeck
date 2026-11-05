@@ -36,14 +36,16 @@ export function Welcome({ tool, onExample }: Props) {
                   )}
                 </div>
                 {command.examples.length > 0 && (
-                  <div className="-mb-1 flex flex-wrap gap-x-3">
+                  // On a phone each example takes its own line; from md they
+                  // share a line with a rule between them.
+                  <div className="-mb-1 flex flex-col items-start md:flex-row md:flex-wrap md:gap-x-3">
                     {command.examples.map((example) => (
                       <button
                         key={example.command}
                         type="button"
                         title={example.command}
                         onClick={() => onExample(command, example)}
-                        className="text-primary active:text-foreground -mx-1 min-h-8 max-w-full truncate px-1 text-xs not-first:border-l not-first:pl-3 hover:underline"
+                        className="text-primary active:text-foreground -mx-1 min-h-8 max-w-full truncate px-1 text-xs hover:underline md:not-first:border-l md:not-first:pl-3"
                       >
                         {example.about}
                       </button>

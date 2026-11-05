@@ -2,8 +2,8 @@ import { ArrowDown } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 type Props = {
-  /** Changes whenever the transcript's content grows, such as a count of its lines. */
-  size: number;
+  /** Changes whenever a card changes what it draws, such as `drawnKey` of the runs. */
+  content: string;
   /** The element id of the newest card, or null before the first run. */
   latest: string | null;
   children: ReactNode;
@@ -11,6 +11,12 @@ type Props = {
 
 /** How close to the bottom, in pixels, still counts as at the bottom. */
 const slack = 24;
+
+/** Scrolls `element` to `top`, and returns where the browser put it. */
+function scrollTo(element: HTMLElement, top: number): number {
+  element.scrollTop = top;
+  return element.scrollTop;
+}
 
 /**
  * How the view moves when the content grows. `newest` keeps the newest card
@@ -22,39 +28,32 @@ type Follow = "newest" | "bottom" | "still";
 
 /**
  * The scrolling transcript. It opens where its content starts. A new card
- * scrolls into view with its top showing. While the reader stays at the
- * bottom, the view follows new rows. When they have scrolled up, new
- * content does not move the view, and a "New rows ↓" button returns to the
- * bottom.
+ * scrolls into view with its top showing, and when its rows run past the
+ * bottom of the view, a "New rows ↓" button returns to the bottom. While
+ * the reader stays at the bottom, the view follows new rows. When they have
+ * scrolled up, new content does not move the view, and the button shows.
  */
-export function Transcript({ size, latest, children }: Props) {
+export function Transcript({ content, latest, children }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const follow = useRef<Follow>("newest");
+  // The content and newest card the view last answered. The effect acts
+  // only when one of them changes, so the first render, and React's second
+  // run of its effects in StrictMode, leave the page at its start.
+  const drawn = useRef(content);
   const shown = useRef<string | null>(latest);
-  const mounted = useRef(false);
   // The position this component last scrolled to, so its own scroll event
   // is not read as the reader's.
   const placed = useRef<number | null>(null);
   const [behind, setBehind] = useState(false);
 
-  const place = (element: HTMLDivElement, top: number) => {
-    element.scrollTop = top;
-    placed.current = element.scrollTop;
-  };
-
   // The effect follows the browser's scroll position, which lives outside
-  // React, each time the content grows or a card arrives. It leaves the
-  // first render alone, so the page opens at its start.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: size is the trigger, read through the DOM
+  // React, each time a card changes what it draws or a new card arrives.
   useEffect(() => {
     const element = scroller.current;
-    if (!mounted.current) {
-      mounted.current = true;
+    if (element === null || (content === drawn.current && latest === shown.current)) {
       return;
     }
-    if (element === null) {
-      return;
-    }
+    drawn.current = content;
     if (latest !== shown.current) {
       shown.current = latest;
       follow.current = "newest";
@@ -62,7 +61,7 @@ export function Transcript({ size, latest, children }: Props) {
     }
     const bottom = element.scrollHeight - element.clientHeight;
     if (follow.current === "bottom") {
-      place(element, bottom);
+      placed.current = scrollTo(element, bottom);
     } else if (follow.current === "newest") {
       const card = latest === null ? null : document.getElementById(latest);
       const top =
@@ -72,11 +71,16 @@ export function Transcript({ size, latest, children }: Props) {
             element.getBoundingClientRect().top +
             element.scrollTop -
             Number.parseFloat(getComputedStyle(element).paddingTop || "0");
-      place(element, Math.max(0, Math.min(bottom, top)));
+      const target = Math.max(0, Math.min(bottom, top));
+      placed.current = scrollTo(element, target);
+      // The card's top is in view, and its later rows are below it.
+      if (bottom - target > slack) {
+        setBehind(true);
+      }
     } else {
       setBehind(true);
     }
-  }, [size, latest]);
+  }, [content, latest]);
 
   const onScroll = () => {
     const element = scroller.current;
@@ -97,7 +101,7 @@ export function Transcript({ size, latest, children }: Props) {
   const toBottom = () => {
     const element = scroller.current;
     if (element !== null) {
-      place(element, element.scrollHeight);
+      placed.current = scrollTo(element, element.scrollHeight);
     }
     follow.current = "bottom";
     setBehind(false);
