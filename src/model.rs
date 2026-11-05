@@ -57,6 +57,8 @@ pub struct Tool {
     commands: Vec<Command>,
     documents: Vec<Document>,
     links: Vec<Link>,
+    #[serde(skip)]
+    marks_no_result: bool,
 }
 
 impl Tool {
@@ -112,6 +114,17 @@ impl Tool {
         self.documents.iter().find(|document| document.id() == id)
     }
 
+    /// Returns true when the tool's `commands list` marks each command that
+    /// prints no result with `prints_no_result`, as crumbkit does since
+    /// crumbkit/crumbkit#291. The tool's own `<tool>/commands-list/v1`
+    /// schema then declares the field. A tool on an earlier crumbkit, such
+    /// as 0.1.1, gives such a command the same row as a command without a
+    /// document, and [`Command::prints_no_result`] is false for both.
+    #[must_use]
+    pub const fn marks_no_result(&self) -> bool {
+        self.marks_no_result
+    }
+
     /// Returns the links between the tool's commands.
     #[must_use]
     pub fn links(&self) -> &[Link] {
@@ -140,6 +153,11 @@ impl Tool {
         list: CommandsList,
         documents: Vec<Document>,
     ) -> Result<Self, NotDocument> {
+        // The tool's own schema of the document that `commands list` printed
+        // declares `prints_no_result` when its crumbkit marks such commands.
+        let marks_no_result = documents.iter().any(|document| {
+            document.id() == list.schema() && document.declares_property("prints_no_result")
+        });
         let rows = list.into_rows();
         let root = rows
             .iter()
@@ -175,6 +193,7 @@ impl Tool {
             commands,
             documents,
             links,
+            marks_no_result,
         })
     }
 }

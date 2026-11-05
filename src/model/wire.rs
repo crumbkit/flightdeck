@@ -35,6 +35,10 @@ pub(super) struct CommandRow {
     /// `null` reads as empty.
     #[serde(default, deserialize_with = "null_as_empty")]
     pub(super) goals: Vec<GoalRow>,
+    /// Whether the command prints no result, which crumbkit since
+    /// crumbkit/crumbkit#291 marks with `true` and leaves out otherwise.
+    #[serde(default)]
+    pub(super) prints_no_result: bool,
 }
 
 /// One argument of a `commands list` row.

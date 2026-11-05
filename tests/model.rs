@@ -146,11 +146,26 @@ fn shelf_has_nine_runnable_commands_its_version_and_its_about_line() {
         ]
     );
     assert_eq!(shelf.name(), "shelf");
-    assert_eq!(shelf.version(), "0.1.1+git-a85fa49c767a");
+    assert_eq!(shelf.version(), "0.1.1+git-b7f02c45fe90");
     assert_eq!(
         shelf.about(),
         Some("Browse a small catalogue of public-domain books")
     );
+}
+
+#[test]
+fn shelf_and_reading_declare_prints_no_result_and_mark_none_of_their_commands() {
+    for name in ["shelf", "reading"] {
+        let tool = load(name);
+
+        assert!(tool.marks_no_result(), "{name}");
+        assert!(
+            tool.commands()
+                .iter()
+                .all(|command| !command.prints_no_result()),
+            "{name}"
+        );
+    }
 }
 
 #[test]

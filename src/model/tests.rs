@@ -1,4 +1,4 @@
-use super::{CommandsList, Effects, Listing, NotDocument, StepCommand, Tool};
+use super::{CommandsList, Document, Effects, Listing, NotDocument, StepCommand, Tool};
 
 /// shelf's `commands list` document, with `goals` on its root row.
 const WITH_GOALS: &str = include_str!("../../tests/fixtures/shelf/commands-list.json");
@@ -6,6 +6,10 @@ const WITH_GOALS: &str = include_str!("../../tests/fixtures/shelf/commands-list.
 /// shelf's `books list --json` document, with a next step that calls a
 /// shelf command and one that runs another program first.
 const WITH_NEXT: &str = include_str!("../../tests/fixtures/shelf/books-list-with-run-step.json");
+
+/// crumbkit's `commands list` schema, which declares `prints_no_result`.
+const COMMANDS_LIST_SCHEMA: &str =
+    include_str!("../../tests/fixtures/crumbkit/commands-list-v1.json");
 
 #[test]
 fn null_effects_are_unknown() {
@@ -83,4 +87,30 @@ fn a_command_word_or_an_argument_name_with_a_control_character_is_refused_when_t
 
         assert!(matches!(refused, Err(NotDocument::Control)), "{to}");
     }
+}
+
+#[test]
+fn a_tool_marks_no_result_only_when_its_own_commands_list_schema_declares_the_field() {
+    let schema: serde_json::Value = serde_json::from_str(COMMANDS_LIST_SCHEMA).unwrap();
+    let mut before = schema.clone();
+    before["$defs"]["CommandRow"]["properties"]
+        .as_object_mut()
+        .unwrap()
+        .remove("prints_no_result")
+        .unwrap();
+    let assemble = |documents| {
+        let commands: CommandsList = serde_json::from_str(WITH_GOALS).unwrap();
+        Tool::assemble("shelf 0.1.1", commands, documents).unwrap()
+    };
+
+    let marking = assemble(vec![Document::output(
+        "shelf/commands-list/v1",
+        schema.clone(),
+    )]);
+    let older = assemble(vec![Document::output("shelf/commands-list/v1", before)]);
+    let elsewhere = assemble(vec![Document::output("other/commands-list/v1", schema)]);
+
+    assert!(marking.marks_no_result());
+    assert!(!older.marks_no_result());
+    assert!(!elsewhere.marks_no_result());
 }

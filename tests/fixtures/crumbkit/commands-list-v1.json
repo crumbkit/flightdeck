@@ -382,6 +382,10 @@
           "description": "The command line that runs the command, such as `shelf books list`.",
           "type": "string"
         },
+        "prints_no_result": {
+          "description": "true when the guide's leaf for the command declares that it prints no result on standard output, so it offers none of --fields, --long and --full and its form is null. Only the row of such a command has this field, which tells it from a command whose leaf declares no document.",
+          "const": true
+        },
         "writes": {
           "description": "How the command guards what it writes, or null when the command is read-only or the tool declares no effects.",
           "type": [

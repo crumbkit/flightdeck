@@ -45,9 +45,12 @@ and one command for each way a real tool can misbehave or a test needs:
   earlier than 0.1.0, does.
 - `child bytes` prints bytes and lists `--full`, and refuses `--full` in
   the same way.
-- `child silent` lists `--full` but declares no form, as a command that
-  crumbkit declares with `prints_no_result` does, and refuses `--full`
-  with crumbkit's refusal for a command that prints no result.
+- `child silent` lists `--full`, declares no form and has
+  `prints_no_result: true`, as a command that crumbkit declares with
+  `prints_no_result` does, and refuses `--full` with crumbkit's refusal
+  for a command that prints no result. unruly's empty `schemas list`
+  publishes no `commands list` schema, so a loaded unruly is a tool whose
+  crumbkit may not mark such a command.
 - `child rows` lists `--full`, and fails unless the run passes it.
 - `child said` is the twin of `child silent` with a document form, and
   fails unless the run passes `--full`. Only the vector tests use it.

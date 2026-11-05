@@ -764,7 +764,8 @@
         "idempotent": true,
         "open_world": false
       },
-      "writes": null
+      "writes": null,
+      "prints_no_result": true
     },
     {
       "path": "unruly child said",

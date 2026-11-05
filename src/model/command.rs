@@ -80,6 +80,8 @@ pub struct Command {
     effects: Effects,
     writes: Option<Writes>,
     runs: u64,
+    #[serde(skip)]
+    prints_no_result: bool,
 }
 
 impl Command {
@@ -101,6 +103,7 @@ impl Command {
             effects: row.effects,
             writes: row.writes,
             runs: 0,
+            prints_no_result: row.prints_no_result,
         }
     }
 
@@ -195,6 +198,15 @@ impl Command {
     #[must_use]
     pub const fn writes(&self) -> Option<&Writes> {
         self.writes.as_ref()
+    }
+
+    /// Returns true when the tool's `commands list` marks the command as one
+    /// that prints no result, and so takes none of `--fields`, `--long` and
+    /// `--full`. A tool that [`Tool::marks_no_result`](super::Tool::marks_no_result)
+    /// says cannot mark one leaves this false for every command.
+    #[must_use]
+    pub const fn prints_no_result(&self) -> bool {
+        self.prints_no_result
     }
 
     /// Returns how often the command ran, from the tool's `self figures
