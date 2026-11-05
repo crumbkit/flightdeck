@@ -272,6 +272,11 @@
 @utility pb-safe {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
+/* The composer's tallest height: 40% of the visible window, so the newest
+   card keeps the larger share above it. The form scrolls inside it. */
+@utility max-h-dock {
+  max-height: 40dvh;
+}
 
 /* The bar under a running card's header: a short bar that slides across
    the card's width and starts again, so it reads as "still going" rather
