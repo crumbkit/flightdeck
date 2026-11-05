@@ -153,6 +153,11 @@ impl Tool {
         list: CommandsList,
         documents: Vec<Document>,
     ) -> Result<Self, NotDocument> {
+        // The tool's own schema of the document that `commands list` printed
+        // declares `prints_no_result` when its crumbkit marks such commands.
+        let marks_no_result = documents.iter().any(|document| {
+            document.id() == list.schema() && document.declares_property("prints_no_result")
+        });
         let rows = list.into_rows();
         let root = rows
             .iter()
@@ -180,10 +185,6 @@ impl Tool {
             .trim()
             .to_owned();
         let links = links::infer(&commands);
-        let commands_list = format!("{name}/commands-list/v1");
-        let marks_no_result = documents.iter().any(|document| {
-            document.id() == commands_list && document.declares_property("prints_no_result")
-        });
         Ok(Self {
             name,
             version,

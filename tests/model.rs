@@ -154,7 +154,7 @@ fn shelf_has_nine_runnable_commands_its_version_and_its_about_line() {
 }
 
 #[test]
-fn shelf_and_reading_at_the_pinned_crumbkit_mark_each_command_that_prints_no_result() {
+fn shelf_and_reading_declare_prints_no_result_and_mark_none_of_their_commands() {
     for name in ["shelf", "reading"] {
         let tool = load(name);
 

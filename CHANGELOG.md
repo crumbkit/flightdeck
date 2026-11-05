@@ -29,20 +29,16 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - A run of a command that prints no result reaches its result. Every
   crumbkit refuses `--full` on a command declared with `prints_no_result`,
   and `commands list` gives such a command no form. The runner added
-  `--full` to it when its row listed `--full`. The runner now leaves
-  `--full` out for every command without a form. A command with no
-  document has no form either, and crumbkit accepts `--full` on it, so a
-  run of one whose handler prints enveloped rows that are not whole now shows only
-  the rows' columns.
-- A run of a command with no document passes `--full` again, so a handler
-  that prints enveloped rows that are not whole shows every field, when the
-  tool's crumbkit marks each command that prints no result. crumbkit
-  added the mark in crumbkit/crumbkit#291: the command's `commands list`
-  row has `prints_no_result: true`, and the tool's `commands list` schema
-  declares the field. The runner leaves `--full` out for a marked command
-  and passes it to an unmarked command without a form. A tool whose
-  schema does not declare the field, such as one on crumbkit 0.1.1, keeps
-  the earlier rule: no command without a form gets `--full`.
+  `--full` to it when its row listed `--full`. Since crumbkit/crumbkit#291
+  the command's row has `prints_no_result: true`, and the tool's own
+  `commands list` schema declares the field. The runner now leaves `--full`
+  out for a marked command. On a tool whose schema does not declare the
+  field, such as one on crumbkit 0.1.1, a command that prints no result and
+  a command with no document have the same row, so the runner leaves
+  `--full` out for every command without a form. A run of a command with
+  no document whose handler prints enveloped rows that are not whole then
+  shows only the rows' columns. On a tool that marks such commands, an
+  unmarked command without a form keeps `--full`.
 
 ## [0.1.0] - 2026-11-04
 

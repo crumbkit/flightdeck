@@ -130,11 +130,17 @@ What works today:
   command lists it. The runner leaves `--full` out for a command that
   prints a headed answer or bytes, because their JSON already holds every
   field, and crumbkit revisions before crumbkit/crumbkit#270, earlier than 0.1.0, refuse
-  `--full` there. It also leaves `--full` out for a command that declares
-  no form. Every crumbkit refuses `--full` on a command that prints no
-  result, and `commands list` gives that command no form. A command with
-  no document gets no form too, so a run of one whose handler prints rows
-  that are not whole shows only the rows' columns. A command whose
+  `--full` there. Every crumbkit refuses `--full` on a command that prints
+  no result, and `commands list` gives that command no form. Since
+  crumbkit/crumbkit#291 its row also has `prints_no_result: true`, and the
+  tool's own `commands list` schema declares that field. The runner leaves
+  `--full` out for a command marked that way, and adds it to an unmarked
+  command without a form, which has no document. On a tool whose
+  `commands list` schema does not declare the field, such as one on
+  crumbkit 0.1.1, the two commands have the same row, so the runner leaves
+  `--full` out for every command without a form, and a run of a command
+  with no document whose handler prints rows that are not whole shows only
+  the rows' columns. A command whose
   document is prose, has no envelope or holds whole rows keeps `--full`.
   Every released crumbkit accepts `--full` there with a note, and crumbkit
   revisions before crumbkit/crumbkit#270 refuse it.
