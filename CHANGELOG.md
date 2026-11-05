@@ -7,6 +7,19 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- The page has a new look. Words are set in Source Serif 4 and commands,
+  arguments and codes in Source Code Pro, both served by flightdeck itself
+  rather than a font service. The page's chrome is black and white, so only
+  a command's effect (read-only, destructive and so on) carries colour, and
+  the rail names each effect in a word without a coloured dot. The command
+  line at the foot of the page is larger, and the Run button stays in view
+  while the form above it scrolls. The tool's version appears once, in the
+  header. Numeric columns in a table, and their headings, are aligned to the
+  right. A skip link lets a keyboard user jump past the rail to the page. On
+  a 375-pixel phone the header wraps and nothing scrolls sideways.
+
 ### Fixed
 
 - A run of a crumbkit tool that sets `JsonLayout::Pretty` ends with its
