@@ -7,7 +7,27 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- The page has a new look. The dark appearance has cards a step lighter
+  than the background, 3-pixel corners and thin lines in place of
+  shadows. One cyan marks links, the Run button and focus; the light
+  appearance uses a deep blue in its place. Words are set in IBM Plex Sans
+  and commands, arguments and figures in JetBrains Mono, both served by
+  flightdeck itself rather than a font service. The rail names each effect
+  in a word without a coloured dot. The tool's version appears once, in the
+  header. Numeric columns in a table, and their headings, are aligned to the
+  right. On a 375-pixel phone the header wraps and nothing scrolls sideways.
+- With a form open, the command line and form take at most 40% of the
+  window. The form scrolls inside that space while the Run button stays in
+  view. After a run, the page scrolls the new card into view above the
+  form, with the card's top showing.
+
 ### Fixed
+
+- The page opens at the top of the welcome. Before, the transcript
+  scrolled to its end as soon as it appeared, so a phone opened the page at
+  the end of the command list.
 
 - A run of a crumbkit tool that sets `JsonLayout::Pretty` ends with its
   result, or with its failure and the failure's code, and the page draws

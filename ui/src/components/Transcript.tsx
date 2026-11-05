@@ -4,6 +4,8 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 type Props = {
   /** Changes whenever the transcript's content grows, such as a count of its lines. */
   size: number;
+  /** The element id of the newest card, or null before the first run. */
+  latest: string | null;
   children: ReactNode;
 };
 
@@ -11,37 +13,83 @@ type Props = {
 const slack = 24;
 
 /**
- * The scrolling transcript. While the person is at the bottom, it follows
- * the newest card. When they have scrolled up, new content does not move
- * the view, and a "New rows ↓" button returns to the bottom.
+ * How the view moves when the content grows. `newest` keeps the newest card
+ * in view: the view goes to the bottom, but never so far that the card's
+ * top leaves it. `bottom` follows the end of the content. `still` leaves the
+ * view where the reader put it.
  */
-export function Transcript({ size, children }: Props) {
+type Follow = "newest" | "bottom" | "still";
+
+/**
+ * The scrolling transcript. It opens where its content starts. A new card
+ * scrolls into view with its top showing. While the reader stays at the
+ * bottom, the view follows new rows. When they have scrolled up, new
+ * content does not move the view, and a "New rows ↓" button returns to the
+ * bottom.
+ */
+export function Transcript({ size, latest, children }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
-  const atBottom = useRef(true);
+  const follow = useRef<Follow>("newest");
+  const shown = useRef<string | null>(latest);
+  const mounted = useRef(false);
+  // The position this component last scrolled to, so its own scroll event
+  // is not read as the reader's.
+  const placed = useRef<number | null>(null);
   const [behind, setBehind] = useState(false);
 
+  const place = (element: HTMLDivElement, top: number) => {
+    element.scrollTop = top;
+    placed.current = element.scrollTop;
+  };
+
   // The effect follows the browser's scroll position, which lives outside
-  // React, each time the content grows.
+  // React, each time the content grows or a card arrives. It leaves the
+  // first render alone, so the page opens at its start.
   // biome-ignore lint/correctness/useExhaustiveDependencies: size is the trigger, read through the DOM
   useEffect(() => {
     const element = scroller.current;
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
     if (element === null) {
       return;
     }
-    if (atBottom.current) {
-      element.scrollTop = element.scrollHeight;
+    if (latest !== shown.current) {
+      shown.current = latest;
+      follow.current = "newest";
+      setBehind(false);
+    }
+    const bottom = element.scrollHeight - element.clientHeight;
+    if (follow.current === "bottom") {
+      place(element, bottom);
+    } else if (follow.current === "newest") {
+      const card = latest === null ? null : document.getElementById(latest);
+      const top =
+        card === null || !element.contains(card)
+          ? bottom
+          : card.getBoundingClientRect().top -
+            element.getBoundingClientRect().top +
+            element.scrollTop -
+            Number.parseFloat(getComputedStyle(element).paddingTop || "0");
+      place(element, Math.max(0, Math.min(bottom, top)));
     } else {
       setBehind(true);
     }
-  }, [size]);
+  }, [size, latest]);
 
   const onScroll = () => {
     const element = scroller.current;
     if (element === null) {
       return;
     }
-    atBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight <= slack;
-    if (atBottom.current) {
+    if (placed.current !== null && Math.abs(element.scrollTop - placed.current) < 1) {
+      return;
+    }
+    placed.current = null;
+    const atBottom = element.scrollHeight - element.scrollTop - element.clientHeight <= slack;
+    follow.current = atBottom ? "bottom" : "still";
+    if (atBottom) {
       setBehind(false);
     }
   };
@@ -49,9 +97,9 @@ export function Transcript({ size, children }: Props) {
   const toBottom = () => {
     const element = scroller.current;
     if (element !== null) {
-      element.scrollTop = element.scrollHeight;
+      place(element, element.scrollHeight);
     }
-    atBottom.current = true;
+    follow.current = "bottom";
     setBehind(false);
   };
 

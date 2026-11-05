@@ -378,7 +378,10 @@ export function ToolPage({ reply, onSignedOut }: Props) {
           onChoose={(command) => choose(command)}
         />
         <main className="flex min-w-0 flex-1 flex-col">
-          <Transcript size={size}>
+          <Transcript
+            size={size}
+            latest={runs.length === 0 ? null : `run-${runs[runs.length - 1]?.number}`}
+          >
             <Welcome tool={tool} onExample={runExample} />
             {runs.map((run) => {
               const command = commandAt(run.request);
@@ -427,7 +430,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
           </Transcript>
           {/* The line stays in one place in the page, so it keeps its focus
               when the first command it names opens the form. */}
-          <div className="bg-card sticky bottom-0 flex max-h-1/2 shrink-0 flex-col border-t px-4 py-3">
+          <div className="bg-card max-h-dock sticky bottom-0 flex shrink-0 flex-col border-t px-4 py-3">
             {line}
             {composing === null ? (
               <p className="text-muted-foreground m-0 text-xs">

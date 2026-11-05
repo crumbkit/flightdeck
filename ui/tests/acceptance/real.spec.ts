@@ -434,3 +434,48 @@ test.describe("reading", () => {
     await expect(card.getByText("Next:")).toHaveCount(0);
   });
 });
+
+/** Waits two frames, so effects that run after the page draws have run. */
+async function settle(page: Page): Promise<void> {
+  await page.evaluate(
+    () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+  );
+}
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  test("the page opens at the top of the welcome, not at the end of its command list", async ({
+    page,
+    served,
+  }) => {
+    await signIn(page, served);
+    await settle(page);
+
+    const welcome = page.getByRole("region", { name: "Welcome to shelf" });
+    await expect(welcome.getByRole("heading", { level: 1 })).toBeInViewport();
+  });
+});
+
+test("with a form open the composer takes at most 40% of the window, and the new card shows above it", async ({
+  page,
+  served,
+}) => {
+  await signIn(page, served);
+  const composer = await compose(page, "books show");
+  await composer.getByLabel(/The ids of the books to show/).pressSequentially("2 7 ");
+  await pressRun(page, composer);
+
+  const card = page.getByRole("region", { name: /^Run 1: shelf books show 2 7, exit 1/ });
+  await expect(card).toBeVisible();
+  await settle(page);
+  const window = page.viewportSize();
+  const dock = await composer.locator("..").boundingBox();
+  if (window === null || dock === null) {
+    throw new Error("the page has no viewport or the composer has no box");
+  }
+  expect(dock.height).toBeLessThanOrEqual(window.height * 0.4 + 1);
+  await expect(composer.getByRole("button", { name: /^Run/ })).toBeInViewport();
+  await expect(card.getByText("Run 1", { exact: true })).toBeInViewport();
+  await expect(card.getByText("Frankenstein")).toBeInViewport();
+});
