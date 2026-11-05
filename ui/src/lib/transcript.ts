@@ -181,3 +181,17 @@ function applyRunEvent(run: Run, event: RunEvent): Run {
       };
   }
 }
+
+/**
+ * A key that changes whenever a card changes what it draws: a card added,
+ * a change of state such as a run refused or ended without lines, a line
+ * added, or a preview answered. The transcript scrolls when it changes.
+ */
+export function drawnKey(runs: Run[]): string {
+  return runs
+    .map((run) => {
+      const lines = "lines" in run.state ? run.state.lines.length : 0;
+      return `${run.number}:${run.state.kind}:${lines}:${run.ask?.answer ?? ""}`;
+    })
+    .join(" ");
+}

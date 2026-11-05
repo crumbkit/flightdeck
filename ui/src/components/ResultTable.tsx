@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, type ReactNode, useState } from "react";
 import type { Command, Link } from "@/api/model";
@@ -79,6 +80,12 @@ export function ResultTable(props: Props) {
   const [open, setOpen] = useState<number | null>(null);
   const rows = rowsOf(entries);
   const columns = columnsOf(command, rows, view);
+  // The columns whose figures sit right-aligned, so their heads do too.
+  const numeric = new Set(
+    columns
+      .filter((column) => rows.some((row) => typeof row[column.name] === "number"))
+      .map((column) => column.name),
+  );
   const every = allColumnsOf(command, rows);
   const hasLong = every.some((column) => column.long);
   const footer = listing === null ? null : footerOf(command, rows.length, listing);
@@ -96,7 +103,7 @@ export function ResultTable(props: Props) {
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-4 text-xs">
         {hasLong && (
-          <label className="inline-flex items-center gap-1.5">
+          <label className="inline-flex min-h-8 items-center gap-1.5">
             <input
               type="checkbox"
               checked={view.long}
@@ -107,8 +114,10 @@ export function ResultTable(props: Props) {
           </label>
         )}
         <details className="relative">
-          <summary className="text-primary cursor-pointer">Columns</summary>
-          <fieldset className="bg-card absolute z-10 mt-1 flex min-w-48 flex-col gap-1 rounded-md border p-2 shadow-md">
+          <summary className="text-primary inline-flex min-h-8 cursor-pointer items-center hover:underline">
+            Columns
+          </summary>
+          <fieldset className="bg-popover lift-menu absolute z-10 mt-1 flex min-w-48 flex-col gap-1 rounded-md border p-2">
             <legend className="sr-only">Columns to show</legend>
             {every.map((column) => (
               <label key={column.name} className="inline-flex items-center gap-1.5 font-mono">
@@ -133,19 +142,24 @@ export function ResultTable(props: Props) {
         </details>
       </div>
       <div className="overflow-x-auto">
-        <table aria-label={label} className="w-full border-collapse text-left">
+        <table aria-label={label} className="w-auto border-collapse text-left">
           <thead>
             <tr>
               <th className="w-6 border-b p-1">
                 <span className="sr-only">Record</span>
               </th>
               {columns.map((column) => (
-                <th key={column.name} scope="col" className="border-b px-2.5 py-1.5 align-bottom">
-                  <span className="text-faint-foreground block text-xs font-semibold tracking-wide uppercase">
-                    {column.name}
-                  </span>
+                <th
+                  key={column.name}
+                  scope="col"
+                  className={cn(
+                    "border-b px-2.5 py-1.5 align-bottom",
+                    numeric.has(column.name) && "text-right",
+                  )}
+                >
+                  <span className="block font-mono text-xs font-semibold">{column.name}</span>
                   {column.description !== null && (
-                    <span className="text-muted-foreground block text-xs font-normal">
+                    <span className="text-muted-foreground sr-only max-w-44 text-xs font-normal md:not-sr-only md:block">
                       {column.description}
                     </span>
                   )}
@@ -170,7 +184,7 @@ export function ResultTable(props: Props) {
                         aria-expanded={open === item.index}
                         aria-label={`Full record of row ${item.index + 1}`}
                         onClick={() => setOpen(open === item.index ? null : item.index)}
-                        className="text-faint-foreground rounded p-0.5"
+                        className="text-faint-foreground hover:bg-muted hover:text-foreground transition-tint rounded p-0.5"
                       >
                         {open === item.index ? (
                           <ChevronDown aria-hidden="true" className="size-3.5" />
@@ -184,7 +198,7 @@ export function ResultTable(props: Props) {
                         key={column.name}
                         className={
                           typeof item.row[column.name] === "number"
-                            ? "border-b px-2.5 py-1.5 text-right align-top tabular-nums"
+                            ? "border-b px-2.5 py-1.5 text-right align-top font-mono tabular-nums"
                             : "border-b px-2.5 py-1.5 align-top"
                         }
                       >
@@ -220,7 +234,7 @@ export function ResultTable(props: Props) {
                 <button
                   key={size}
                   type="button"
-                  className="text-foreground rounded border px-1.5"
+                  className="text-foreground hover:bg-muted active:bg-accent transition-tint inline-flex min-h-8 items-center rounded border px-2"
                   onClick={() => onPageSize(size)}
                 >
                   {sizeLabels[size]}
@@ -253,7 +267,7 @@ function Cell({ value, link, onOpenLink }: CellProps) {
       title={words}
       aria-label={words}
       onClick={() => onOpenLink(text)}
-      className="cursor-pointer underline decoration-dotted underline-offset-4"
+      className="-my-1.5 inline-flex min-h-8 cursor-pointer items-center underline decoration-dotted underline-offset-4"
     >
       {text}
     </button>

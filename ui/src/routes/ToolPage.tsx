@@ -39,7 +39,7 @@ import { textOf } from "@/lib/line";
 import { cellLinkOf, filled } from "@/lib/links";
 import { needsConfirmation, whyNotRunnable } from "@/lib/rail";
 import { withPageSize } from "@/lib/table";
-import { type Run, transcript } from "@/lib/transcript";
+import { drawnKey, type Run, transcript } from "@/lib/transcript";
 
 /**
  * The composer's command, what it holds, the run it edits, if any, and a
@@ -341,14 +341,6 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     document.getElementById(`run-${number}`)?.scrollIntoView({ block: "nearest" });
   };
 
-  const size = runs.reduce(
-    (total, run) =>
-      total +
-      1 +
-      (run.state.kind === "running" || run.state.kind === "ended" ? run.state.lines.length : 0),
-    0,
-  );
-
   const canonical = composing === null ? "" : textOf(tool, composing.command, composing.draft);
   const lineRefused = shownLine(tool, typed, canonical).parsed.problem !== null;
   const line = (
@@ -378,7 +370,10 @@ export function ToolPage({ reply, onSignedOut }: Props) {
           onChoose={(command) => choose(command)}
         />
         <main className="flex min-w-0 flex-1 flex-col">
-          <Transcript size={size}>
+          <Transcript
+            content={drawnKey(runs)}
+            latest={runs.length === 0 ? null : `run-${runs[runs.length - 1]?.number}`}
+          >
             <Welcome tool={tool} onExample={runExample} />
             {runs.map((run) => {
               const command = commandAt(run.request);
@@ -427,11 +422,13 @@ export function ToolPage({ reply, onSignedOut }: Props) {
           </Transcript>
           {/* The line stays in one place in the page, so it keeps its focus
               when the first command it names opens the form. */}
-          <div className="bg-card max-h-1/2 shrink-0 overflow-y-auto border-t px-4 py-3">
+          <div className="bg-card max-h-dock sticky bottom-0 flex shrink-0 flex-col border-t px-4 py-3">
             {line}
             {composing === null ? (
               <p className="text-muted-foreground m-0 text-xs">
-                Type a line, pick a command in the rail, or press ⌘K.
+                Type a line, <span className="hidden md:inline">pick a command in the rail, </span>
+                or <span className="md:hidden">tap Find a command</span>
+                <span className="hidden md:inline">press ⌘K</span>.
               </p>
             ) : (
               <Composer

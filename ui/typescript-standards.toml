@@ -33,8 +33,8 @@ realizations = ["../.github/workflows/ci.yml"]
 
 [[decision]]
 id = "budgets"
-requirement = "The first load, index.html with assets/app.js and assets/index.css, stays under 150 kB with Brotli. Every built file together stays under 250 kB."
-reason = "The first load holds React, TanStack Query, zod and the page. The page has one screen and loads nothing lazily, so the two budgets cover the same files today."
+requirement = "The first load, index.html with assets/app.js, assets/index.css and the font files in fonts/, stays under 245 kB with Brotli. Every built file together stays under 250 kB."
+reason = "The first load holds React, TanStack Query, zod, the page and its four font files, which the page draws its first screen with. The page has one screen and loads nothing lazily, so the two budgets cover the same files today. The limit of 245 kB sits a few kB above the first load of 237.9 kB, so a change that adds to it is a choice. The fonts are about 111 kB of that, and leave about 12 kB under the every-file budget, so one more font file would break it."
 realizations = ["package.json"]
 
 [[decision]]

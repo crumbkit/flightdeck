@@ -15,7 +15,7 @@ export function CopyButton({ text, label }: { text: string; label: string }) {
       type="button"
       onClick={copy}
       onBlur={() => setCopied(false)}
-      className="text-primary inline-flex items-center gap-1 text-xs"
+      className="text-primary active:text-foreground inline-flex min-h-8 items-center gap-1 text-xs whitespace-nowrap hover:underline"
     >
       {copied ? (
         <Check aria-hidden="true" className="size-3.5" />

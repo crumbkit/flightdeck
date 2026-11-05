@@ -96,37 +96,49 @@ export function Composer(props: Props) {
         event.preventDefault();
         runIfRunnable();
       }}
+      className="flex min-h-0 flex-col"
     >
-      <div className="mb-1 flex flex-wrap items-baseline gap-2.5">
-        <h2 className="m-0 text-lg font-semibold">
-          <CommandPathText command={command} />
-        </h2>
-        {editing !== null && (
-          <span className="text-muted-foreground text-xs">
-            Editing run {editing}{" "}
-            <button type="button" className="text-primary" onClick={() => onShowRun(editing)}>
-              Show run {editing}
-            </button>
-          </span>
+      {/* The fields scroll on their own, so the Run row below stays in view. */}
+      <div className="-mx-1 min-h-0 overflow-y-auto px-1">
+        <div className="mb-1 flex flex-wrap items-baseline gap-2.5">
+          <h2 className="m-0 text-lg font-semibold">
+            <CommandPathText command={command} />
+          </h2>
+          {editing !== null && (
+            <span className="text-muted-foreground text-xs">
+              Editing run {editing}{" "}
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => onShowRun(editing)}
+              >
+                Show run {editing}
+              </button>
+            </span>
+          )}
+        </div>
+        {command.about !== null && (
+          <p className="text-muted-foreground mt-0 mb-2">{command.about}</p>
+        )}
+        <div className="flex flex-col gap-2.5">
+          {form.required.map((group) => (
+            <Field key={group.choices[0]?.name} group={group} {...props} />
+          ))}
+        </div>
+        {form.more.length > 0 && (
+          <details className="mt-2.5">
+            <summary className="text-primary inline-flex min-h-8 cursor-pointer items-center text-xs hover:underline">
+              More options
+            </summary>
+            <div className="mt-2 flex flex-col gap-2.5">
+              {form.more.map((group) => (
+                <Field key={group.choices[0]?.name} group={group} {...props} />
+              ))}
+            </div>
+          </details>
         )}
       </div>
-      {command.about !== null && <p className="text-muted-foreground mt-0 mb-2">{command.about}</p>}
-      <div className="flex flex-col gap-2.5">
-        {form.required.map((group) => (
-          <Field key={group.choices[0]?.name} group={group} {...props} />
-        ))}
-      </div>
-      {form.more.length > 0 && (
-        <details className="mt-2.5">
-          <summary className="text-primary cursor-pointer text-xs">More options</summary>
-          <div className="mt-2 flex flex-col gap-2.5">
-            {form.more.map((group) => (
-              <Field key={group.choices[0]?.name} group={group} {...props} />
-            ))}
-          </div>
-        </details>
-      )}
-      <div className="mt-3 flex flex-wrap items-center gap-3">
+      <div className="mt-3 flex shrink-0 flex-wrap items-center gap-3">
         {blocked === null ? (
           <Button type="submit" size="sm" disabled={!runnable}>
             {needsConfirmation(command) ? (
@@ -170,12 +182,12 @@ function Field({ tool, command, group, draft, onChange, fieldError }: FieldProps
   return (
     <div className="flex flex-col gap-1">
       {group.choices.length > 1 && (
-        <fieldset className="flex w-max gap-0.5 rounded-md border p-0.5 text-xs">
+        <fieldset className="flex min-h-8 w-max gap-0.5 rounded-md border p-1 text-xs">
           <legend className="sr-only">Give {first.name} or another argument</legend>
           {group.choices.map((choice) => (
             <label
               key={choice.name}
-              className="has-checked:bg-muted has-focus-visible:outline-ring cursor-pointer rounded px-2 py-0.5 font-mono has-checked:font-semibold has-focus-visible:outline-2"
+              className="has-checked:bg-muted has-focus-visible:outline-ring inline-flex cursor-pointer items-center rounded px-2 font-mono has-checked:font-semibold has-focus-visible:outline-2"
             >
               <input
                 type="radio"
@@ -226,8 +238,10 @@ function Input({ argument, value, error, onValue }: InputProps) {
   const name = (
     <span className="text-faint-foreground font-mono text-xs font-normal">{argument.name}</span>
   );
+  // Red marks a destructive effect and a failed exit, and nothing else, so
+  // the word stays quiet.
   const required = argument.required ? (
-    <span className="text-destructive text-xs font-medium">required</span>
+    <span className="text-faint-foreground text-xs font-normal">required</span>
   ) : null;
   const message =
     error === null ? null : (
@@ -263,7 +277,7 @@ function Input({ argument, value, error, onValue }: InputProps) {
             aria-invalid={invalid}
             aria-describedby={described}
             onChange={(event) => onValue(event.target.value === "" ? null : event.target.value)}
-            className="border-input bg-card w-max rounded-md border px-2 py-1"
+            className="border-input bg-background focus-visible:border-ring transition-tint min-h-8 w-max rounded-md border px-2 py-1"
           >
             <option value="">{argument.defaults[0] ?? "None"}</option>
             {argument.possible_values.map((possible) => (
@@ -281,12 +295,12 @@ function Input({ argument, value, error, onValue }: InputProps) {
             aria-invalid={invalid}
             aria-describedby={described}
             onChange={(event) => onValue(event.target.value === "" ? null : event.target.value)}
-            className="border-input bg-card max-w-sm rounded-md border px-2 py-1 font-mono"
+            className="border-input bg-background focus-visible:border-ring transition-tint min-h-8 max-w-sm rounded-md border px-2 py-1 font-mono"
           />
         );
       return (
         <div className="flex flex-col gap-1">
-          <label htmlFor={id} className="flex flex-wrap items-baseline gap-2 text-xs font-semibold">
+          <label htmlFor={id} className="flex flex-wrap items-baseline gap-2 text-xs font-medium">
             {label} {name} {required}
           </label>
           {control}

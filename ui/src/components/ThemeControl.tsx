@@ -25,12 +25,12 @@ export function ThemeControl() {
     applyTheme(next);
   };
   return (
-    <fieldset className="flex gap-0.5 rounded-md border p-0.5 text-xs">
+    <fieldset className="flex h-8 gap-0.5 rounded-md border p-1 text-xs">
       <legend className="sr-only">Appearance</legend>
       {choices.map((choice) => (
         <label
           key={choice.theme}
-          className="text-muted-foreground has-checked:bg-muted has-checked:text-foreground has-focus-visible:outline-ring cursor-pointer rounded px-2 py-0.5 has-checked:font-semibold has-focus-visible:outline-2"
+          className="text-muted-foreground has-checked:bg-muted has-checked:text-foreground has-focus-visible:outline-ring hover:text-foreground transition-tint inline-flex cursor-pointer items-center rounded px-2 has-checked:font-semibold has-focus-visible:outline-2"
         >
           <input
             type="radio"

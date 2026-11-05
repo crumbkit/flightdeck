@@ -54,13 +54,10 @@ export function ChipsInput({ label, name, required, items, error, errorId, onIte
   };
   return (
     <div className="flex flex-col gap-1">
-      <label
-        htmlFor={inputId}
-        className="flex flex-wrap items-baseline gap-2 text-xs font-semibold"
-      >
+      <label htmlFor={inputId} className="flex flex-wrap items-baseline gap-2 text-xs font-medium">
         {label} {name} {required}
       </label>
-      <div className="border-input bg-card flex max-w-xl flex-wrap items-center gap-1.5 rounded-md border px-2 py-1">
+      <div className="border-input bg-background focus-within:border-ring transition-tint flex min-h-8 max-w-xl flex-wrap items-center gap-1.5 rounded-md border px-2 py-1">
         {keyed(items).map(({ key, item, index }) => (
           <span
             key={key}

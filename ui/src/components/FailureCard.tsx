@@ -29,10 +29,7 @@ export function FailureCard({ failure, words, heading, tool, onCompose }: Props)
     each === undefined ? [] : [each],
   );
   return (
-    <div
-      role="alert"
-      className="border-l-destructive flex flex-col gap-1.5 rounded-md border border-l-4 px-3 py-2"
-    >
+    <div role="alert" className="border-l-destructive flex flex-col gap-1.5 border-l-4 py-1 pl-3">
       <p className="m-0">
         {heading !== null && <span className="mr-2 font-mono font-semibold">{heading}</span>}
         <span className="font-semibold">{words}</span>
