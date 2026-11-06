@@ -7,7 +7,29 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- flightdeck builds and runs on Windows, and a release attaches a Windows
+  binary in a zip archive beside the macOS and Linux archives. On Windows a
+  tool and every process it starts run in a job object, and a cancel, a
+  dropped run or an output limit ends the job at once, without the SIGINT
+  and SIGTERM steps that Unix gets. `flightdeck open` on Windows prints the
+  opener page's path for you to open, because flightdeck has no Windows
+  browser opener yet.
+
 ### Changed
+
+- flightdeck starts, reads and stops every child through crumbkit-process
+  from crumbkit's repository, in place of its own process code. Runs and
+  loads behave as before on macOS and Linux, with two exceptions. A load
+  whose tool leaves running a process that left its process group and
+  holds the tool's output open now ends one second after the tool exits,
+  with the tool's own exit, where before it waited for the time limit and
+  failed with `time_limit`. A run of a program named without a path that
+  cannot start, such as a name that is not on `PATH`, now ends with
+  `flightdeck::run::spawn` as its outcome, where before the run was refused
+  with that code; a program given as a path that is missing or may not be
+  run is still refused.
 
 - The page has a new look. The dark appearance has cards a step lighter
   than the background, 3-pixel corners on cards and controls, and thin

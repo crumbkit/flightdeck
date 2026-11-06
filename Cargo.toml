@@ -74,10 +74,15 @@ subtle = { version = "2.6.1", default-features = false }
 # removes it when flightdeck stops. Each test that runs a tool also gives it
 # XDG directories in a temporary directory of its own.
 tempfile = { version = "3.27.0", default-features = false }
-# wait-timeout waits with a time limit for the program that opens the
-# browser, and on systems other than Unix for a tool's queries too. It has no
-# features.
-wait-timeout = { version = "0.2.1", default-features = false }
+# crumbkit-process runs every child that flightdeck starts: it starts the
+# child in a process group of its own on Unix or a job object on Windows,
+# reads its output within limits and a deadline, stops it by escalating
+# signals, and reaps it. It is not published yet, so the dependency names a
+# commit of crumbkit's repository: the merge of crumbkit/crumbkit#298, whose
+# stopped run keeps the child's own status. The version beside it keeps
+# cargo-deny from reading the git dependency as a wildcard. The published
+# crate replaces the commit once it is on crates.io.
+crumbkit-process = { version = "0.1.1", git = "https://github.com/crumbkit/crumbkit", rev = "fefb2ab7f532c0a6366db66c7478fc0e5514259c", default-features = false }
 # shlex quotes each word of a run's display line for a POSIX shell.
 shlex = { version = "2.0.1", default-features = false }
 # unicode-general-category tells the runner which characters are format
@@ -85,15 +90,15 @@ shlex = { version = "2.0.1", default-features = false }
 unicode-general-category = { version = "1.1.0", default-features = false }
 
 [target.'cfg(unix)'.dependencies]
-# rustix waits for a child to exit without reaping it, signals the child's
-# whole process group once the child exits, the time limit passes or a run is
-# cancelled, and bounds each read of a query's pipes by its deadline, all
-# through safe functions. The kill stops a descendant that holds the child's output open,
-# unless it left the group. `process` holds the wait and the kill, and
-# `event` holds `poll`.
-rustix = { version = "1.1.6", default-features = false, features = ["std", "process", "event"] }
+# rustix names the errors after which the server keeps accepting connections.
+# Its `std` feature converts an `io::Error`, and the tests signal processes
+# through `process`.
+rustix = { version = "1.1.6", default-features = false, features = ["std", "process"] }
 
 [dev-dependencies]
+# The tests of `flightdeck open` wait with a time limit for the flightdeck
+# that they start. It has no features.
+wait-timeout = { version = "0.2.1", default-features = false }
 # The convention tests check flightdeck's command tree, guide and codes with
 # crumbkit-test.
 crumbkit-test = { version = "0.1.0", default-features = false }

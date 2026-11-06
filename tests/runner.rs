@@ -5,6 +5,10 @@
 //! `scripts/install-test-tools.sh` installs shelf and reading under
 //! `target/test-tools/bin`, and every test that needs them fails with the
 //! script's name when they are missing.
+//!
+//! A test that runs a fake tool written as a shell script, or that signals
+//! a process through rustix, runs on Unix alone, because Windows runs no
+//! shell script as a program and has no signals.
 
 #![cfg(test)]
 
@@ -15,13 +19,18 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crumbkit::{Failure as _, FieldValue};
+#[cfg(unix)]
+use crumbkit::Failure as _;
+use crumbkit::FieldValue;
 use crumbkit_flightdeck::model::{self, Tool};
+#[cfg(unix)]
 use crumbkit_flightdeck::runner::{
-    ChoicesRequest, Clock, ConfirmationId, Escalation, Limits, Mode, Outcome, RUN_BUSY, RUN_CLOSED,
-    RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION, RUN_NO_DOCUMENT, RUN_NOT_RUNNING, RUN_OUTPUT_LIMIT,
-    RUN_READ_ONLY, RUN_REFUSED, RUN_SPAWN, RunEvent, RunId, RunRequest, Runner, Settings,
-    SystemClock, Value,
+    ChoicesRequest, Limits, RUN_BUSY, RUN_CLOSED, RUN_NO_DOCUMENT, RUN_OUTPUT_LIMIT,
+};
+use crumbkit_flightdeck::runner::{
+    Clock, ConfirmationId, Escalation, Mode, Outcome, RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION,
+    RUN_NOT_RUNNING, RUN_READ_ONLY, RUN_REFUSED, RUN_SPAWN, RunEvent, RunId, RunRequest, Runner,
+    Settings, SystemClock, Value,
 };
 use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
 use tempfile::TempDir;
@@ -31,7 +40,7 @@ use tempfile::TempDir;
 fn test_tool(name: &str) -> PathBuf {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("target/test-tools/bin")
-        .join(name);
+        .join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
     assert!(
         path.is_file(),
         "{} is missing; run scripts/install-test-tools.sh to install shelf and reading",
@@ -41,6 +50,7 @@ fn test_tool(name: &str) -> PathBuf {
 }
 
 /// Returns the path of the fake tool `unruly`.
+#[cfg(unix)]
 fn unruly() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/runner/unruly")
 }
@@ -48,6 +58,7 @@ fn unruly() -> PathBuf {
 /// Returns the path of the shelf under `tests/fixtures/pretty/`, which runs
 /// the installed shelf and indents its JSON as a crumbkit tool that sets
 /// `JsonLayout::Pretty` does.
+#[cfg(unix)]
 fn pretty_shelf() -> PathBuf {
     test_tool("shelf");
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/pretty/shelf")
@@ -133,12 +144,14 @@ fn session(name: &str, mode: Mode) -> Session {
 }
 
 /// Returns a runner of the shelf that indents its JSON.
+#[cfg(unix)]
 fn pretty_session() -> Session {
     let (dirs, program) = isolated(pretty_shelf());
     session_of(dirs, program, Mode::Full, settings())
 }
 
 /// Returns a runner of the fake tool `unruly` with `settings`.
+#[cfg(unix)]
 fn unruly_session(settings: Settings) -> Session {
     let (dirs, program) = isolated(unruly());
     session_of(dirs, program, Mode::Full, settings)
@@ -250,6 +263,7 @@ fn an_argument_that_the_command_does_not_take_is_refused() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn a_value_outside_the_possible_values_is_refused() {
     let unruly = unruly_session(settings());
@@ -341,6 +355,7 @@ fn books_list_runs_at_once_and_its_one_line_is_shelfs_listing_document() {
     assert_eq!(document["total"], 6);
 }
 
+#[cfg(unix)]
 #[test]
 fn books_show_of_a_tool_that_indents_its_json_ends_as_a_result_whose_lines_are_its_document() {
     let shelf = pretty_session();
@@ -358,6 +373,7 @@ fn books_show_of_a_tool_that_indents_its_json_ends_as_a_result_whose_lines_are_i
     assert_eq!(document["data"][0]["title"], "Frankenstein");
 }
 
+#[cfg(unix)]
 #[test]
 fn an_indented_failure_document_ends_the_run_as_the_tools_failure() {
     let shelf = pretty_session();
@@ -375,6 +391,7 @@ fn an_indented_failure_document_ends_the_run_as_the_tools_failure() {
     assert_eq!(failure.code(), "shelf::cli::usage");
 }
 
+#[cfg(unix)]
 #[test]
 fn the_choices_of_a_tool_that_indents_its_json_are_the_rows_of_its_listing() {
     let shelf = pretty_session();
@@ -530,6 +547,7 @@ fn readings_stream_delivers_lines_while_the_child_still_runs() {
     assert!(rest.len() + 1 < ENTRIES);
 }
 
+#[cfg(unix)]
 #[test]
 fn cancel_ends_a_child_that_ignores_interrupt_and_terminate_and_keeps_the_lines_that_arrived() {
     let unruly = unruly_session(settings());
@@ -549,6 +567,7 @@ fn cancel_ends_a_child_that_ignores_interrupt_and_terminate_and_keeps_the_lines_
     assert_eq!(lines.len() + rest.len(), 2);
 }
 
+#[cfg(unix)]
 #[test]
 fn a_child_that_exits_101_without_a_document_is_no_document_with_its_standard_error() {
     let unruly = unruly_session(settings());
@@ -571,6 +590,7 @@ fn a_child_that_exits_101_without_a_document_is_no_document_with_its_standard_er
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn a_command_that_refuses_full_runs_to_its_result_because_the_runner_leaves_full_out() {
     let unruly = unruly_session(settings());
@@ -589,6 +609,7 @@ fn a_command_that_refuses_full_runs_to_its_result_because_the_runner_leaves_full
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn a_command_that_lists_full_runs_with_it_and_prints_every_field() {
     let unruly = unruly_session(settings());
@@ -618,6 +639,23 @@ fn a_program_that_does_not_exist_is_refused_with_spawn() {
 }
 
 #[test]
+fn a_program_named_without_a_path_that_does_not_start_ends_its_run_with_spawn() {
+    let (_dirs, program) = isolated(test_tool("shelf"));
+    let tool: Tool = model::load(&program, TIME_LIMIT).unwrap();
+    let missing = Program::new("flightdeck-test-no-such-tool");
+    let runner = Runner::new(tool, missing, Mode::Full, TestClock::new(), settings()).unwrap();
+
+    let (lines, outcome) = finish(runner.run(&request(&["books", "list"])).unwrap());
+
+    assert!(lines.is_empty(), "{lines:?}");
+    let Outcome::Failed(failure) = outcome else {
+        panic!("{outcome:?}");
+    };
+    assert_eq!(code(&failure), &RUN_SPAWN);
+}
+
+#[cfg(unix)]
+#[test]
 fn a_line_longer_than_the_line_limit_ends_the_run_with_output_limit() {
     let unruly = unruly_session(settings().limits(Limits::new(1000, 1_000_000)));
 
@@ -632,6 +670,7 @@ fn a_line_longer_than_the_line_limit_ends_the_run_with_output_limit() {
     assert_eq!(field(&failure, "limit"), Some(FieldValue::from("line")));
 }
 
+#[cfg(unix)]
 #[test]
 fn a_run_past_the_most_runs_at_once_is_refused_until_one_ends() {
     let unruly = unruly_session(settings().most_runs(1));
@@ -646,6 +685,7 @@ fn a_run_past_the_most_runs_at_once_is_refused_until_one_ends() {
     assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
 }
 
+#[cfg(unix)]
 #[test]
 fn cancel_of_a_run_that_has_ended_is_refused_with_not_running() {
     let unruly = unruly_session(settings());
@@ -658,6 +698,7 @@ fn cancel_of_a_run_that_has_ended_is_refused_with_not_running() {
     assert_eq!(code(&failure), &RUN_NOT_RUNNING);
 }
 
+#[cfg(unix)]
 #[test]
 fn two_runs_of_one_runner_share_the_trace_id_and_differ_in_parent_id() {
     let unruly = unruly_session(settings());
@@ -682,6 +723,7 @@ fn two_runs_of_one_runner_share_the_trace_id_and_differ_in_parent_id() {
     assert_ne!(first[2], second[2]);
 }
 
+#[cfg(unix)]
 #[test]
 fn a_failed_dry_run_issues_no_confirmation_and_its_failure_names_the_dry_run_without_the_value() {
     let unruly = unruly_session(settings());
@@ -709,6 +751,7 @@ fn a_failed_dry_run_issues_no_confirmation_and_its_failure_names_the_dry_run_wit
     assert!(!recovery.contains("bad"), "{recovery}");
 }
 
+#[cfg(unix)]
 #[test]
 fn a_confirmation_refused_as_busy_keeps_its_id_for_when_a_run_ends() {
     let unruly = unruly_session(settings().most_runs(1));
@@ -725,6 +768,7 @@ fn a_confirmation_refused_as_busy_keeps_its_id_for_when_a_run_ends() {
     assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
 }
 
+#[cfg(unix)]
 #[test]
 fn a_command_that_declares_itself_read_only_and_destructive_needs_a_confirmation() {
     let unruly = unruly_session(settings());
@@ -742,6 +786,7 @@ fn a_command_that_declares_itself_read_only_and_destructive_needs_a_confirmation
     assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
 }
 
+#[cfg(unix)]
 #[test]
 fn a_run_ends_soon_after_its_child_exits_while_a_process_in_another_session_holds_its_output() {
     let unruly = unruly_session(settings());
@@ -759,6 +804,7 @@ fn a_run_ends_soon_after_its_child_exits_while_a_process_in_another_session_hold
     assert_eq!(lines.len(), 1);
 }
 
+#[cfg(unix)]
 #[test]
 fn cancel_and_shutdown_end_a_run_whose_caller_stopped_reading_it() {
     let unruly = unruly_session(settings());
@@ -778,6 +824,7 @@ fn cancel_and_shutdown_end_a_run_whose_caller_stopped_reading_it() {
     assert!(rest.len() < 1000);
 }
 
+#[cfg(unix)]
 #[test]
 fn shutdown_lets_a_run_finish_within_its_grace_and_cancels_a_run_that_outlasts_it() {
     let unruly = unruly_session(settings().shutdown_grace(Duration::from_secs(1)));
@@ -801,6 +848,7 @@ fn shutdown_lets_a_run_finish_within_its_grace_and_cancels_a_run_that_outlasts_i
     assert!(matches!(hung, Outcome::Cancelled), "{hung:?}");
 }
 
+#[cfg(unix)]
 #[test]
 fn a_runner_that_has_shut_down_refuses_every_new_run_with_closed() {
     let unruly = unruly_session(settings());
@@ -823,6 +871,7 @@ fn a_run_id_is_read_only_from_decimal_digits() {
 
 /// Starts a run of `request`, retrying while the runner is busy, and fails
 /// the test when no place frees within ten seconds.
+#[cfg(unix)]
 fn run_when_free(runner: &Runner, request: &RunRequest) -> crumbkit_flightdeck::runner::Run {
     let started = Instant::now();
     loop {
@@ -839,6 +888,7 @@ fn run_when_free(runner: &Runner, request: &RunRequest) -> crumbkit_flightdeck::
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn cancel_ends_a_child_that_moved_into_flightdecks_own_process_group() {
     let unruly = unruly_session(settings());
@@ -861,6 +911,7 @@ fn cancel_ends_a_child_that_moved_into_flightdecks_own_process_group() {
     assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
 }
 
+#[cfg(unix)]
 #[test]
 fn dropping_a_run_stops_its_child_and_frees_its_place() {
     let unruly = unruly_session(settings().most_runs(2));
@@ -874,6 +925,7 @@ fn dropping_a_run_stops_its_child_and_frees_its_place() {
     assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
 }
 
+#[cfg(unix)]
 #[test]
 fn a_cancelled_run_whose_queue_was_full_ends_by_the_last_line_that_its_child_printed() {
     let unruly = unruly_session(settings());
@@ -896,6 +948,7 @@ fn a_cancelled_run_whose_queue_was_full_ends_by_the_last_line_that_its_child_pri
     assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
 }
 
+#[cfg(unix)]
 #[test]
 fn a_cancelled_dry_run_whose_child_printed_its_document_is_cancelled_and_issues_no_confirmation() {
     let unruly = unruly_session(settings());
@@ -913,6 +966,7 @@ fn a_cancelled_dry_run_whose_child_printed_its_document_is_cancelled_and_issues_
     assert!(preview.confirmation().is_none());
 }
 
+#[cfg(unix)]
 #[test]
 fn dropping_a_runner_cancels_its_runs_and_waits_for_them() {
     let Session { _dirs, runner, .. } =
@@ -934,6 +988,7 @@ fn dropping_a_runner_cancels_its_runs_and_waits_for_them() {
     assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
 }
 
+#[cfg(unix)]
 #[test]
 fn a_run_can_be_cancelled_while_a_shutdown_waits_for_it() {
     let unruly = unruly_session(

@@ -16,39 +16,32 @@
 //!   caller stops it with [`Running::stop`], or by dropping its
 //!   [`Events`]. Once the child has been reaped, both pipes are read for
 //!   [`DRAIN_GRACE`] more and then closed.
-//! - End: one thread follows the child, and it starts the child in a
-//!   process group of its own. A stop sends SIGINT to the group, then
-//!   SIGTERM and then SIGKILL after the graces of the [`Escalation`], and
-//!   sends each signal to the child itself too when the child has moved to
-//!   another group. When the child has exited, the thread kills what is
-//!   left of the group and then reaps the child, so the group's id cannot
-//!   pass to another process in between. A descendant that left the group,
-//!   such as one that called `setsid`, is not stopped (PROC-3). When it
-//!   holds a pipe open, the run ends after the drain grace without what it
-//!   prints later. A stopped command can leave partial work, such as some
-//!   of the books it removes.
+//! - End: one thread follows the child through crumbkit-process, which
+//!   starts it in a process group of its own on Unix, or in a job object on
+//!   Windows. On Unix a stop sends SIGINT to the group, then SIGTERM and
+//!   then SIGKILL after the graces of the [`Escalation`], and signals the
+//!   child itself when the child has moved to another group. On Windows a
+//!   stop ends the job at once. When the child has exited, crumbkit-process
+//!   kills what is left of the group and then reaps the child, so the
+//!   group's id cannot pass to another process in between. A descendant
+//!   that left the group, such as one that called `setsid`, is not stopped
+//!   (PROC-3). When it holds a pipe open, the run ends after the drain grace
+//!   without what it prints later. A stopped command can leave partial
+//!   work, such as some of the books it removes.
 
-// RUST-10: the stream needs Unix process groups and `poll`. That handles
-// Linux and macOS, where flightdeck runs and its lanes build it, and it
-// misses Windows. A job object with CTRL_BREAK and a read that waits on the
-// pipe's handle replace them when flightdeck supports Windows.
-#[cfg(not(unix))]
-compile_error!("flightdeck runs a tool's commands only on Unix");
-
-use std::sync::mpsc::{self, SyncSender};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-pub use self::drain::DRAIN_GRACE;
-use self::follower::Follower;
-use self::queue::Lines;
-use super::{Exit, Program, SpawnError, start};
+use crumbkit_process::{Cancel, Capture, Lines, OverLimit, Run, Signal};
+
+use std::ffi::OsStr;
+
+use super::{Exit, Program, STDERR_LIMIT, SpawnError};
+use crate::lock::{lock, wait, wait_for};
 use crate::runner::Argv;
 
-mod drain;
-mod follower;
-mod queue;
-mod readers;
+pub use crumbkit_process::DRAIN_GRACE;
 
 /// The most bytes of one line of standard output that a run delivers.
 ///
@@ -198,51 +191,93 @@ pub enum Limit {
     Total,
 }
 
-/// A message to the thread that follows a child. Each kind is sent at most
-/// once, so a channel of two never makes a sender wait.
-#[derive(Debug)]
-enum Control {
-    /// Stop the child.
-    Stop(Stop),
-    /// The child has exited and is not reaped yet.
-    Exited,
+/// The end of a run, which the thread that follows the child sets once the
+/// run has returned, and which the caller takes after the last line.
+#[derive(Debug, Default)]
+struct Slot {
+    state: Mutex<SlotState>,
+    changed: Condvar,
 }
 
-/// Sends a stop to the thread that follows a child, once, and marks it in
-/// the queue, which then stops waiting for room.
-#[derive(Clone, Debug)]
-struct Stopper {
-    lines: Lines,
-    control: SyncSender<Control>,
+/// Whether the run has ended, and its end until the caller takes it.
+#[derive(Debug, Default)]
+struct SlotState {
+    ended: bool,
+    end: Option<Result<Ended, SpawnError>>,
 }
 
-impl Stopper {
-    /// Sends `stop`, unless a stop was already sent.
-    fn stop(&self, stop: Stop) {
-        if self.lines.stop() {
-            // The thread drops the receiver only once the child is reaped,
-            // and then there is nothing left to stop.
-            let _ = self.control.send(Control::Stop(stop));
+impl Slot {
+    /// Sets the run's end, unless it was already set.
+    fn set(&self, end: Result<Ended, SpawnError>) {
+        let mut state = lock(&self.state);
+        if !state.ended {
+            state.ended = true;
+            state.end = Some(end);
+            self.changed.notify_all();
         }
+    }
+
+    /// Returns true once the run's end has been set.
+    fn has_ended(&self) -> bool {
+        lock(&self.state).ended
+    }
+
+    /// Waits until the end has been set, or until `deadline` when there is
+    /// one, and returns whether it has been set.
+    fn wait_ended(&self, deadline: Option<Instant>) -> bool {
+        let mut state = lock(&self.state);
+        while !state.ended {
+            match deadline {
+                None => state = wait(&self.changed, state),
+                Some(deadline) => {
+                    let left = deadline.saturating_duration_since(Instant::now());
+                    if left.is_zero() {
+                        return false;
+                    }
+                    state = wait_for(&self.changed, state, left);
+                }
+            }
+        }
+        true
+    }
+
+    /// Takes the end once it has been set, or returns `None` when the
+    /// caller has already taken it.
+    fn take(&self) -> Option<Result<Ended, SpawnError>> {
+        lock(&self.state).end.take()
+    }
+}
+
+/// Sets the run's end as a read error when the thread that follows the
+/// child stops before it sets one, which only a broken invariant in
+/// crumbkit-process can cause.
+struct Unset<'a>(&'a Slot);
+
+impl Drop for Unset<'_> {
+    fn drop(&mut self) {
+        self.0.set(Err(SpawnError::Run(std::io::Error::other(
+            "the thread that followed the program stopped",
+        ))));
     }
 }
 
 /// A run in progress, which owns the thread that follows its child.
 #[derive(Debug)]
 pub(crate) struct Running {
-    stopper: Stopper,
+    cancel: Cancel,
+    slot: Arc<Slot>,
     thread: JoinHandle<()>,
 }
 
 impl Running {
     /// Stops the child, unless it was already stopped.
     pub(crate) fn stop(&self) {
-        self.stopper.stop(Stop::Cancel);
+        self.cancel.cancel();
     }
 
     /// Returns the watch that tells when the run has ended.
     pub(crate) fn watch(&self) -> Watch {
-        Watch(self.stopper.lines.clone())
+        Watch(Arc::clone(&self.slot))
     }
 
     /// Returns true once the run has sent its last event. The flag is set
@@ -250,27 +285,27 @@ impl Running {
     /// the end finds the run finished. Its thread may still be returning,
     /// and [`Running::join`] waits for that.
     pub(crate) fn is_finished(&self) -> bool {
-        self.stopper.lines.has_ended()
+        self.slot.has_ended()
     }
 
     /// Waits for the thread that follows the child to end.
     pub(crate) fn join(self) {
         // The thread returns nothing, and a panic in it has already ended
-        // the run with a read error, which the queue sends.
+        // the run with a read error, which `Unset` sets.
         let _ = self.thread.join();
     }
 }
 
 /// Tells when one run has ended, without owning it.
 #[derive(Clone, Debug)]
-pub(crate) struct Watch(Lines);
+pub(crate) struct Watch(Arc<Slot>);
 
 /// Waits until each run of `watches` has ended or `grace` has passed, and
 /// returns once every run has ended or the grace is over.
 pub(crate) fn wait_ended(watches: &[Watch], grace: Duration) {
     let deadline = Instant::now() + grace;
-    for Watch(lines) in watches {
-        if !lines.wait_ended(deadline) {
+    for Watch(slot) in watches {
+        if !slot.wait_ended(Some(deadline)) {
             return;
         }
     }
@@ -280,8 +315,9 @@ pub(crate) fn wait_ended(watches: &[Watch], grace: Duration) {
 /// then the end. Dropping it stops the run.
 #[derive(Debug)]
 pub(crate) struct Events {
-    receiver: queue::Receiver,
-    stopper: Stopper,
+    lines: Lines,
+    slot: Arc<Slot>,
+    cancel: Cancel,
 }
 
 /// No line and no end arrived within the time that a caller waited.
@@ -292,13 +328,34 @@ impl Events {
     /// Waits for the next line or the end, and returns `None` once the end
     /// has been returned.
     pub(crate) fn recv(&self) -> Option<Event> {
-        self.receiver.recv()
+        match self.lines.recv() {
+            Some(line) => Some(Event::Line(text(line))),
+            None => {
+                self.slot.wait_ended(None);
+                self.end()
+            }
+        }
     }
 
     /// Waits at most `timeout` for the next line or the end, as
     /// [`Events::recv`] does, and returns [`Silent`] when neither arrived.
     pub(crate) fn recv_timeout(&self, timeout: Duration) -> Result<Option<Event>, Silent> {
-        self.receiver.recv_by(Instant::now() + timeout)
+        let deadline = Instant::now() + timeout;
+        match self.lines.recv_timeout(timeout) {
+            Ok(Some(line)) => Ok(Some(Event::Line(text(line)))),
+            Ok(None) if self.slot.wait_ended(Some(deadline)) => Ok(self.end()),
+            Ok(None) | Err(crumbkit_process::Silent) => Err(Silent),
+        }
+    }
+
+    /// Returns the run's end once, with the line that a full queue dropped
+    /// after a stop, or `None` once the end has been returned.
+    fn end(&self) -> Option<Event> {
+        let ended = self.slot.take()?;
+        Some(Event::End {
+            ended,
+            lost: self.lines.lost().map(text),
+        })
     }
 }
 
@@ -306,7 +363,39 @@ impl Drop for Events {
     /// Stops a run whose caller no longer reads it. After the end the stop
     /// reaches nothing.
     fn drop(&mut self) {
-        self.stopper.stop(Stop::Cancel);
+        self.cancel.cancel();
+    }
+}
+
+/// Returns `line` as UTF-8, with each invalid sequence replaced.
+fn text(line: Vec<u8>) -> String {
+    String::from_utf8(line)
+        .unwrap_or_else(|invalid| String::from_utf8_lossy(invalid.as_bytes()).into_owned())
+}
+
+/// Returns how a run that crumbkit-process followed to its end ended.
+fn ended(finished: crumbkit_process::Finished) -> Ended {
+    let stopped = match finished.exit() {
+        crumbkit_process::Exit::Stopped(crumbkit_process::Stop::Cancelled) => Some(Stop::Cancel),
+        crumbkit_process::Exit::Stopped(crumbkit_process::Stop::OverLimit) => {
+            Some(Stop::Limit(if finished.stdout().long_line() {
+                Limit::Line
+            } else {
+                Limit::Total
+            }))
+        }
+        // RUST-10: `Stop` may gain reasons, and flightdeck sets no other
+        // stop than its cancel and its limits, so another reason reads as a
+        // cancel.
+        crumbkit_process::Exit::Stopped(_) => Some(Stop::Cancel),
+        _ => None,
+    };
+    let exit = Exit::of(finished.status());
+    let (_, stderr) = finished.into_output();
+    Ended {
+        exit,
+        stopped,
+        stderr: stderr.into_bytes(),
     }
 }
 
@@ -314,24 +403,38 @@ impl Drop for Events {
 ///
 /// # Errors
 ///
-/// Returns [`SpawnError::Start`] when the program does not exist or cannot
-/// be started, or when flightdeck cannot start the thread that follows it.
+/// Returns [`SpawnError::Start`] when a program given as a path does not
+/// exist or cannot be run, or when flightdeck cannot start the thread that
+/// follows it. A program that fails to start for another reason ends the
+/// run with [`SpawnError::Start`] as its end.
 pub(crate) fn stream(
     program: &Program,
     argv: &Argv,
     limits: Limits,
     escalation: Escalation,
 ) -> Result<(Running, Events), SpawnError> {
-    let (lines, end, receiver) = queue::queue(QUEUE);
-    let (control, controls) = mpsc::sync_channel(2);
-    let stopper = Stopper {
-        lines: lines.clone(),
-        control,
-    };
-    let (started, start_result) = mpsc::sync_channel(1);
-    let program = program.clone();
-    let words = argv.words().to_vec();
-    let follower = Follower::new(limits, escalation, stopper.clone(), controls);
+    runnable(program.name()).map_err(SpawnError::Start)?;
+    let (queue, lines) = crumbkit_process::line_queue(QUEUE);
+    let cancel = Cancel::new();
+    let slot = Arc::new(Slot::default());
+    let settings = Run::new()
+        .stdout(Capture::Lines {
+            queue,
+            line: limits.line,
+            total: limits.total,
+            over: OverLimit::Stop,
+        })
+        .stderr(Capture::Tail {
+            limit: STDERR_LIMIT,
+        })
+        .cancel(&cancel)
+        .escalation(
+            crumbkit_process::Escalation::default()
+                .step(Signal::Interrupt, escalation.interrupt)
+                .step(Signal::Terminate, escalation.terminate),
+        );
+    let command = program.command(argv.words());
+    let end = Arc::clone(&slot);
     #[expect(
         clippy::disallowed_methods,
         reason = "spawn owns flightdeck's threads (SVC-1), and Running joins this one"
@@ -339,33 +442,56 @@ pub(crate) fn stream(
     let thread = std::thread::Builder::new()
         .name("flightdeck run".to_owned())
         .spawn(move || {
-            let words: Vec<&str> = words.iter().map(String::as_str).collect();
-            match start(&program, &words) {
-                Ok(child) => {
-                    let _ = started.send(Ok(()));
-                    end.send(follower.follow(child, &lines));
-                }
-                Err(error) => {
-                    let _ = started.send(Err(error));
-                }
-            }
+            let unset = Unset(&end);
+            let finished = crumbkit_process::run(command, &settings);
+            end.set(finished.map(ended).map_err(SpawnError::from));
+            drop(unset);
         })
         .map_err(SpawnError::Start)?;
-    let running = Running { stopper, thread };
-    match start_result.recv() {
-        Ok(Ok(())) => {
-            let stopper = running.stopper.clone();
-            Ok((running, Events { receiver, stopper }))
-        }
-        Ok(Err(error)) => {
-            running.join();
-            Err(SpawnError::Start(error))
-        }
-        Err(_) => {
-            running.join();
-            Err(SpawnError::Start(std::io::Error::other(
-                "the thread that starts the program stopped",
-            )))
+    let running = Running {
+        cancel: cancel.clone(),
+        slot: Arc::clone(&slot),
+        thread,
+    };
+    Ok((
+        running,
+        Events {
+            lines,
+            slot,
+            cancel,
+        },
+    ))
+}
+
+/// Refuses a program given as a path that is not a file that may be run,
+/// so a run of it is refused as it starts.
+///
+/// RUST-10: crumbkit-process starts the child on the thread that follows
+/// it, so `stream` cannot learn that the start failed before it returns.
+/// The check handles a program given as a path, which is how flightdeck's
+/// person names a tool that is not on `PATH`. It misses a name that `PATH`
+/// does not find and a file that the system cannot run; those end the run
+/// with [`SpawnError::Start`] instead. A start notice from crumbkit-process
+/// replaces it once the crate has one.
+fn runnable(program: &OsStr) -> std::io::Result<()> {
+    let path = std::path::Path::new(program);
+    if path.components().count() < 2 {
+        return Ok(());
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let metadata = std::fs::metadata(path)?;
+        if !metadata.is_file() || metadata.permissions().mode() & 0o111 == 0 {
+            return Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied));
         }
     }
+    // Windows has no bit that marks a file to run, and it starts a path
+    // without an extension as that path with `.exe`.
+    #[cfg(not(unix))]
+    if !path.is_file() && (path.extension().is_some() || !path.with_extension("exe").is_file()) {
+        return Err(std::io::Error::from(std::io::ErrorKind::NotFound));
+    }
+    Ok(())
 }

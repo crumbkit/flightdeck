@@ -69,7 +69,7 @@ impl Clock for FakeClock {
 pub(crate) fn test_tool(name: &str) -> PathBuf {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("target/test-tools/bin")
-        .join(name);
+        .join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
     assert!(
         path.is_file(),
         "{} is missing; run scripts/install-test-tools.sh to install shelf and reading",
@@ -79,6 +79,7 @@ pub(crate) fn test_tool(name: &str) -> PathBuf {
 }
 
 /// Returns the path of the fake tool `unruly` of the runner's tests.
+#[cfg(unix)]
 pub(crate) fn unruly() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/runner/unruly")
 }

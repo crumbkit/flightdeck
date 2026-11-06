@@ -23,33 +23,27 @@
 //!   up to [`STDOUT_LIMIT`] bytes, and standard error keeps its last
 //!   [`STDERR_LIMIT`] bytes. The query has one deadline, which covers the
 //!   wait for the child and every read from its pipes.
-//! - End: on Unix, the child runs in a process group of its own. When the
-//!   child exits, or when the deadline passes, `describe` kills that whole
-//!   group and only then reaps the child. The child stays unreaped until the
-//!   kill, so its process id, which is also the group's id, cannot pass to
-//!   another process first. Killing the group also stops a descendant that
-//!   the child left running, such as a background process that holds the
-//!   child's standard output open. Elsewhere, `describe` kills the child
-//!   alone when the deadline passes. A query only reads, so a stopped child
+//! - End: crumbkit-process starts the child in a process group of its own
+//!   on Unix, or in a job object on Windows. When the child exits, or when
+//!   the deadline passes, it kills the whole group or ends the job, and only
+//!   then reaps the child, so the child's process id cannot pass to another
+//!   process first. Stopping the group also stops a descendant that the
+//!   child left running, such as a background process that holds the
+//!   child's standard output open. A query only reads, so a stopped child
 //!   leaves no partial work.
 //!
 //! A descendant that left the child's process group, such as one that called
 //! `setsid`, is not stopped (PROC-3). When it holds a pipe open, the reads
-//! end at the deadline and the query ends as [`Exit::TimedOut`], but the
-//! descendant keeps running.
-
-// The module holds each child it starts, so the type that the baseline keeps
-// out of other modules appears here.
-#![expect(
-    clippy::disallowed_types,
-    reason = "spawn owns flightdeck's child processes (PROC-1)"
-)]
+//! end [`DRAIN_GRACE`] after the child is reaped, and the query ends with
+//! the child's own exit and what it printed by then. On Windows a process
+//! outside the job that holds a pipe open holds the query until it closes
+//! the pipe.
 
 use std::ffi::{OsStr, OsString};
-use std::io::{self, Read};
-use std::process::{Child, ExitStatus, Stdio};
-use std::thread::Scope;
+use std::io;
 use std::time::{Duration, Instant};
+
+use crumbkit_process::{Capture, OverLimit, Run, RunError, Status};
 
 mod browser;
 mod stream;
@@ -79,9 +73,6 @@ pub const STDOUT_LIMIT: usize = 16 * 1024 * 1024;
 
 /// The most bytes at the end of standard error that a query keeps.
 pub const STDERR_LIMIT: usize = 64 * 1024;
-
-/// The size of each read from a child's pipe.
-const CHUNK: usize = 8 * 1024;
 
 /// A program to start, by name or path, and the variables that its runs get
 /// beside flightdeck's own environment.
@@ -113,6 +104,20 @@ impl Program {
     #[must_use]
     pub fn name(&self) -> &OsStr {
         &self.program
+    }
+
+    /// Returns the command that runs the program with `words` and its added
+    /// variables. crumbkit-process sets its standard streams.
+    fn command<S: AsRef<OsStr>>(&self, words: &[S]) -> std::process::Command {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "spawn owns flightdeck's child processes (PROC-1)"
+        )]
+        let mut command = std::process::Command::new(&self.program);
+        command
+            .args(words)
+            .envs(self.env.iter().map(|(name, value)| (name, value)));
+        command
     }
 }
 
@@ -173,9 +178,22 @@ pub enum Exit {
     Signal(i32),
     /// The time limit passed, and flightdeck stopped the child.
     TimedOut,
-    /// flightdeck could not learn how the child ended, because waiting for it
-    /// or reading its output failed.
+    /// flightdeck could not learn how the child ended, because it started
+    /// no child or waiting for it failed.
     Unknown,
+}
+
+impl Exit {
+    /// Returns the exit of a child that ended with `status`.
+    fn of(status: Option<Status>) -> Self {
+        match status {
+            Some(Status::Code(code)) => Self::Code(code),
+            Some(Status::Signal(signal)) => Self::Signal(signal),
+            // RUST-10: `Status` may gain kinds; such a status has no code
+            // that flightdeck shows, as an unknown exit has none.
+            Some(_) | None => Self::Unknown,
+        }
+    }
 }
 
 /// The standard output of a query.
@@ -216,23 +234,33 @@ impl Finished {
     }
 }
 
-/// A query whose child process could not be started or followed.
+/// A child process that could not be started or followed.
 #[derive(Debug)]
 pub enum SpawnError {
     /// The program does not exist or cannot be started.
     Start(io::Error),
-    /// Waiting for the child, or stopping it, failed.
-    Wait(io::Error),
-    /// Reading the child's standard output or standard error failed.
-    Read(io::Error),
+    /// Waiting for the child, reaping it or reading what it printed failed
+    /// after it started. The child was stopped and reaped.
+    Run(io::Error),
+}
+
+impl From<RunError> for SpawnError {
+    fn from(error: RunError) -> Self {
+        match error {
+            RunError::Start(error) => Self::Start(error),
+            RunError::Run(error) => Self::Run(error),
+            // RUST-10: `RunError` may gain kinds after it started the
+            // child, which flightdeck reports as a failure to follow it.
+            other => Self::Run(io::Error::other(other)),
+        }
+    }
 }
 
 impl std::fmt::Display for SpawnError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             Self::Start(_) => "cannot start the program",
-            Self::Wait(_) => "cannot wait for the program",
-            Self::Read(_) => "cannot read what the program printed",
+            Self::Run(_) => "cannot follow the program to its end",
         })
     }
 }
@@ -240,7 +268,7 @@ impl std::fmt::Display for SpawnError {
 impl std::error::Error for SpawnError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Start(error) | Self::Wait(error) | Self::Read(error) => Some(error),
+            Self::Start(error) | Self::Run(error) => Some(error),
         }
     }
 }
@@ -251,275 +279,35 @@ impl std::error::Error for SpawnError {
 /// # Errors
 ///
 /// Returns [`SpawnError::Start`] when the program does not exist or cannot
-/// be started, and the other variants when waiting for it or reading its
+/// be started, and [`SpawnError::Run`] when waiting for it or reading its
 /// output fails. The child is stopped and reaped on every path.
 pub(crate) fn describe(
     program: &Program,
     query: &Query<'_>,
     time_limit: Duration,
 ) -> Result<Finished, SpawnError> {
-    let deadline = Instant::now() + time_limit;
-    let mut child = start(program, &query.words()).map_err(SpawnError::Start)?;
-    let stdout = child.stdout.take();
-    let stderr = child.stderr.take();
-    // Each pipe has its own reader, so a child that fills one pipe while
-    // flightdeck reads the other never blocks. The scope joins every thread
-    // before it returns.
-    std::thread::scope(|scope| {
-        let stdout = scope.spawn(move || {
-            let mut pipe = Timed::new(stdout, deadline);
-            read_capped(&mut pipe, STDOUT_LIMIT).map(|read| (read, pipe.expired))
-        });
-        let stderr = scope.spawn(move || {
-            let mut pipe = Timed::new(stderr, deadline);
-            read_tail(&mut pipe, STDERR_LIMIT).map(|read| (read, pipe.expired))
-        });
-        let exit = wait(scope, &mut child, deadline).map_err(SpawnError::Wait);
-        let stdout = joined(stdout.join());
-        let stderr = joined(stderr.join());
-        let exit = exit?;
-        let (stdout, stdout_expired) = stdout?;
-        let (stderr, stderr_expired) = stderr?;
-        Ok(Finished {
-            exit: if stdout_expired || stderr_expired {
-                Exit::TimedOut
-            } else {
-                exit
-            },
-            stdout,
-            stderr,
+    let settings = Run::new()
+        .stdout(Capture::Whole {
+            limit: STDOUT_LIMIT,
+            over: OverLimit::Sink,
         })
+        .stderr(Capture::Tail {
+            limit: STDERR_LIMIT,
+        })
+        .deadline(Instant::now() + time_limit);
+    let finished = crumbkit_process::run(program.command(&query.words()), &settings)?;
+    let exit = match finished.exit() {
+        crumbkit_process::Exit::TimedOut => Exit::TimedOut,
+        _ => Exit::of(finished.status()),
+    };
+    let (stdout, stderr) = finished.into_output();
+    Ok(Finished {
+        exit,
+        stdout: if stdout.over_limit() {
+            Stdout::OverLimit
+        } else {
+            Stdout::Whole(stdout.into_bytes())
+        },
+        stderr: stderr.into_bytes(),
     })
-}
-
-/// Starts `program` with `words`, standard input closed and both output
-/// streams piped, in a process group of its own on Unix.
-fn start(program: &Program, words: &[&str]) -> io::Result<Child> {
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "spawn owns flightdeck's child processes (PROC-1)"
-    )]
-    let mut command = std::process::Command::new(&program.program);
-    command
-        .args(words)
-        .envs(program.env.iter().map(|(name, value)| (name, value)))
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt as _;
-        command.process_group(0);
-    }
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "spawn owns flightdeck's child processes (PROC-1)"
-    )]
-    command.spawn()
-}
-
-/// Waits for `child` to exit until `deadline`, kills its process group in
-/// either case, and then reaps it.
-///
-/// A thread in `scope` waits for the child to exit without reaping it, so
-/// the group's id stays the child's until the kill. That thread ends once
-/// the child has exited, which the kill ensures.
-#[cfg(unix)]
-fn wait<'scope>(
-    scope: &'scope Scope<'scope, '_>,
-    child: &mut Child,
-    deadline: Instant,
-) -> io::Result<Exit> {
-    use rustix::process::{Pid, Signal, kill_process_group};
-
-    let group = Pid::from_child(child);
-    let (exited, notice) = std::sync::mpsc::sync_channel(1);
-    let waiter = scope.spawn(move || {
-        let waited = wait_unreaped(group);
-        // The channel holds the one notice, so the send never blocks. It
-        // fails only when `wait` has returned, and then nobody needs it.
-        exited.send(()).ok();
-        waited
-    });
-    let timed_out = notice
-        .recv_timeout(deadline.saturating_duration_since(Instant::now()))
-        .is_err();
-    // The kill fails when every process in the group has exited, and that
-    // is no failure. A child that moved to another group is killed alone,
-    // which cannot fail while the child is unreaped.
-    if kill_process_group(group, Signal::KILL).is_err() && timed_out {
-        child.kill()?;
-    }
-    let waited = waiter.join().unwrap_or_else(|_| {
-        Err(io::Error::other(
-            "the thread that waited for the program stopped",
-        ))
-    });
-    let status = child.wait()?;
-    waited?;
-    Ok(if timed_out {
-        Exit::TimedOut
-    } else {
-        exit_of(status)
-    })
-}
-
-/// Waits until the process `pid` exits, and leaves it unreaped.
-#[cfg(unix)]
-fn wait_unreaped(pid: rustix::process::Pid) -> io::Result<()> {
-    use rustix::process::{WaitId, WaitIdOptions, waitid};
-
-    loop {
-        match waitid(
-            WaitId::Pid(pid),
-            WaitIdOptions::EXITED | WaitIdOptions::NOWAIT,
-        ) {
-            Ok(_) => return Ok(()),
-            Err(rustix::io::Errno::INTR) => {}
-            Err(error) => return Err(error.into()),
-        }
-    }
-}
-
-/// Waits for `child` until `deadline`, kills it when the deadline passes,
-/// and reaps it. Its descendants keep running (PROC-3).
-#[cfg(not(unix))]
-fn wait<'scope>(
-    _scope: &'scope Scope<'scope, '_>,
-    child: &mut Child,
-    deadline: Instant,
-) -> io::Result<Exit> {
-    use wait_timeout::ChildExt as _;
-
-    match child.wait_timeout(deadline.saturating_duration_since(Instant::now())) {
-        Ok(Some(status)) => Ok(exit_of(status)),
-        Ok(None) => {
-            child.kill()?;
-            child.wait()?;
-            Ok(Exit::TimedOut)
-        }
-        Err(error) => {
-            child.kill().ok();
-            child.wait()?;
-            Err(error)
-        }
-    }
-}
-
-/// Returns how a child with `status` ended. A status has either a code or
-/// a signal on Unix, so the signal 0 never appears.
-fn exit_of(status: ExitStatus) -> Exit {
-    use std::os::unix::process::ExitStatusExt as _;
-
-    match status.code() {
-        Some(code) => Exit::Code(code),
-        None => Exit::Signal(status.signal().unwrap_or(0)),
-    }
-}
-
-/// Returns a reader thread's result, or a read error when the thread
-/// panicked, which only a broken invariant in the reader can cause.
-fn joined<T>(result: std::thread::Result<io::Result<T>>) -> Result<T, SpawnError> {
-    match result {
-        Ok(read) => read.map_err(SpawnError::Read),
-        Err(_) => Err(SpawnError::Read(io::Error::other(
-            "the thread that read the program's output stopped",
-        ))),
-    }
-}
-
-/// A child's pipe whose reads end at a deadline. A read after the deadline
-/// returns the end of the stream and sets `expired`. A pipe that is absent
-/// reads as empty.
-struct Timed<R> {
-    pipe: Option<R>,
-    deadline: Instant,
-    expired: bool,
-}
-
-impl<R> Timed<R> {
-    const fn new(pipe: Option<R>, deadline: Instant) -> Self {
-        Self {
-            pipe,
-            deadline,
-            expired: false,
-        }
-    }
-}
-
-#[cfg(unix)]
-impl<R: Read + std::os::fd::AsFd> Read for Timed<R> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        use rustix::event::{PollFd, PollFlags, Timespec, poll};
-
-        let Some(pipe) = self.pipe.as_mut() else {
-            return Ok(0);
-        };
-        if self.expired {
-            return Ok(0);
-        }
-        loop {
-            let remaining = self.deadline.saturating_duration_since(Instant::now());
-            let timeout = Timespec::try_from(remaining).map_err(io::Error::other)?;
-            let mut fds = [PollFd::new(pipe, PollFlags::IN)];
-            match poll(&mut fds, Some(&timeout)) {
-                Ok(0) => {
-                    self.expired = true;
-                    return Ok(0);
-                }
-                Ok(_) => break,
-                Err(rustix::io::Errno::INTR) => {}
-                Err(error) => return Err(error.into()),
-            }
-        }
-        pipe.read(buf)
-    }
-}
-
-/// RUST-10: elsewhere than Unix, a read waits for the pipe without the
-/// deadline, so a descendant that holds the pipe open holds the query too.
-/// A read that polls the pipe's handle replaces it when flightdeck runs on
-/// such a system.
-#[cfg(not(unix))]
-impl<R: Read> Read for Timed<R> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        match self.pipe.as_mut() {
-            Some(pipe) => pipe.read(buf),
-            None => Ok(0),
-        }
-    }
-}
-
-/// Reads `reader` to its end and keeps it whole when it holds at most
-/// `limit` bytes. It reads past the limit and drops the rest, so the child
-/// never blocks on a full pipe.
-pub(crate) fn read_capped(mut reader: impl Read, limit: usize) -> io::Result<Stdout> {
-    let mut kept = Vec::new();
-    let most = u64::try_from(limit).map_or(u64::MAX, |limit| limit.saturating_add(1));
-    (&mut reader).take(most).read_to_end(&mut kept)?;
-    if kept.len() <= limit {
-        return Ok(Stdout::Whole(kept));
-    }
-    io::copy(&mut reader, &mut io::sink())?;
-    Ok(Stdout::OverLimit)
-}
-
-/// Reads `reader` to its end and keeps its last `limit` bytes.
-pub(crate) fn read_tail(mut reader: impl Read, limit: usize) -> io::Result<Vec<u8>> {
-    let mut kept = Vec::new();
-    let mut chunk = [0; CHUNK];
-    loop {
-        let read = reader.read(&mut chunk)?;
-        let Some(bytes) = chunk.get(..read).filter(|bytes| !bytes.is_empty()) else {
-            break;
-        };
-        kept.extend_from_slice(bytes);
-        if kept.len() > limit.saturating_mul(2).max(CHUNK) {
-            kept.drain(..kept.len() - limit);
-        }
-    }
-    if kept.len() > limit {
-        kept.drain(..kept.len() - limit);
-    }
-    Ok(kept)
 }

@@ -356,7 +356,7 @@ impl<'a> Answer<'a> {
                 let problem = Problem::Start(error);
                 return Err(LoadError::load(tool, command, problem, Exit::Unknown, &[]));
             }
-            Err(SpawnError::Wait(error) | SpawnError::Read(error)) => {
+            Err(SpawnError::Run(error)) => {
                 let problem = Problem::Read(error);
                 return Err(LoadError::load(tool, command, problem, Exit::Unknown, &[]));
             }

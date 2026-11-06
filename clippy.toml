@@ -36,7 +36,7 @@ disallowed-methods = [
     { path = "std::process::Command::spawn", reason = "start processes through src/spawn.rs" },
     { path = "std::process::Command::status", reason = "start processes through src/spawn.rs" },
     { path = "std::process::Command::output", reason = "start processes through src/spawn.rs" },
-    { path = "std::os::unix::process::CommandExt::exec", reason = "replacing this process bypasses src/spawn.rs" },
+    { path = "std::os::unix::process::CommandExt::exec", reason = "replacing this process bypasses src/spawn.rs", allow-invalid = true },
     { path = "tokio::process::Command::new", reason = "start processes through src/spawn.rs", allow-invalid = true },
     { path = "tokio::process::Command::spawn", reason = "start processes through src/spawn.rs", allow-invalid = true },
     { path = "tokio::process::Command::status", reason = "start processes through src/spawn.rs", allow-invalid = true },

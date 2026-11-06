@@ -1,17 +1,13 @@
-# The binary release. It runs the tests on Linux and macOS and the advisory
-# check, builds `flightdeck` for macOS and Linux, checks that each binary
-# prints the release's version, and attaches the archives to a GitHub release
-# with SHA256SUMS.
+# The binary release. It runs the tests on Linux, macOS and Windows and the
+# advisory check, builds `flightdeck` for macOS, Linux and Windows, checks
+# that each binary prints the release's version, and attaches the archives to
+# a GitHub release with SHA256SUMS.
 #
 # A push of the tag `v<version>` releases that tag, where <version> is the
 # version in Cargo.toml. A manual run with a tag releases that existing tag,
 # such as v0.1.0, which was pushed before this workflow existed. A manual run
 # without a tag, and a pull request that changes this file, build the
 # archives and release nothing.
-#
-# flightdeck has no Windows build, because src/spawn/stream.rs refuses to
-# compile on Windows: a tool's commands run in a process group that
-# flightdeck signals, and their output is read with poll(2).
 #
 # No job uses rust-cache, because a poisoned cache would reach the released
 # binaries, and zizmor fails a release workflow that restores a cache.
@@ -34,6 +30,11 @@ permissions: {}
 
 env:
   CARGO_TERM_COLOR: always
+
+# Every step's script is bash, which the Windows runners have too.
+defaults:
+  run:
+    shell: bash
 
 jobs:
   # The tag to release, if any, and the version that Cargo.toml holds at it.
@@ -99,14 +100,15 @@ jobs:
       - name: advisories
         run: cargo deny --locked check advisories
 
-  # The tests on Linux and macOS, because the pull-request lane runs them on
-  # Linux alone and flightdeck's process handling differs between the two.
+  # The tests on Linux, macOS and Windows, because the pull-request lane runs
+  # every test on Linux and the Unix-only tests on no other system, and
+  # flightdeck's process handling differs between the three.
   tests:
     needs: version
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15]
+        os: [ubuntu-24.04, macos-15, windows-2025]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     permissions:
@@ -139,6 +141,9 @@ jobs:
             os: ubuntu-24.04-arm
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-24.04
+          - target: x86_64-pc-windows-msvc
+            os: windows-2025
+            exe: .exe
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     permissions:
@@ -146,6 +151,7 @@ jobs:
     env:
       TARGET: ${{ matrix.target }}
       VERSION: ${{ needs.version.outputs.version }}
+      EXE: ${{ matrix.exe }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -161,14 +167,19 @@ jobs:
       - run: cargo auditable build --release --locked --package crumbkit-flightdeck --target "$TARGET"
       - name: version
         run: |
-          printed=$("target/$TARGET/release/flightdeck" --version)
+          printed=$("target/$TARGET/release/flightdeck$EXE" --version)
           if [ "$printed" != "flightdeck $VERSION" ]; then
             echo "the binary printed '$printed', and the release is $VERSION" >&2
             exit 1
           fi
+      # A Windows binary goes in a zip archive, which Windows opens itself.
       - run: |
           mkdir dist
-          tar -C "target/$TARGET/release" -czf "dist/flightdeck-$VERSION-$TARGET.tar.gz" flightdeck
+          if [ -n "$EXE" ]; then
+            7z a "dist/flightdeck-$VERSION-$TARGET.zip" "./target/$TARGET/release/flightdeck$EXE"
+          else
+            tar -C "target/$TARGET/release" -czf "dist/flightdeck-$VERSION-$TARGET.tar.gz" flightdeck
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: flightdeck-${{ matrix.target }}

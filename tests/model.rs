@@ -8,6 +8,7 @@
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+#[cfg(unix)]
 use std::time::Duration;
 
 use crumbkit::{Failure as _, FieldValue};
@@ -22,7 +23,7 @@ use tempfile::TempDir;
 fn test_tool(name: &str) -> PathBuf {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("target/test-tools/bin")
-        .join(name);
+        .join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
     assert!(
         path.is_file(),
         "{} is missing; run scripts/install-test-tools.sh to install shelf and reading",
@@ -90,6 +91,7 @@ fn field(error: &LoadError, name: &str) -> Option<FieldValue<'static>> {
         .map(|field| field.value().clone().into_owned())
 }
 
+#[cfg(unix)]
 #[test]
 fn a_tool_that_indents_its_json_loads_the_same_model_and_figures_as_one_that_prints_one_line() {
     let shelf = test_tool("shelf");

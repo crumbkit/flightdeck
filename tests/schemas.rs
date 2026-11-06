@@ -17,7 +17,10 @@ use serde_json::Value;
 /// Returns the path of shelf as the install script built it, and fails the
 /// test when the script has not run.
 fn shelf() -> PathBuf {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/test-tools/bin/shelf");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+        "target/test-tools/bin/shelf{}",
+        std::env::consts::EXE_SUFFIX
+    ));
     assert!(
         path.is_file(),
         "{} is missing; run scripts/install-test-tools.sh to install shelf and reading",
