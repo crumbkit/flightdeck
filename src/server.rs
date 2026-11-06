@@ -463,6 +463,7 @@ fn accept<'scope>(
 
 /// Returns true for a failure to accept that passes once the system frees
 /// a descriptor, memory or a buffer, or that ends one connection only.
+#[cfg(unix)]
 fn passes(error: &io::Error) -> bool {
     use rustix::io::Errno;
 
@@ -476,6 +477,19 @@ fn passes(error: &io::Error) -> bool {
         ]
         .contains(&errno)
     })
+}
+
+/// Returns true for a failure to accept that passes once the system frees
+/// a socket, memory or a buffer, or that ends one connection only: the
+/// Windows Sockets errors WSAEMFILE (10024) and WSAENOBUFS (10055), and the
+/// kinds of an aborted connection and of no memory.
+#[cfg(not(unix))]
+fn passes(error: &io::Error) -> bool {
+    matches!(error.raw_os_error(), Some(10024 | 10055))
+        || matches!(
+            error.kind(),
+            io::ErrorKind::ConnectionAborted | io::ErrorKind::OutOfMemory
+        )
 }
 
 impl Shared {

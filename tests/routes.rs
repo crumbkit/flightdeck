@@ -4,6 +4,10 @@
 //! `POST /api/choices`. The
 //! tests run shelf and reading, which `scripts/install-test-tools.sh`
 //! installs, and `unruly`, the runner tests' fake tool.
+//!
+//! A test that runs a fake tool written as a shell script, or that signals
+//! a process through rustix, runs on Unix alone, because Windows runs no
+//! shell script as a program and has no signals.
 
 #![cfg(test)]
 
@@ -16,13 +20,18 @@ mod serving;
 #[path = "support/signals.rs"]
 mod signals;
 
+#[cfg(unix)]
 use std::time::{Duration, Instant};
 
+#[cfg(unix)]
 use crumbkit_flightdeck::runner;
+#[cfg(unix)]
 use crumbkit_flightdeck::server::Settings;
 use http::{Call, Lines, Reply};
 use serde_json::{Value, json};
-use serving::{Running, Setup, Then, serving, test_tool, unruly};
+#[cfg(unix)]
+use serving::unruly;
+use serving::{Running, Setup, Then, serving, test_tool};
 
 /// A page that has exchanged its launch code.
 struct Page<'a> {
@@ -117,6 +126,7 @@ fn refused(reply: &Reply, status: u16, code: &str) -> Value {
 
 /// Returns the process id that `unruly child linger` or `unruly child spew`
 /// prints on its first line.
+#[cfg(unix)]
 fn linger_pid(lines: &mut Lines) -> rustix::process::Pid {
     let started = lines.next_event().unwrap();
     assert_eq!(started["event"], "started");
@@ -128,6 +138,7 @@ fn linger_pid(lines: &mut Lines) -> rustix::process::Pid {
 
 /// Waits up to `limit` for the process `pid` to be gone, and returns
 /// whether it is.
+#[cfg(unix)]
 fn gone_within(pid: rustix::process::Pid, limit: Duration) -> bool {
     let deadline = Instant::now() + limit;
     while Instant::now() < deadline {
@@ -145,6 +156,7 @@ fn gone_within(pid: rustix::process::Pid, limit: Duration) -> bool {
 
 /// Waits up to ten seconds for the process `pid` to be gone, and returns
 /// whether it is.
+#[cfg(unix)]
 fn gone(pid: rustix::process::Pid) -> bool {
     gone_within(pid, Duration::from_secs(10))
 }
@@ -351,6 +363,7 @@ fn read_only_refuses_books_remove_at_preview_and_with_an_id() {
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn a_preview_of_a_command_without_dry_run_is_one_started_line_with_the_id() {
     serving(Setup::of(unruly()), |running| {
@@ -408,6 +421,7 @@ fn a_stream_from_reading_sends_started_then_each_entry_as_its_own_line_then_ende
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn with_every_run_streaming_a_cancel_ends_one_with_exit_130_and_keeps_the_rows_that_arrived() {
     serving(Setup::of(unruly()), |running| {
@@ -447,6 +461,7 @@ fn with_every_run_streaming_a_cancel_ends_one_with_exit_130_and_keeps_the_rows_t
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn a_run_over_the_runners_cap_is_refused_with_503_and_busy() {
     let setup = Setup::of(unruly()).runner(runner::Settings::new().most_runs(1));
@@ -478,6 +493,7 @@ fn a_missing_binary_is_refused_with_500_and_spawn() {
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn a_silent_run_streams_alive_lines_until_its_output() {
     let setup = Setup::of(unruly()).server(
@@ -505,6 +521,7 @@ fn a_silent_run_streams_alive_lines_until_its_output() {
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn a_client_that_disconnects_stops_its_run() {
     let setup = Setup::of(unruly()).server(
@@ -527,6 +544,7 @@ fn a_client_that_disconnects_stops_its_run() {
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn a_client_that_stays_connected_but_stops_reading_has_its_run_stopped_after_the_write_time() {
     let write_time = Duration::from_millis(200);
@@ -558,6 +576,7 @@ fn a_client_that_stays_connected_but_stops_reading_has_its_run_stopped_after_the
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn stopping_the_server_cancels_a_run_that_outlasts_the_shutdown_grace_and_ends_its_stream() {
     let setup = Setup::of(unruly()).runner(
@@ -670,6 +689,7 @@ fn a_body_that_is_not_a_choices_request_is_refused_with_400() {
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn a_choices_request_over_the_runners_cap_is_refused_with_503_and_busy() {
     let setup = Setup::of(unruly()).runner(runner::Settings::new().most_runs(1));
@@ -688,6 +708,7 @@ fn a_choices_request_over_the_runners_cap_is_refused_with_503_and_busy() {
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn a_source_that_outlasts_the_choices_time_is_stopped_and_answered_with_504() {
     let setup = Setup::of(unruly()).runner(
@@ -714,6 +735,7 @@ fn a_source_that_outlasts_the_choices_time_is_stopped_and_answered_with_504() {
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn a_source_that_ends_without_a_listing_is_answered_with_502_and_how_it_ended() {
     serving(Setup::of(unruly()), |running| {

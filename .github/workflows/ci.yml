@@ -1,6 +1,7 @@
 # flightdeck's lanes, which rust-standards.toml and ui/typescript-standards.toml
 # record as their `lanes` decisions. `gate` runs the Rust pull-request lane
 # and then the page's, and branch protection requires it.
+# `windows` builds and tests flightdeck on Windows for each pull request,
 # `advisories` runs daily for both, and `macos` runs the tests on macOS once
 # a week.
 name: CI
@@ -143,6 +144,43 @@ jobs:
           name: playwright-traces
           path: ui/test-results/
           retention-days: 7
+
+  # The tests on Windows, where crumbkit-process runs a tool in a job object.
+  # The tests that run a fake tool written as a shell script, or that signal
+  # a process, run on Unix alone.
+  windows:
+    if: github.event_name != 'schedule'
+    runs-on: windows-2025
+    timeout-minutes: 30
+    permissions:
+      contents: read # actions/checkout reads the repository.
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+        with:
+          tool: cargo-nextest@0.9.140
+          fallback: none
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - id: test-tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: target/test-tools
+          key: test-tools-${{ runner.os }}-${{ hashFiles('scripts/install-test-tools.sh', 'rust-toolchain.toml') }}
+      - name: test tools
+        if: steps.test-tools.outputs.cache-hit != 'true'
+        run: scripts/install-test-tools.sh
+      - name: clippy
+        run: cargo clippy --locked --workspace --all-targets --all-features
+      - name: tests
+        run: cargo nextest run --locked --workspace --all-features
 
   macos:
     if: github.event.schedule == '17 5 * * 1'

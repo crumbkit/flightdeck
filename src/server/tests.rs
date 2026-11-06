@@ -4,6 +4,7 @@ use super::request::Method;
 use super::{Route, failure_status, passes};
 use crate::runner::RunFailure;
 
+#[cfg(unix)]
 #[test]
 fn a_failure_to_accept_for_lack_of_descriptors_memory_or_buffers_or_an_aborted_connection_passes() {
     use rustix::io::Errno;
@@ -19,6 +20,16 @@ fn a_failure_to_accept_for_lack_of_descriptors_memory_or_buffers_or_an_aborted_c
     }
     assert!(!passes(&io::Error::from(Errno::BADF)));
     assert!(!passes(&io::Error::other("no errno")));
+}
+
+#[cfg(not(unix))]
+#[test]
+fn a_failure_to_accept_for_lack_of_sockets_or_buffers_or_an_aborted_connection_passes() {
+    for code in [10024, 10055, 10053] {
+        assert!(passes(&io::Error::from_raw_os_error(code)), "{code}");
+    }
+    assert!(!passes(&io::Error::from_raw_os_error(10022)));
+    assert!(!passes(&io::Error::other("no error code")));
 }
 
 #[test]

@@ -153,7 +153,8 @@ What works today:
   in either layout. A destructive command, or one that declares no
   effects, runs only with a confirmation id for the same vector, which a
   preview issues once its dry run succeeds. A cancel sends SIGINT, SIGTERM
-  and SIGKILL to the child's process group in turn.
+  and SIGKILL to the child's process group in turn. On Windows a cancel
+  ends the job object that the child and its own children run in.
 
 A link is inferred from crumbkit's command grammar. A command whose rows
 have an `id` column links it to each other command of the same resource that

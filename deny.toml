@@ -37,4 +37,6 @@ allow-wildcard-paths = true
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = []
+# crumbkit-process is not published yet, so flightdeck takes it from a commit
+# of crumbkit's repository until it is on crates.io.
+allow-git = ["https://github.com/crumbkit/crumbkit"]

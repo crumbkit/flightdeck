@@ -58,7 +58,7 @@ fn a_refusal_is_a_failure_document_with_its_code_message_fields_and_hint() {
 fn a_failure_with_a_source_carries_it_as_its_cause() {
     let failure = EndFailure::Spawn {
         tool: "shelf".to_owned(),
-        source: SpawnError::Read(std::io::Error::other("the pipe broke")),
+        source: SpawnError::Run(std::io::Error::other("the pipe broke")),
     };
 
     let document = document(&failure);
