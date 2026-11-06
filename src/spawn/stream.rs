@@ -377,11 +377,17 @@ fn text(line: Vec<u8>) -> String {
 fn ended(finished: crumbkit_process::Finished) -> Ended {
     let stopped = match finished.exit() {
         crumbkit_process::Exit::Stopped(crumbkit_process::Stop::Cancelled) => Some(Stop::Cancel),
-        crumbkit_process::Exit::Stopped(_) => Some(Stop::Limit(if finished.stdout().long_line() {
-            Limit::Line
-        } else {
-            Limit::Total
-        })),
+        crumbkit_process::Exit::Stopped(crumbkit_process::Stop::OverLimit) => {
+            Some(Stop::Limit(if finished.stdout().long_line() {
+                Limit::Line
+            } else {
+                Limit::Total
+            }))
+        }
+        // RUST-10: `Stop` may gain reasons, and flightdeck sets no other
+        // stop than its cancel and its limits, so another reason reads as a
+        // cancel.
+        crumbkit_process::Exit::Stopped(_) => Some(Stop::Cancel),
         _ => None,
     };
     let exit = Exit::of(finished.status());
@@ -463,25 +469,29 @@ pub(crate) fn stream(
 /// RUST-10: crumbkit-process starts the child on the thread that follows
 /// it, so `stream` cannot learn that the start failed before it returns.
 /// The check handles a program given as a path, which is how flightdeck's
-/// person names a tool that is not on `PATH`, on Unix. It misses a name that
-/// `PATH` does not find, a file that the system cannot run, and every
-/// program on other systems; those end the run with [`SpawnError::Start`]
-/// instead. A start notice from crumbkit-process replaces it once the crate
-/// has one.
+/// person names a tool that is not on `PATH`. It misses a name that `PATH`
+/// does not find and a file that the system cannot run; those end the run
+/// with [`SpawnError::Start`] instead. A start notice from crumbkit-process
+/// replaces it once the crate has one.
 fn runnable(program: &OsStr) -> std::io::Result<()> {
+    let path = std::path::Path::new(program);
+    if path.components().count() < 2 {
+        return Ok(());
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
 
-        let path = std::path::Path::new(program);
-        if path.components().count() > 1 {
-            let metadata = std::fs::metadata(path)?;
-            if !metadata.is_file() || metadata.permissions().mode() & 0o111 == 0 {
-                return Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied));
-            }
+        let metadata = std::fs::metadata(path)?;
+        if !metadata.is_file() || metadata.permissions().mode() & 0o111 == 0 {
+            return Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied));
         }
     }
+    // Windows has no bit that marks a file to run, and it starts a path
+    // without an extension as that path with `.exe`.
     #[cfg(not(unix))]
-    let _ = program;
+    if !path.is_file() && (path.extension().is_some() || !path.with_extension("exe").is_file()) {
+        return Err(std::io::Error::from(std::io::ErrorKind::NotFound));
+    }
     Ok(())
 }

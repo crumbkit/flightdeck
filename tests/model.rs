@@ -91,6 +91,7 @@ fn field(error: &LoadError, name: &str) -> Option<FieldValue<'static>> {
         .map(|field| field.value().clone().into_owned())
 }
 
+#[cfg(unix)]
 #[test]
 fn a_tool_that_indents_its_json_loads_the_same_model_and_figures_as_one_that_prints_one_line() {
     let shelf = test_tool("shelf");

@@ -462,7 +462,12 @@ fn every_built_file_of_the_page_is_served_with_its_bytes_and_its_media_type() {
     assert!(files.len() >= 3, "ui/dist holds {files:?}");
     serving(Setup::shelf(), |page| {
         for file in &files {
-            let name = file.to_str().unwrap();
+            // A URL path separates its segments with `/` on every system.
+            let segments: Vec<&str> = file
+                .components()
+                .map(|segment| segment.as_os_str().to_str().unwrap())
+                .collect();
+            let name = segments.join("/");
             let path = if name == "index.html" {
                 "/".to_owned()
             } else {
