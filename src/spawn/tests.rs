@@ -16,7 +16,10 @@ fn a_bare_tool_name_stays_a_name_for_the_path_search() {
 fn a_relative_tool_path_becomes_absolute_against_the_launch_directory() {
     let program = Program::at_launch("tools/shelf", Some(Path::new("/launch")), None).unwrap();
 
-    assert_eq!(program.name(), OsStr::new("/launch/tools/shelf"));
+    assert_eq!(
+        program.name(),
+        Path::new("/launch").join("tools/shelf").as_os_str()
+    );
 }
 
 #[cfg(unix)]
