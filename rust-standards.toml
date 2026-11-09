@@ -78,7 +78,7 @@ realizations = ["src/open.rs", "src/server.rs"]
 rule = "BASE-5"
 owners = ["src/clock.rs", "src/runner.rs", "src/server.rs"]
 checks = ["the expiry test in tests/runner.rs", "the idle-limit tests in tests/server.rs", "a_confirmation_is_refused_as_expired_once_the_shared_clock_passes_the_runners_deadline in tests/server.rs"]
-note = "One clock::Clock serves the runner and the server, and clock::SystemClock reads Instant::now and SystemTime::now. The runner reads moment.instant() from the clock, and the server reads both clocks of the moment. The tests pass a clock that they move forward."
+note = "One clock::Clock serves the runner and the server, and clock::SystemClock reads Instant::now and SystemTime::now. The runner reads moment.instant() from the clock, and the server reads both clocks of the moment. The server's own deadlines (src/server.rs and src/server/http.rs), the timing in the spawn modules (src/spawn.rs, src/spawn/browser.rs and src/spawn/stream.rs) and src/model.rs read Instant::now directly rather than through the clock. The tests pass a clock that they move forward."
 
 [[binding]]
 rule = "BASE-50"

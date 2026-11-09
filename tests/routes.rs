@@ -725,25 +725,22 @@ fn a_source_that_outlasts_the_choices_time_is_stopped_and_answered_with_504() {
 
         // The runner reads the shared fake clock, which stands still, so a
         // second thread keeps moving it past the choices time until the
-        // reply arrives.
-        let answered = std::sync::atomic::AtomicBool::new(false);
+        // sender drops, which happens when the request returns or panics.
         let reply = std::thread::scope(|scope| {
-            scope.spawn(|| {
-                while !answered.load(std::sync::atomic::Ordering::SeqCst) {
-                    #[expect(
-                        clippy::disallowed_methods,
-                        reason = "the clock moves while the request waits for the source"
-                    )]
-                    std::thread::sleep(Duration::from_millis(50));
-                    running.clock.advance(Duration::from_secs(1));
+            let (stop, receiver) = std::sync::mpsc::channel::<()>();
+            let clock = running.clock;
+            scope.spawn(move || {
+                while receiver.recv_timeout(Duration::from_millis(50))
+                    == Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+                {
+                    clock.advance(Duration::from_secs(1));
                 }
             });
-            let reply = page.send(
+            let _stop = stop;
+            page.send(
                 "/api/choices",
                 &choices(&["child", "roster"], &["child", "visit"], "<ID>"),
-            );
-            answered.store(true, std::sync::atomic::Ordering::SeqCst);
-            reply
+            )
         });
 
         assert!(started.elapsed() < Duration::from_secs(5));
