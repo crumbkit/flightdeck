@@ -107,8 +107,8 @@ impl Ending {
 /// document on one line and one indented as `serde_json::to_writer_pretty`
 /// writes it. It misses a document that does not start with `{` at the
 /// start of a line, and an indented document whose lines a full queue
-/// dropped after a cancel or a shutdown, which then ends without a
-/// document. Output with no line that starts with `{` stays in the tail
+/// dropped, after a cancel or a shutdown or after the child exited by
+/// itself with the page behind, which then ends without a document. Output with no line that starts with `{` stays in the tail
 /// whole, within the run's output limit. A parser that reads every JSON value of standard output
 /// whatever its layout replaces it if a tool prints another layout.
 #[derive(Debug, Default)]

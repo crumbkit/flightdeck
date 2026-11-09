@@ -120,7 +120,7 @@ correction = "Start crumbkit-usage in main and mount `self usage` before flightd
 rule = "CLI-1"
 paths = ["src/open.rs"]
 owner = "Luke Randall"
-reason = "crumbkit's Output prints only documents and failures, and `flightdeck open` prints two status lines while it serves. src/open.rs writes them to standard error, which it opens in one place."
+reason = "crumbkit's Run prints only documents and failures, and `flightdeck open` prints two status lines while it serves. src/open.rs writes them to standard error, which it opens in one place."
 correction = "Write the lines through crumbkit's sink when crumbkit offers a writer for messages about a run."
 
 [[decision]]

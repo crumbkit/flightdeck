@@ -1,7 +1,7 @@
 {
-  "schema": "flightdeck/opt-outs/v1",
+  "schema": "flightdeck/opt-outs/v2",
   "data": [],
-  "customisations": [
+  "declarations": [
     {
       "declaration": "root-verbs",
       "applies_to": "flightdeck open",

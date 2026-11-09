@@ -148,7 +148,7 @@ fn shelf_has_nine_runnable_commands_its_version_and_its_about_line() {
         ]
     );
     assert_eq!(shelf.name(), "shelf");
-    assert_eq!(shelf.version(), "0.1.1+git-b7f02c45fe90");
+    assert_eq!(shelf.version(), "0.2.0+git-45d0015e1f94");
     assert_eq!(
         shelf.about(),
         Some("Browse a small catalogue of public-domain books")

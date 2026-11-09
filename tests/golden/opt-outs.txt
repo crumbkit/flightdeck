@@ -1,6 +1,6 @@
 flightdeck has no opt-outs from the conventions.
 
-flightdeck declares 3 customisations.
+flightdeck has 3 declarations.
 
 root-verbs: flightdeck open
   Declares: Each command sits directly under the root as a verb, and root help lists it under the heading Verbs.

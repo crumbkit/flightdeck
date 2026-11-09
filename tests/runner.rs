@@ -826,6 +826,40 @@ fn cancel_and_shutdown_end_a_run_whose_caller_stopped_reading_it() {
 
 #[cfg(unix)]
 #[test]
+fn a_run_ends_when_its_child_exits_while_nobody_reads_its_full_queue_and_keeps_its_last_document() {
+    let unruly = unruly_session(settings().most_runs(1));
+    let run = unruly.runner.run(&request(&["child", "burst"])).unwrap();
+
+    // The child prints more lines than the queue holds and exits, and the
+    // test reads none of them. The run ends by itself once half of the
+    // drain grace has passed, so the runner has room for another run.
+    let started = Instant::now();
+    let next = loop {
+        match unruly.runner.run(&request(&["child", "pick"])) {
+            Ok(next) => break next,
+            Err(failure) => assert_eq!(code(&failure), &RUN_BUSY),
+        }
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "the run has not ended after {:?}",
+            started.elapsed()
+        );
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the runner gives no signal that a run has ended without being read"
+        )]
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let (_, picked) = finish(next);
+    let (lines, outcome) = finish(run);
+
+    assert!(matches!(picked, Outcome::Result), "{picked:?}");
+    assert!(lines.len() < 1000);
+    assert!(matches!(outcome, Outcome::Result), "{outcome:?}");
+}
+
+#[cfg(unix)]
+#[test]
 fn shutdown_lets_a_run_finish_within_its_grace_and_cancels_a_run_that_outlasts_it() {
     let unruly = unruly_session(settings().shutdown_grace(Duration::from_secs(1)));
     let nap = unruly.runner.run(&request(&["child", "nap"])).unwrap();

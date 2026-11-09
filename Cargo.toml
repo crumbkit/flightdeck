@@ -41,7 +41,7 @@ clap = { version = "4.6.7", default-features = false, features = [
 # crumbkit parses flightdeck's own command line and mounts `commands list`,
 # `schemas list` and `schemas show`. The `derive` feature writes the `Failure`
 # impl of the model's load failures.
-crumbkit = { version = "0.1.0", default-features = false, features = ["derive"] }
+crumbkit = { version = "0.2", default-features = false, features = ["derive"] }
 # serde reads the JSON documents that a crumbkit tool prints into the model's
 # own types.
 serde = { version = "1.0.229", default-features = false, features = ["std", "derive"] }
@@ -77,12 +77,8 @@ tempfile = { version = "3.27.0", default-features = false }
 # crumbkit-process runs every child that flightdeck starts: it starts the
 # child in a process group of its own on Unix or a job object on Windows,
 # reads its output within limits and a deadline, stops it by escalating
-# signals, and reaps it. It is not published yet, so the dependency names a
-# commit of crumbkit's repository: the merge of crumbkit/crumbkit#298, whose
-# stopped run keeps the child's own status. The version beside it keeps
-# cargo-deny from reading the git dependency as a wildcard. The published
-# crate replaces the commit once it is on crates.io.
-crumbkit-process = { version = "0.1.1", git = "https://github.com/crumbkit/crumbkit", rev = "fefb2ab7f532c0a6366db66c7478fc0e5514259c", default-features = false }
+# signals, and reaps it.
+crumbkit-process = { version = "0.2", default-features = false }
 # shlex quotes each word of a run's display line for a POSIX shell.
 shlex = { version = "2.0.1", default-features = false }
 # unicode-general-category tells the runner which characters are format
@@ -99,9 +95,9 @@ rustix = { version = "1.1.6", default-features = false, features = ["std", "proc
 # The tests of `flightdeck open` wait with a time limit for the flightdeck
 # that they start. It has no features.
 wait-timeout = { version = "0.2.1", default-features = false }
-# The convention tests check flightdeck's command tree, guide and codes with
+# The convention tests check flightdeck's command tree, tool record and codes with
 # crumbkit-test.
-crumbkit-test = { version = "0.1.0", default-features = false }
+crumbkit-test = { version = "0.2", default-features = false }
 # The schema tests validate real documents against crumbkit's checked-in
 # JSON Schemas, which use draft 2020-12.
 jsonschema = { version = "0.60.2", default-features = false }

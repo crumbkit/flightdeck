@@ -625,7 +625,10 @@ impl Run {
             }
             Event::End { ended, lost } => {
                 // Lines before a lost line may be lost too, so the lost line
-                // stands alone.
+                // stands alone. It is the child's last line unless the
+                // pipe thread of crumbkit-process was slow or a process
+                // outside the child's group left it part of a line, which
+                // ends the run without a document.
                 if let Some(lost) = lost {
                     self.last = Tail::of(lost);
                 }

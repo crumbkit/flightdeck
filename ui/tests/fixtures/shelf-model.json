@@ -2,7 +2,7 @@
   "read_only": false,
   "tool": {
     "name": "shelf",
-    "version": "0.1.1+git-b7f02c45fe90",
+    "version": "0.2.0+git-45d0015e1f94",
     "about": "Browse a small catalogue of public-domain books",
     "headings": [
       {
@@ -1803,7 +1803,7 @@
               "type": "string"
             },
             "code": {
-              "description": "The failure's stable code in the tool's spelling, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
+              "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
               "pattern": "^[!-~]+$",
               "type": "string"
             },
@@ -2138,7 +2138,7 @@
                   "type": "integer"
                 },
                 "code": {
-                  "description": "The over-budget code, in the tool's spelling.",
+                  "description": "The over-budget code.",
                   "type": "string"
                 }
               },
@@ -2372,7 +2372,7 @@
                     "type": "string"
                   },
                   "code": {
-                    "description": "The failure's stable code in the tool's spelling, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
+                    "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
                     "pattern": "^[!-~]+$",
                     "type": "string"
                   },
@@ -2775,7 +2775,7 @@
                     "type": "string"
                   },
                   "code": {
-                    "description": "The failure's stable code in the tool's spelling, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
+                    "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
                     "pattern": "^[!-~]+$",
                     "type": "string"
                   },
@@ -3116,7 +3116,7 @@
                   "type": "integer"
                 },
                 "code": {
-                  "description": "The over-budget code, in the tool's spelling.",
+                  "description": "The over-budget code.",
                   "type": "string"
                 }
               },
@@ -3246,7 +3246,7 @@
                   "type": ["string", "null"]
                 },
                 "columns": {
-                  "description": "The columns of the result that the command prints, from the document of the guide's leaf for the command. A headed command's text has no columns, so it lists the JSON fields that `--fields` selects, ending with `text` and `base64`.",
+                  "description": "The columns of the result that the command prints, from the document of the tool record's leaf for the command. A headed command's text has no columns, so it lists the JSON fields that `--fields` selects, ending with `text` and `base64`.",
                   "items": {
                     "properties": {
                       "description": {
@@ -3291,7 +3291,7 @@
                   "type": ["object", "null"]
                 },
                 "examples": {
-                  "description": "The examples of the guide's leaf for the command, in guide order.",
+                  "description": "The examples of the tool record's leaf for the command, in declared order.",
                   "items": {
                     "properties": {
                       "about": {
@@ -3309,7 +3309,7 @@
                   "type": "array"
                 },
                 "exits": {
-                  "description": "The exit codes that the tool declares for the command besides 0, 1 and 2, which apply to every command, in guide order. `<tool> help exit-codes` describes every code.",
+                  "description": "The exit codes that the tool declares for the command besides 0, 1 and 2, which apply to every command, in declared order. `<tool> help exit-codes` describes every code.",
                   "items": {
                     "properties": {
                       "exit": {
@@ -3335,7 +3335,7 @@
                   "type": "array"
                 },
                 "form": {
-                  "description": "stream when the command prints a stream, one row on each line as each arrives, bytes when it prints one document that holds bytes, which its text prints unchanged, headed when it prints one document whose text prints each answer's bytes under a header, document when it prints any other document, and null when the guide's leaf for the command declares no document.",
+                  "description": "stream when the command prints a stream, one row on each line as each arrives, bytes when it prints one document that holds bytes, which its text prints unchanged, headed when it prints one document whose text prints each answer's bytes under a header, document when it prints any other document, and null when the tool record's leaf for the command declares no document.",
                   "enum": ["bytes", "document", "headed", "stream", null]
                 },
                 "goals": {
@@ -3373,7 +3373,7 @@
                 },
                 "prints_no_result": {
                   "const": true,
-                  "description": "true when the guide's leaf for the command declares that it prints no result on standard output, so it offers none of --fields, --long and --full and its form is null. Only the row of such a command has this field, which tells it from a command whose leaf declares no document."
+                  "description": "true when the tool record's leaf for the command declares that it prints no result on standard output, so it offers none of --fields, --long and --full and its form is null. Only the row of such a command has this field, which tells it from a command whose leaf declares no document."
                 },
                 "writes": {
                   "description": "How the command guards what it writes, or null when the command is read-only or the tool declares no effects.",
@@ -3412,7 +3412,7 @@
                   "type": "integer"
                 },
                 "code": {
-                  "description": "The over-budget code, in the tool's spelling.",
+                  "description": "The over-budget code.",
                   "type": "string"
                 }
               },
@@ -3546,7 +3546,7 @@
                   "type": "integer"
                 },
                 "code": {
-                  "description": "The over-budget code, in the tool's spelling.",
+                  "description": "The over-budget code.",
                   "type": "string"
                 }
               },
@@ -3737,7 +3737,7 @@
                     "type": "string"
                   },
                   "code": {
-                    "description": "The failure's stable code in the tool's spelling, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
+                    "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
                     "pattern": "^[!-~]+$",
                     "type": "string"
                   },
@@ -4027,7 +4027,7 @@
               "description": "The runs that tolerated one code.",
               "properties": {
                 "code": {
-                  "description": "The code, in the tool's spelling.",
+                  "description": "The code that the failed runs printed.",
                   "type": "string"
                 },
                 "runs": {
@@ -4137,7 +4137,7 @@
                   "type": "integer"
                 },
                 "meaning": {
-                  "description": "What the tool's guide says the code means for the command, or null\nwhen the guide declares no such code for it.",
+                  "description": "What the tool record says the code means for the command, or null\nwhen the tool record declares no such code for it.",
                   "type": ["string", "null"]
                 },
                 "runs": {
@@ -4290,7 +4290,7 @@
                   "type": "integer"
                 },
                 "code": {
-                  "description": "The over-budget code, in the tool's spelling.",
+                  "description": "The over-budget code.",
                   "type": "string"
                 }
               },
@@ -4404,7 +4404,7 @@
               "description": "The runs that tolerated one code.",
               "properties": {
                 "code": {
-                  "description": "The code, in the tool's spelling.",
+                  "description": "The code that the failed runs printed.",
                   "type": "string"
                 },
                 "runs": {
@@ -4428,7 +4428,7 @@
                   "type": "integer"
                 },
                 "meaning": {
-                  "description": "What the tool's guide says the code means for the command, or null\nwhen the guide declares no such code for it.",
+                  "description": "What the tool record says the code means for the command, or null\nwhen the tool record declares no such code for it.",
                   "type": ["string", "null"]
                 },
                 "runs": {
@@ -4583,7 +4583,7 @@
                   "type": "integer"
                 },
                 "code": {
-                  "description": "The over-budget code, in the tool's spelling.",
+                  "description": "The over-budget code.",
                   "type": "string"
                 }
               },
