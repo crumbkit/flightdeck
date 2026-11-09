@@ -723,10 +723,25 @@ fn a_source_that_outlasts_the_choices_time_is_stopped_and_answered_with_504() {
         let page = Page::of(running);
         let started = Instant::now();
 
-        let reply = page.send(
-            "/api/choices",
-            &choices(&["child", "roster"], &["child", "visit"], "<ID>"),
-        );
+        // The runner reads the shared fake clock, which stands still, so a
+        // second thread keeps moving it past the choices time until the
+        // sender drops, which happens when the request returns or panics.
+        let reply = std::thread::scope(|scope| {
+            let (stop, receiver) = std::sync::mpsc::channel::<()>();
+            let clock = running.clock;
+            scope.spawn(move || {
+                while receiver.recv_timeout(Duration::from_millis(50))
+                    == Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+                {
+                    clock.advance(Duration::from_secs(1));
+                }
+            });
+            let _stop = stop;
+            page.send(
+                "/api/choices",
+                &choices(&["child", "roster"], &["child", "visit"], "<ID>"),
+            )
+        });
 
         assert!(started.elapsed() < Duration::from_secs(5));
         let document = refused(&reply, 504, "flightdeck::choices::time_limit");

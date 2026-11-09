@@ -5,9 +5,9 @@ use std::time::Duration;
 
 use secrecy::{ExposeSecret as _, SecretString};
 
-use super::Moment;
 use super::reply::Refusal;
 use super::secret::Secret;
+use crate::clock::Moment;
 
 /// How long a launch code stays valid after the server issues it.
 pub const CODE_LIFETIME: Duration = Duration::from_secs(60);

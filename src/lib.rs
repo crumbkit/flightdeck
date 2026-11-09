@@ -4,11 +4,12 @@
 //!
 //! The library holds the whole program, and the `flightdeck` binary calls
 //! [`run_from`]. It exports the parser and the tool record for flightdeck's
-//! convention tests, and the [`model`], [`runner`], [`spawn`], [`opener`]
-//! and [`server`] modules for its other tests. Its API makes no stability
-//! promise.
+//! convention tests, and the [`clock`], [`model`], [`runner`], [`spawn`],
+//! [`opener`] and [`server`] modules for its other tests. Its API makes no
+//! stability promise.
 
 mod cli;
+pub mod clock;
 mod lock;
 pub mod model;
 mod open;
