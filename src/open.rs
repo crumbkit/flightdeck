@@ -107,7 +107,7 @@ pub(crate) fn run(run: &mut Run, args: &OpenArgs) -> ExitCode {
 /// that a person reads to `lines`. A line that cannot be written, as when
 /// standard error is closed, is skipped.
 fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
-    let program = Program::new(&args.tool);
+    let program = Program::at_launch(&args.tool);
     let tool = model::load(&program, spawn::TIME_LIMIT).map_err(OpenError::Load)?;
     let stop = Arc::new(AtomicBool::new(false));
     watch_signals(&stop).map_err(OpenError::Signals)?;
@@ -138,8 +138,15 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
         runner::Settings::new(),
     )
     .map_err(OpenError::Random)?;
-    let server =
-        Server::new(listener, session, runner, Settings::new()).map_err(OpenError::Start)?;
+    let directory = launch_directory();
+    let server = Server::new(
+        listener,
+        session,
+        runner,
+        Settings::new(),
+        directory.as_deref(),
+    )
+    .map_err(OpenError::Start)?;
 
     // The origin comes first, so a tool's name cannot push it out of view.
     let _ = writeln!(lines, "{origin} · {name} · {commands}");
@@ -170,6 +177,19 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
     // Dropping the opener removes its directory before flightdeck exits.
     drop(opener);
     Ok(())
+}
+
+/// Returns the directory flightdeck started in, for the page to show, or
+/// `None` when the page could not send it back: flightdeck cannot read it,
+/// its path is not UTF-8, or it holds a control character, which the runner
+/// refuses.
+fn launch_directory() -> Option<String> {
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the page shows the directory that flightdeck started in and starts its runs there"
+    )]
+    let directory = std::env::current_dir().ok()?.into_os_string().into_string();
+    directory.ok().filter(|text| !model::has_control(text))
 }
 
 /// Returns `text` with each control character and each bidirectional

@@ -752,3 +752,143 @@ fn a_source_that_ends_without_a_listing_is_answered_with_502_and_how_it_ended() 
         Then::Stop
     });
 }
+
+#[test]
+fn a_run_with_a_directory_reads_a_relative_path_from_that_directory() {
+    let directory = tempfile::tempdir().unwrap();
+    std::fs::write(directory.path().join("ids.txt"), "2\n5\n").unwrap();
+    serving(Setup::shelf(), |running| {
+        let page = Page::of(running);
+
+        let lines = page.run(&json!({
+            "path": ["books", "show"],
+            "values": {"--from": "ids.txt"},
+            "directory": directory.path(),
+        }));
+
+        assert_eq!(
+            lines.last().unwrap()["outcome"]["kind"],
+            "result",
+            "{lines:?}"
+        );
+        let document: Value = serde_json::from_str(lines[1]["text"].as_str().unwrap()).unwrap();
+        assert_eq!(document["data"][0]["id"], 2);
+        assert_eq!(document["data"][1]["id"], 5);
+        Then::Stop
+    });
+}
+
+/// Returns each directory that a run must refuse, by the reason that its
+/// refusal gives. Each one stands inside `base`, so the list holds on every
+/// system.
+fn bad_directories(base: &std::path::Path) -> Vec<(String, &'static str)> {
+    let file = base.join("a-file");
+    std::fs::write(&file, "").unwrap();
+    let text = |path: std::path::PathBuf| path.to_str().unwrap().to_owned();
+    vec![
+        ("notes".to_owned(), "not_absolute"),
+        (String::new(), "not_absolute"),
+        (text(base.join("a\nb")), "control"),
+        (text(base.join("missing")), "not_a_directory"),
+        (text(file), "not_a_directory"),
+    ]
+}
+
+#[test]
+fn a_run_or_a_preview_in_a_directory_that_cannot_be_used_is_refused_with_422_and_runs_nothing() {
+    let base = tempfile::tempdir().unwrap();
+    serving(Setup::shelf(), |running| {
+        let page = Page::of(running);
+        for (directory, reason) in bad_directories(base.path()) {
+            let run = json!({"path": ["books", "list"], "directory": directory});
+            let removal = json!({
+                "path": ["books", "remove"],
+                "values": {"<ID>": ["2"]},
+                "directory": directory,
+            });
+            for (route, body) in [("/api/runs", &run), ("/api/previews", &removal)] {
+                let document = refused(&page.send(route, body), 422, "flightdeck::run::directory");
+                assert_eq!(document["fields"]["reason"], reason, "{directory:?}");
+                let message = document["message"].as_str().unwrap();
+                assert!(
+                    directory.is_empty() || !message.contains(&directory),
+                    "{document}"
+                );
+            }
+        }
+        assert_eq!(page.book_ids(), [1, 2, 3, 4, 5, 6]);
+        Then::Stop
+    });
+}
+
+#[test]
+fn a_confirmation_id_runs_only_in_the_directory_of_its_preview() {
+    let first = tempfile::tempdir().unwrap();
+    let second = tempfile::tempdir().unwrap();
+    let in_directory = |directory: &std::path::Path| {
+        json!({
+            "path": ["books", "remove"],
+            "values": {"<ID>": ["2"]},
+            "directory": directory,
+        })
+    };
+    serving(Setup::shelf(), |running| {
+        let page = Page::of(running);
+
+        let id = page.confirmation(&in_directory(first.path()));
+        let elsewhere = page.send(
+            &format!("/api/confirmations/{id}"),
+            &in_directory(second.path()),
+        );
+        let document = refused(&elsewhere, 422, "flightdeck::run::confirmation");
+        assert_eq!(document["fields"]["reason"], "mismatch");
+        assert_eq!(page.book_ids(), [1, 2, 3, 4, 5, 6]);
+
+        let id = page.confirmation(&in_directory(first.path()));
+        let lines = page
+            .stream(
+                &format!("/api/confirmations/{id}"),
+                &in_directory(first.path()),
+            )
+            .rest();
+        assert_eq!(lines.last().unwrap()["outcome"]["kind"], "result");
+        assert_eq!(page.book_ids(), [1, 3, 4, 5, 6]);
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn the_choices_route_lists_a_source_from_the_directory_it_is_sent() {
+    let directory = tempfile::tempdir().unwrap();
+    std::fs::write(directory.path().join("a-book"), "").unwrap();
+    serving(Setup::of(unruly()), |running| {
+        let page = Page::of(running);
+        let mut request = choices(&["child", "drawer"], &["child", "visit"], "<ID>");
+        request["directory"] = json!(directory.path());
+
+        let reply = page.send("/api/choices", &request);
+
+        assert_eq!(reply.status, 200, "{:?}", reply.json());
+        assert_eq!(reply.json()["choices"][0]["value"], "a-book");
+        Then::Stop
+    });
+}
+
+#[test]
+fn the_choices_route_refuses_a_directory_that_cannot_be_used_and_runs_nothing() {
+    let base = tempfile::tempdir().unwrap();
+    serving(Setup::shelf(), |running| {
+        let page = Page::of(running);
+        for (directory, reason) in bad_directories(base.path()) {
+            let mut request = choices(&["books", "list"], &["books", "show"], "<ID>");
+            request["directory"] = json!(directory);
+
+            let reply = page.send("/api/choices", &request);
+
+            let document = refused(&reply, 422, "flightdeck::run::directory");
+            assert_eq!(document["fields"]["reason"], reason, "{directory:?}");
+        }
+        Then::Stop
+    });
+}

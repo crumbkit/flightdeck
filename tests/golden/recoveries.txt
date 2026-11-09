@@ -9,6 +9,7 @@ codes that no start provokes:
   flightdeck::run::needs_confirmation: No flightdeck command runs a tool's commands yet; the runner returns the code.
   flightdeck::run::read_only: No flightdeck command runs a tool's commands yet; the runner returns the code.
   flightdeck::run::confirmation: No flightdeck command runs a tool's commands yet; the runner returns the code.
+  flightdeck::run::directory: No flightdeck command runs a tool's commands yet; the runner returns the code.
   flightdeck::run::no_document: No flightdeck command runs a tool's commands yet; the runner returns the code.
   flightdeck::run::spawn: No flightdeck command runs a tool's commands yet; the runner returns the code.
   flightdeck::run::output_limit: No flightdeck command runs a tool's commands yet; the runner returns the code.

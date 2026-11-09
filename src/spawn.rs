@@ -41,6 +41,7 @@
 
 use std::ffi::{OsStr, OsString};
 use std::io;
+use std::path::{self, Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use crumbkit_process::{Capture, Outcome, OverLimit, RunError, RunOptions, Status};
@@ -74,12 +75,14 @@ pub const STDOUT_LIMIT: usize = 16 * 1024 * 1024;
 /// The most bytes at the end of standard error that a query keeps.
 pub const STDERR_LIMIT: usize = 64 * 1024;
 
-/// A program to start, by name or path, and the variables that its runs get
-/// beside flightdeck's own environment.
+/// A program to start, by name or path, the variables that its runs get
+/// beside flightdeck's own environment, and the directory that its runs
+/// start in when that is not flightdeck's own.
 #[derive(Clone, Debug)]
 pub struct Program {
     program: OsString,
     env: Vec<(OsString, OsString)>,
+    directory: Option<PathBuf>,
 }
 
 impl Program {
@@ -89,7 +92,25 @@ impl Program {
         Self {
             program: program.into(),
             env: Vec::new(),
+            directory: None,
         }
+    }
+
+    /// Returns the program given as `program`, with a relative path made
+    /// absolute against flightdeck's own directory, because such a path
+    /// stops resolving once a child starts in another directory. A name
+    /// without a separator stays a name for the `PATH` search.
+    ///
+    /// A path that cannot be made absolute, because flightdeck's own
+    /// directory is gone, stays as it was given, and the load of the tool
+    /// then reports the missing program.
+    #[must_use]
+    pub fn at_launch(program: impl Into<OsString>) -> Self {
+        let program = program.into();
+        if Path::new(&program).components().count() < 2 {
+            return Self::new(program);
+        }
+        Self::new(path::absolute(&program).map_or(program, PathBuf::into_os_string))
     }
 
     /// Returns the program with the variable `name` set to `value` in every
@@ -100,14 +121,22 @@ impl Program {
         self
     }
 
+    /// Returns the program with every run starting in `directory`.
+    #[must_use]
+    pub fn current_dir(mut self, directory: impl Into<PathBuf>) -> Self {
+        self.directory = Some(directory.into());
+        self
+    }
+
     /// Returns the name or path that the program was given.
     #[must_use]
     pub fn name(&self) -> &OsStr {
         &self.program
     }
 
-    /// Returns the command that runs the program with `words` and its added
-    /// variables. crumbkit-process sets its standard streams.
+    /// Returns the command that runs the program with `words`, its added
+    /// variables and its directory. crumbkit-process sets its standard
+    /// streams.
     fn command<S: AsRef<OsStr>>(&self, words: &[S]) -> std::process::Command {
         #[expect(
             clippy::disallowed_methods,
@@ -117,6 +146,9 @@ impl Program {
         command
             .args(words)
             .envs(self.env.iter().map(|(name, value)| (name, value)));
+        if let Some(directory) = &self.directory {
+            command.current_dir(directory);
+        }
         command
     }
 }

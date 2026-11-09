@@ -1,6 +1,6 @@
 use serde_json::{Value as Json, json};
 
-use super::{MOST_CHOICES, read, source_request};
+use super::{ChoicesRequest, MOST_CHOICES, read, source_request};
 use crate::model::{Command, CommandsList, Tool};
 use crate::runner::{RunRequest, Value};
 
@@ -111,10 +111,14 @@ fn the_source_runs_with_all_when_it_takes_it_and_with_nothing_else() {
     let shelf = tool(SHELF, "shelf 0.1.0");
     let unruly = tool(UNRULY, "unruly 0.1.0");
     let roster = unruly.command(&["child", "roster"]).unwrap();
+    let choices = ChoicesRequest::new(["any"], ["any"], "<ID>");
 
     assert_eq!(
-        source_request(books_list(&shelf)),
+        source_request(books_list(&shelf), &choices),
         RunRequest::new(["books", "list"]).value("--all", Value::Flag(true))
     );
-    assert_eq!(source_request(roster), RunRequest::new(["child", "roster"]));
+    assert_eq!(
+        source_request(roster, &choices),
+        RunRequest::new(["child", "roster"])
+    );
 }

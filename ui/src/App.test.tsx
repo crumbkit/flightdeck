@@ -172,6 +172,7 @@ describe("App", () => {
     expect(JSON.parse(run?.body ?? "null")).toEqual({
       path: ["books", "show"],
       values: { "<ID>": ["2"] },
+      directory: "/work/shelf",
     });
   });
 

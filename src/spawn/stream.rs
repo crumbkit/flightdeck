@@ -7,7 +7,9 @@
 //!   runner builds after it checks the command and each value against the
 //!   tool's model. There is no shell.
 //! - Environment: the child inherits flightdeck's environment, plus the
-//!   variables of the [`Program`], which carry the run's `TRACEPARENT`.
+//!   variables of the [`Program`], which carry the run's `TRACEPARENT`. The
+//!   child starts in the directory of the [`Program`], which the runner
+//!   checked, or else in flightdeck's own.
 //! - Streams and deadline: standard input is closed. Standard output is
 //!   read line by line into a queue of at most [`QUEUE`] lines, from which
 //!   the caller takes each line as it arrives, and a line or a total past

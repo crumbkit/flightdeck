@@ -479,6 +479,34 @@
       "writes": null
     },
     {
+      "path": "unruly child drawer",
+      "about": "List the names in the working directory as rows with an id column",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [
+        {
+          "name": "id",
+          "long": false,
+          "description": "The row's id."
+        },
+        {
+          "name": "name",
+          "long": false,
+          "description": "The row's name."
+        }
+      ],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
       "path": "unruly child visit",
       "about": "Take the id of a roster row",
       "long_about": null,

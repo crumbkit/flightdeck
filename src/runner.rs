@@ -1,9 +1,10 @@
 //! Runs a tool's commands for the page.
 //!
-//! The page sends a [`RunRequest`]: a command's path and a value for each
-//! argument it sets, by the argument's name in the model. The runner checks
-//! the request against the tool's model and builds the argument vector
-//! itself, so the page never sends a command line. A command's effects
+//! The page sends a [`RunRequest`]: a command's path, a value for each
+//! argument it sets, by the argument's name in the model, and optionally
+//! the absolute directory to run in. The runner checks the request against
+//! the tool's model and builds the argument vector itself, so the page never
+//! sends a command line. A command's effects
 //! decide how it starts:
 //!
 //! - [`Runner::run`] starts a read-only or additive command at once, and
@@ -12,7 +13,7 @@
 //! - [`Runner::preview`] runs the command with `--dry-run` when it takes
 //!   that flag. When the dry run ends with [`Outcome::Result`], or at once
 //!   for a command without `--dry-run`, the [`Preview`] holds a
-//!   [`ConfirmationId`] bound to the exact vector.
+//!   [`ConfirmationId`] bound to the exact vector and directory.
 //! - [`Runner::confirm`] runs the vector that the id was issued for, with
 //!   `--yes` when the command takes it. An id works once, for ten minutes by
 //!   default, and only for the same vector.
@@ -70,9 +71,10 @@ pub use self::confirmations::ConfirmationId;
 use self::confirmations::Confirmations;
 pub use self::end_failure::EndFailure;
 pub use self::failure::{
-    CHOICES_NO_LISTING, CHOICES_TIME_LIMIT, ConfirmationProblem, RUN_BUSY, RUN_CLOSED,
-    RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION, RUN_NO_DOCUMENT, RUN_NOT_RUNNING, RUN_OUTPUT_LIMIT,
-    RUN_RANDOM, RUN_READ_ONLY, RUN_REFUSED, RUN_SPAWN, Reason, RunFailure, Takes,
+    CHOICES_NO_LISTING, CHOICES_TIME_LIMIT, ConfirmationProblem, DirectoryProblem, RUN_BUSY,
+    RUN_CLOSED, RUN_CONFIRMATION, RUN_DIRECTORY, RUN_NEEDS_CONFIRMATION, RUN_NO_DOCUMENT,
+    RUN_NOT_RUNNING, RUN_OUTPUT_LIMIT, RUN_RANDOM, RUN_READ_ONLY, RUN_REFUSED, RUN_SPAWN, Reason,
+    RunFailure, Takes,
 };
 pub use self::outcome::Outcome;
 use self::outcome::{Ending, Tail};
@@ -256,7 +258,8 @@ impl Runner {
     /// # Errors
     ///
     /// Returns [`RunFailure::Refused`] for a request that the model does not
-    /// allow, [`RunFailure::ReadOnly`] in read-only mode,
+    /// allow, [`RunFailure::Directory`] for a directory that cannot be used,
+    /// [`RunFailure::ReadOnly`] in read-only mode,
     /// [`RunFailure::NeedsConfirmation`] for a destructive command or one
     /// whose effects are unknown, [`RunFailure::Closed`] after a shutdown,
     /// [`RunFailure::Busy`] when the most runs are running, and
@@ -348,8 +351,8 @@ impl Runner {
     /// rows of the link's source, and waits at most the choices time of the
     /// settings for them.
     ///
-    /// The source runs as [`Runner::run`] runs a command, with `--all` when
-    /// it takes it and no other value, and within [`CHOICES_OUTPUT`] bytes
+    /// The source runs as [`Runner::run`] runs a command, in the request's
+    /// directory, with `--all` when it takes it and no other value, and within [`CHOICES_OUTPUT`] bytes
     /// of output. The request only selects a link of the model: the vector
     /// holds the model's own words for the source.
     ///
@@ -357,7 +360,8 @@ impl Runner {
     ///
     /// Returns [`RunFailure::Refused`] when the model inferred no link from
     /// the source to the target's argument, or when the source is not
-    /// read-only, [`RunFailure::Closed`], [`RunFailure::Busy`] and
+    /// read-only, [`RunFailure::Directory`] for a directory that cannot be
+    /// used, [`RunFailure::Closed`], [`RunFailure::Busy`] and
     /// [`RunFailure::Spawn`] as [`Runner::run`] does,
     /// [`RunFailure::NoListing`] when the source ends without a listing,
     /// and [`RunFailure::ChoicesTime`] when it has not ended within the
@@ -379,7 +383,8 @@ impl Runner {
         if source.class() != Class::ReadOnly {
             return Err(refuse(Reason::NotReadOnly));
         }
-        let (command, vector) = vector::build(&self.tool, &choices::source_request(source))?;
+        let (command, vector) =
+            vector::build(&self.tool, &choices::source_request(source, request))?;
         let limits = Limits::new(
             cmp::min(self.settings.limits.line(), CHOICES_OUTPUT),
             cmp::min(self.settings.limits.total(), CHOICES_OUTPUT),
@@ -461,10 +466,13 @@ impl Runner {
         limits: Limits,
         ready: impl FnOnce() -> Result<(), RunFailure>,
     ) -> Result<Run, RunFailure> {
-        let program = self
+        let mut program = self
             .program
             .clone()
             .env("TRACEPARENT", self.trace.next_parent());
+        if let Some(directory) = vector.directory() {
+            program = program.current_dir(directory);
+        }
         let argv = vector.argv(extra);
         let escalation = self.settings.escalation;
         let (id, events) = self.runs.start(|| {

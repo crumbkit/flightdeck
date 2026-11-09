@@ -61,6 +61,7 @@ neither of them.
 | The runner runs at most 8 commands at once, half the server's 16 connections, and the code asserts that bound when it compiles. Each stream holds one connection, so at least 8 stay free for the page's other requests, including a cancel. A run over the cap gets 503 with `flightdeck::run::busy`. A cancel of a run that is not running gets 404 with `flightdeck::run::not_running`. | A page whose streams fill every connection, so that it can no longer cancel them. | `with_every_run_streaming_a_cancel_ends_one_with_exit_130_and_keeps_the_rows_that_arrived` and `a_run_over_the_runners_cap_is_refused_with_503_and_busy` in `tests/routes.rs`. |
 | The run routes need the token, check the command and every value against the tool's model before anything runs, and refuse with 422 and a `flightdeck/failure/v1` document that names the path as a list of words and the argument at fault. A body that is not a run request gets 400. An option's value reaches the tool joined to its name, as `--limit=-1`, and every positional value follows `--`, so a value that starts with `-` is never read as a flag. | A request that runs a command the tool hides, passes an argument the tool does not declare, or smuggles a flag into a value. | `a_hidden_command_is_refused_with_422_and_the_path_as_words`, `an_unknown_argument_is_refused_with_its_name_for_the_page_to_mark`, `a_body_that_is_not_a_run_request_is_refused_with_400`, `a_value_that_starts_with_a_dash_reaches_the_tool_as_the_options_value` and `a_positional_value_that_starts_with_a_dash_reaches_the_tool_after_the_separator` in `tests/routes.rs`. |
 | A destructive command runs only with a confirmation id that a preview of the same command line issued. An id works once, for that command line alone. With `--read-only`, the server refuses a command that is not read-only at preview and with an id. | A page that runs a destructive command without showing its preview, or reuses one preview for another row. | `books_remove_without_a_confirmation_id_is_refused`, `a_preview_streams_its_dry_run_and_ends_with_the_confirmation_id`, `a_confirmation_id_for_books_remove_2_does_not_run_books_remove_3`, `a_confirmation_id_runs_its_command_once`, `read_only_refuses_books_remove_at_preview_and_with_an_id` and `a_preview_of_a_command_without_dry_run_is_one_started_line_with_the_id` in `tests/routes.rs`. |
+| A request's `directory` must be an absolute path, hold no control character and name an existing directory, or the request is refused with 422 and `flightdeck::run::directory` before anything starts. The field gives the reason and the refusal does not repeat the path. A confirmation id binds the directory as well as the command line. | A run in a place that depends on where flightdeck started, a path the card could not show as it is, and a preview in one directory that confirms a destructive command in another. | `a_run_with_a_directory_reads_a_relative_path_from_that_directory`, `a_run_or_a_preview_in_a_directory_that_cannot_be_used_is_refused_with_422_and_runs_nothing`, `the_choices_route_refuses_a_directory_that_cannot_be_used_and_runs_nothing` and `a_confirmation_id_runs_only_in_the_directory_of_its_preview` in `tests/routes.rs`. |
 | The choices route runs only the source of a link that the model inferred, only when that source is read-only, and only with the vector that the runner builds from the model: the source's path, `--all` when it takes it, and flightdeck's own flags. It takes one of the runner's 8 places, prints at most 4 MiB, and is stopped after 8 seconds. | A page, or a holder of the token, that uses the route to run a command that changes data, to pass values to a command, or to hold the runner's places. | `the_choices_route_refuses_a_source_that_is_not_read_only_and_runs_nothing`, `the_choices_route_refuses_a_source_that_the_model_did_not_infer`, `a_body_that_is_not_a_choices_request_is_refused_with_400`, `a_choices_request_over_the_runners_cap_is_refused_with_503_and_busy` and `a_source_that_outlasts_the_choices_time_is_stopped_and_answered_with_504` in `tests/routes.rs`. |
 | A stream writes `{"event":"alive"}` after each 15 seconds without output. When a write fails because the client has gone, the server drops the run, which stops the child's process group. | A run that goes on after the page has closed, including a silent one that never writes the line whose failure would show that the client left. | `a_silent_run_streams_alive_lines_until_its_output` and `a_client_that_disconnects_stops_its_run` in `tests/routes.rs`. |
 | Every reply carries `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy: same-origin`, `Cross-Origin-Opener-Policy: same-origin` and a content security policy that allows only the server's own scripts, styles, fonts, images and connections, and no frames, forms or base URL. | A cached token reply, a reply read as another type, a leaked address, an embedding of the page or its files, and injected scripts. | `every_reply_carries_the_security_headers_and_no_cors_header` in `tests/server.rs`. |
@@ -82,18 +83,18 @@ framing it. A navigation to an `/api/` path is refused.
 
 | Route | Body | Reply |
 | --- | --- | --- |
-| `POST /api/runs` | `{"path": [...], "values": {...}}` | a stream, or a failure |
+| `POST /api/runs` | `{"path": [...], "values": {...}, "directory": "<absolute path>"}`, where `directory` is optional | a stream, or a failure |
 | `POST /api/previews` | the same | a stream, or a failure |
-| `POST /api/confirmations/<id>` | the same, which must match the preview's command line | a stream, or a failure |
+| `POST /api/confirmations/<id>` | the same, which must match the preview's command line and directory | a stream, or a failure |
 | `POST /api/runs/<id>/cancel` | none | 204, or 404 with `flightdeck::run::not_running` for a run that has ended or an id that is no run |
-| `POST /api/choices` | `{"source": [...], "target": [...], "argument": "<ID>"}` | the choices as one JSON document, or a failure |
+| `POST /api/choices` | `{"source": [...], "target": [...], "argument": "<ID>", "directory": "<absolute path>"}`, where `directory` is optional | the choices as one JSON document, or a failure |
 
 A failure is a `flightdeck/failure/v1` document, served as
 `application/problem+json`, with this status:
 
 | Status | Codes | Meaning |
 | --- | --- | --- |
-| 422 | `flightdeck::run::refused`, `needs_confirmation`, `read_only`, `confirmation` | The request is wrong, and sending it again gets the same answer. |
+| 422 | `flightdeck::run::refused`, `needs_confirmation`, `read_only`, `confirmation`, `directory` | The request is wrong, and sending it again gets the same answer. |
 | 503 | `flightdeck::run::busy`, `closed` | The runner is full or is shutting down. A busy request may be sent again once a run ends. |
 | 500 | `flightdeck::run::spawn`, `random` | The tool would not start, or the system gave no random bytes for an id. |
 | 404 | `flightdeck::run::not_running` | A cancel found no running run with the id. |
@@ -134,8 +135,9 @@ the ids of `books show`, without a Run press. `POST /api/choices` runs a
 command for it, so the route accepts much less than the run routes do.
 
 - **The request selects a link and passes no value.** Its body names a
-  source command, a target command and the target's argument, and the
-  server refuses any other field with 400. The runner looks for a link of
+  source command, a target command, the target's argument and optionally
+  the directory the source runs in, and the server refuses any other field
+  with 400. The directory passes the same check as a run's. The runner looks for a link of
   the model whose source, target and argument equal the three, and refuses
   a request that names none with 422, `flightdeck::run::refused` and the
   reason `not_inferred`. The model infers a link only from a command whose
@@ -151,7 +153,7 @@ command for it, so the route accepts much less than the run routes do.
   then `--json`, `--full` when the source offers it and `--no-input` when
   the source takes it, and `--`. No word of it comes from
   the request, and the source runs with no value of its own, so it reads
-  only what it reads when a person runs it bare.
+  only what it reads when a person runs it bare in that directory.
 - **The run is an ordinary run of the runner.** It passes the token, the
   `Host`, `Origin`, `Sec-Fetch-Site` and JSON content-type checks of every
   `POST`, takes one of the runner's 8 places, gets 503 with
@@ -166,8 +168,9 @@ command for it, so the route accepts much less than the run routes do.
   the cells of the source's compact columns other than `id`, so the reply
   is never larger than the listing it came from.
 
-The page asks for a link's choices when its chooser first shows, and keeps
-the choices it receives until it reloads.
+The page asks for a link's choices when its chooser first shows in a
+directory, because a listing can depend on the directory, and keeps the
+choices it receives until it reloads.
 
 ## Known limits
 

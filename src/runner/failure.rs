@@ -23,6 +23,9 @@ pub const RUN_READ_ONLY: Code = Code::new("flightdeck", "run", "read_only");
 /// for another vector.
 pub const RUN_CONFIRMATION: Code = Code::new("flightdeck", "run", "confirmation");
 
+/// The code of a run asked to start in a directory that cannot be used.
+pub const RUN_DIRECTORY: Code = Code::new("flightdeck", "run", "directory");
+
 /// The code of a run that ended without a document that explains its exit.
 pub const RUN_NO_DOCUMENT: Code = Code::new("flightdeck", "run", "no_document");
 
@@ -109,6 +112,16 @@ pub enum RunFailure {
     Confirmation {
         /// What is wrong with the id.
         problem: ConfirmationProblem,
+    },
+    /// The request's directory cannot be used.
+    #[failure(
+        code = RUN_DIRECTORY,
+        hint = "choose an absolute path to an existing directory",
+        field(reason = problem.name()),
+    )]
+    Directory {
+        /// What is wrong with the directory.
+        problem: DirectoryProblem,
     },
     /// The program would not start.
     #[failure(
@@ -216,6 +229,15 @@ impl fmt::Display for RunFailure {
                 ConfirmationProblem::Expired => "the confirmation id has expired",
                 ConfirmationProblem::Mismatch => {
                     "the confirmation id was issued for another command line"
+                }
+            }),
+            // The directory is what the page sent, unchecked, so the
+            // sentences leave it out.
+            Self::Directory { problem } => f.write_str(match problem {
+                DirectoryProblem::NotAbsolute => "the working directory is not an absolute path",
+                DirectoryProblem::Control => "the working directory holds a control character",
+                DirectoryProblem::NotADirectory => {
+                    "the working directory does not exist or is not a directory"
                 }
             }),
             Self::Spawn { tool, .. } => write!(f, "cannot run {tool}"),
@@ -438,6 +460,32 @@ impl ConfirmationProblem {
             Self::Unknown => "unknown",
             Self::Expired => "expired",
             Self::Mismatch => "mismatch",
+        }
+    }
+}
+
+/// What is wrong with a request's working directory.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DirectoryProblem {
+    /// The path is not absolute, so it would depend on where flightdeck
+    /// started.
+    NotAbsolute,
+    /// The path holds a control character, which the run's card could not
+    /// show as it is.
+    Control,
+    /// Nothing at the path can be read as a directory.
+    NotADirectory,
+}
+
+impl DirectoryProblem {
+    /// Returns the problem's name in a failure's fields, such as
+    /// `not_absolute`.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::NotAbsolute => "not_absolute",
+            Self::Control => "control",
+            Self::NotADirectory => "not_a_directory",
         }
     }
 }

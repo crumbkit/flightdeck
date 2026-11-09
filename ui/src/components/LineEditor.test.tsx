@@ -128,7 +128,10 @@ describe("LineEditor", () => {
     expect(line).toHaveValue("books remove 2");
     expect(screen.getByText(/so --yes was taken out of the line/)).toBeInTheDocument();
     expect(runs).toEqual([
-      { path: "/api/previews", body: { path: ["books", "remove"], values: { "<ID>": ["2"] } } },
+      {
+        path: "/api/previews",
+        body: { path: ["books", "remove"], values: { "<ID>": ["2"] }, directory: "/work/shelf" },
+      },
     ]);
   });
 
@@ -139,7 +142,10 @@ describe("LineEditor", () => {
 
     expect(await screen.findByRole("region", { name: /^Run 1:/ })).toBeInTheDocument();
     expect(runs).toEqual([
-      { path: "/api/runs", body: { path: ["books", "show"], values: { "<ID>": ["2", "5"] } } },
+      {
+        path: "/api/runs",
+        body: { path: ["books", "show"], values: { "<ID>": ["2", "5"] }, directory: "/work/shelf" },
+      },
     ]);
   });
 });

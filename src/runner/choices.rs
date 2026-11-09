@@ -27,13 +27,15 @@ pub const CHOICES_OUTPUT: usize = 4 * 1024 * 1024;
 
 /// The link whose choices the page asks for: its source command, its
 /// target command and the target's argument. Each must match a link that
-/// the tool's model inferred, and none of them reaches a command line.
+/// the tool's model inferred, and none of them reaches a command line. The
+/// directory is the one the source runs in.
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChoicesRequest {
     source: Vec<String>,
     target: Vec<String>,
     argument: String,
+    directory: Option<String>,
 }
 
 impl ChoicesRequest {
@@ -49,6 +51,7 @@ impl ChoicesRequest {
             source: source.into_iter().map(Into::into).collect(),
             target: target.into_iter().map(Into::into).collect(),
             argument: argument.into(),
+            directory: None,
         }
     }
 
@@ -66,10 +69,14 @@ impl ChoicesRequest {
     }
 }
 
-/// Returns the request that runs `source` for its choices: its path, and
-/// `--all` when it takes it, so that the listing holds every row.
-pub(super) fn source_request(source: &Command) -> RunRequest {
-    let request = RunRequest::new(source.path().words().iter().cloned());
+/// Returns the request that runs `source` for its choices in the directory
+/// of `choices`: its path, and `--all` when it takes it, so that the listing
+/// holds every row.
+pub(super) fn source_request(source: &Command, choices: &ChoicesRequest) -> RunRequest {
+    let mut request = RunRequest::new(source.path().words().iter().cloned());
+    if let Some(directory) = &choices.directory {
+        request = request.directory(directory.as_str());
+    }
     match source
         .crumbkit_flags()
         .find(|(flag, _)| *flag == CrumbkitFlag::All)

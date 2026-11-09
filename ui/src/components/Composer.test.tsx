@@ -54,6 +54,7 @@ function BooksShow({ onDraft }: { onDraft: (draft: Draft) => void }) {
       readOnly={false}
       fieldError={null}
       lineRefused={false}
+      directory={null}
       onChange={(next) => {
         setDraft(next);
         onDraft(next);
@@ -93,6 +94,7 @@ function edited(shown: Command, focus: number | null, client: QueryClient) {
         readOnly={false}
         fieldError={null}
         lineRefused={false}
+        directory={null}
         onChange={noop}
         onRun={noop}
         onStopEditing={noop}

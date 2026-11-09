@@ -384,3 +384,46 @@ fn a_cancel_ends_a_run_with_exit_130_when_flightdeck_starts_with_interrupt_ignor
     assert_eq!(ended["outcome"]["kind"], "cancelled", "{ended}");
     assert_eq!(ended["exit"], 130, "{ended}");
 }
+
+#[test]
+fn open_serves_the_directory_it_started_in_and_a_relative_tool_path_still_runs_from_another() {
+    let launch = tempfile::tempdir().unwrap();
+    let elsewhere = tempfile::tempdir().unwrap();
+    std::fs::create_dir(launch.path().join("tools")).unwrap();
+    std::os::unix::fs::symlink(shelf(), launch.path().join("tools/shelf")).unwrap();
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &[
+            "open".as_ref(),
+            "./tools/shelf".as_ref(),
+            "--no-browser".as_ref(),
+        ],
+        dirs.path(),
+    );
+    command.current_dir(launch.path());
+    let open = Open::start_with(command, dirs);
+    let token = exchange(
+        open.port,
+        &launch_code(&std::fs::read_to_string(&open.page).unwrap()),
+    );
+
+    let model = Call::get(open.port, "/api/model")
+        .bearer(&token)
+        .send(open.port)
+        .json();
+    let list = json!({"path": ["books", "list"], "directory": elsewhere.path()});
+    let lines = Call::post(open.port, "/api/runs", &list.to_string())
+        .bearer(&token)
+        .stream(open.port)
+        .rest();
+
+    assert_eq!(
+        model["directory"],
+        json!(launch.path().canonicalize().unwrap())
+    );
+    assert_eq!(
+        lines.last().unwrap()["outcome"]["kind"],
+        "result",
+        "{lines:?}"
+    );
+}

@@ -12,9 +12,15 @@ export type Value = true | string | string[];
 /**
  * A run request: the command's path and a value for each argument the
  * person set, by the argument's name in the model, such as `--limit` or
- * `<ID>`. The page never sends a command line as text.
+ * `<ID>`. The page never sends a command line as text. `directory` is the
+ * absolute directory that the run starts in, or absent for the directory
+ * flightdeck started in.
  */
-export type RunRequest = { path: CommandPath; values: Record<string, Value> };
+export type RunRequest = {
+  path: CommandPath;
+  values: Record<string, Value>;
+  directory?: string;
+};
 
 const Outcome = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("result") }),

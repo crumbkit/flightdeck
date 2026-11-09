@@ -123,6 +123,9 @@ case "$1 $2" in
   # It lists nothing, and waits until a signal ends it.
   while :; do sleep 0.01; done
   ;;
+"child drawer")
+  echo "{\"schema\":\"unruly/child-drawer/v1\",\"data\":[{\"id\":\"$(ls)\",\"name\":\"entry\"}],\"truncated\":false}"
+  ;;
 "child ledger")
   echo "thread 'main' panicked at src/main.rs:9:5:" >&2
   exit 101
