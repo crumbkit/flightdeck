@@ -214,7 +214,7 @@ fn open_prints_two_lines_and_no_secret_and_stops_on_sigterm_with_exit_0() {
 
     assert_eq!(
         open.lines[0],
-        format!("http://127.0.0.1:{port} · shelf 0.1.1+git-b7f02c45fe90 · 9 commands"),
+        format!("http://127.0.0.1:{port} · shelf 0.2.0+git-45d0015e1f94 · 9 commands"),
     );
     assert_eq!(
         open.lines[1],

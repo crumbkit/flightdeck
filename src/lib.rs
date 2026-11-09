@@ -3,7 +3,7 @@
 //! links nothing of the tool.
 //!
 //! The library holds the whole program, and the `flightdeck` binary calls
-//! [`run_from`]. It exports the parser and the guide for flightdeck's
+//! [`run_from`]. It exports the parser and the tool record for flightdeck's
 //! convention tests, and the [`model`], [`runner`], [`spawn`], [`opener`]
 //! and [`server`] modules for its other tests. Its API makes no stability
 //! promise.
@@ -20,9 +20,7 @@ pub mod spawn;
 use std::ffi::OsString;
 use std::process::ExitCode;
 
-use clap::CommandFactory as _;
-
-pub use crate::cli::{Cli, GUIDE};
+pub use crate::cli::{Cli, TOOL};
 use crate::cli::{CommandsCommand, Resource, SchemasCommand};
 pub use crate::open::{OpenError, SERVER_FAILED};
 
@@ -47,28 +45,28 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString>,
 {
-    let (cli, mut output) = match crumbkit::parse_from::<Cli, _, _>(Cli::command(), &GUIDE, args) {
+    let (cli, mut run) = match crumbkit::parse_from::<Cli>(&TOOL, args) {
         Ok(parsed) => parsed,
         Err(stop) => return stop.exit_code(),
     };
-    // Each command reads the command tree through `&mut output`, so it runs
-    // before `finish` takes `output`.
+    // Each command reads the command tree through `&mut run`, so it runs
+    // before `finish` takes `run`.
     match cli.resource {
-        Resource::Open(args) => open::run(&mut output, &args),
+        Resource::Open(args) => open::run(&mut run, &args),
         Resource::Commands {
             command: CommandsCommand::List(args),
         } => {
-            let result = crumbkit::commands::list(&mut output, &GUIDE, &args);
-            crumbkit::finish(output, crumbkit::commands::COMMANDS_LIST, result)
+            let result = crumbkit::commands::list(&mut run, &TOOL, &args);
+            crumbkit::finish(run, crumbkit::commands::COMMANDS_LIST, result)
         }
         Resource::Schemas { command } => match command {
             SchemasCommand::List(args) => {
-                let result = crumbkit::schemas::list(&mut output, &GUIDE, &args);
-                crumbkit::finish(output, crumbkit::schemas::SCHEMAS_LIST, result)
+                let result = crumbkit::schemas::list(&mut run, &TOOL, &args);
+                crumbkit::finish(run, crumbkit::schemas::SCHEMAS_LIST, result)
             }
             SchemasCommand::Show(args) => {
-                let result = crumbkit::schemas::show(&mut output, &GUIDE, &args);
-                crumbkit::finish(output, crumbkit::schemas::SCHEMAS_SHOW, result)
+                let result = crumbkit::schemas::show(&mut run, &TOOL, &args);
+                crumbkit::finish(run, crumbkit::schemas::SCHEMAS_SHOW, result)
             }
         },
     }

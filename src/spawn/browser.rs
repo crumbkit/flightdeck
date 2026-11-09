@@ -20,7 +20,7 @@ use std::io;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use crumbkit_process::{Run, Scope};
+use crumbkit_process::{Outcome, RunOptions, Scope};
 
 use super::{Exit, Program, SpawnError};
 
@@ -67,12 +67,12 @@ pub fn open_browser(page: &Path) -> Result<Exit, SpawnError> {
 /// Runs `opener` with `page` as its one argument, waits at most
 /// `time_limit` for it, and returns how it ended.
 fn open_with(opener: &OsStr, page: &Path, time_limit: Duration) -> Result<Exit, SpawnError> {
-    let settings = Run::new()
+    let settings = RunOptions::new()
         .scope(Scope::Child)
         .deadline(Instant::now() + time_limit);
     let finished = crumbkit_process::run(Program::new(opener).command(&[page]), &settings)?;
-    Ok(match finished.exit() {
-        crumbkit_process::Exit::TimedOut => Exit::TimedOut,
+    Ok(match finished.outcome() {
+        Outcome::TimedOut => Exit::TimedOut,
         _ => Exit::of(finished.status()),
     })
 }

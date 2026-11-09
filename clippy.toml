@@ -27,10 +27,10 @@ disallowed-methods = [
     # BASE-11
     { path = "std::thread::sleep", reason = "wait for an observable signal, such as a child's exit in src/spawn.rs" },
     { path = "tokio::time::sleep", reason = "wait for an observable signal", allow-invalid = true },
-    # CLI-1: crumbkit's Output owns the standard streams.
-    { path = "std::io::stdout", reason = "write through crumbkit's Output" },
-    { path = "std::io::stderr", reason = "write through crumbkit's Output" },
-    { path = "std::io::stdin", reason = "read through crumbkit's Output, which knows whether input is a terminal" },
+    # CLI-1: crumbkit's Run owns the standard streams.
+    { path = "std::io::stdout", reason = "write through crumbkit's Run" },
+    { path = "std::io::stderr", reason = "write through crumbkit's Run" },
+    { path = "std::io::stdin", reason = "read through crumbkit's Run, which knows whether input is a terminal" },
     # PROC-1: src/spawn.rs starts every child process.
     { path = "std::process::Command::new", reason = "start processes through src/spawn.rs" },
     { path = "std::process::Command::spawn", reason = "start processes through src/spawn.rs" },

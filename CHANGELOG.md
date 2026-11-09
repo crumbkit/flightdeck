@@ -51,6 +51,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   refuses and a run that ends with no rows. When the card's rows run past
   the bottom of the view, the New rows button appears.
 
+- flightdeck builds on crumbkit 0.2.0 from crates.io, including
+  crumbkit-process, which it took from a commit of crumbkit's repository
+  before. A run whose child exits while the page has not read the run's full
+  queue of lines now ends within one second of the child's exit, where it
+  waited until the page read or the run was stopped. The run keeps its last
+  line, so it still ends with the child's last document.
+
 ### Fixed
 
 - The page opens at the top of the welcome. Before, the transcript

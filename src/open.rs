@@ -14,7 +14,7 @@ use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-use crumbkit::{Code, Failure, Output, Sink};
+use crumbkit::{Code, Failure, Run, Sink};
 use signal_hook::consts::{SIGINT, SIGTERM};
 
 use crate::cli::OpenArgs;
@@ -90,18 +90,18 @@ impl std::error::Error for OpenError {
 }
 
 /// Runs `flightdeck open` with `args`, and prints a failure through
-/// `output`.
-pub(crate) fn run(output: &mut Output, args: &OpenArgs) -> ExitCode {
+/// `run`.
+pub(crate) fn run(run: &mut Run, args: &OpenArgs) -> ExitCode {
     #[expect(
         clippy::disallowed_methods,
-        reason = "crumbkit's Output prints only documents and failures, so open writes its two lines to standard error here (CLI-1)"
+        reason = "crumbkit's Run prints only documents and failures, so open writes its two lines to standard error here (CLI-1)"
     )]
     let mut lines = io::stderr();
     match open(args, &mut lines) {
         Ok(()) => crumbkit::events::ended(0, Some(0)),
         Err(failure) => {
-            output.print_failure(&mut Sink::standard(), &failure);
-            let exit = output.failure_exit(failure.code());
+            run.print_failure(&mut Sink::standard(), &failure);
+            let exit = run.failure_exit(failure.code());
             crumbkit::events::ended(exit, Some(0))
         }
     }

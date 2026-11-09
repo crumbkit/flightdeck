@@ -1,11 +1,12 @@
-//! flightdeck's command-line grammar and guide.
+//! flightdeck's command-line grammar and tool record.
 
 use std::ffi::OsString;
 
 use clap::{Args, Parser, Subcommand};
+use crumbkit::Tool;
 use crumbkit::ViewFlags;
 use crumbkit::commands::{COMMANDS_LIST, CommandsList};
-use crumbkit::help::{Effects, Example, Guide, Leaf};
+use crumbkit::help::{Effects, Example, Help, Leaf};
 use crumbkit::schemas::{SCHEMAS_LIST, SCHEMAS_SHOW, SchemasList, SchemasShow};
 
 /// Start a local web page for a crumbkit tool.
@@ -21,51 +22,53 @@ pub struct Cli {
     pub(crate) view: ViewFlags,
 }
 
-/// flightdeck's guide: `open` as a verb of the root, and the examples,
+/// flightdeck's tool record: `open` as a verb of the root, and the examples,
 /// effects and document of each command.
-pub const GUIDE: Guide = Guide::new()
-    .root_verbs(
-        &["open"],
-        "flightdeck opens a page for a tool, and a tool is no resource of flightdeck's own.",
-    )
-    .leaves(&[
-        Leaf::new(&["open"])
-            .examples(&[
-                Example::new(&["shelf"], "Open the page for shelf in the browser")
+pub const TOOL: Tool = Tool::new().help(
+    Help::new()
+        .root_verbs(
+            &["open"],
+            "flightdeck opens a page for a tool, and a tool is no resource of flightdeck's own.",
+        )
+        .leaves(&[
+            Leaf::new(&["open"])
+                .examples(&[
+                    Example::new(&["shelf"], "Open the page for shelf in the browser")
+                        .needs(&["browser"]),
+                    Example::new(
+                        &["./target/debug/shelf", "--read-only", "--no-browser"],
+                        "Serve a built shelf's read-only commands and print the page to open",
+                    )
                     .needs(&["browser"]),
-                Example::new(
-                    &["./target/debug/shelf", "--read-only", "--no-browser"],
-                    "Serve a built shelf's read-only commands and print the page to open",
-                )
-                .needs(&["browser"]),
-            ])
-            .effects(Effects::read_only().open_world())
-            .prints_no_result(),
-        Leaf::new(&["commands", "list"])
-            .examples(&[
-                Example::new(&[], "List every command"),
-                Example::new(
-                    &["commands", "list", "--json", "--full"],
-                    "Print commands list with its arguments, examples and columns as JSON",
-                ),
-            ])
-            .effects(Effects::read_only())
-            .document(COMMANDS_LIST),
-        Leaf::new(&["schemas", "list"])
-            .examples(&[Example::new(
-                &[],
-                "List every document that flightdeck prints",
-            )])
-            .effects(Effects::read_only())
-            .document(SCHEMAS_LIST),
-        Leaf::new(&["schemas", "show"])
-            .examples(&[Example::new(
-                &["flightdeck/schemas-list/v1"],
-                "Print the JSON Schema of the document that schemas list prints",
-            )])
-            .effects(Effects::read_only())
-            .document(SCHEMAS_SHOW),
-    ]);
+                ])
+                .effects(Effects::read_only().open_world())
+                .prints_no_result(),
+            Leaf::new(&["commands", "list"])
+                .examples(&[
+                    Example::new(&[], "List every command"),
+                    Example::new(
+                        &["commands", "list", "--json", "--full"],
+                        "Print commands list with its arguments, examples and columns as JSON",
+                    ),
+                ])
+                .effects(Effects::read_only())
+                .document(COMMANDS_LIST),
+            Leaf::new(&["schemas", "list"])
+                .examples(&[Example::new(
+                    &[],
+                    "List every document that flightdeck prints",
+                )])
+                .effects(Effects::read_only())
+                .document(SCHEMAS_LIST),
+            Leaf::new(&["schemas", "show"])
+                .examples(&[Example::new(
+                    &["flightdeck/schemas-list/v1"],
+                    "Print the JSON Schema of the document that schemas list prints",
+                )])
+                .effects(Effects::read_only())
+                .document(SCHEMAS_SHOW),
+        ]),
+);
 
 /// The resources that flightdeck serves, and the verb `open`.
 #[derive(Debug, Subcommand)]

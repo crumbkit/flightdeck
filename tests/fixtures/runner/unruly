@@ -51,6 +51,12 @@ case "$1 $2" in
   seq 1000
   sleep 30
   ;;
+"child burst")
+  # More lines than the runner's queue holds, the last of them a document,
+  # and then it exits at once.
+  seq 999
+  echo '{"schema":"unruly/child-burst/v1","data":{}}'
+  ;;
 "child nap")
   sleep 0.2
   echo '{"schema":"unruly/child-nap/v1","data":{}}'

@@ -164,6 +164,23 @@
       "writes": null
     },
     {
+      "path": "unruly child burst",
+      "about": "Print 1000 lines, the last of them a document, and exit",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
       "path": "unruly child nap",
       "about": "Print a document after a fifth of a second",
       "long_about": null,

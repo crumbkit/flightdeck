@@ -14,6 +14,8 @@ and one command for each way a real tool can misbehave or a test needs:
   standard output open for ten seconds. It needs `perl`.
 - `child chatter` prints more lines than the runner's queue holds, then
   ignores SIGINT and SIGTERM.
+- `child burst` prints more lines than the runner's queue holds, the last of
+  them a document, and exits at once.
 - `child nap` prints a document after a fifth of a second.
 - `child wipe` is destructive and takes `--dry-run`. Its preview of the
   name `bad` fails without a document, and its preview of the name `slow`

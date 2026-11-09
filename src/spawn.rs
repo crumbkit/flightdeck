@@ -43,7 +43,7 @@ use std::ffi::{OsStr, OsString};
 use std::io;
 use std::time::{Duration, Instant};
 
-use crumbkit_process::{Capture, OverLimit, Run, RunError, Status};
+use crumbkit_process::{Capture, Outcome, OverLimit, RunError, RunOptions, Status};
 
 mod browser;
 mod stream;
@@ -286,7 +286,7 @@ pub(crate) fn describe(
     query: &Query<'_>,
     time_limit: Duration,
 ) -> Result<Finished, SpawnError> {
-    let settings = Run::new()
+    let settings = RunOptions::new()
         .stdout(Capture::Whole {
             limit: STDOUT_LIMIT,
             over: OverLimit::Sink,
@@ -296,8 +296,8 @@ pub(crate) fn describe(
         })
         .deadline(Instant::now() + time_limit);
     let finished = crumbkit_process::run(program.command(&query.words()), &settings)?;
-    let exit = match finished.exit() {
-        crumbkit_process::Exit::TimedOut => Exit::TimedOut,
+    let exit = match finished.outcome() {
+        Outcome::TimedOut => Exit::TimedOut,
         _ => Exit::of(finished.status()),
     };
     let (stdout, stderr) = finished.into_output();
