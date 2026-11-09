@@ -55,8 +55,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   crumbkit-process, which it took from a commit of crumbkit's repository
   before. A run whose child exits while the page has not read the run's full
   queue of lines now ends within one second of the child's exit, where it
-  waited until the page read or the run was stopped. The run keeps its last
-  line, so it still ends with the child's last document.
+  waited until the page read or the run was stopped. The run keeps the
+  child's last line, so a one-line document still ends the run. A page more
+  than half a second behind at the child's exit loses lines from the middle
+  of the output, and the run still ends as a result with no marker of the
+  gap. An indented document longer than the queue, read by a page that has
+  fallen behind, ends as a failure with no document.
+- `commands list --json` gives the `open` row `prints_no_result: true`, and
+  `schemas show` gains an optional `next` property and a shorter
+  `cut.code` description, from crumbkit 0.2.0.
 
 ### Fixed
 

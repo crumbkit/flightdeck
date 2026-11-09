@@ -17,8 +17,10 @@
 //!   [`Events`]. Once the child has been reaped, both pipes are read for
 //!   [`DRAIN_GRACE`] more and then closed, and a full queue waits for the
 //!   caller during the first half of that time and drops lines in the
-//!   second, so a run ends within [`DRAIN_GRACE`] of its child's exit
-//!   whether or not the caller reads.
+//!   second, so on Unix a run ends within [`DRAIN_GRACE`] of its child's
+//!   exit whether or not the caller reads. On Windows crumbkit-process
+//!   cannot wake a pipe reader, so a process outside the job object that
+//!   holds the pipe open keeps the run from ending until it closes it.
 //! - End: one thread follows the child through crumbkit-process, which
 //!   starts it in a process group of its own on Unix, or in a job object on
 //!   Windows. On Unix a stop sends SIGINT to the group, then SIGTERM and
@@ -149,8 +151,9 @@ pub(crate) enum Event {
         /// The last line that a full queue dropped, after a stop or after
         /// half of [`DRAIN_GRACE`] had passed since the child exited, so no
         /// line event carried it. It is the child's last line unless the
-        /// reader was slow or a process outside the child's group kept the
-        /// pipe open, and then it can be part of a line.
+        /// pipe thread of crumbkit-process was slow or a process outside
+        /// the child's group kept the pipe open, and then it can be part
+        /// of a line.
         lost: Option<String>,
     },
 }
@@ -357,7 +360,8 @@ impl Events {
     }
 
     /// Returns the run's end once, with the line that a full queue dropped
-    /// after a stop, or `None` once the end has been returned.
+    /// after a stop or after the child's exit, or `None` once the end has
+    /// been returned.
     fn end(&self) -> Option<Event> {
         let ended = self.slot.take()?;
         Some(Event::End {
@@ -384,7 +388,6 @@ fn text(line: Vec<u8>) -> String {
 /// Returns how a run that crumbkit-process followed to its end ended.
 fn ended(finished: crumbkit_process::ChildFinished) -> Ended {
     let stopped = match finished.outcome() {
-        Outcome::Stopped(StopReason::Cancelled) => Some(Stop::Cancel),
         Outcome::Stopped(StopReason::OverLimit) => {
             Some(Stop::Limit(if finished.stdout().long_line() {
                 Limit::Line
@@ -393,8 +396,8 @@ fn ended(finished: crumbkit_process::ChildFinished) -> Ended {
             }))
         }
         // RUST-10: `StopReason` may gain reasons, and flightdeck sets no other
-        // stop than its cancel and its limits, so another reason reads as a
-        // cancel.
+        // stop than its cancel and its limits, so `Cancelled` and any other
+        // reason read as a cancel.
         Outcome::Stopped(_) => Some(Stop::Cancel),
         _ => None,
     };

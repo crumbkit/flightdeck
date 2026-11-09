@@ -9,10 +9,7 @@
 
 use clap::CommandFactory as _;
 use crumbkit_flightdeck::{CODES, Cli, TOOL, runner};
-use crumbkit_test::{Allow, Examples, Failing, PathBudgets, Recoveries, Suite, Twins, Unprovoked};
-
-/// flightdeck's opt-outs from crumbkit's conventions. It has none.
-const ALLOW: &[Allow] = &[];
+use crumbkit_test::{Examples, Failing, PathBudgets, Recoveries, Suite, Twins, Unprovoked};
 
 /// The budgets of the paths through flightdeck's help, which are crumbkit's
 /// defaults.
@@ -21,7 +18,7 @@ const PATH_BUDGETS: PathBudgets<'_> = PathBudgets::new("tests/golden/examples");
 /// flightdeck's built binary and the directory that holds its example
 /// golden files.
 const EXAMPLES: Examples<'_> =
-    Examples::new(env!("CARGO_BIN_EXE_flightdeck"), "tests/golden/examples").allow(ALLOW);
+    Examples::new(env!("CARGO_BIN_EXE_flightdeck"), "tests/golden/examples");
 
 /// The command line that provokes each code which a short run provokes.
 const STARTS: &[Failing<'_>] = &[Failing::new(
@@ -101,7 +98,6 @@ const TWINS: Twins<'_> = Twins::new(EXAMPLES, CODES).unprovoked(UNTWINNED);
 /// each check. The grammar check needs no verb besides crumbkit's own,
 /// because `open` is a root verb of the tool record.
 const SUITE: Suite<'_> = Suite::new(|| (Cli::command(), TOOL))
-    .allow(ALLOW)
     .path_budgets(PATH_BUDGETS)
     .examples(EXAMPLES)
     .recoveries(RECOVERIES)

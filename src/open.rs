@@ -99,11 +99,7 @@ pub(crate) fn run(run: &mut Run, args: &OpenArgs) -> ExitCode {
     let mut lines = io::stderr();
     match open(args, &mut lines) {
         Ok(()) => crumbkit::events::ended(0, Some(0)),
-        Err(failure) => {
-            run.print_failure(&mut Sink::standard(), &failure);
-            let exit = run.failure_exit(failure.code());
-            crumbkit::events::ended(exit, Some(0))
-        }
+        Err(failure) => run.fail(&mut Sink::standard(), &failure),
     }
 }
 
