@@ -19,6 +19,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- `GET /api/model` gives each command a `class` field, which is `read_only`,
+  `additive` or `destructive`. The server decides it from the command's
+  effects: a command that declares itself both read-only and destructive is
+  destructive, and a command that declares no effects is destructive. The
+  runner and the page both read this field. Before, the page counted a command
+  that declares both as read-only and offered Run, where the server asked for a
+  confirmation or refused it under `--read-only`.
 - flightdeck starts, reads and stops every child through crumbkit-process
   from crumbkit's repository, in place of its own process code. Runs and
   loads behave as before on macOS and Linux, with two exceptions. A load

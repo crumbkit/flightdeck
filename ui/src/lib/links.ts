@@ -18,7 +18,7 @@ export function cellLinkOf(tool: Tool, command: Command): Link | null {
   const from = tool.links.filter((link) => samePath(link.source, command.path));
   const readOnly = from.find((link) => {
     const target = tool.commands.find((each) => samePath(each.path, link.target));
-    return target?.effects?.read_only === true;
+    return target?.class === "read_only";
   });
   return readOnly ?? from[0] ?? null;
 }
@@ -52,8 +52,7 @@ export function chooserLinkOf(tool: Tool, target: Command, argument: string): Li
       const source = tool.commands.find((each) => samePath(each.path, link.source));
       return (
         source !== undefined &&
-        source.effects?.read_only === true &&
-        !source.effects.destructive &&
+        source.class === "read_only" &&
         !source.arguments.some((each) => each.required)
       );
     }) ?? null

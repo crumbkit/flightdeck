@@ -19,6 +19,36 @@ fn null_effects_are_unknown() {
 }
 
 #[test]
+fn the_model_gives_each_command_the_class_that_its_effects_decide() {
+    let hints = |read_only, destructive| {
+        serde_json::json!({
+            "read_only": read_only,
+            "destructive": destructive,
+            "idempotent": false,
+            "open_world": false,
+        })
+    };
+    let class_of = |effects: serde_json::Value| {
+        let mut document: serde_json::Value = serde_json::from_str(WITH_GOALS).unwrap();
+        for row in document["data"].as_array_mut().unwrap() {
+            if row["path"] == "shelf books list" {
+                row["effects"] = effects.clone();
+            }
+        }
+        let commands: CommandsList = serde_json::from_value(document).unwrap();
+        let tool = Tool::assemble("shelf 0.1.1", commands, Vec::new()).unwrap();
+        let command = tool.command(&["books", "list"]).unwrap();
+        serde_json::to_value(command).unwrap()["class"].clone()
+    };
+
+    assert_eq!(class_of(hints(true, false)), "read_only");
+    assert_eq!(class_of(hints(false, false)), "additive");
+    assert_eq!(class_of(hints(false, true)), "destructive");
+    assert_eq!(class_of(hints(true, true)), "destructive");
+    assert_eq!(class_of(serde_json::Value::Null), "destructive");
+}
+
+#[test]
 fn a_listing_reads_its_next_steps_with_calls_and_runs() {
     let listing: Listing<serde_json::Value> = serde_json::from_str(WITH_NEXT).unwrap();
 

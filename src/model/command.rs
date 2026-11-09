@@ -78,6 +78,7 @@ pub struct Command {
     result: ResultSpec,
     exits: Vec<ExitMeaning>,
     effects: Effects,
+    class: Class,
     writes: Option<Writes>,
     runs: u64,
     #[serde(skip)]
@@ -100,6 +101,7 @@ impl Command {
                 columns: row.columns,
             },
             exits: row.exits,
+            class: Class::of(&row.effects),
             effects: row.effects,
             writes: row.writes,
             runs: 0,
@@ -191,6 +193,12 @@ impl Command {
     #[must_use]
     pub const fn effects(&self) -> &Effects {
         &self.effects
+    }
+
+    /// Returns how the command's effects decide how it starts.
+    #[must_use]
+    pub const fn class(&self) -> Class {
+        self.class
     }
 
     /// Returns how the command guards its writes, or `None` for a command
@@ -339,6 +347,38 @@ impl ExitMeaning {
     #[must_use]
     pub fn meaning(&self) -> &str {
         &self.meaning
+    }
+}
+
+/// How a command's effects decide how it starts. It serializes as
+/// `read_only`, `additive` or `destructive`, and the page reads it from the
+/// model.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Class {
+    /// The command changes nothing.
+    ReadOnly,
+    /// The command adds without destroying.
+    Additive,
+    /// The command may destroy data, or declares no effects.
+    Destructive,
+}
+
+impl Class {
+    /// Returns the class that `effects` decide. A command that declares
+    /// itself destructive is destructive, even when it also declares itself
+    /// read-only, and a command that declares nothing is destructive.
+    const fn of(effects: &Effects) -> Self {
+        match effects {
+            Effects::Known {
+                destructive: true, ..
+            }
+            | Effects::Unknown => Self::Destructive,
+            Effects::Known {
+                read_only: true, ..
+            } => Self::ReadOnly,
+            Effects::Known { .. } => Self::Additive,
+        }
     }
 }
 

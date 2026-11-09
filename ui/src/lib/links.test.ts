@@ -30,6 +30,28 @@ describe("cellLinkOf", () => {
     );
   });
 
+  it("ignores a target that declares both hints when the server calls it destructive", () => {
+    const bothHints = shelf.commands.map((each) =>
+      each.path.join(" ") === "books remove"
+        ? {
+            ...each,
+            class: "destructive" as const,
+            effects: { read_only: true, destructive: true, idempotent: false },
+          }
+        : each,
+    );
+    const toRemove = (link: Link) => link.target.join(" ") === "books remove";
+    const removeFirst = {
+      ...shelf,
+      commands: bothHints,
+      links: [...shelf.links.filter(toRemove), ...shelf.links.filter((link) => !toRemove(link))],
+    };
+
+    expect(path(cellLinkOf(removeFirst, command(shelf, "books list")))).toBe(
+      "books list -> books show <ID>",
+    );
+  });
+
   it("gives no link to a command whose rows have no id column", () => {
     expect(cellLinkOf(shelf, command(shelf, "commands list"))).toBeNull();
   });
