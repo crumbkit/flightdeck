@@ -576,6 +576,24 @@ fn a_refused_request_does_not_restart_the_idle_limit() {
     assert_eq!(ended, Ended::Idle);
 }
 
+#[test]
+fn a_confirmation_is_refused_as_expired_once_the_shared_clock_passes_the_runners_deadline() {
+    serving(Setup::shelf(), |page| {
+        let token = page.token();
+        let body = serde_json::json!({"path": ["books", "remove"], "values": {"<ID>": ["2"]}});
+        let post = |path: &str| Call::post(page.port, path, &body.to_string()).bearer(&token);
+        let preview = post("/api/previews").stream(page.port).rest();
+        let id = preview.last().unwrap()["confirmation"].as_str().unwrap();
+
+        page.clock.advance(Duration::from_secs(10 * 60));
+        let reply = post(&format!("/api/confirmations/{id}")).send(page.port);
+
+        assert_refused(&reply, 422, "flightdeck::run::confirmation");
+        assert_eq!(reply.json()["fields"]["reason"], "expired");
+        Then::Stop
+    });
+}
+
 #[cfg(unix)]
 #[test]
 fn the_opener_page_is_private_to_the_user_and_holds_the_code_only_in_its_fragment() {

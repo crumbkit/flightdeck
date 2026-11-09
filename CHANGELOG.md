@@ -26,6 +26,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   runner and the page both read this field. Before, the page counted a command
   that declares both as read-only and offered Run, where the server asked for a
   confirmation or refused it under `--read-only`.
+- The library has one `clock::Clock`, one `clock::SystemClock` and one
+  `clock::Moment`, which the runner and the server share. They replace
+  `runner::Clock`, `runner::SystemClock`, `server::Clock`,
+  `server::SystemClock` and `server::Moment`. The runner reads
+  `moment.instant()` from the clock it is given.
 - flightdeck starts, reads and stops every child through crumbkit-process
   from crumbkit's repository, in place of its own process code. Runs and
   loads behave as before on macOS and Linux, with two exceptions. A load
