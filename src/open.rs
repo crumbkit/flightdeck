@@ -33,6 +33,10 @@ mod tests;
 /// The code of a page's server that could not start or stopped answering.
 pub const SERVER_FAILED: Code = Code::new("flightdeck", "server", "failed");
 
+/// The code of a bare tool name that flightdeck cannot look up the same way
+/// from every directory, because an entry of `PATH` cannot be made absolute.
+pub const TOOL_SEARCH_PATH: Code = Code::new("flightdeck", "tool", "search_path");
+
 /// The exit code of a second Ctrl-C or SIGTERM while flightdeck stops,
 /// which ends the process at once.
 const FORCED_EXIT: i32 = 130;
@@ -40,6 +44,13 @@ const FORCED_EXIT: i32 = 130;
 /// Why `flightdeck open` stopped before or while it served the page.
 #[derive(Debug, Failure)]
 pub enum OpenError {
+    /// A relative entry of `PATH` cannot be made absolute, so a bare tool
+    /// name could start a different program in a run's directory.
+    #[failure(
+        code = TOOL_SEARCH_PATH,
+        hint = "run flightdeck open from another directory, or give the tool's path"
+    )]
+    SearchPath,
     /// The tool's model could not be loaded.
     #[failure(forward)]
     Load(LoadError),
@@ -69,6 +80,7 @@ pub enum OpenError {
 impl fmt::Display for OpenError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::SearchPath => f.write_str("a relative PATH entry cannot be made absolute"),
             Self::Load(error) => error.fmt(f),
             Self::Signals(_) => f.write_str("cannot watch for Ctrl-C"),
             Self::Start(_) => f.write_str("cannot start the page's server"),
@@ -82,6 +94,7 @@ impl fmt::Display for OpenError {
 impl std::error::Error for OpenError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::SearchPath => None,
             Self::Load(error) => error.source(),
             Self::Signals(error) | Self::Opener(error) | Self::Serve(error) => Some(error),
             Self::Start(error) => Some(error),
@@ -114,7 +127,8 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
         reason = "a run in another directory must find the tool that this PATH found at launch"
     )]
     let search = std::env::var_os("PATH");
-    let program = Program::at_launch(&args.tool, launch.as_deref(), search.as_deref());
+    let program = Program::at_launch(&args.tool, launch.as_deref(), search.as_deref())
+        .ok_or(OpenError::SearchPath)?;
     let tool = model::load(&program, spawn::TIME_LIMIT).map_err(OpenError::Load)?;
     let stop = Arc::new(AtomicBool::new(false));
     watch_signals(&stop).map_err(OpenError::Signals)?;

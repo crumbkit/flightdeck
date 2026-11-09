@@ -491,3 +491,29 @@ fn a_bare_tool_name_starts_only_the_tool_found_at_launch_and_never_one_planted_i
     assert_eq!(starts(&planted), 0, "the planted program started");
     assert_eq!(starts(&real), before + 1, "the tool did not start once");
 }
+
+#[test]
+fn a_bare_tool_name_is_refused_when_a_relative_path_entry_cannot_be_made_absolute() {
+    let base = tempfile::tempdir().unwrap();
+    let launch = base.path().join("with:colon");
+    std::fs::create_dir_all(launch.join("bin")).unwrap();
+    std::os::unix::fs::symlink(shelf(), launch.join("bin/shelf")).unwrap();
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &["open".as_ref(), "shelf".as_ref(), "--no-browser".as_ref()],
+        dirs.path(),
+    );
+
+    let output = command
+        .current_dir(&launch)
+        .env("PATH", "bin:/usr/bin:/bin")
+        .output()
+        .unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("flightdeck::tool::search_path"), "{stderr}");
+    assert!(stderr.contains("from another directory"), "{stderr}");
+    assert!(stderr.contains("the tool's path"), "{stderr}");
+    assert!(!stderr.contains("http://"), "{stderr}");
+}

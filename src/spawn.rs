@@ -108,26 +108,42 @@ impl Program {
     /// search reads a relative or empty entry from the child's own directory,
     /// where a chosen directory's `./bin/<tool>` would start instead of the
     /// tool. Without `launch`, because flightdeck's own directory is gone, a
-    /// relative path stays as it was given and relative entries are left out,
-    /// and the load of the tool then reports a program that it cannot find.
+    /// relative path stays as it was given, and the load of the tool then
+    /// reports a program that it cannot find.
+    ///
+    /// Returns `None` for a bare name when a relative entry cannot be made
+    /// absolute, because flightdeck's own directory is gone or its name holds
+    /// the search path's separator. Leaving that entry out could select
+    /// another tool, or leave an empty `PATH` that searches the child's own
+    /// directory.
+    ///
+    /// RUST-10: a tool given by its path keeps the `PATH` it inherited when
+    /// an entry cannot be made absolute, because that `PATH` cannot change
+    /// which tool starts. It handles the launch of that tool, and it misses
+    /// a program that the tool itself starts by a bare name through the
+    /// relative entry. A search path format that can hold any directory
+    /// would replace it.
     #[must_use]
     pub fn at_launch(
         program: impl Into<OsString>,
         launch: Option<&Path>,
         search: Option<&OsStr>,
-    ) -> Self {
+    ) -> Option<Self> {
         let program = program.into();
         let path = Path::new(&program);
+        let bare = path.components().count() < 2;
         let resolved = match launch {
-            Some(launch) if path.components().count() > 1 && path.is_relative() => {
-                launch.join(path).into_os_string()
-            }
+            Some(launch) if !bare && path.is_relative() => launch.join(path).into_os_string(),
             _ => program,
         };
         let launched = Self::new(resolved);
-        match search {
-            Some(search) => launched.env("PATH", absolute_search(search, launch)),
-            None => launched,
+        let Some(search) = search else {
+            return Some(launched);
+        };
+        match absolute_search(search, launch) {
+            Some(search) => Some(launched.env("PATH", search)),
+            None if bare => None,
+            None => Some(launched),
         }
     }
 
@@ -176,26 +192,24 @@ impl Program {
 }
 
 /// Returns the search path `search` with each entry absolute against
-/// `launch`, where an empty entry means `launch` itself. Without `launch` a
-/// relative entry is left out.
-///
-/// RUST-10: an entry whose absolute form holds the search path's separator,
-/// as a launch directory with a colon in its name makes, is left out, because
-/// the format cannot hold it. It handles every other launch directory, and it
-/// misses a tool found only through that entry, which the person can name by
-/// its path instead.
-fn absolute_search(search: &OsStr, launch: Option<&Path>) -> OsString {
-    let entries: Vec<PathBuf> = env::split_paths(search)
-        .filter_map(|entry| match launch {
-            _ if entry.is_absolute() => Some(entry),
-            Some(launch) if entry.as_os_str().is_empty() => Some(launch.to_path_buf()),
-            Some(launch) => Some(launch.join(entry)),
-            None => None,
+/// `launch`, where an empty entry means `launch` itself, or `None` when a
+/// relative entry cannot be made absolute: there is no `launch`, or the
+/// absolute form holds the search path's separator.
+fn absolute_search(search: &OsStr, launch: Option<&Path>) -> Option<OsString> {
+    let entries = env::split_paths(search)
+        .map(|entry| {
+            if entry.is_absolute() {
+                return Some(entry);
+            }
+            let launch = launch?;
+            Some(if entry.as_os_str().is_empty() {
+                launch.to_path_buf()
+            } else {
+                launch.join(entry)
+            })
         })
-        .filter(|entry| env::join_paths([entry]).is_ok())
-        .collect();
-    // Each entry joined by itself, so together they join too.
-    env::join_paths(entries).unwrap_or_default()
+        .collect::<Option<Vec<PathBuf>>>()?;
+    env::join_paths(entries).ok()
 }
 
 /// A query that reads part of a crumbkit tool's description of itself.

@@ -40,6 +40,10 @@ const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
         &crumbkit_flightdeck::SERVER_FAILED,
         "Only a system that refuses a socket, a random read or a temporary file provokes it.",
     ),
+    Unprovoked::new(
+        &crumbkit_flightdeck::TOOL_SEARCH_PATH,
+        "Only a launch directory whose name holds PATH's separator provokes it; tests/open.rs provokes the code.",
+    ),
     Unprovoked::new(&runner::RUN_REFUSED, NO_RUN),
     Unprovoked::new(&runner::RUN_NEEDS_CONFIRMATION, NO_RUN),
     Unprovoked::new(&runner::RUN_READ_ONLY, NO_RUN),
@@ -71,6 +75,10 @@ const UNTWINNED: &[Unprovoked<'_>] = &[
     Unprovoked::new(
         &crumbkit_flightdeck::SERVER_FAILED,
         "Only a system that refuses a socket, a random read or a temporary file provokes it.",
+    ),
+    Unprovoked::new(
+        &crumbkit_flightdeck::TOOL_SEARCH_PATH,
+        "Only a launch directory whose name holds PATH's separator provokes it; tests/open.rs provokes the code.",
     ),
     Unprovoked::new(&runner::RUN_REFUSED, NO_RUN),
     Unprovoked::new(&runner::RUN_NEEDS_CONFIRMATION, NO_RUN),

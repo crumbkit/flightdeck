@@ -19,7 +19,9 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   as the command line, and `GET /api/model` names the directory flightdeck
   started in. `flightdeck open` makes a relative program path and each
   `PATH` entry absolute at launch, so a run in another directory starts the
-  same tool and never a program planted there.
+  same tool and never a program planted there. With a bare tool name it refuses
+  to start with `flightdeck::tool::search_path` when a relative `PATH` entry
+  cannot be made absolute.
 - flightdeck builds and runs on Windows, and a release attaches a Windows
   binary in a zip archive beside the macOS and Linux archives. On Windows a
   tool and every process it starts run in a job object, and a cancel, a

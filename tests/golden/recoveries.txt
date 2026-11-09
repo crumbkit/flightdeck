@@ -5,6 +5,7 @@ flightdeck open ./no-such-tool --no-browser
 codes that no start provokes:
   flightdeck::tool::load: Only a tool that prints something other than its description provokes it; tests/model.rs provokes it with fake tools.
   flightdeck::server::failed: Only a system that refuses a socket, a random read or a temporary file provokes it.
+  flightdeck::tool::search_path: Only a launch directory whose name holds PATH's separator provokes it; tests/open.rs provokes the code.
   flightdeck::run::refused: No flightdeck command runs a tool's commands yet; the runner returns the code.
   flightdeck::run::needs_confirmation: No flightdeck command runs a tool's commands yet; the runner returns the code.
   flightdeck::run::read_only: No flightdeck command runs a tool's commands yet; the runner returns the code.

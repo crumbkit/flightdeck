@@ -5,21 +5,22 @@ use super::{Program, Query};
 
 #[test]
 fn a_bare_tool_name_stays_a_name_for_the_path_search() {
-    let program = Program::at_launch("shelf", Some(Path::new("/launch")), None);
+    let program = Program::at_launch("shelf", Some(Path::new("/launch")), None).unwrap();
 
     assert_eq!(program.name(), OsStr::new("shelf"));
 }
 
 #[test]
 fn a_relative_tool_path_becomes_absolute_against_the_launch_directory() {
-    let program = Program::at_launch("tools/shelf", Some(Path::new("/launch")), None);
+    let program = Program::at_launch("tools/shelf", Some(Path::new("/launch")), None).unwrap();
 
     assert_eq!(program.name(), OsStr::new("/launch/tools/shelf"));
 }
 
-/// Returns the `PATH` that a program launched from `launch` runs with.
-fn search_of(search: &str, launch: Option<&Path>) -> Option<OsString> {
-    let program = Program::at_launch("shelf", launch, Some(OsStr::new(search)));
+/// Returns the `PATH` set on a program named `tool` that launched from
+/// `launch`, or `None` when the launch set none.
+fn search_of(tool: &str, search: &str, launch: Option<&Path>) -> Option<OsString> {
+    let program = Program::at_launch(tool, launch, Some(OsStr::new(search))).unwrap();
     let command = program.command::<&str>(&[]);
     command
         .get_envs()
@@ -30,26 +31,39 @@ fn search_of(search: &str, launch: Option<&Path>) -> Option<OsString> {
 #[cfg(unix)]
 #[test]
 fn each_path_entry_becomes_absolute_and_an_empty_entry_becomes_the_launch_directory() {
-    let search = search_of("bin::/usr/bin", Some(Path::new("/launch")));
+    let search = search_of("shelf", "bin::/usr/bin", Some(Path::new("/launch")));
 
     assert_eq!(search, Some(OsString::from("/launch/bin:/launch:/usr/bin")));
 }
 
 #[cfg(unix)]
 #[test]
-fn without_a_launch_directory_only_absolute_path_entries_remain() {
-    assert_eq!(
-        search_of("bin::/usr/bin", None),
-        Some(OsString::from("/usr/bin"))
-    );
+fn a_bare_name_is_refused_when_a_relative_path_entry_cannot_be_made_absolute() {
+    let colon = Some(Path::new("/with:colon"));
+    let search = Some(OsStr::new("bin:/usr/bin"));
+
+    assert!(Program::at_launch("shelf", colon, search).is_none());
+    assert!(Program::at_launch("shelf", None, search).is_none());
 }
 
 #[cfg(unix)]
 #[test]
-fn a_path_entry_that_the_launch_directory_cannot_be_joined_to_is_left_out() {
-    let search = search_of("bin:/usr/bin", Some(Path::new("/with:colon")));
+fn a_bare_name_launches_from_a_directory_with_a_separator_when_every_path_entry_is_absolute() {
+    let search = search_of("shelf", "/usr/bin", Some(Path::new("/with:colon")));
 
     assert_eq!(search, Some(OsString::from("/usr/bin")));
+}
+
+#[cfg(unix)]
+#[test]
+fn a_tool_given_by_its_path_keeps_the_inherited_path_when_an_entry_cannot_be_made_absolute() {
+    let search = search_of(
+        "/tools/shelf",
+        "bin:/usr/bin",
+        Some(Path::new("/with:colon")),
+    );
+
+    assert_eq!(search, None);
 }
 
 #[test]
