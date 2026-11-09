@@ -34,6 +34,12 @@ describe("CellValue", () => {
     "https://shelf.example/books and more",
     " https://shelf.example/books",
     "https://shelf.example/books\n",
+    "https://%",
+    "https:///shelf.example",
+    "https:////x",
+    "https://\\shelf.example",
+    "https://shelf.example/\u202Ebooks",
+    "https://shelf.example/books\u0001",
   ])("shows %j as text because it is not wholly an absolute http or https URL", (text) => {
     const { container } = render(<CellValue value={text} />);
 

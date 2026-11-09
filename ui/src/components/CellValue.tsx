@@ -4,11 +4,12 @@ import { durationWords } from "@/lib/duration";
 /**
  * Returns true when all of `text` is an absolute http or https URL. The
  * pattern refuses what `URL` would accept, such as `https:shelf.example`
- * without its slashes and a URL with words after it, and `URL` refuses the
- * rest, such as `https://` with no host.
+ * without its slashes, a URL with words after it, extra slashes or
+ * backslashes after the scheme, and invisible control or format characters
+ * such as U+202E. `URL` refuses the rest, such as `https://%`.
  */
 function isWebUrl(text: string): boolean {
-  return /^https?:\/\/\S+$/i.test(text) && URL.canParse(text);
+  return /^https?:\/\/[^\s\p{Cc}\p{Cf}/\\][^\s\p{Cc}\p{Cf}]*$/iu.test(text) && URL.canParse(text);
 }
 
 /**
