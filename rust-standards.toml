@@ -98,6 +98,20 @@ reason = "The pull-request lane stays on one runner. The weekly macOS run catche
 realizations = [".github/workflows/ci.yml", "scripts/install-test-tools.sh"]
 
 [[decision]]
+id = "http-server"
+requirement = """
+The page's HTTP server stays hand-written on std::net, with httparse reading each request's line and headers. It changes to a server crate only when a crate provides all of the following:
+- A read deadline and a write deadline on each connection.
+- Configurable limits on the size of the request head, the number of headers and the size of the body.
+- A cap on the number of open connections.
+- Exact control of every response header.
+- No async runtime.
+- A size small enough for flightdeck to read in full.
+"""
+reason = "Writing the server by hand gives exact control of every limit and header, needs no async runtime and leaves fewer dependencies to review. docs/security.md binds the per-connection deadlines, the head and header limits and the connection cap to tests. A small synchronous server crate, tiny_http 0.12, exposes no per-connection read or write deadlines, no head or header limits and no connection cap, so adopting it would mean rebuilding each of those around it."
+realizations = ["src/server/http.rs", "src/server.rs", "Cargo.toml"]
+
+[[decision]]
 id = "release-profile"
 requirement = "`[profile.release]` sets `overflow-checks = true`, `lto = false`, `codegen-units = 16` and `strip = \"none\"`."
 reason = "People install flightdeck with `cargo install`, which builds it on their machine, so a fast release build is worth more than a smaller binary. These are Cargo's defaults, written out."
