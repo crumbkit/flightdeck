@@ -61,7 +61,7 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   of the output, and the run still ends as a result with no marker of the
   gap. An indented document longer than the queue, read by a page that has
   fallen behind, ends as a failure with no document.
-- `commands list --json` gives the `open` row `prints_no_result: true`, and
+- `commands list --json --full` gives the `open` row `prints_no_result: true`, and
   `schemas show` gains an optional `next` property and a shorter
   `cut.code` description, from crumbkit 0.2.0.
 
