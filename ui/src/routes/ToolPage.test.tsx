@@ -175,6 +175,7 @@ describe("ToolPage", () => {
     });
     const reply = withRemove((command) => ({
       ...command,
+      class: "additive",
       effects: { read_only: false, destructive: false, idempotent: true },
     }));
     const user = userEvent.setup();

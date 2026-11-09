@@ -31,7 +31,8 @@ use unicode_general_category::{GeneralCategory, get_general_category};
 
 pub use self::argument::{Argument, Arity, CrumbkitFlag, Help, Kind};
 pub use self::command::{
-    Column, Command, CommandPath, Effects, Example, ExitMeaning, Form, Items, ResultSpec, Writes,
+    Class, Column, Command, CommandPath, Effects, Example, ExitMeaning, Form, Items, ResultSpec,
+    Writes,
 };
 pub use self::documents::{
     CommandsList, Document, DocumentForm, DocumentKind, Listing, NextStep, Recovery, SchemasList,

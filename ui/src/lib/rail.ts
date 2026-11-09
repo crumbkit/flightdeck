@@ -43,16 +43,15 @@ function guideOrder(tool: Tool, paths: string[][]): Command[] {
 /** The word for what a command changes. */
 export type Effect = "read-only" | "additive" | "destructive" | "effects unknown";
 
-/** Returns the word for what the command changes. */
+/**
+ * Returns the word for what the command changes, from the class that the
+ * server decided.
+ */
 export function effectOf(command: Command): Effect {
-  const { effects } = command;
-  if (effects === null) {
+  if (command.effects === null) {
     return "effects unknown";
   }
-  if (effects.read_only) {
-    return "read-only";
-  }
-  return effects.destructive ? "destructive" : "additive";
+  return command.class === "read_only" ? "read-only" : command.class;
 }
 
 /**
@@ -61,8 +60,7 @@ export function effectOf(command: Command): Effect {
  * one whose effects are unknown.
  */
 export function needsConfirmation(command: Command): boolean {
-  const effect = effectOf(command);
-  return effect === "destructive" || effect === "effects unknown";
+  return command.class === "destructive";
 }
 
 /**

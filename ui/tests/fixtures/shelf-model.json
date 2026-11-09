@@ -216,6 +216,7 @@
           "idempotent": true,
           "open_world": false
         },
+        "class": "read_only",
         "writes": null,
         "runs": 0
       },
@@ -408,6 +409,7 @@
           "idempotent": true,
           "open_world": false
         },
+        "class": "read_only",
         "writes": null,
         "runs": 0
       },
@@ -549,6 +551,7 @@
           "idempotent": true,
           "open_world": false
         },
+        "class": "read_only",
         "writes": null,
         "runs": 0
       },
@@ -762,6 +765,7 @@
           "idempotent": true,
           "open_world": false
         },
+        "class": "destructive",
         "writes": {
           "replaces": false,
           "expect": false,
@@ -959,6 +963,7 @@
           "idempotent": true,
           "open_world": false
         },
+        "class": "read_only",
         "writes": null,
         "runs": 0
       },
@@ -1140,6 +1145,7 @@
           "idempotent": true,
           "open_world": false
         },
+        "class": "read_only",
         "writes": null,
         "runs": 0
       },
@@ -1288,6 +1294,7 @@
           "idempotent": true,
           "open_world": false
         },
+        "class": "read_only",
         "writes": null,
         "runs": 0
       },
@@ -1469,6 +1476,7 @@
           "idempotent": true,
           "open_world": false
         },
+        "class": "read_only",
         "writes": null,
         "runs": 0
       },
@@ -1722,6 +1730,7 @@
           "idempotent": true,
           "open_world": false
         },
+        "class": "read_only",
         "writes": null,
         "runs": 0
       }

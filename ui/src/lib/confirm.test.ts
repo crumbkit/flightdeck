@@ -48,13 +48,14 @@ describe("effectsInWords", () => {
     expect(
       effectsInWords({
         ...remove,
+        class: "additive",
         effects: { read_only: false, destructive: false, idempotent: false },
       }),
     ).toBe("Additive. Not idempotent.");
   });
 
   it("says that a command without effects counts as destructive", () => {
-    expect(effectsInWords({ ...remove, effects: null })).toBe(
+    expect(effectsInWords({ ...remove, class: "destructive", effects: null })).toBe(
       "Effects unknown, so flightdeck treats this command as destructive.",
     );
   });

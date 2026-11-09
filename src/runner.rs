@@ -81,7 +81,7 @@ use self::runs::Runs;
 use self::trace::Trace;
 pub(crate) use self::vector::Argv;
 use self::vector::{Extra, Vector};
-use crate::model::{Command, Effects, Tool};
+use crate::model::{Class, Command, Tool};
 use crate::spawn::{self, Event, Events, Exit, Program, Silent};
 pub use crate::spawn::{DRAIN_GRACE, Escalation, Limit, Limits, QUEUE};
 
@@ -263,7 +263,7 @@ impl Runner {
     /// [`RunFailure::Spawn`] when the program will not start.
     pub fn run(&self, request: &RunRequest) -> Result<Run, RunFailure> {
         let (command, vector) = self.check(request)?;
-        if Class::of(command) == Class::Destructive {
+        if command.class() == Class::Destructive {
             return Err(RunFailure::NeedsConfirmation {
                 path: command.path().to_string(),
             });
@@ -376,7 +376,7 @@ impl Runner {
                     .find(|command| command.path() == link.source())
             })
             .ok_or_else(|| refuse(Reason::NotInferred))?;
-        if Class::of(source) != Class::ReadOnly {
+        if source.class() != Class::ReadOnly {
             return Err(refuse(Reason::NotReadOnly));
         }
         let (command, vector) = vector::build(&self.tool, &choices::source_request(source))?;
@@ -443,7 +443,7 @@ impl Runner {
     /// that the model or the mode does not allow.
     fn check(&self, request: &RunRequest) -> Result<(&Command, Vector), RunFailure> {
         let (command, vector) = vector::build(&self.tool, request)?;
-        if self.mode == Mode::ReadOnly && Class::of(command) != Class::ReadOnly {
+        if self.mode == Mode::ReadOnly && command.class() != Class::ReadOnly {
             return Err(RunFailure::ReadOnly {
                 path: command.path().to_string(),
             });
@@ -489,35 +489,6 @@ impl Runner {
 impl Drop for Runner {
     fn drop(&mut self) {
         self.shutdown();
-    }
-}
-
-/// How a command's effects decide how it starts.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Class {
-    /// The command changes nothing.
-    ReadOnly,
-    /// The command adds without destroying.
-    Additive,
-    /// The command may destroy data, or declares no effects.
-    Destructive,
-}
-
-impl Class {
-    /// Returns the class of `command`. A command that declares itself
-    /// destructive is destructive, even when it also declares itself
-    /// read-only.
-    const fn of(command: &Command) -> Self {
-        match command.effects() {
-            Effects::Known {
-                destructive: true, ..
-            }
-            | Effects::Unknown => Self::Destructive,
-            Effects::Known {
-                read_only: true, ..
-            } => Self::ReadOnly,
-            Effects::Known { .. } => Self::Additive,
-        }
     }
 }
 

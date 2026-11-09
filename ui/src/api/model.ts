@@ -53,6 +53,9 @@ const Effects = z
   .nullable();
 export type Effects = z.infer<typeof Effects>;
 
+/** How a command's effects decide how it starts, which the server decides. */
+const Class = z.enum(["read_only", "additive", "destructive"]);
+
 const Command = z.object({
   path: CommandPath,
   about: z.string().nullable(),
@@ -63,6 +66,8 @@ const Command = z.object({
     columns: z.array(Column),
   }),
   effects: Effects,
+  /** What the server makes of the effects: it counts a command that declares no effects as destructive. */
+  class: Class,
   /** How often the command ran, from the tool's usage figures, or 0. */
   runs: z.number().int().nonnegative(),
 });
