@@ -9,6 +9,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A value in a result that is wholly an absolute http or https URL is a link
+  that opens in a new tab. No other scheme becomes a link.
 - flightdeck builds and runs on Windows, and a release attaches a Windows
   binary in a zip archive beside the macOS and Linux archives. On Windows a
   tool and every process it starts run in a job object, and a cancel, a
