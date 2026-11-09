@@ -9,6 +9,8 @@ and one command for each way a real tool can misbehave or a test needs:
 - `child hang` prints two lines and ignores SIGINT and SIGTERM.
 - `child flood` prints a line longer than the test's limit.
 - `child trace` prints its `TRACEPARENT`.
+- `child where` prints its `PWD`, which a shell keeps only when it names the
+  shell's working directory.
 - `child pick` takes a value from a fixed list.
 - `child orphan` leaves a process in a session of its own that holds
   standard output open for ten seconds. It needs `perl`.

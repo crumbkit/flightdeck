@@ -39,9 +39,10 @@
 //! outside the job that holds a pipe open holds the query until it closes
 //! the pipe.
 
+use std::env;
 use std::ffi::{OsStr, OsString};
 use std::io;
-use std::path::{self, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use crumbkit_process::{Capture, Outcome, OverLimit, RunError, RunOptions, Status};
@@ -96,21 +97,38 @@ impl Program {
         }
     }
 
-    /// Returns the program given as `program`, with a relative path made
-    /// absolute against flightdeck's own directory, because such a path
-    /// stops resolving once a child starts in another directory. A name
-    /// without a separator stays a name for the `PATH` search.
+    /// Returns the program given as `program`, for a flightdeck that started
+    /// in `launch` with the search path `search`, so that it resolves the
+    /// same way in whichever directory a run starts.
     ///
-    /// A path that cannot be made absolute, because flightdeck's own
-    /// directory is gone, stays as it was given, and the load of the tool
-    /// then reports the missing program.
+    /// A relative path is made absolute against `launch`, because it would
+    /// stop resolving once a child starts in another directory. A name
+    /// without a separator stays a name for the `PATH` search, and each
+    /// entry of `search` is made absolute against `launch`, because a child's
+    /// search reads a relative or empty entry from the child's own directory,
+    /// where a chosen directory's `./bin/<tool>` would start instead of the
+    /// tool. Without `launch`, because flightdeck's own directory is gone, a
+    /// relative path stays as it was given and relative entries are left out,
+    /// and the load of the tool then reports a program that it cannot find.
     #[must_use]
-    pub fn at_launch(program: impl Into<OsString>) -> Self {
+    pub fn at_launch(
+        program: impl Into<OsString>,
+        launch: Option<&Path>,
+        search: Option<&OsStr>,
+    ) -> Self {
         let program = program.into();
-        if Path::new(&program).components().count() < 2 {
-            return Self::new(program);
+        let path = Path::new(&program);
+        let resolved = match launch {
+            Some(launch) if path.components().count() > 1 && path.is_relative() => {
+                launch.join(path).into_os_string()
+            }
+            _ => program,
+        };
+        let launched = Self::new(resolved);
+        match search {
+            Some(search) => launched.env("PATH", absolute_search(search, launch)),
+            None => launched,
         }
-        Self::new(path::absolute(&program).map_or(program, PathBuf::into_os_string))
     }
 
     /// Returns the program with the variable `name` set to `value` in every
@@ -121,11 +139,15 @@ impl Program {
         self
     }
 
-    /// Returns the program with every run starting in `directory`.
+    /// Returns the program with every run starting in `directory`, with
+    /// `PWD` naming it, so a tool that reads `PWD` sees the directory as the
+    /// page named it rather than flightdeck's own.
     #[must_use]
-    pub fn current_dir(mut self, directory: impl Into<PathBuf>) -> Self {
-        self.directory = Some(directory.into());
-        self
+    pub fn current_dir(self, directory: impl Into<PathBuf>) -> Self {
+        let directory = directory.into();
+        let mut program = self.env("PWD", directory.clone());
+        program.directory = Some(directory);
+        program
     }
 
     /// Returns the name or path that the program was given.
@@ -151,6 +173,29 @@ impl Program {
         }
         command
     }
+}
+
+/// Returns the search path `search` with each entry absolute against
+/// `launch`, where an empty entry means `launch` itself. Without `launch` a
+/// relative entry is left out.
+///
+/// RUST-10: an entry whose absolute form holds the search path's separator,
+/// as a launch directory with a colon in its name makes, is left out, because
+/// the format cannot hold it. It handles every other launch directory, and it
+/// misses a tool found only through that entry, which the person can name by
+/// its path instead.
+fn absolute_search(search: &OsStr, launch: Option<&Path>) -> OsString {
+    let entries: Vec<PathBuf> = env::split_paths(search)
+        .filter_map(|entry| match launch {
+            _ if entry.is_absolute() => Some(entry),
+            Some(launch) if entry.as_os_str().is_empty() => Some(launch.to_path_buf()),
+            Some(launch) => Some(launch.join(entry)),
+            None => None,
+        })
+        .filter(|entry| env::join_paths([entry]).is_ok())
+        .collect();
+    // Each entry joined by itself, so together they join too.
+    env::join_paths(entries).unwrap_or_default()
 }
 
 /// A query that reads part of a crumbkit tool's description of itself.

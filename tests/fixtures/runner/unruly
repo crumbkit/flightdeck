@@ -31,6 +31,9 @@ case "$1 $2" in
 "child flood")
   printf '%2000s\n' '' | tr ' ' a
   ;;
+"child where")
+  echo "{\"schema\":\"unruly/child-where/v1\",\"data\":{\"pwd\":\"$PWD\"}}"
+  ;;
 "child trace")
   echo "{\"schema\":\"unruly/child-trace/v1\",\"data\":{\"traceparent\":\"$TRACEPARENT\"}}"
   ;;

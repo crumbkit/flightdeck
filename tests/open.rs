@@ -427,3 +427,67 @@ fn open_serves_the_directory_it_started_in_and_a_relative_tool_path_still_runs_f
         "{lines:?}"
     );
 }
+
+/// Writes the shell script `body` at `path`, and makes it runnable.
+fn write_script(path: &Path, body: &str) {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(path, format!("#!/bin/sh\n{body}\n")).unwrap();
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+}
+
+/// Returns how many lines the log at `path` holds, or 0 before it exists.
+fn starts(path: &Path) -> usize {
+    std::fs::read_to_string(path).map_or(0, |text| text.lines().count())
+}
+
+#[test]
+fn a_bare_tool_name_starts_only_the_tool_found_at_launch_and_never_one_planted_in_the_run_directory()
+ {
+    let launch = tempfile::tempdir().unwrap();
+    let chosen = tempfile::tempdir().unwrap();
+    let logs = tempfile::tempdir().unwrap();
+    let real = logs.path().join("real.log");
+    let planted = logs.path().join("planted.log");
+    write_script(
+        &launch.path().join("bin/shelf"),
+        &format!(
+            "echo started >> '{}'\nexec '{}' \"$@\"",
+            real.display(),
+            shelf().display()
+        ),
+    );
+    write_script(
+        &chosen.path().join("bin/shelf"),
+        &format!("echo started >> '{}'", planted.display()),
+    );
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &["open".as_ref(), "shelf".as_ref(), "--no-browser".as_ref()],
+        dirs.path(),
+    );
+    command
+        .current_dir(launch.path())
+        .env("PATH", "bin:/usr/bin:/bin");
+    let open = Open::start_with(command, dirs);
+    let token = exchange(
+        open.port,
+        &launch_code(&std::fs::read_to_string(&open.page).unwrap()),
+    );
+    let before = starts(&real);
+
+    let list = json!({"path": ["books", "list"], "directory": chosen.path()});
+    let lines = Call::post(open.port, "/api/runs", &list.to_string())
+        .bearer(&token)
+        .stream(open.port)
+        .rest();
+
+    assert_eq!(
+        lines.last().unwrap()["outcome"]["kind"],
+        "result",
+        "{lines:?}"
+    );
+    assert_eq!(starts(&planted), 0, "the planted program started");
+    assert_eq!(starts(&real), before + 1, "the tool did not start once");
+}

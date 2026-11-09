@@ -14,11 +14,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   can be changed by typing a path, and each run's card records the directory
   it used. `POST /api/runs`, `/api/previews`, `/api/confirmations/<id>` and
   `/api/choices` take an optional `directory`, which must be an absolute path
-  to an existing directory or the request is refused with 422 and
-  `flightdeck::run::directory`. A confirmation id binds the directory as well
+  to a directory that flightdeck can enter or the request is refused with 422
+  and `flightdeck::run::directory`. A confirmation id binds the directory as well
   as the command line, and `GET /api/model` names the directory flightdeck
-  started in. `flightdeck open ./relative/tool` makes the program's path
-  absolute at launch, so the tool still starts from another directory.
+  started in. `flightdeck open` makes a relative program path and each
+  `PATH` entry absolute at launch, so a run in another directory starts the
+  same tool and never a program planted there.
 - flightdeck builds and runs on Windows, and a release attaches a Windows
   binary in a zip archive beside the macOS and Linux archives. On Windows a
   tool and every process it starts run in a job object, and a cancel, a

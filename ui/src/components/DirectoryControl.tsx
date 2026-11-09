@@ -69,7 +69,7 @@ export function DirectoryControl({ directory, onChange }: Props) {
             setTyping(null);
           }
         }}
-        className="border-input bg-background min-h-11 w-full max-w-md min-w-0 rounded-md border px-2 font-mono text-xs md:min-h-8"
+        className="border-input bg-background min-h-11 w-full min-w-0 rounded-md border px-2 font-mono text-xs md:min-h-8 md:max-w-md"
       />
     );
   }
@@ -81,10 +81,10 @@ export function DirectoryControl({ directory, onChange }: Props) {
       aria-label={`Working directory ${shown}. Change`}
       title={shown}
       onClick={() => setTyping(directory ?? "")}
-      className="bg-card hover:bg-accent transition-tint inline-flex min-h-11 max-w-md min-w-0 items-center gap-1.5 rounded-md border px-2 font-mono text-xs md:min-h-8"
+      className="bg-card hover:bg-accent transition-tint inline-flex min-h-11 w-full min-w-0 items-center gap-1.5 rounded-md border px-2 font-mono text-xs md:min-h-8 md:w-auto md:max-w-md"
     >
       <Folder aria-hidden="true" className="size-3.5 shrink-0" />
-      <span className="truncate">{shown}</span>
+      <span className="min-w-0 flex-1 truncate text-left">{shown}</span>
       <ChevronDown aria-hidden="true" className="size-3.5 shrink-0" />
     </button>
   );

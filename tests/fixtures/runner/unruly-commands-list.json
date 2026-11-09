@@ -94,6 +94,23 @@
       "writes": null
     },
     {
+      "path": "unruly child where",
+      "about": "Print the PWD variable",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
       "path": "unruly child pick",
       "about": "Take a colour from a fixed list",
       "long_about": null,

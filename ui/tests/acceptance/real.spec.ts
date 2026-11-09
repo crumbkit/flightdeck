@@ -459,6 +459,29 @@ test.describe("on a phone", () => {
     const welcome = page.getByRole("region", { name: "Welcome to shelf" });
     await expect(welcome.getByRole("heading", { level: 1 })).toBeInViewport();
   });
+
+  for (const directory of ["/", `/${"long-directory-name/".repeat(12)}`]) {
+    test(`the directory control fills its row with ${directory.length} characters of path`, async ({
+      page,
+      served,
+    }) => {
+      await signIn(page, served);
+      await page.getByRole("button", { name: /^Working directory .*\. Change$/ }).click();
+      await page.getByRole("textbox", { name: "Working directory" }).fill(directory);
+      await page.keyboard.press("Enter");
+
+      const control = page.getByRole("button", { name: `Working directory ${directory}. Change` });
+      const box = await control.boundingBox();
+      const chevron = await control.locator("svg").last().boundingBox();
+      const path = await control.locator("span").boundingBox();
+      // The top bar has 16 pixels of padding on each side.
+      expect(box?.x).toBe(16);
+      expect(box?.width).toBe(375 - 32);
+      expect(chevron && box && box.x + box.width - (chevron.x + chevron.width)).toBeLessThan(10);
+      expect(path && box && path.x - box.x).toBeLessThan(32);
+      await expectNoAccessibilityViolations(page);
+    });
+  }
 });
 
 test("with a form open the composer takes at most 40% of the window, and the new card shows above it", async ({

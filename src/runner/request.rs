@@ -40,7 +40,7 @@ impl RunRequest {
     }
 
     /// Returns the request that runs in `directory`, which must be an
-    /// absolute path to an existing directory.
+    /// absolute path to a directory that flightdeck can enter.
     #[must_use]
     pub fn directory(mut self, directory: impl Into<String>) -> Self {
         self.directory = Some(directory.into());

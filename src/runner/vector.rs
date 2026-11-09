@@ -260,9 +260,11 @@ pub(super) fn build<'tool>(
 }
 
 /// Returns `directory` as a path when it is absolute, holds no control
-/// character and names a directory that flightdeck can read. The path stays
-/// as the page sent it, so a confirmation binds the same text that its
-/// preview showed.
+/// character and names a directory that flightdeck can enter. Reading `.`
+/// inside it needs the permission to enter it, which reading the directory's
+/// own metadata does not. The path is not resolved, and a confirmation
+/// compares it by its components, so a symlink in it is bound by its name
+/// and not by its target.
 fn checked_directory(directory: &str) -> Result<PathBuf, DirectoryProblem> {
     if has_control(directory) {
         return Err(DirectoryProblem::Control);
@@ -271,7 +273,7 @@ fn checked_directory(directory: &str) -> Result<PathBuf, DirectoryProblem> {
     if !path.is_absolute() {
         return Err(DirectoryProblem::NotAbsolute);
     }
-    if !fs::metadata(path).is_ok_and(|metadata| metadata.is_dir()) {
+    if !fs::metadata(path.join(".")).is_ok_and(|metadata| metadata.is_dir()) {
         return Err(DirectoryProblem::NotADirectory);
     }
     Ok(path.to_path_buf())

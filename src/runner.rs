@@ -332,8 +332,8 @@ impl Runner {
     /// and has room, so a confirmation refused with
     /// [`RunFailure::Confirmation`] or [`RunFailure::Spawn`] uses its id up.
     /// A confirmation refused with [`RunFailure::Refused`],
-    /// [`RunFailure::ReadOnly`], [`RunFailure::Closed`] or
-    /// [`RunFailure::Busy`] keeps its id.
+    /// [`RunFailure::Directory`], [`RunFailure::ReadOnly`],
+    /// [`RunFailure::Closed`] or [`RunFailure::Busy`] keeps its id.
     pub fn confirm(
         &self,
         confirmation: &ConfirmationId,

@@ -116,7 +116,7 @@ pub enum RunFailure {
     /// The request's directory cannot be used.
     #[failure(
         code = RUN_DIRECTORY,
-        hint = "choose an absolute path to an existing directory",
+        hint = "choose an absolute path to a directory that flightdeck can enter",
         field(reason = problem.name()),
     )]
     Directory {
@@ -237,7 +237,7 @@ impl fmt::Display for RunFailure {
                 DirectoryProblem::NotAbsolute => "the working directory is not an absolute path",
                 DirectoryProblem::Control => "the working directory holds a control character",
                 DirectoryProblem::NotADirectory => {
-                    "the working directory does not exist or is not a directory"
+                    "the working directory does not exist, is not a directory or cannot be entered"
                 }
             }),
             Self::Spawn { tool, .. } => write!(f, "cannot run {tool}"),
@@ -473,7 +473,7 @@ pub enum DirectoryProblem {
     /// The path holds a control character, which the run's card could not
     /// show as it is.
     Control,
-    /// Nothing at the path can be read as a directory.
+    /// Nothing at the path is a directory that flightdeck can enter.
     NotADirectory,
 }
 

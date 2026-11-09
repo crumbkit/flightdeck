@@ -10,6 +10,7 @@
 
 use std::fmt;
 use std::io::{self, Write};
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -107,7 +108,13 @@ pub(crate) fn run(run: &mut Run, args: &OpenArgs) -> ExitCode {
 /// that a person reads to `lines`. A line that cannot be written, as when
 /// standard error is closed, is skipped.
 fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
-    let program = Program::at_launch(&args.tool);
+    let launch = launch_directory();
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a run in another directory must find the tool that this PATH found at launch"
+    )]
+    let search = std::env::var_os("PATH");
+    let program = Program::at_launch(&args.tool, launch.as_deref(), search.as_deref());
     let tool = model::load(&program, spawn::TIME_LIMIT).map_err(OpenError::Load)?;
     let stop = Arc::new(AtomicBool::new(false));
     watch_signals(&stop).map_err(OpenError::Signals)?;
@@ -138,13 +145,12 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
         runner::Settings::new(),
     )
     .map_err(OpenError::Random)?;
-    let directory = launch_directory();
     let server = Server::new(
         listener,
         session,
         runner,
         Settings::new(),
-        directory.as_deref(),
+        launch.as_deref().and_then(shown_directory),
     )
     .map_err(OpenError::Start)?;
 
@@ -179,17 +185,21 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
     Ok(())
 }
 
-/// Returns the directory flightdeck started in, for the page to show, or
-/// `None` when the page could not send it back: flightdeck cannot read it,
-/// its path is not UTF-8, or it holds a control character, which the runner
-/// refuses.
-fn launch_directory() -> Option<String> {
+/// Returns the directory flightdeck started in, or `None` when it cannot
+/// read it.
+fn launch_directory() -> Option<PathBuf> {
     #[expect(
         clippy::disallowed_methods,
-        reason = "the page shows the directory that flightdeck started in and starts its runs there"
+        reason = "the page shows the directory that flightdeck started in, and a relative tool path resolves against it"
     )]
-    let directory = std::env::current_dir().ok()?.into_os_string().into_string();
-    directory.ok().filter(|text| !model::has_control(text))
+    std::env::current_dir().ok()
+}
+
+/// Returns `directory` for the page to show, or `None` when the page could
+/// not send it back, because its path is not UTF-8 or holds a control
+/// character, which the runner refuses.
+fn shown_directory(directory: &Path) -> Option<&str> {
+    directory.to_str().filter(|text| !model::has_control(text))
 }
 
 /// Returns `text` with each control character and each bidirectional
