@@ -1,4 +1,6 @@
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsStr;
+#[cfg(unix)]
+use std::ffi::OsString;
 use std::path::Path;
 
 use super::{Program, Query};
@@ -17,6 +19,7 @@ fn a_relative_tool_path_becomes_absolute_against_the_launch_directory() {
     assert_eq!(program.name(), OsStr::new("/launch/tools/shelf"));
 }
 
+#[cfg(unix)]
 /// Returns the `PATH` set on a program named `tool` that launched from
 /// `launch`, or `None` when the launch set none.
 fn search_of(tool: &str, search: &str, launch: Option<&Path>) -> Option<OsString> {
