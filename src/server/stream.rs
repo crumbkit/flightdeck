@@ -11,7 +11,8 @@ use serde::Serialize;
 
 use super::document::Document;
 use super::http::Body;
-use super::{Clock, reply};
+use super::reply;
+use crate::clock::Clock;
 use crate::model::ToolFailure;
 use crate::runner::{Outcome, Preview, Run, RunEvent, Waited};
 use crate::spawn::Exit;

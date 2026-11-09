@@ -48,7 +48,6 @@
 //! children start with SIGINT at its default.
 
 mod choices;
-mod clock;
 mod confirmations;
 mod end_failure;
 mod failure;
@@ -65,7 +64,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub use self::choices::{CHOICES_OUTPUT, Choice, Choices, ChoicesRequest, MOST_CHOICES};
-pub use self::clock::{Clock, SystemClock};
 pub use self::confirmations::ConfirmationId;
 use self::confirmations::Confirmations;
 pub use self::end_failure::EndFailure;
@@ -81,6 +79,7 @@ use self::runs::Runs;
 use self::trace::Trace;
 pub(crate) use self::vector::Argv;
 use self::vector::{Extra, Vector};
+use crate::clock::Clock;
 use crate::model::{Command, Effects, Tool};
 use crate::spawn::{self, Event, Events, Exit, Program, Silent};
 pub use crate::spawn::{DRAIN_GRACE, Escalation, Limit, Limits, QUEUE};
@@ -307,7 +306,7 @@ impl Runner {
         }
         let confirmation = self
             .confirmations
-            .issue(vector, self.clock.now())
+            .issue(vector, self.clock.now().instant())
             .map_err(|source| RunFailure::Random { source })?;
         Ok(Preview {
             line,
@@ -339,7 +338,7 @@ impl Runner {
         let (command, vector) = self.check(request)?;
         self.start(command, &vector, Extra::Yes, self.settings.limits, || {
             self.confirmations
-                .take(confirmation, &vector, self.clock.now())
+                .take(confirmation, &vector, self.clock.now().instant())
                 .map_err(|problem| RunFailure::Confirmation { problem })
         })
     }
@@ -386,10 +385,10 @@ impl Runner {
         );
         let mut run = self.start(command, &vector, Extra::None, limits, || Ok(()))?;
         let path = command.path().to_string();
-        let deadline = self.clock.now() + self.settings.choices_time;
+        let deadline = self.clock.now().instant() + self.settings.choices_time;
         let mut document = String::new();
         loop {
-            let remaining = deadline.saturating_duration_since(self.clock.now());
+            let remaining = deadline.saturating_duration_since(self.clock.now().instant());
             if remaining.is_zero() {
                 // Dropping the run stops the source.
                 return Err(RunFailure::ChoicesTime { path });
@@ -728,7 +727,7 @@ impl Preview {
         let RunEvent::Outcome(Outcome::Result) = event else {
             return event;
         };
-        let now = dry_run.clock.now();
+        let now = dry_run.clock.now().instant();
         RunEvent::Outcome(
             match dry_run.confirmations.issue(dry_run.vector.clone(), now) {
                 Ok(confirmation) => {

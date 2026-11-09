@@ -19,6 +19,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The library has one `clock::Clock`, one `clock::SystemClock` and one
+  `clock::Moment`, which the runner and the server share. They replace
+  `runner::Clock`, `runner::SystemClock`, `server::Clock`,
+  `server::SystemClock` and `server::Moment`. The runner reads
+  `moment.instant()` from the clock it is given.
 - flightdeck starts, reads and stops every child through crumbkit-process
   from crumbkit's repository, in place of its own process code. Runs and
   loads behave as before on macOS and Linux, with two exceptions. A load
