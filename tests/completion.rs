@@ -153,5 +153,6 @@ fn a_completion_request_completes_the_names_of_flightdeck_commands() {
         &[("COMPLETE", "fish"), ("_CLAP_COMPLETE_INDEX", "1")],
     );
 
+    assert_eq!(output.status.code(), Some(0));
     assert!(text(&output).contains("completion"), "{}", text(&output));
 }
