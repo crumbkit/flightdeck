@@ -3,7 +3,7 @@ use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::Path;
 
-use super::{Program, Query};
+use super::{FreshState, Program, Query};
 
 #[test]
 fn a_bare_tool_name_stays_a_name_for_the_path_search() {
@@ -134,5 +134,32 @@ fn each_query_is_a_fixed_argument_vector_and_each_document_query_passes_no_input
                 "--no-input"
             ],
         ]
+    );
+}
+
+/// Returns the value that `program`'s runs get for the variable `name`.
+fn variable_of(program: &Program, name: &str) -> Option<std::ffi::OsString> {
+    program
+        .command::<&str>(&[])
+        .get_envs()
+        .find(|(each, _)| *each == name)
+        .and_then(|(_, value)| value.map(OsStr::to_os_string))
+}
+
+#[test]
+fn a_fresh_state_replaces_the_programs_state_directory_and_is_gone_once_dropped() {
+    let program = Program::new("shelf").env("XDG_STATE_HOME", "/the-persons-state");
+    let state = FreshState::new().unwrap();
+
+    let kept_out = state.keep_out(&program);
+
+    let directory = std::path::PathBuf::from(variable_of(&kept_out, "XDG_STATE_HOME").unwrap());
+    assert_ne!(directory, Path::new("/the-persons-state"));
+    assert!(directory.is_dir(), "{} is missing", directory.display());
+    drop(state);
+    assert!(
+        !directory.exists(),
+        "{} is still there",
+        directory.display()
     );
 }

@@ -51,7 +51,7 @@ function page(path: string, bytes: number | null): Page {
   };
 }
 
-/** Pages of 500 B each for the root, books, commands, schemas and their commands. */
+/** Pages of 500 B each for the root, books, commands, schemas, self and their commands. */
 const pages = [
   "",
   "books",
@@ -63,6 +63,8 @@ const pages = [
   "commands list",
   "schemas",
   "schemas list",
+  "self",
+  "self usage",
 ].map((path) => page(path, 500));
 
 const reply: WeightReply = { pages, left_out: 0, problem: null };
@@ -104,7 +106,7 @@ describe("bothRows", () => {
     ran("books show", 50, 100), // 1,600 B, often: light and often
     ran("books summarize", 10, 3000), // 4,500 B, below the median: no corner
     ran("books remove", 0), // 1,500 B, never: light and never
-    ran("commands list", 900, 9000), // built in and not counted, so no output weight
+    ran("self usage", 900, 9000), // built in and not counted, so no output weight
   ]);
 
   it("multiplies each path's weight by its runs, the most read first, with not counted last", () => {
@@ -115,7 +117,7 @@ describe("bothRows", () => {
       ["books show", 1600, 50, 80_000],
       ["books summarize", 4500, 10, 45_000],
       ["books remove", 1500, 0, 0],
-      ["commands list", 1500, null, null],
+      ["self usage", 1500, null, null],
     ]);
   });
 
@@ -130,7 +132,7 @@ describe("bothRows", () => {
       "books show": "light_often",
       "books summarize": null,
       "books remove": "light_never",
-      "commands list": null,
+      "self usage": null,
     });
     expect(cornerCounts(bothRows(tool, reply))).toEqual({
       heavy_often: 1,

@@ -111,11 +111,12 @@ fn null_next_steps_on_a_listing_read_as_no_next_steps() {
 
 #[test]
 fn a_command_word_or_an_argument_name_with_a_control_character_is_refused_when_the_model_loads() {
-    for (from, to) in [
-        (r#""--limit""#, r#""--li\u001bmit""#),
+    for (from, to, named) in [
+        (r#""--limit""#, r#""--li\u001bmit""#, r"--li\u{1b}mit"),
         (
             r#""path":"shelf books show""#,
             r#""path":"shelf books sh\u202eow""#,
+            r"books sh\u{202e}ow",
         ),
     ] {
         assert!(WITH_GOALS.contains(from), "{from}");
@@ -123,8 +124,92 @@ fn a_command_word_or_an_argument_name_with_a_control_character_is_refused_when_t
 
         let refused = Tool::assemble("shelf 0.1.1", commands, Vec::new());
 
-        assert!(matches!(refused, Err(NotDocument::Control)), "{to}");
+        let Err(NotDocument::Control(name)) = refused else {
+            panic!("{to} was not refused for a control character");
+        };
+        assert_eq!(name.escape_debug().to_string(), named);
     }
+}
+
+#[test]
+fn a_command_path_with_a_word_that_starts_with_a_dash_or_an_empty_word_is_refused_when_the_model_loads()
+ {
+    for (to, named) in [
+        (
+            r#""path":"shelf books --config=/x""#,
+            "shelf books --config=/x",
+        ),
+        (r#""path":"shelf books  show""#, "shelf books  show"),
+    ] {
+        let from = r#""path":"shelf books show""#;
+        let commands: CommandsList = serde_json::from_str(&WITH_GOALS.replace(from, to)).unwrap();
+
+        let refused = Tool::assemble("shelf 0.1.1", commands, Vec::new());
+
+        let Err(NotDocument::OptionWord(path)) = refused else {
+            panic!("{to} was not refused for an option word");
+        };
+        assert_eq!(path, named);
+    }
+}
+
+#[test]
+fn a_refused_name_is_quoted_in_the_failure_with_each_control_character_escaped() {
+    let failure = |problem| {
+        super::LoadError::load(
+            "shelf",
+            "commands list --json --full --all --no-input".to_owned(),
+            super::Problem::NotDocument(problem),
+            crate::spawn::Exit::Code(0),
+            &[],
+        )
+        .to_string()
+    };
+
+    assert_eq!(
+        failure(NotDocument::OptionWord(
+            "shelf books\u{202e} --x".to_owned()
+        )),
+        r#"shelf commands list --json --full --all --no-input names a command with an empty word or a word that starts with -: "shelf books\u{202e} --x""#
+    );
+    assert_eq!(
+        failure(NotDocument::Control("--li\u{1b}mit".to_owned())),
+        r#"shelf commands list --json --full --all --no-input names a command or an argument with a control character: "--li\u{1b}mit""#
+    );
+}
+
+#[test]
+fn a_goal_or_a_schemas_list_path_that_does_not_parse_is_skipped() {
+    let from = r#""commands":["books"]"#;
+    assert!(WITH_GOALS.contains(from));
+    let commands: CommandsList =
+        serde_json::from_str(&WITH_GOALS.replace(from, r#""commands":["books","-x"]"#)).unwrap();
+    let schemas: super::SchemasList = serde_json::from_value(serde_json::json!({
+        "schema": "shelf/schemas-list/v1",
+        "truncated": false,
+        "data": [{
+            "id": "shelf/books-list/v1",
+            "kind": "output",
+            "form": "document",
+            "commands": ["shelf --books list", "shelf books list"],
+        }],
+    }))
+    .unwrap();
+    let documents = schemas
+        .into_rows()
+        .into_iter()
+        .map(|row| Document::new(row, serde_json::json!({})))
+        .collect();
+
+    let tool = Tool::assemble("shelf 0.1.1", commands, documents).unwrap();
+
+    let browse = &tool.headings()[0];
+    assert_eq!(browse.title(), "Browse the catalogue");
+    assert_eq!(browse.commands().len(), 4);
+    assert_eq!(
+        tool.document("shelf/books-list/v1").unwrap().commands(),
+        [CommandPath::from_row("shelf books list").unwrap()]
+    );
 }
 
 #[test]
@@ -248,22 +333,24 @@ fn a_command_that_the_figures_do_not_list_and_the_loaders_own_queries_have_no_co
 }
 
 #[test]
-fn the_loaders_own_queries_are_marked_as_not_counted_and_the_tools_commands_as_counted() {
+fn the_loaders_queries_of_the_usage_log_are_marked_as_not_counted_and_every_other_command_as_counted()
+ {
     let tool = shelf_with_costs(FIGURES, Some(USAGE));
     let counted = |words: &[&str]| {
         serde_json::to_value(tool.command(words).unwrap()).unwrap()["counted"].clone()
     };
 
+    for words in [["self", "figures", "list"].as_slice(), &["self", "usage"]] {
+        assert_eq!(counted(words), serde_json::json!(false), "{words:?}");
+    }
     for words in [
         ["commands", "list"].as_slice(),
         &["schemas", "list"],
         &["schemas", "show"],
-        &["self", "figures", "list"],
-        &["self", "usage"],
+        &["books", "remove"],
     ] {
-        assert_eq!(counted(words), serde_json::json!(false), "{words:?}");
+        assert_eq!(counted(words), serde_json::json!(true), "{words:?}");
     }
-    assert_eq!(counted(&["books", "remove"]), serde_json::json!(true));
 }
 
 #[test]
@@ -286,7 +373,9 @@ fn crumbkits_own_commands_are_marked_built_in_and_the_tools_commands_are_not() {
         assert_eq!(built_in(words), serde_json::json!(false), "{words:?}");
     }
     // shelf mounts no aliases, so the rule is checked on the path alone.
-    assert!(is_built_in(&CommandPath::from_row("shelf aliases list")));
+    assert!(is_built_in(
+        &CommandPath::from_row("shelf aliases list").unwrap()
+    ));
 }
 
 #[test]
@@ -735,6 +824,22 @@ fn a_tool_that_is_not_found_offers_a_name_on_path_and_a_path_as_two_repairs() {
     assert_eq!(
         failure.alternatives(),
         [Recovery::hint("give the path of a program")]
+    );
+}
+
+#[test]
+fn a_state_directory_that_cannot_be_made_is_a_load_failure_that_says_so() {
+    use crumbkit::Failure as _;
+
+    let failure = super::LoadError::State {
+        tool: "shelf".to_owned(),
+        source: std::io::Error::from(std::io::ErrorKind::PermissionDenied),
+    };
+
+    assert_eq!(failure.code(), &super::TOOL_LOAD);
+    assert_eq!(
+        failure.to_string(),
+        "cannot make a temporary state directory for shelf's queries"
     );
 }
 

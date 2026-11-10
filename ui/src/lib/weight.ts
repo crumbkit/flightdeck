@@ -59,8 +59,6 @@ export function failureWords(page: Page): string {
       return "not measured: would not start";
     case "not_run":
       return "not measured: flightdeck stopped measuring before this page, at its 30 s limit or its own stop";
-    case "refused":
-      return "not measured: a word of its path starts with -";
     case null:
       return "";
   }

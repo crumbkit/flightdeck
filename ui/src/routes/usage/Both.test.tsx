@@ -34,7 +34,7 @@ const tool: Tool = {
     ran("books show", 50, 100), // 1,600 B: light and often
     ran("books summarize", 10, 3000), // 4,500 B: in no corner
     ran("books remove", 0), // 1,500 B: light and never
-    ran("commands list", 900, 9000), // not counted
+    ran("self usage", 900, 9000), // not counted
   ],
 };
 
@@ -53,8 +53,8 @@ const measured: WeightReply = {
     "books show",
     "books summarize",
     "books remove",
-    "commands",
-    "commands list",
+    "self",
+    "self usage",
   ].map((path) => page(path, 500)),
   left_out: 0,
   problem: null,
@@ -109,12 +109,31 @@ describe("Both", () => {
       ["books show", "about 20k tokens"],
       ["books summarize", "about 11k tokens"],
       ["books remove", "none"],
-      ["commands list", "not counted"],
+      ["self usage", "not counted"],
     ]);
     expect(screen.getByTestId("summary")).toHaveTextContent(
       "Path weight times runs · heavy is at least 4,000 B, half the default path budget · often is at least 50 runs, the median of commands that ran",
     );
     expect(asked.asked).toBe(1);
+  });
+
+  it("shows a partial measurement's rows under a line that offers to measure again", async () => {
+    stubWeight({
+      ...measured,
+      pages: measured.pages.map((each) =>
+        each.path.join(" ") === "books remove"
+          ? { ...each, bytes: null, failure: "not_run" as const }
+          : each,
+      ),
+    });
+
+    renderBoth();
+
+    await screen.findByRole("table", { name: "Path weight and runs of each command" });
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "flightdeck stopped measuring before 1 help page, at its 30 s limit or its own stop.",
+    );
+    expect(screen.getByRole("button", { name: "Measure again" })).toBeInTheDocument();
   });
 
   it("shows each corner's count on its chip, and a chosen chip keeps its rows and names its action", async () => {

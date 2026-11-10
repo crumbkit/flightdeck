@@ -57,11 +57,12 @@ mod request;
 mod runs;
 mod trace;
 mod vector;
+mod weight;
 
 use std::cmp;
 use std::fmt;
 use std::str::FromStr;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crumbkit_process::Cancel;
@@ -83,8 +84,9 @@ use self::runs::Runs;
 use self::trace::Trace;
 pub(crate) use self::vector::Argv;
 use self::vector::{Extra, Vector};
+use self::weight::{Ask, WeightCell};
 use crate::clock::Clock;
-use crate::model::weight::{self, Weight};
+use crate::model::weight::Weight;
 use crate::model::{Class, Command, Tool};
 use crate::spawn::{self, Event, Events, Exit, HelpLimits, Program, Silent};
 pub use crate::spawn::{DRAIN_GRACE, Escalation, Limit, Limits, QUEUE};
@@ -127,12 +129,13 @@ pub struct Settings {
     confirmation_life: Duration,
     shutdown_grace: Duration,
     choices_time: Duration,
+    help_limits: HelpLimits,
 }
 
 impl Settings {
     /// Returns the default settings: [`Limits::default`],
     /// [`Escalation::default`], [`MOST_RUNS`], [`CONFIRMATION_LIFE`],
-    /// [`SHUTDOWN_GRACE`] and [`CHOICES_TIME`].
+    /// [`SHUTDOWN_GRACE`], [`CHOICES_TIME`] and [`HelpLimits::new`].
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -142,6 +145,7 @@ impl Settings {
             confirmation_life: CONFIRMATION_LIFE,
             shutdown_grace: SHUTDOWN_GRACE,
             choices_time: CHOICES_TIME,
+            help_limits: HelpLimits::new(),
         }
     }
 
@@ -188,6 +192,14 @@ impl Settings {
         self.choices_time = time;
         self
     }
+
+    /// Returns the settings with a measurement of the help pages within
+    /// `limits`.
+    #[must_use]
+    pub const fn help_limits(mut self, limits: HelpLimits) -> Self {
+        self.help_limits = limits;
+        self
+    }
 }
 
 impl Default for Settings {
@@ -213,7 +225,7 @@ pub struct Runner {
     trace: Trace,
     confirmations: Arc<Confirmations>,
     runs: Runs,
-    weight: OnceLock<Weight>,
+    weight: WeightCell,
     help_stop: Cancel,
 }
 
@@ -242,7 +254,7 @@ impl Runner {
             settings,
             clock,
             trace,
-            weight: OnceLock::new(),
+            weight: WeightCell::default(),
             help_stop: Cancel::new(),
         })
     }
@@ -253,17 +265,31 @@ impl Runner {
         &self.tool
     }
 
-    /// Returns the weight of the tool's help pages, which the first call
-    /// measures within [`HelpLimits::new`]. A call while that measurement
-    /// runs waits for it, and every later call returns it, so the tool's
-    /// help runs at most once for the runner's life. A shutdown stops the
-    /// measurement, and the pages it did not finish say `not_run`.
-    pub fn weight(&self) -> &Weight {
-        self.weight.get_or_init(|| {
-            weight::measure(
+    /// Returns the latest weight of the tool's help pages, and measures
+    /// them within the help limits of the settings only when there is no
+    /// measurement yet or the latest one has a problem. A partial
+    /// measurement, with pages that say `not_run` because its time limit
+    /// passed or a shutdown stopped it, is returned as it is. A call while a
+    /// measurement runs waits for it and returns its weight, so concurrent
+    /// calls never multiply help runs.
+    pub fn weight(&self) -> Arc<Weight> {
+        self.measured(Ask::Kept)
+    }
+
+    /// Returns the weight of the tool's help pages as [`Runner::weight`]
+    /// does, but measures again when the latest measurement is partial. A
+    /// complete measurement is never measured again.
+    pub fn weight_again(&self) -> Arc<Weight> {
+        self.measured(Ask::Again)
+    }
+
+    /// Returns the weight that `ask` asks for, measuring when it must.
+    fn measured(&self, ask: Ask) -> Arc<Weight> {
+        self.weight.get(ask, || {
+            crate::model::weight::measure(
                 &self.program,
                 &self.tool,
-                HelpLimits::new(),
+                self.settings.help_limits,
                 &self.help_stop,
             )
         })

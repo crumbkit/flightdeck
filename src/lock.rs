@@ -7,10 +7,12 @@ use std::time::Duration;
 /// poisoned.
 ///
 /// flightdeck's locks guard a map of confirmation ids, a list of runs, the
-/// queue of each run's lines, the server's session and the server's map of
-/// open connections. Every change to one of them is one insert, removal,
-/// replacement or flag, or a method of the session that keeps it whole, so
-/// a panic cannot leave the data half-changed.
+/// queue of each run's lines, the server's session, the server's map of
+/// open connections and the runner's last measurement of the help pages,
+/// and one lock lets one measurement run at a time. Every change to one of
+/// them is one insert, removal, replacement or flag, or a method of the
+/// session that keeps it whole, so a panic cannot leave the data
+/// half-changed.
 pub(crate) fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     recover(mutex.lock())
 }

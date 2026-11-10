@@ -18,7 +18,12 @@
 //!   The ids that `schemas show` takes follow `--`, so an id that starts with
 //!   `-` stays an id.
 //! - Environment: the child inherits flightdeck's environment, plus the
-//!   variables that [`Program::env`] adds.
+//!   variables that [`Program::env`] adds. The loader asks `--version`,
+//!   `commands list`, `schemas list` and `schemas show` with
+//!   `XDG_STATE_HOME` set to a [`FreshState`], so the tool logs those runs
+//!   to a temporary usage log and not to the person's. The figures, the
+//!   findings and the runs read the person's usage log, so they keep the
+//!   inherited `XDG_STATE_HOME`.
 //! - Streams and deadline: standard input is closed. Standard output is kept
 //!   up to [`STDOUT_LIMIT`] bytes, and standard error keeps its last
 //!   [`STDERR_LIMIT`] bytes. The query has one deadline, which covers the
@@ -49,6 +54,7 @@ use crumbkit_process::{Capture, Outcome, OverLimit, RunError, RunOptions, Status
 
 mod browser;
 mod help;
+mod state;
 mod stream;
 
 #[cfg(test)]
@@ -57,6 +63,7 @@ mod tests;
 pub use self::browser::{BROWSER_TIME_LIMIT, open_browser};
 pub(crate) use self::help::measure_help;
 pub use self::help::{AT_ONCE, HELP_LIMIT, HELP_TIME_LIMIT, HelpLimits, HelpPage, MEASURE_LIMIT};
+pub(crate) use self::state::FreshState;
 pub use self::stream::{
     DRAIN_GRACE, Escalation, INTERRUPT_GRACE, LINE_LIMIT, Limit, Limits, QUEUE, TERMINATE_GRACE,
     TOTAL_LIMIT,

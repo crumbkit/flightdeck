@@ -5,12 +5,19 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use super::argument::{Argument, CrumbkitFlag};
+use super::error::NotDocument;
 use super::figures::{Cost, is_built_in, is_loader_query};
 use super::wire::CommandRow;
 
 /// The words of a command below the tool's name, such as `books list`. It
 /// serializes as the array of its words.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+///
+/// No word is empty or starts with `-`. A crumbkit tool reads such a word as
+/// an option, so no command could have it, and a run, a preview, a choices
+/// run or a help run that put it on a command line would pass the tool an
+/// option. A `--` before the words would not help, because a crumbkit tool
+/// reads every word after `--` as a value, not a command.
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(transparent)]
 pub struct CommandPath {
     words: Vec<String>,
@@ -19,10 +26,29 @@ pub struct CommandPath {
 impl CommandPath {
     /// Returns the path of a `commands list` row, whose first word is the
     /// tool's name.
-    pub(super) fn from_row(path: &str) -> Self {
-        Self {
-            words: path.split(' ').skip(1).map(str::to_owned).collect(),
-        }
+    ///
+    /// # Errors
+    ///
+    /// Returns [`NotDocument::OptionWord`] when a word below the tool's name
+    /// is empty or starts with `-`.
+    pub(super) fn from_row(path: &str) -> Result<Self, NotDocument> {
+        Self::of(path.split(' ').skip(1)).map_err(|()| NotDocument::OptionWord(path.to_owned()))
+    }
+
+    /// Returns the path of `words`, or `Err` when one is empty or starts
+    /// with `-`.
+    fn of<'a>(words: impl IntoIterator<Item = &'a str>) -> Result<Self, ()> {
+        let words = words
+            .into_iter()
+            .map(|word| {
+                if word.is_empty() || word.starts_with('-') {
+                    Err(())
+                } else {
+                    Ok(word.to_owned())
+                }
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(Self { words })
     }
 
     /// Returns the path's words, such as `["books", "list"]`.
@@ -53,11 +79,16 @@ impl CommandPath {
             .eq(words.iter().copied())
     }
 
-    /// Returns this path with `words`, split at spaces, appended.
-    pub(super) fn join(&self, words: &str) -> Self {
-        let mut joined = self.words.clone();
-        joined.extend(words.split(' ').map(str::to_owned));
-        Self { words: joined }
+    /// Returns this path with `words`, split at spaces, appended, or `None`
+    /// when a word of `words` is empty or starts with `-`.
+    pub(super) fn join(&self, words: &str) -> Option<Self> {
+        Self::of(
+            self.words
+                .iter()
+                .map(String::as_str)
+                .chain(words.split(' ')),
+        )
+        .ok()
     }
 }
 
@@ -83,10 +114,11 @@ pub struct Command {
     writes: Option<Writes>,
     #[serde(flatten)]
     cost: Costed,
-    /// Whether the figures count the command's runs. The loader's own
-    /// queries, such as `commands list`, are not counted, because their
-    /// runs are left out of the figures by name (RUST-10 in `figures.rs`),
-    /// so the page says so rather than showing that agents never ran them.
+    /// Whether the figures count the command's runs. The queries that the
+    /// loader runs as the person, such as `self usage`, are not counted,
+    /// because their runs are left out of the figures by name (RUST-10 in
+    /// `figures.rs`), so the page says so rather than showing that agents
+    /// never ran them.
     counted: bool,
     /// Whether crumbkit adds the command to every tool, such as
     /// `self usage`, by the rule and its RUST-10 in `figures.rs`. The both
@@ -101,9 +133,14 @@ pub struct Command {
 impl Command {
     /// Returns the command of a `commands list` row, with only the row's own
     /// arguments.
-    pub(super) fn from_row(row: CommandRow) -> Self {
-        let path = CommandPath::from_row(&row.path);
-        Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`NotDocument::OptionWord`] when a word of the row's path is
+    /// empty or starts with `-`.
+    pub(super) fn from_row(row: CommandRow) -> Result<Self, NotDocument> {
+        let path = CommandPath::from_row(&row.path)?;
+        Ok(Self {
             counted: !is_loader_query(&path.to_string()),
             built_in: is_built_in(&path),
             path,
@@ -122,7 +159,7 @@ impl Command {
             writes: row.writes,
             cost: Costed(None),
             prints_no_result: row.prints_no_result,
-        }
+        })
     }
 
     /// Adds the global arguments of a group above the command, after the
@@ -236,8 +273,8 @@ impl Command {
 
     /// Returns how often the command ran, from the tool's `self figures
     /// list`, or 0 when the tool keeps no figures or the call failed. The
-    /// commands that the loader runs itself, such as `commands list`, are
-    /// always 0.
+    /// commands that the loader runs as the person, such as `self usage`,
+    /// are always 0.
     #[must_use]
     pub const fn runs(&self) -> u64 {
         match &self.cost.0 {
@@ -248,8 +285,8 @@ impl Command {
 
     /// Returns what the command costs the agents that call it, from the
     /// tool's `self figures list` and `self usage`, or `None` when the
-    /// figures hold no row for it. The commands that the loader runs
-    /// itself have none.
+    /// figures hold no row for it. The commands that the loader runs as
+    /// the person have none.
     #[must_use]
     pub const fn cost(&self) -> Option<&Cost> {
         self.cost.0.as_ref()

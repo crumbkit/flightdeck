@@ -4,7 +4,9 @@
 //! [`load`] runs its queries through [`crate::spawn`], all within one time
 //! limit: `--version`, `commands list`, `schemas list`, `schemas show` of
 //! every document that `schemas list` names, at most 100 ids at a time,
-//! and `self figures list` and `self usage` when the tool mounts them. It
+//! and `self figures list`, `self usage` and `self runs list` when the tool
+//! mounts them. The queries of the description log their runs to a fresh
+//! state directory, so they stay out of the person's usage log. It
 //! joins their documents into a [`Tool`]: its runnable commands with what
 //! each costs the agents that call it, the goal headings that group them, the documents they print with
 //! their JSON Schemas, and the links that crumbkit's command grammar
@@ -48,8 +50,8 @@ use self::figures::{FiguresList, Usage};
 pub(crate) use self::links::ID_COLUMN;
 pub use self::links::Link;
 pub use self::runs::{History, Run};
-use self::wire::CommandRow;
-use crate::spawn::{self, Exit, Program, Query, SpawnError, Stdout};
+use self::wire::{CommandRow, GoalRow};
+use crate::spawn::{self, Exit, FreshState, Program, Query, SpawnError, Stdout};
 
 /// The most document ids that one `schemas show` takes.
 pub(crate) const MOST_IDS: usize = 100;
@@ -204,9 +206,9 @@ impl Tool {
             .ok_or(NotDocument::NoRoot)?;
         let name = root.path.clone();
         let about = root.about.clone();
-        let goals = headings_of(root, &rows);
-        let commands = commands_of(rows, &documents);
-        let headings = goals.unwrap_or_else(|| {
+        let goals = root.goals.clone();
+        let commands = commands_of(rows, &documents)?;
+        let headings = headings_of(&goals, &commands).unwrap_or_else(|| {
             vec![Heading {
                 title: name.clone(),
                 commands: commands
@@ -215,8 +217,11 @@ impl Tool {
                     .collect(),
             }]
         });
-        if has_control(&name) || commands.iter().any(has_control_name) {
-            return Err(NotDocument::Control);
+        if has_control(&name) {
+            return Err(NotDocument::Control(name));
+        }
+        if let Some(text) = commands.iter().find_map(control_name) {
+            return Err(NotDocument::Control(text));
         }
         let version = version_line
             .strip_prefix(&name)
@@ -239,14 +244,19 @@ impl Tool {
     }
 }
 
-/// Returns true when a word of `command`'s path or the name of one of its
-/// arguments holds a character that [`has_control`] finds.
-fn has_control_name(command: &Command) -> bool {
-    command.path().words().iter().any(|word| has_control(word))
-        || command
-            .arguments()
-            .iter()
-            .any(|argument| has_control(argument.name()))
+/// Returns `command`'s path when a word of it holds a character that
+/// [`has_control`] finds, or else the name of the first of its arguments
+/// that holds one, or `None`.
+fn control_name(command: &Command) -> Option<String> {
+    if command.path().words().iter().any(|word| has_control(word)) {
+        return Some(command.path().to_string());
+    }
+    command
+        .arguments()
+        .iter()
+        .map(Argument::name)
+        .find(|name| has_control(name))
+        .map(str::to_owned)
 }
 
 /// Returns true when `text` holds a control character, a format character
@@ -294,7 +304,9 @@ impl Heading {
 ///
 /// # Errors
 ///
-/// Returns [`LoadError::NotFound`] when the program does not exist or may
+/// Returns [`LoadError::State`] when the temporary state directory of the
+/// description's queries cannot be made, before any query runs,
+/// [`LoadError::NotFound`] when the program does not exist or may
 /// not be run, and [`LoadError::Load`] when a query cannot be started,
 /// exits with a code other than 0, passes the time limit, or prints
 /// something other than the document it names. A `schemas show` that leaves
@@ -306,20 +318,31 @@ impl Heading {
 pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> {
     let tool = program.name().to_string_lossy();
     let deadline = Instant::now() + time_limit;
-    let ask = |query: Query<'_>| {
+    let ask_as = |program: &Program, query: Query<'_>| {
         let remaining = deadline.saturating_duration_since(Instant::now());
         Answer::of(program, &tool, &query, remaining)
     };
+    // The queries of the tool's description log their runs to a fresh state
+    // directory, which is removed when `load` returns. The figures, the
+    // findings and the runs read the person's usage log, so they run as
+    // `program`.
+    let state = FreshState::new().map_err(|source| LoadError::State {
+        tool: tool.clone().into_owned(),
+        source,
+    })?;
+    let describer = state.keep_out(program);
+    let describe = |query: Query<'_>| ask_as(&describer, query);
+    let ask = |query: Query<'_>| ask_as(program, query);
 
-    let version = ask(Query::Version)?;
+    let version = describe(Query::Version)?;
     let version_line = String::from_utf8_lossy(&version.stdout);
     let version_line = version_line.lines().next().unwrap_or_default();
 
-    let commands_answer = ask(Query::CommandsList)?;
+    let commands_answer = describe(Query::CommandsList)?;
     let commands: CommandsList = commands_answer.parse()?;
     commands_answer.check(commands.schema(), "commands-list", commands.truncated())?;
 
-    let schemas_answer = ask(Query::SchemasList)?;
+    let schemas_answer = describe(Query::SchemasList)?;
     let schemas: SchemasList = schemas_answer.parse()?;
     schemas_answer.check(schemas.schema(), "schemas-list", schemas.truncated())?;
 
@@ -328,7 +351,7 @@ pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> 
     let ids: Vec<String> = schemas.ids().map(str::to_owned).collect();
     let mut in_order = Vec::with_capacity(ids.len());
     for chunk in ids.chunks(MOST_IDS) {
-        let answer = ask(Query::SchemasShow(chunk))?;
+        let answer = describe(Query::SchemasShow(chunk))?;
         let document: SchemasShow = answer.parse()?;
         answer.check(document.schema(), "schemas-show", false)?;
         let mut shown = document.into_data();
@@ -478,35 +501,34 @@ impl<'a> Answer<'a> {
     }
 }
 
-/// Returns the headings of the root row's goals, with the runnable commands
-/// under each, or `None` when the root row has no goals.
+/// Returns the headings of the root row's `goals`, with the runnable
+/// `commands` under each, or `None` when the root row has no goals. A goal's
+/// command that does not parse as a path matches no command, so it is
+/// skipped.
 ///
 /// RUST-10: only the root's goals become headings. A goal heading of a
 /// group below the root, which a newer crumbkit may print, is ignored, and a
 /// command that no root goal names is under no heading. Nested headings
 /// replace this when the page groups commands below the root.
-fn headings_of(root: &CommandRow, rows: &[CommandRow]) -> Option<Vec<Heading>> {
-    if root.goals.is_empty() {
+fn headings_of(goals: &[GoalRow], commands: &[Command]) -> Option<Vec<Heading>> {
+    if goals.is_empty() {
         return None;
     }
-    let root_path = CommandPath::from_row(&root.path);
-    let leaves: Vec<CommandPath> = leaf_rows(rows)
-        .map(|row| CommandPath::from_row(&row.path))
-        .collect();
-    let headings = root
-        .goals
+    let root = CommandPath::default();
+    let headings = goals
         .iter()
         .map(|goal| {
             let prefixes: Vec<CommandPath> = goal
                 .commands
                 .iter()
-                .map(|words| root_path.join(words))
+                .filter_map(|words| root.join(words))
                 .collect();
             Heading {
                 title: goal.heading.clone(),
-                commands: leaves
+                commands: commands
                     .iter()
-                    .filter(|leaf| prefixes.iter().any(|prefix| leaf.starts_with(prefix)))
+                    .map(Command::path)
+                    .filter(|path| prefixes.iter().any(|prefix| path.starts_with(prefix)))
                     .cloned()
                     .collect(),
             }
@@ -524,12 +546,17 @@ fn headings_of(root: &CommandRow, rows: &[CommandRow]) -> Option<Vec<Heading>> {
 /// page cannot ask for it. crumbkit 0.1.0's tools have no such argument.
 /// Carrying each group's arguments with their position replaces this when a
 /// tool has one.
-fn commands_of(rows: Vec<CommandRow>, documents: &[Document]) -> Vec<Command> {
+///
+/// # Errors
+///
+/// Returns [`NotDocument::OptionWord`] when a row's path has a word that is
+/// empty or starts with `-`.
+fn commands_of(rows: Vec<CommandRow>, documents: &[Document]) -> Result<Vec<Command>, NotDocument> {
     let leaves: Vec<bool> = rows.iter().map(|row| is_leaf(row, &rows)).collect();
     let mut groups = Vec::new();
     let mut commands = Vec::new();
     for (row, leaf) in rows.into_iter().zip(leaves) {
-        let command = Command::from_row(row);
+        let command = Command::from_row(row)?;
         if leaf {
             commands.push(command);
         } else {
@@ -554,12 +581,7 @@ fn commands_of(rows: Vec<CommandRow>, documents: &[Document]) -> Vec<Command> {
             command.set_document(document.id().to_owned());
         }
     }
-    commands
-}
-
-/// Returns the rows that no other row is below.
-fn leaf_rows(rows: &[CommandRow]) -> impl Iterator<Item = &CommandRow> {
-    rows.iter().filter(|row| is_leaf(row, rows))
+    Ok(commands)
 }
 
 /// Returns true when no row of `rows` is below `row`.

@@ -1,5 +1,5 @@
 use std::os::unix::fs::PermissionsExt as _;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use crumbkit_process::{Cancel, Outcome, Status, StopReason};
@@ -74,12 +74,13 @@ fn a_page_that_prints_nothing_is_empty() {
 }
 
 #[test]
-fn each_run_gets_only_the_programs_variables_and_a_temporary_state_directory_that_is_gone_afterwards()
- {
+fn each_run_gets_only_the_programs_variables_and_a_fresh_state_directory() {
     let marks = tempfile::tempdir().unwrap();
     let mark = marks.path().join("env");
     let (_directory, path) = stand_in(&format!("env > '{}'; echo page", mark.display()));
-    let program = Program::new(path).env("ADDED", "yes");
+    let program = Program::new(path)
+        .env("ADDED", "yes")
+        .env("XDG_STATE_HOME", "/the-persons-state");
 
     let pages = measure_help(&program, &[Vec::new()], HelpLimits::new(), &Cancel::new()).unwrap();
 
@@ -89,9 +90,9 @@ fn each_run_gets_only_the_programs_variables_and_a_temporary_state_directory_tha
         .lines()
         .find_map(|line| line.strip_prefix("XDG_STATE_HOME="))
         .unwrap();
+    assert_ne!(state, "/the-persons-state");
     assert!(env.lines().any(|line| line == "ADDED=yes"), "{env}");
     assert!(!env.lines().any(|line| line.starts_with("HOME=")), "{env}");
-    assert!(!Path::new(state).exists(), "{state} is still there");
 }
 
 #[test]
@@ -154,25 +155,6 @@ fn a_stop_during_a_measurement_ends_the_runs_in_progress_at_once() {
         measured.iter().all(|page| *page == HelpPage::NotRun),
         "{measured:?}"
     );
-}
-
-#[test]
-fn a_page_whose_path_has_a_word_that_starts_with_a_dash_is_refused_without_a_run() {
-    let marks = tempfile::tempdir().unwrap();
-    let mark = marks.path().join("ran");
-    let (_directory, path) = stand_in(&format!("touch '{}'; echo page", mark.display()));
-    let pages = [vec!["books".to_owned(), "--delete-all".to_owned()]];
-
-    let measured = measure_help(
-        &Program::new(path),
-        &pages,
-        HelpLimits::new(),
-        &Cancel::new(),
-    )
-    .unwrap();
-
-    assert_eq!(measured, [HelpPage::Refused]);
-    assert!(!mark.exists(), "the page ran");
 }
 
 #[test]

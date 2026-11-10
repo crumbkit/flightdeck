@@ -36,7 +36,8 @@ What works today:
   holds in the URL's fragment, and exchanges it for a token that every API
   request carries. `GET /api/model` returns the tool's model as JSON, and
   `GET /api/weight` returns the bytes of the tool's help pages, which the
-  server measures once.
+  server measures once and keeps. `GET /api/weight?again=1` measures a
+  partial measurement again.
   [docs/security.md](docs/security.md) states the threat model, every guard
   of the server and the test that proves it.
 - The page runs a command with `POST /api/runs`, previews a destructive
@@ -69,7 +70,8 @@ What works today:
   prints its JSON on one line and one that indents it load alike. It sets
   crumbkit's own flags, such as `--json` and `--limit`, apart
   from the tool's own arguments. It refuses a tool whose name, command
-  words or argument names hold a control character. When the tool mounts
+  words or argument names hold a control character, or whose command paths
+  have a word that is empty or starts with `-`. When the tool mounts
   `self figures list`, the model also reads what each command costs the
   agents that call it: how often the tool's usage log saw it run, fail and
   have its command line refused, the help pages read before it, and the
@@ -81,11 +83,13 @@ What works today:
   command, the names of the flags it passed, whether it printed help, its
   exit code and failure code, its wall time and its output in bytes. When
   the figures fail, every count stays 0 and the tool still loads; when the
-  findings or the runs fail, the figures stay without them. `commands list`,
-  `schemas list`, `schemas show`, `self figures list`, `self usage` and
-  `self runs list` keep no count and no cost, and the runs leave them and
-  the tool's `--version` out, because the usage log also records the runs
-  that flightdeck makes to load the tool.
+  findings or the runs fail, the figures stay without them. flightdeck asks
+  `--version`, `commands list`, `schemas list` and `schemas show` with
+  `XDG_STATE_HOME` set to a temporary directory, so those runs stay out of
+  the person's usage log and the person's own runs of them are counted.
+  `self figures list`, `self usage` and `self runs list` read that log, so
+  the log records flightdeck's runs of them; they keep no count and no
+  cost, and the runs leave them and the tool's `--version` out.
 - The page in `ui/` is a React application. It lists the tool's commands
   grouped by goal, finds a command with ⌘K, builds a run from a form that
   starts with what the command costs an agent when the tool keeps figures

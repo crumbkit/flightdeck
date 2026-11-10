@@ -15,8 +15,12 @@
 //!   read-only and the directory that flightdeck started in.
 //! - `GET /api/weight` returns the bytes of each distinct help page of the
 //!   tool's commands, as `model::weight` describes. The runner measures
-//!   them on the first request and keeps the result, so the tool's help
-//!   runs once however many requests arrive.
+//!   them on the first request and keeps the result. A later request gets
+//!   it without a new measurement, unless the measurement had a problem.
+//!   `GET /api/weight?again=1`, which the page's Measure again button
+//!   sends, measures again when the kept measurement is partial; a
+//!   complete one is never measured again. Requests that arrive during a
+//!   measurement share it.
 //! - `POST /api/runs` starts a run, `POST /api/previews` starts a preview,
 //!   and `POST /api/confirmations/<id>` starts a confirmed run. Each takes a
 //!   [`RunRequest`] and answers with the stream of `stream`, or with the
@@ -71,6 +75,10 @@ use crate::clock::Clock;
 use crate::lock::lock;
 use crate::model::Tool;
 use crate::runner::{Choices, ChoicesRequest, MOST_RUNS, Mode, RunFailure, RunRequest, Runner};
+
+/// The query of `GET /api/weight` that asks the runner to measure a partial
+/// measurement again. Any other query reads as none.
+const MEASURE_AGAIN: &str = "again=1";
 
 /// How long the server runs without an authenticated request.
 pub const IDLE_LIMIT: Duration = Duration::from_secs(30 * 60);
@@ -554,10 +562,15 @@ impl Shared {
             }
             Route::Model => Ok(Answer::Reply(Reply::Json(self.model.clone()))),
             Route::Weight => {
+                let weight = if head.query() == Some(MEASURE_AGAIN) {
+                    self.runner.weight_again()
+                } else {
+                    self.runner.weight()
+                };
                 // serde_json fails only on a map key that is not a string,
                 // and the weight has no map.
                 Ok(Answer::Reply(Reply::Json(
-                    serde_json::to_vec(self.runner.weight()).unwrap_or_default(),
+                    serde_json::to_vec(&*weight).unwrap_or_default(),
                 )))
             }
             Route::Runs => {

@@ -503,6 +503,37 @@ fn a_tool_whose_schemas_show_leaves_out_a_listed_id_is_tool_load() {
 
 #[cfg(unix)]
 #[test]
+fn a_tool_whose_commands_list_names_a_path_with_an_option_word_is_refused_at_load() {
+    let (_directory, path) = fake_tool(
+        r#"case "$1 $2" in
+"--version ") echo 'fake 0.1.0' ;;
+"commands list") echo '{"schema":"fake/commands-list/v1","truncated":false,"data":[{"path":"fake","about":"A fake tool"}, {"path":"fake things","about":"Things"},{"path":"fake things --config=/x","about":"Not a command"}]}' ;;
+"schemas list") echo '{"schema":"fake/schemas-list/v1","truncated":false,"data":[]}' ;;
+*) exit 2 ;;
+esac"#,
+    );
+    let (_dirs, program) = isolated(path);
+
+    let error = model::load(&program, TIME_LIMIT).unwrap_err();
+
+    assert_eq!(code(&error), &TOOL_LOAD);
+    assert_eq!(
+        field(&error, "command"),
+        Some(FieldValue::from(
+            "commands list --json --full --all --no-input"
+        ))
+    );
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "{} commands list --json --full --all --no-input names a command with an empty word or a word that starts with -: \"fake things --config=/x\"",
+            program.name().to_string_lossy()
+        )
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn a_file_that_may_not_be_run_is_tool_not_found() {
     use std::os::unix::fs::PermissionsExt as _;
 
@@ -630,7 +661,27 @@ fn a_tool_without_self_figures_list_loads_with_no_runs_and_is_never_asked_for_fi
 }
 
 #[test]
-fn opening_shelf_again_counts_none_of_the_loaders_own_queries_as_runs() {
+fn opening_shelf_again_counts_the_persons_runs_of_the_description_queries_and_none_of_the_loaders()
+{
+    let shelf = test_tool("shelf");
+    let (dirs, program) = isolated(&shelf);
+    shelf_directly(&shelf, dirs.path(), &["commands", "list", "--json"]);
+    model::load(&program, TIME_LIMIT).unwrap();
+
+    let opened = model::load(&program, TIME_LIMIT).unwrap();
+
+    let command = |words: &[&str]| opened.command(words).unwrap();
+    let counted = |words: &[&str]| serde_json::to_value(command(words)).unwrap()["counted"] == true;
+    assert_eq!(command(&["commands", "list"]).runs(), 1);
+    assert!(command(&["commands", "list"]).cost().is_some());
+    for words in [["schemas", "list"].as_slice(), &["schemas", "show"]] {
+        assert_eq!(command(words).runs(), 0, "{words:?}");
+        assert!(counted(words), "{words:?}");
+    }
+}
+
+#[test]
+fn opening_shelf_again_counts_none_of_the_loaders_queries_of_the_usage_log() {
     let (_dirs, program) = isolated(test_tool("shelf"));
     model::load(&program, TIME_LIMIT).unwrap();
 
@@ -638,11 +689,9 @@ fn opening_shelf_again_counts_none_of_the_loaders_own_queries_as_runs() {
 
     let runs = |words: &[&str]| shelf.command(words).unwrap().runs();
     for words in [
-        ["commands", "list"].as_slice(),
-        &["schemas", "list"],
-        &["schemas", "show"],
-        &["self", "figures", "list"],
+        ["self", "figures", "list"].as_slice(),
         &["self", "usage"],
+        &["self", "runs", "list"],
     ] {
         assert_eq!(runs(words), 0, "{words:?}");
         assert!(shelf.command(words).unwrap().cost().is_none(), "{words:?}");

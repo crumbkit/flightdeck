@@ -455,6 +455,65 @@ fn files_under(root: &Path, directory: &Path) -> Vec<PathBuf> {
     files
 }
 
+/// Returns the names of the files under `ui/dist/assets` that `text`
+/// names after `marker` and before the closing quote, such as `app.js`
+/// for `src="/assets/app.js"`.
+fn assets_named(text: &str, marker: &str) -> Vec<String> {
+    text.split(marker)
+        .skip(1)
+        .filter_map(|rest| rest.split(['"', '`', '\'']).next())
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn the_first_load_size_counts_every_file_that_the_page_loads_before_it_runs() {
+    let root = ui_dist();
+    let html = std::fs::read_to_string(root.join("index.html")).unwrap();
+    let mut first_load: Vec<String> = assets_named(&html, "\"/assets/");
+    // Each file that a first-load script imports statically loads before
+    // the page runs too.
+    let mut index = 0;
+    while let Some(name) = first_load.get(index).cloned() {
+        index += 1;
+        if !name.ends_with(".js") {
+            continue;
+        }
+        let script = std::fs::read_to_string(root.join("assets").join(&name)).unwrap();
+        for marker in ["from\"./", "import\"./"] {
+            for imported in assets_named(&script, marker) {
+                if !first_load.contains(&imported) {
+                    first_load.push(imported);
+                }
+            }
+        }
+    }
+    let manifest: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("ui/package.json")).unwrap(),
+    )
+    .unwrap();
+    let counted: Vec<&str> = manifest["size-limit"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["name"] == "first load")
+        .unwrap()["path"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|path| path.as_str().unwrap())
+        .collect();
+
+    assert!(first_load.contains(&"app.js".to_owned()), "{first_load:?}");
+    for name in &first_load {
+        let path = format!("dist/assets/{name}");
+        assert!(
+            counted.contains(&path.as_str()),
+            "the first load reads {path}, which the size step's first load does not count: {counted:?}"
+        );
+    }
+}
+
 #[test]
 fn every_built_file_of_the_page_is_served_with_its_bytes_and_its_media_type() {
     let root = ui_dist();
@@ -600,6 +659,53 @@ fn two_weight_requests_at_once_share_one_measurement_and_a_later_one_reuses_it()
         assert_eq!(first.json(), later.json());
         let pages = first.json()["pages"].as_array().unwrap().len();
         assert_eq!(logged(&log).len(), pages, "{:?}", logged(&log));
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn a_partial_measurement_is_kept_for_a_plain_request_and_measured_again_when_asked() {
+    use crumbkit_flightdeck::runner;
+    use crumbkit_flightdeck::spawn::HelpLimits;
+
+    let logs = tempfile::tempdir().unwrap();
+    let log = logs.path().join("help");
+    let (_directory, stand_in) = help_stand_in(&log, "/bin/sleep 1; echo page");
+    // The first help runs end after the measurement's limit, so no other
+    // page starts and the measurement is partial.
+    let limits = HelpLimits::new().total(Duration::from_millis(500));
+    let setup = Setup::shelf()
+        .program(stand_in)
+        .runner(runner::Settings::new().help_limits(limits));
+    serving(setup, |page| {
+        let token = page.token();
+        let weight = |path: &str| {
+            Call::get(page.port, path)
+                .bearer(&token)
+                .send(page.port)
+                .json()
+        };
+        let not_run = |weight: &serde_json::Value| {
+            weight["pages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|page| page["failure"] == "not_run")
+                .count()
+        };
+
+        let first = weight("/api/weight");
+        let runs_of_first = logged(&log).len();
+        let plain = weight("/api/weight");
+        let runs_after_plain = logged(&log).len();
+        let again = weight("/api/weight?again=1");
+
+        assert!(not_run(&first) > 0, "{first}");
+        assert_eq!(plain, first);
+        assert_eq!(runs_after_plain, runs_of_first);
+        assert!(not_run(&again) > 0, "{again}");
+        assert!(logged(&log).len() > runs_after_plain, "{:?}", logged(&log));
         Then::Stop
     });
 }

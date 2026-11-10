@@ -39,11 +39,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   shows why, and its path is marked partial and never called over or
   under. The page measures the help pages the first time the tab opens,
   through `GET /api/weight`, and keeps them until it reloads. The server
-  measures once and keeps the result, so a second request, or one that
-  arrives during the measurement, starts no further help run, and stopping
+  keeps a complete measurement, so a later request starts no further help
+  run, and a request that arrives during a measurement shares it. A
+  measurement with a problem is measured again by the next request. One
+  that stopped before some pages at its 30-second limit or flightdeck's
+  stop is kept, and the tab shows a Measure again button above it, which
+  sends `GET /api/weight?again=1` to measure again. The button also shows
+  after a failed request or a measurement with a problem. Stopping
   flightdeck stops a measurement at once. It runs `-h` of each distinct
-  page once with a cleared environment and a
-  temporary `XDG_STATE_HOME` that it removes afterwards, so the person's
+  page once with a cleared environment and a temporary `XDG_STATE_HOME` that it removes afterwards, so the person's
   usage log never counts the measurement. It runs 4 pages at a time, stops
   a page after 2 seconds or 64 KiB, starts none after 30 seconds and
   measures at most 400 pages. A page whose path has a word that starts
@@ -117,6 +121,23 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- flightdeck refuses to load a tool whose `commands list` names a command
+  path with a word that is empty or starts with `-`, and says so with
+  `flightdeck::tool::load`, quoting the path. The refusal of a name with a
+  control character quotes the name too, with each control character
+  escaped. The tool would read such a word as an option,
+  so no command could have it, and refusing it at load keeps it off the
+  command line of every run, preview, choices run and help run.
+- Loading a tool asks `--version`, `commands list`, `schemas list` and
+  `schemas show` with `XDG_STATE_HOME` set to a temporary directory that
+  is removed when the load ends, as the help measurement already did, so
+  flightdeck no longer writes those runs to the person's usage log. The
+  person's and agents' own runs of `commands list`, `schemas list` and
+  `schemas show` are now counted, get cost cards, and show in the Figures,
+  Weight and Both tabs. The rows that earlier versions wrote to a usage
+  log for these queries are counted too, until they leave the log's 7-day
+  window. A load that cannot make the directory fails with
+  `flightdeck::tool::load` and says so.
 - The cost card reads a large output in the short form: from 10,000
   tokens in thousands, such as "about 12k tokens", and from a million in
   millions, such as "about 2.5M tokens". A smaller output still reads as

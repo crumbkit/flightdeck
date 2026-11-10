@@ -4,18 +4,17 @@
 //!
 //! - Program: the name or path that the person gave, as for `describe`.
 //! - Arguments: the words of one command path that the tool's model holds,
-//!   then `-h`, with no shell. A page whose path has a word that starts
-//!   with `-` is refused without a run, because the tool would read the
-//!   word as an option. A `--` before the words would not help, because a
-//!   crumbkit tool reads every word after `--` as a value, not a command.
+//!   then `-h`, with no shell. The model refuses a tool whose `commands
+//!   list` names a path with a word that is empty or starts with `-`, so no
+//!   such word reaches a help run as an option.
 //! - Environment: cleared, then the variables that [`Program::env`] adds,
 //!   such as the absolute `PATH` of [`Program::at_launch`], then
-//!   `XDG_STATE_HOME` set to a new temporary directory. A crumbkit tool logs
-//!   a help request to its usage log, and with a cleared environment it can
-//!   still find the person's home directory, so the temporary state
-//!   directory keeps every help run out of the person's usage log. The
-//!   directory is removed when the measurement ends, by a guard that drops
-//!   on every path.
+//!   `XDG_STATE_HOME` set to one [`FreshState`] for the whole measurement.
+//!   A crumbkit tool logs a help request to its usage log, and with a
+//!   cleared environment it can still find the person's home directory, so
+//!   the fresh state directory keeps every help run out of the person's
+//!   usage log. The directory is removed when the measurement ends, because
+//!   the [`FreshState`] drops on every path.
 //! - Streams and deadline: standard input and standard error are null.
 //!   Standard output is kept up to [`HELP_LIMIT`] bytes, and a run that
 //!   prints more is stopped. Each run has [`HELP_TIME_LIMIT`], and no run
@@ -29,7 +28,6 @@
 //!   cancels it, and only then reaps it. A help page only reads, so a stopped child leaves no partial
 //!   work.
 
-use std::ffi::OsStr;
 use std::io;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -37,7 +35,7 @@ use std::time::{Duration, Instant};
 
 use crumbkit_process::{Cancel, Capture, Outcome, OverLimit, RunOptions, StopReason};
 
-use super::{Exit, Program};
+use super::{Exit, FreshState, Program};
 use crate::lock::lock;
 
 #[cfg(unix)]
@@ -114,8 +112,6 @@ pub enum HelpPage {
     /// [`MEASURE_LIMIT`] passed, or the measurement was stopped, before
     /// the run ended, so it never started or was cancelled.
     NotRun,
-    /// A word of the page's path starts with `-`, so it was not run.
-    Refused,
 }
 
 /// Runs `-h` of each of `pages`, each a command path such as
@@ -134,7 +130,8 @@ pub(crate) fn measure_help(
     stop: &Cancel,
 ) -> io::Result<Vec<HelpPage>> {
     let started = Instant::now();
-    let state = tempfile::tempdir()?;
+    let state = FreshState::new()?;
+    let program = state.keep_out(program);
     let results = Mutex::new(vec![HelpPage::NotRun; pages.len()]);
     let next = AtomicUsize::new(0);
     std::thread::scope(|scope| {
@@ -148,7 +145,7 @@ pub(crate) fn measure_help(
                     if started.elapsed() >= limits.total || stop.is_cancelled() {
                         return;
                     }
-                    let page = run_help(program, words, state.path().as_os_str(), limits.run, stop);
+                    let page = run_help(&program, words, limits.run, stop);
                     if let Some(slot) = lock(&results).get_mut(index) {
                         *slot = page;
                     }
@@ -156,27 +153,18 @@ pub(crate) fn measure_help(
             });
         }
     });
-    // The state directory's guard drops here, after every run has ended.
+    // The state directory is removed here, after every run has ended.
     drop(state);
     Ok(results
         .into_inner()
         .unwrap_or_else(std::sync::PoisonError::into_inner))
 }
 
-/// Runs `<program> <words> -h` with a cleared environment and `state` as its
-/// `XDG_STATE_HOME`, until `stop` cancels it, and returns how it went.
-fn run_help(
-    program: &Program,
-    words: &[String],
-    state: &OsStr,
-    time_limit: Duration,
-    stop: &Cancel,
-) -> HelpPage {
-    if words.iter().any(|word| word.starts_with('-')) {
-        return HelpPage::Refused;
-    }
+/// Runs `<program> <words> -h` with a cleared environment that holds only
+/// `program`'s variables, until `stop` cancels it, and returns how it went.
+fn run_help(program: &Program, words: &[String], time_limit: Duration, stop: &Cancel) -> HelpPage {
     let mut command = program.cleared_command(words);
-    command.env("XDG_STATE_HOME", state).arg("-h");
+    command.arg("-h");
     let settings = RunOptions::new()
         .stdout(Capture::Whole {
             limit: HELP_LIMIT,

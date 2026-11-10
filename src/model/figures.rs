@@ -28,31 +28,28 @@ pub(super) const FIGURES_COMMAND: [&str; 3] = ["self", "figures", "list"];
 /// The words of the command that prints the findings.
 pub(super) const USAGE_COMMAND: [&str; 2] = ["self", "usage"];
 
-/// The commands that the loader runs to describe the tool, by their path
-/// below the tool's name. Their runs are left out of the history too.
+/// The commands that the loader runs as the person, by their path below
+/// the tool's name. Their runs are left out of the figures, the findings
+/// and the history.
 ///
-/// RUST-10: the usage log counts the loader's own runs of these commands
-/// beside the person's, one each per `flightdeck open`, so their counts
-/// would grow until they outranked the tool's own commands, and their cost
-/// cards would show the loader's runs as an agent's. The figures cannot
-/// tell the two apart, so these commands keep no runs, no figures and no
-/// findings, and the person's own runs of them are missed. The IDs
+/// RUST-10: the loader asks `--version`, `commands list`, `schemas list`
+/// and `schemas show` with a fresh state directory, so those runs never
+/// reach the person's usage log and the person's and agents' own runs of
+/// them are counted. These three read the person's usage log, so they must
+/// run with the person's state directory, and the log counts the loader's
+/// runs of them beside the person's, one each per `flightdeck open`. Their
+/// counts would grow until they outranked the tool's own commands, and
+/// their cost cards would show the loader's runs as an agent's. The figures
+/// cannot tell the two apart, so these commands keep no runs, no figures
+/// and no findings, and the person's own runs of them are missed. The IDs
 /// chooser's runs of a link's source, such as `books list`, are counted
 /// too, at most once per source each time the page loads, because the page
 /// keeps the choices until it reloads. Those counts are kept, because the
 /// source is one of the tool's own commands and leaving it out would drop
 /// the person's runs of it, so the chooser's runs raise its rank among
 /// palette matches of equal text and add to its cost card. A usage log that
-/// records which program ran each command, so flightdeck's own runs can be
-/// left out, replaces this.
-const LOADER_QUERIES: [&str; 6] = [
-    "commands list",
-    "schemas list",
-    "schemas show",
-    "self figures list",
-    "self usage",
-    "self runs list",
-];
+/// can leave out a named program's runs replaces this.
+const LOADER_QUERIES: [&str; 3] = ["self figures list", "self usage", "self runs list"];
 
 /// The largest count that the page reads exactly, 2^53 - 1, JavaScript's
 /// `Number.MAX_SAFE_INTEGER`. A larger figure reads as one the tool does not

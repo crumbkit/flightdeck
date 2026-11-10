@@ -37,14 +37,14 @@ describe("figureRows", () => {
       costed("books list", figures(3)),
       costed("books summarize", figures(0)),
       commandOf(shelf, "books show"),
-      commandOf(shelf, "commands list"),
+      commandOf(shelf, "self usage"),
     ]);
 
     expect(rows).toEqual([
       row("books list", figures(3)),
       row("books summarize", null),
       row("books show", null),
-      { command: "commands list", figures: null, counted: false },
+      { command: "self usage", figures: null, counted: false },
     ]);
   });
 });

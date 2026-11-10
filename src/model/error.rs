@@ -33,6 +33,19 @@ pub enum LoadError {
         /// Why the program did not start.
         source: io::Error,
     },
+    /// The temporary state directory of the description's queries cannot
+    /// be made, so no query ran.
+    #[failure(
+        code = TOOL_LOAD,
+        hint = "free space in the system's temporary directory and run flightdeck again",
+        field(tool = tool.as_str()),
+    )]
+    State {
+        /// The name or path as the person gave it.
+        tool: String,
+        /// Why the directory cannot be made.
+        source: io::Error,
+    },
     /// A query of the tool's description failed.
     #[failure(
         code = TOOL_LOAD,
@@ -86,6 +99,12 @@ impl fmt::Display for LoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NotFound { tool, .. } => write!(f, "cannot start {tool}"),
+            Self::State { tool, .. } => {
+                write!(
+                    f,
+                    "cannot make a temporary state directory for {tool}'s queries"
+                )
+            }
             Self::Load {
                 tool,
                 command,
@@ -103,9 +122,16 @@ impl fmt::Display for LoadError {
                     (Problem::NotDocument(NotDocument::MissingSchema(id)), _) => {
                         write!(f, "printed no schema for {id}, which schemas list names")
                     }
-                    (Problem::NotDocument(NotDocument::Control), _) => {
-                        f.write_str("names a command or an argument with a control character")
-                    }
+                    (Problem::NotDocument(NotDocument::Control(name)), _) => write!(
+                        f,
+                        "names a command or an argument with a control character: \"{}\"",
+                        name.escape_debug()
+                    ),
+                    (Problem::NotDocument(NotDocument::OptionWord(path)), _) => write!(
+                        f,
+                        "names a command with an empty word or a word that starts with -: \"{}\"",
+                        path.escape_debug()
+                    ),
                     (Problem::NotDocument(_), _) => {
                         f.write_str("printed something other than the crumbkit document it names")
                     }
@@ -119,7 +145,7 @@ impl fmt::Display for LoadError {
 impl std::error::Error for LoadError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::NotFound { source, .. } => Some(source),
+            Self::NotFound { source, .. } | Self::State { source, .. } => Some(source),
             Self::Load { problem, .. } => problem.source(),
         }
     }
@@ -184,8 +210,13 @@ pub enum NotDocument {
     /// named.
     MissingSchema(String),
     /// A command word or an argument name holds a control character, which
-    /// a command line that flightdeck shows could not show.
-    Control,
+    /// a command line that flightdeck shows could not show. It holds the
+    /// tool's name, the command's path or the argument's name.
+    Control(String),
+    /// A command's path, held here as `commands list` printed it, has a word
+    /// that is empty or starts with `-`, which the tool would read as an
+    /// option.
+    OptionWord(String),
 }
 
 /// Returns the exit code that a failure's `exit` field holds, or null when

@@ -71,7 +71,8 @@ humantime = { version = "2.4.0", default-features = false }
 # constant time.
 subtle = { version = "2.6.1", default-features = false }
 # tempfile creates the opener page's directory, private to the user, and
-# removes it when flightdeck stops. Each test that runs a tool also gives it
+# removes it when flightdeck stops. It also makes the fresh state directory
+# of the loader's description queries and of the help measurement. Each test that runs a tool also gives it
 # XDG directories in a temporary directory of its own.
 tempfile = { version = "3.27.0", default-features = false }
 # crumbkit-process runs every child that flightdeck starts: it starts the
