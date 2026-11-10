@@ -23,7 +23,7 @@ use std::process::ExitCode;
 
 pub use crate::cli::{Cli, TOOL};
 use crate::cli::{CommandsCommand, Resource, SchemasCommand};
-pub use crate::open::{OpenError, SERVER_FAILED};
+pub use crate::open::{OpenError, SERVER_FAILED, TOOL_SEARCH_PATH};
 
 /// Every failure code that flightdeck declares, in one list for each error
 /// type, which its convention tests pass to crumbkit-test's checks.

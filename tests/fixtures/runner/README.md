@@ -9,6 +9,8 @@ and one command for each way a real tool can misbehave or a test needs:
 - `child hang` prints two lines and ignores SIGINT and SIGTERM.
 - `child flood` prints a line longer than the test's limit.
 - `child trace` prints its `TRACEPARENT`.
+- `child where` prints its `PWD`, which a shell keeps only when it names the
+  shell's working directory.
 - `child pick` takes a value from a fixed list.
 - `child orphan` leaves a process in a session of its own that holds
   standard output open for ten seconds. It needs `perl`.
@@ -38,6 +40,8 @@ and one command for each way a real tool can misbehave or a test needs:
   ends it.
 - `child ledger` lists rows with an `id` column too, but exits with 101
   and prints no document.
+- `child drawer` lists the one name in its working directory as a row with
+  an `id` column, so a test can see which directory a choices run used.
 - `child visit` takes the `<ID>` of a roster row.
 - `child whole` lists `--json` and `--no-input` but not `--full`, and
   refuses `--full` as crumbkit does, with `unruly::cli::usage` and exit

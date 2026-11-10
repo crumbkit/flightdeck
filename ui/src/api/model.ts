@@ -100,6 +100,8 @@ const Tool = z.object({
 export type Tool = z.infer<typeof Tool>;
 
 export const ModelReply = z.object({
+  /** The directory flightdeck started in, or null when the page cannot send it back. */
+  directory: z.string().nullable(),
   read_only: z.boolean(),
   tool: Tool,
 });

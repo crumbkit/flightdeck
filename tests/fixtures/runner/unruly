@@ -31,6 +31,9 @@ case "$1 $2" in
 "child flood")
   printf '%2000s\n' '' | tr ' ' a
   ;;
+"child where")
+  echo "{\"schema\":\"unruly/child-where/v1\",\"data\":{\"pwd\":\"$PWD\"}}"
+  ;;
 "child trace")
   echo "{\"schema\":\"unruly/child-trace/v1\",\"data\":{\"traceparent\":\"$TRACEPARENT\"}}"
   ;;
@@ -122,6 +125,9 @@ case "$1 $2" in
 "child roster")
   # It lists nothing, and waits until a signal ends it.
   while :; do sleep 0.01; done
+  ;;
+"child drawer")
+  echo "{\"schema\":\"unruly/child-drawer/v1\",\"data\":[{\"id\":\"$(ls)\",\"name\":\"entry\"}],\"truncated\":false}"
   ;;
 "child ledger")
   echo "thread 'main' panicked at src/main.rs:9:5:" >&2

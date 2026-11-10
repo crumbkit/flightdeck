@@ -1,7 +1,10 @@
 //! Builds the argument vector of a run from a request, after checking each
 //! part of the request against the tool's model.
 
-use super::failure::{Reason, RunFailure, Takes};
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use super::failure::{DirectoryProblem, Reason, RunFailure, Takes};
 use super::request::{RunRequest, Value};
 use crate::model::{Argument, Arity, Command, CrumbkitFlag, Form, Kind, Tool, has_control};
 
@@ -31,6 +34,7 @@ pub(super) struct Vector {
     options: Vec<String>,
     positionals: Vec<String>,
     line: Line,
+    directory: Option<PathBuf>,
     full: bool,
     no_input: bool,
     dry_run: bool,
@@ -98,6 +102,12 @@ impl Vector {
         format!("{}{flag}{}", self.line.head, self.line.tail)
     }
 
+    /// Returns the directory to run in, or `None` for the directory that
+    /// flightdeck started in.
+    pub(super) fn directory(&self) -> Option<&Path> {
+        self.directory.as_deref()
+    }
+
     /// Returns true when the command takes `--dry-run`.
     pub(super) const fn takes_dry_run(&self) -> bool {
         self.dry_run
@@ -108,7 +118,8 @@ impl Vector {
 ///
 /// # Errors
 ///
-/// Returns [`RunFailure::Refused`] when the tool lists no runnable command
+/// Returns [`RunFailure::Directory`] when the request's directory cannot be
+/// used, and [`RunFailure::Refused`] when the tool lists no runnable command
 /// at the path, when the command takes no argument of a name, when a name is
 /// one of crumbkit's own flags other than `--limit` and `--all`, when a
 /// value is of the wrong kind, is not one of the argument's possible values
@@ -124,6 +135,11 @@ pub(super) fn build<'tool>(
     let command = tool
         .command(&words)
         .ok_or_else(|| RunFailure::refused(path, None, Reason::UnknownCommand))?;
+    let directory = request
+        .working_directory()
+        .map(checked_directory)
+        .transpose()
+        .map_err(|problem| RunFailure::Directory { problem })?;
     let refuse = |argument: &str, reason| RunFailure::refused(path, Some(argument), reason);
 
     for name in request.values().keys() {
@@ -234,12 +250,33 @@ pub(super) fn build<'tool>(
         options,
         positionals,
         line,
+        directory,
         full: takes(CrumbkitFlag::Full) && offers_full,
         no_input: takes(CrumbkitFlag::NoInput),
         dry_run: takes(CrumbkitFlag::DryRun),
         yes: takes(CrumbkitFlag::Yes),
     };
     Ok((command, vector))
+}
+
+/// Returns `directory` as a path when it is absolute, holds no control
+/// character and names a directory that flightdeck can enter. Reading `.`
+/// inside it needs the permission to enter it, which reading the directory's
+/// own metadata does not. The path is not resolved, and a confirmation
+/// compares it by its components, so a symlink in it is bound by its name
+/// and not by its target.
+fn checked_directory(directory: &str) -> Result<PathBuf, DirectoryProblem> {
+    if has_control(directory) {
+        return Err(DirectoryProblem::Control);
+    }
+    let path = Path::new(directory);
+    if !path.is_absolute() {
+        return Err(DirectoryProblem::NotAbsolute);
+    }
+    if !fs::metadata(path.join(".")).is_ok_and(|metadata| metadata.is_dir()) {
+        return Err(DirectoryProblem::NotADirectory);
+    }
+    Ok(path.to_path_buf())
 }
 
 /// What the page gave for one argument: a flag that is set, or values.

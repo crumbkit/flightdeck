@@ -81,6 +81,7 @@ const refusals = [
   "flightdeck::run::read_only",
   "flightdeck::run::needs_confirmation",
   "flightdeck::run::confirmation",
+  "flightdeck::run::directory",
 ];
 
 /**

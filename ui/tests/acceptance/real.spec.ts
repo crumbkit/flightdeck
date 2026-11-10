@@ -1,4 +1,6 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { expect, type Locator, type Page } from "@playwright/test";
 import { expectNoAccessibilityViolations } from "./checks";
 import { writeList } from "./reading";
@@ -83,7 +85,9 @@ test("⌘K finds books show by the caption of its example", async ({ page, serve
 test("the model fixture matches the server's model of shelf", async ({ page, served }, info) => {
   const reply = page.waitForResponse((response) => response.url().endsWith("/api/model"));
   await page.goto(served.opener);
-  const model: unknown = await (await reply).json();
+  // The directory is wherever the test runner started flightdeck, so the
+  // comparison holds it fixed.
+  const model: unknown = { ...(await (await reply).json()), directory: "/work/shelf" };
 
   // One project writes the fixture, so two writers never race. `pnpm run
   // fix` formats it afterwards.
@@ -455,6 +459,29 @@ test.describe("on a phone", () => {
     const welcome = page.getByRole("region", { name: "Welcome to shelf" });
     await expect(welcome.getByRole("heading", { level: 1 })).toBeInViewport();
   });
+
+  for (const directory of ["/", `/${"long-directory-name/".repeat(12)}`]) {
+    test(`the directory control fills its row with ${directory.length} characters of path`, async ({
+      page,
+      served,
+    }) => {
+      await signIn(page, served);
+      await page.getByRole("button", { name: /^Working directory .*\. Change$/ }).click();
+      await page.getByRole("textbox", { name: "Working directory" }).fill(directory);
+      await page.keyboard.press("Enter");
+
+      const control = page.getByRole("button", { name: `Working directory ${directory}. Change` });
+      const box = await control.boundingBox();
+      const chevron = await control.locator("svg").last().boundingBox();
+      const path = await control.locator("span").boundingBox();
+      // The top bar has 16 pixels of padding on each side.
+      expect(box?.x).toBe(16);
+      expect(box?.width).toBe(375 - 32);
+      expect(chevron && box && box.x + box.width - (chevron.x + chevron.width)).toBeLessThan(10);
+      expect(path && box && path.x - box.x).toBeLessThan(32);
+      await expectNoAccessibilityViolations(page);
+    });
+  }
 });
 
 test("with a form open the composer takes at most 40% of the window, and the new card shows above it", async ({
@@ -507,4 +534,44 @@ test("a refused run's failure shows above the open form", async ({ page, served,
   const refusal = errors.findIndex((error) => error.includes("status of 422"));
   expect(refusal).toBeGreaterThanOrEqual(0);
   errors.splice(refusal, 1);
+});
+
+test("a run starts in the directory the top bar shows and Run again keeps the card's directory", async ({
+  page,
+  served,
+}) => {
+  await mkdir(served.data, { recursive: true });
+  await writeFile(join(served.data, "ids.txt"), "2\n5\n");
+  await signIn(page, served);
+  const setDirectory = async (directory: string) => {
+    await page.getByRole("button", { name: /^Working directory .*\. Change$/ }).click();
+    await page.getByRole("textbox", { name: "Working directory" }).fill(directory);
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("button", { name: `Working directory ${directory}. Change` }),
+    ).toBeVisible();
+  };
+  await setDirectory(served.data);
+  await expectNoAccessibilityViolations(page);
+
+  const listing = page.waitForRequest((request) => request.url().endsWith("/api/choices"));
+  const composer = await compose(page, "books show");
+  expect((await listing).postDataJSON().directory).toBe(served.data);
+  await composer.getByText("--from", { exact: true }).click();
+  await composer.getByRole("textbox", { name: /--from/ }).fill("ids.txt");
+  await pressRun(page, composer);
+
+  const first = page.getByRole("region", {
+    name: /^Run 1: shelf books show --from=ids\.txt, exit 0/,
+  });
+  await expect(first.getByRole("table")).toContainText("Middlemarch");
+  await expect(first.getByText(`in ${served.data}`)).toBeVisible();
+
+  await setDirectory(tmpdir());
+  await first.getByRole("button", { name: "Run again" }).click();
+
+  const second = page.getByRole("region", {
+    name: /^Run 2: shelf books show --from=ids\.txt, exit 0/,
+  });
+  await expect(second.getByText(`in ${served.data}`)).toBeVisible();
 });

@@ -9,6 +9,8 @@ type Props = {
   link: Link;
   /** True when the argument repeats, so each checked choice adds a value. */
   many: boolean;
+  /** The directory that the source lists from, or null for where flightdeck started. */
+  directory: string | null;
   value: Value | undefined;
   onValue: (value: Value | null) => void;
 };
@@ -33,11 +35,11 @@ function valuesOf(value: Value | undefined): string[] {
  * The IDs chooser under an argument that an inferred link fills: the ids
  * of the source's rows, each labelled by the row's other compact columns.
  * Checking a choice adds its id to the field, and the field still takes a
- * typed value. The server runs the source when the chooser first shows,
- * and the page keeps the choices until it reloads.
+ * typed value. The server runs the source when the chooser first shows in
+ * a directory, and the page keeps the choices until it reloads.
  */
-export function IdChooser({ tool, link, many, value, onValue }: Props) {
-  const choices = useQuery(choicesQuery(link));
+export function IdChooser({ tool, link, many, directory, value, onValue }: Props) {
+  const choices = useQuery(choicesQuery(link, directory));
   const values = valuesOf(value);
 
   const toggle = (id: string, on: boolean) => {

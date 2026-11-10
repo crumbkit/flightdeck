@@ -94,6 +94,23 @@
       "writes": null
     },
     {
+      "path": "unruly child where",
+      "about": "Print the PWD variable",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
       "path": "unruly child pick",
       "about": "Take a colour from a fixed list",
       "long_about": null,
@@ -453,6 +470,34 @@
     {
       "path": "unruly child ledger",
       "about": "List rows with an id column, but exit with 101 and no document",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [
+        {
+          "name": "id",
+          "long": false,
+          "description": "The row's id."
+        },
+        {
+          "name": "name",
+          "long": false,
+          "description": "The row's name."
+        }
+      ],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": false
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child drawer",
+      "about": "List the names in the working directory as rows with an id column",
       "long_about": null,
       "arguments": [],
       "examples": [],

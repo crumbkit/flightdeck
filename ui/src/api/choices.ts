@@ -18,16 +18,23 @@ const ChoicesReply = z.object({
 export type ChoicesReply = z.infer<typeof ChoicesReply>;
 
 /**
- * The choices query of `link` (APP-10). The server runs the link's source
- * once, and the page keeps its choices until it reloads.
+ * The choices query of `link` in `directory`, or in the directory
+ * flightdeck started in when that is null (APP-10). The server runs the
+ * link's source once for each directory, because a listing can depend on
+ * it, and the page keeps the choices until it reloads.
  */
-export function choicesQuery(link: Link) {
+export function choicesQuery(link: Link, directory: string | null) {
   return queryOptions({
-    queryKey: ["choices", link.source, link.target, link.argument],
+    queryKey: ["choices", link.source, link.target, link.argument, directory],
     queryFn: ({ signal }) =>
       postJson(
         "/api/choices",
-        { source: link.source, target: link.target, argument: link.argument },
+        {
+          source: link.source,
+          target: link.target,
+          argument: link.argument,
+          ...(directory === null ? {} : { directory }),
+        },
         ChoicesReply,
         signal,
       ),

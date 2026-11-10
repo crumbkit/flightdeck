@@ -198,6 +198,33 @@ describe("RunCard", () => {
     ).toBeVisible();
   });
 
+  it("records the directory that the run used", () => {
+    const run: Run = {
+      number: 1,
+      request: { path: ["books", "show"], values: {}, directory: "/home/you/books" },
+      line: "shelf books show",
+      long: false,
+      state: { kind: "starting" },
+    };
+    render(
+      <RunCard
+        run={run}
+        tool={shelf}
+        command={command(shelf, "books show")}
+        link={null}
+        cancelWords={null}
+        onEdit={noop}
+        onRunAgain={noop}
+        onCancel={noop}
+        onPageSize={noop}
+        onCompose={noop}
+        onOpenLink={noop}
+      />,
+    );
+
+    expect(screen.getByText("in /home/you/books")).toBeVisible();
+  });
+
   it("keeps a cancelled run's rows and says how many it kept", () => {
     renderCard(
       {

@@ -1,10 +1,18 @@
 import { Lock, Search } from "lucide-react";
+import type { ReactNode } from "react";
 import { ThemeControl } from "./ThemeControl";
 
-type Props = { name: string; version: string; readOnly: boolean; onFind: (() => void) | null };
+type Props = {
+  name: string;
+  version: string;
+  readOnly: boolean;
+  onFind: (() => void) | null;
+  /** What follows the tool's name, such as the directory control. */
+  children?: ReactNode;
+};
 
 /** The bar across the top: the tool, the ⌘K search and the theme control. */
-export function Topbar({ name, version, readOnly, onFind }: Props) {
+export function Topbar({ name, version, readOnly, onFind, children }: Props) {
   return (
     <header className="bg-card flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2">
       <span className="font-semibold tracking-tight">flightdeck</span>
@@ -22,6 +30,7 @@ export function Topbar({ name, version, readOnly, onFind }: Props) {
           read-only
         </span>
       )}
+      {children}
       <span className="ml-auto flex items-center gap-3">
         {onFind !== null && (
           <button

@@ -10,6 +10,7 @@
 
 use std::fmt;
 use std::io::{self, Write};
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -31,6 +32,10 @@ mod tests;
 /// The code of a page's server that could not start or stopped answering.
 pub const SERVER_FAILED: Code = Code::new("flightdeck", "server", "failed");
 
+/// The code of a bare tool name that flightdeck cannot look up the same way
+/// from every directory, because an entry of `PATH` cannot be made absolute.
+pub const TOOL_SEARCH_PATH: Code = Code::new("flightdeck", "tool", "search_path");
+
 /// The exit code of a second Ctrl-C or SIGTERM while flightdeck stops,
 /// which ends the process at once.
 const FORCED_EXIT: i32 = 130;
@@ -38,6 +43,13 @@ const FORCED_EXIT: i32 = 130;
 /// Why `flightdeck open` stopped before or while it served the page.
 #[derive(Debug, Failure)]
 pub enum OpenError {
+    /// A relative entry of `PATH` cannot be made absolute, so a bare tool
+    /// name could start a different program in a run's directory.
+    #[failure(
+        code = TOOL_SEARCH_PATH,
+        hint = "run flightdeck open from another directory, or give the tool's path"
+    )]
+    SearchPath,
     /// The tool's model could not be loaded.
     #[failure(forward)]
     Load(LoadError),
@@ -67,6 +79,7 @@ pub enum OpenError {
 impl fmt::Display for OpenError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::SearchPath => f.write_str("a relative PATH entry cannot be made absolute"),
             Self::Load(error) => error.fmt(f),
             Self::Signals(_) => f.write_str("cannot watch for Ctrl-C"),
             Self::Start(_) => f.write_str("cannot start the page's server"),
@@ -80,6 +93,7 @@ impl fmt::Display for OpenError {
 impl std::error::Error for OpenError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::SearchPath => None,
             Self::Load(error) => error.source(),
             Self::Signals(error) | Self::Opener(error) | Self::Serve(error) => Some(error),
             Self::Start(error) => Some(error),
@@ -106,7 +120,14 @@ pub(crate) fn run(run: &mut Run, args: &OpenArgs) -> ExitCode {
 /// that a person reads to `lines`. A line that cannot be written, as when
 /// standard error is closed, is skipped.
 fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
-    let program = Program::new(&args.tool);
+    let launch = launch_directory();
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a run in another directory must find the tool that this PATH found at launch"
+    )]
+    let search = std::env::var_os("PATH");
+    let program = Program::at_launch(&args.tool, launch.as_deref(), search.as_deref())
+        .ok_or(OpenError::SearchPath)?;
     let tool = model::load(&program, spawn::TIME_LIMIT).map_err(OpenError::Load)?;
     let stop = Arc::new(AtomicBool::new(false));
     watch_signals(&stop).map_err(OpenError::Signals)?;
@@ -137,8 +158,14 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
         runner::Settings::new(),
     )
     .map_err(OpenError::Random)?;
-    let server =
-        Server::new(listener, session, runner, Settings::new()).map_err(OpenError::Start)?;
+    let server = Server::new(
+        listener,
+        session,
+        runner,
+        Settings::new(),
+        launch.as_deref().and_then(shown_directory),
+    )
+    .map_err(OpenError::Start)?;
 
     // The origin comes first, so a tool's name cannot push it out of view.
     let _ = writeln!(lines, "{origin} · {name} · {commands}");
@@ -169,6 +196,23 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
     // Dropping the opener removes its directory before flightdeck exits.
     drop(opener);
     Ok(())
+}
+
+/// Returns the directory flightdeck started in, or `None` when it cannot
+/// read it.
+fn launch_directory() -> Option<PathBuf> {
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the page shows the directory that flightdeck started in, and a relative tool path resolves against it"
+    )]
+    std::env::current_dir().ok()
+}
+
+/// Returns `directory` for the page to show, or `None` when the page could
+/// not send it back, because its path is not UTF-8 or holds a control
+/// character, which the runner refuses.
+fn shown_directory(directory: &Path) -> Option<&str> {
+    directory.to_str().filter(|text| !model::has_control(text))
 }
 
 /// Returns `text` with each control character and each bidirectional
