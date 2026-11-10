@@ -111,11 +111,12 @@ fn null_next_steps_on_a_listing_read_as_no_next_steps() {
 
 #[test]
 fn a_command_word_or_an_argument_name_with_a_control_character_is_refused_when_the_model_loads() {
-    for (from, to) in [
-        (r#""--limit""#, r#""--li\u001bmit""#),
+    for (from, to, named) in [
+        (r#""--limit""#, r#""--li\u001bmit""#, r"--li\u{1b}mit"),
         (
             r#""path":"shelf books show""#,
             r#""path":"shelf books sh\u202eow""#,
+            r"books sh\u{202e}ow",
         ),
     ] {
         assert!(WITH_GOALS.contains(from), "{from}");
@@ -123,24 +124,58 @@ fn a_command_word_or_an_argument_name_with_a_control_character_is_refused_when_t
 
         let refused = Tool::assemble("shelf 0.1.1", commands, Vec::new());
 
-        assert!(matches!(refused, Err(NotDocument::Control)), "{to}");
+        let Err(NotDocument::Control(name)) = refused else {
+            panic!("{to} was not refused for a control character");
+        };
+        assert_eq!(name.escape_debug().to_string(), named);
     }
 }
 
 #[test]
 fn a_command_path_with_a_word_that_starts_with_a_dash_or_an_empty_word_is_refused_when_the_model_loads()
  {
-    for to in [
-        r#""path":"shelf books --config=/x""#,
-        r#""path":"shelf books  show""#,
+    for (to, named) in [
+        (
+            r#""path":"shelf books --config=/x""#,
+            "shelf books --config=/x",
+        ),
+        (r#""path":"shelf books  show""#, "shelf books  show"),
     ] {
         let from = r#""path":"shelf books show""#;
         let commands: CommandsList = serde_json::from_str(&WITH_GOALS.replace(from, to)).unwrap();
 
         let refused = Tool::assemble("shelf 0.1.1", commands, Vec::new());
 
-        assert!(matches!(refused, Err(NotDocument::OptionWord)), "{to}");
+        let Err(NotDocument::OptionWord(path)) = refused else {
+            panic!("{to} was not refused for an option word");
+        };
+        assert_eq!(path, named);
     }
+}
+
+#[test]
+fn a_refused_name_is_quoted_in_the_failure_with_each_control_character_escaped() {
+    let failure = |problem| {
+        super::LoadError::load(
+            "shelf",
+            "commands list --json --full --all --no-input".to_owned(),
+            super::Problem::NotDocument(problem),
+            crate::spawn::Exit::Code(0),
+            &[],
+        )
+        .to_string()
+    };
+
+    assert_eq!(
+        failure(NotDocument::OptionWord(
+            "shelf books\u{202e} --x".to_owned()
+        )),
+        r#"shelf commands list --json --full --all --no-input names a command with an empty word or a word that starts with -: "shelf books\u{202e} --x""#
+    );
+    assert_eq!(
+        failure(NotDocument::Control("--li\u{1b}mit".to_owned())),
+        r#"shelf commands list --json --full --all --no-input names a command or an argument with a control character: "--li\u{1b}mit""#
+    );
 }
 
 #[test]

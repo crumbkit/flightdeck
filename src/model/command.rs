@@ -32,17 +32,17 @@ impl CommandPath {
     /// Returns [`NotDocument::OptionWord`] when a word below the tool's name
     /// is empty or starts with `-`.
     pub(super) fn from_row(path: &str) -> Result<Self, NotDocument> {
-        Self::of(path.split(' ').skip(1))
+        Self::of(path.split(' ').skip(1)).map_err(|()| NotDocument::OptionWord(path.to_owned()))
     }
 
-    /// Returns the path of `words`, or [`NotDocument::OptionWord`] when one
-    /// is empty or starts with `-`.
-    fn of<'a>(words: impl IntoIterator<Item = &'a str>) -> Result<Self, NotDocument> {
+    /// Returns the path of `words`, or `Err` when one is empty or starts
+    /// with `-`.
+    fn of<'a>(words: impl IntoIterator<Item = &'a str>) -> Result<Self, ()> {
         let words = words
             .into_iter()
             .map(|word| {
                 if word.is_empty() || word.starts_with('-') {
-                    Err(NotDocument::OptionWord)
+                    Err(())
                 } else {
                     Ok(word.to_owned())
                 }
@@ -79,19 +79,16 @@ impl CommandPath {
             .eq(words.iter().copied())
     }
 
-    /// Returns this path with `words`, split at spaces, appended.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`NotDocument::OptionWord`] when a word of `words` is empty
-    /// or starts with `-`.
-    pub(super) fn join(&self, words: &str) -> Result<Self, NotDocument> {
+    /// Returns this path with `words`, split at spaces, appended, or `None`
+    /// when a word of `words` is empty or starts with `-`.
+    pub(super) fn join(&self, words: &str) -> Option<Self> {
         Self::of(
             self.words
                 .iter()
                 .map(String::as_str)
                 .chain(words.split(' ')),
         )
+        .ok()
     }
 }
 

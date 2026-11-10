@@ -122,11 +122,15 @@ impl fmt::Display for LoadError {
                     (Problem::NotDocument(NotDocument::MissingSchema(id)), _) => {
                         write!(f, "printed no schema for {id}, which schemas list names")
                     }
-                    (Problem::NotDocument(NotDocument::Control), _) => {
-                        f.write_str("names a command or an argument with a control character")
-                    }
-                    (Problem::NotDocument(NotDocument::OptionWord), _) => f.write_str(
-                        "names a command with an empty word or a word that starts with -",
+                    (Problem::NotDocument(NotDocument::Control(name)), _) => write!(
+                        f,
+                        "names a command or an argument with a control character: \"{}\"",
+                        name.escape_debug()
+                    ),
+                    (Problem::NotDocument(NotDocument::OptionWord(path)), _) => write!(
+                        f,
+                        "names a command with an empty word or a word that starts with -: \"{}\"",
+                        path.escape_debug()
                     ),
                     (Problem::NotDocument(_), _) => {
                         f.write_str("printed something other than the crumbkit document it names")
@@ -206,11 +210,13 @@ pub enum NotDocument {
     /// named.
     MissingSchema(String),
     /// A command word or an argument name holds a control character, which
-    /// a command line that flightdeck shows could not show.
-    Control,
-    /// A command's path has a word that is empty or starts with `-`, which
-    /// the tool would read as an option.
-    OptionWord,
+    /// a command line that flightdeck shows could not show. It holds the
+    /// tool's name, the command's path or the argument's name.
+    Control(String),
+    /// A command's path, held here as `commands list` printed it, has a word
+    /// that is empty or starts with `-`, which the tool would read as an
+    /// option.
+    OptionWord(String),
 }
 
 /// Returns the exit code that a failure's `exit` field holds, or null when

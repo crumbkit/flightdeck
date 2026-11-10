@@ -123,7 +123,9 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - flightdeck refuses to load a tool whose `commands list` names a command
   path with a word that is empty or starts with `-`, and says so with
-  `flightdeck::tool::load`. The tool would read such a word as an option,
+  `flightdeck::tool::load`, quoting the path. The refusal of a name with a
+  control character quotes the name too, with each control character
+  escaped. The tool would read such a word as an option,
   so no command could have it, and refusing it at load keeps it off the
   command line of every run, preview, choices run and help run.
 - Loading a tool asks `--version`, `commands list`, `schemas list` and

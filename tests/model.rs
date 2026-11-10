@@ -526,7 +526,7 @@ esac"#,
     assert_eq!(
         error.to_string(),
         format!(
-            "{} commands list --json --full --all --no-input names a command with an empty word or a word that starts with -",
+            "{} commands list --json --full --all --no-input names a command with an empty word or a word that starts with -: \"fake things --config=/x\"",
             program.name().to_string_lossy()
         )
     );

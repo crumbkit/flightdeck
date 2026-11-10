@@ -217,8 +217,11 @@ impl Tool {
                     .collect(),
             }]
         });
-        if has_control(&name) || commands.iter().any(has_control_name) {
-            return Err(NotDocument::Control);
+        if has_control(&name) {
+            return Err(NotDocument::Control(name));
+        }
+        if let Some(text) = commands.iter().find_map(control_name) {
+            return Err(NotDocument::Control(text));
         }
         let version = version_line
             .strip_prefix(&name)
@@ -241,14 +244,19 @@ impl Tool {
     }
 }
 
-/// Returns true when a word of `command`'s path or the name of one of its
-/// arguments holds a character that [`has_control`] finds.
-fn has_control_name(command: &Command) -> bool {
-    command.path().words().iter().any(|word| has_control(word))
-        || command
-            .arguments()
-            .iter()
-            .any(|argument| has_control(argument.name()))
+/// Returns `command`'s path when a word of it holds a character that
+/// [`has_control`] finds, or else the name of the first of its arguments
+/// that holds one, or `None`.
+fn control_name(command: &Command) -> Option<String> {
+    if command.path().words().iter().any(|word| has_control(word)) {
+        return Some(command.path().to_string());
+    }
+    command
+        .arguments()
+        .iter()
+        .map(Argument::name)
+        .find(|name| has_control(name))
+        .map(str::to_owned)
 }
 
 /// Returns true when `text` holds a control character, a format character
@@ -513,7 +521,7 @@ fn headings_of(goals: &[GoalRow], commands: &[Command]) -> Option<Vec<Heading>> 
             let prefixes: Vec<CommandPath> = goal
                 .commands
                 .iter()
-                .filter_map(|words| root.join(words).ok())
+                .filter_map(|words| root.join(words))
                 .collect();
             Heading {
                 title: goal.heading.clone(),
