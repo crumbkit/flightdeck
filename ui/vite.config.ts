@@ -23,6 +23,14 @@ export default defineConfig({
         entryFileNames: "assets/app.js",
         chunkFileNames: "assets/[name].js",
         assetFileNames: "assets/[name][extname]",
+        // The Weight and Both tabs share the measurement's query and path
+        // arithmetic. Naming that shared chunk keeps its file name apart
+        // from the tabs' own, which a disk that ignores case would merge.
+        codeSplitting: {
+          // Only the two files go in it; what they import stays where it was.
+          includeDependenciesRecursively: false,
+          groups: [{ name: "measure", test: /src\/(api|lib)\/weight\.ts$/ }],
+        },
       },
     },
   },

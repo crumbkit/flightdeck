@@ -240,6 +240,7 @@ describe("ToolPage", () => {
         .getAllByRole("button")
         .map((each) => each.textContent),
     ).toEqual(["Figures", "Weight", "Steps", "Sessions", "Flags"]);
+    // shelf keeps no figures here, so the Both tab, which needs runs, is not shown.
     expect(within(tabs).getByRole("button", { name: "Figures" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -260,7 +261,7 @@ describe("ToolPage", () => {
     expect(screen.queryByRole("navigation", { name: "Usage views" })).toBeNull();
   });
 
-  it("has a usage view of Figures and Weight alone for a tool with figures that lists no runs, and a command's name opens its form", async () => {
+  it("has a usage view of Figures, Weight and Both alone for a tool with figures that lists no runs, and a command's name opens its form", async () => {
     const commands = shelfReply.tool.commands.map((each) =>
       each.path.join(" ") === "books show"
         ? {
@@ -293,7 +294,7 @@ describe("ToolPage", () => {
       within(tabs)
         .getAllByRole("button")
         .map((each) => each.textContent),
-    ).toEqual(["Figures", "Weight"]);
+    ).toEqual(["Figures", "Weight", "Both"]);
     const table = screen.getByRole("table", { name: "Figures of each command" });
 
     await userEvent.click(within(table).getByRole("button", { name: "books show" }));

@@ -9,6 +9,18 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The Usage view gains a Both tab, after Weight, when the tool keeps
+  figures. It lists every command with a bar of its path weight, from the
+  Weight tab's measurement, and a bar of its runs, sorted by weight times
+  runs, shown as the tokens agents read in 7 days. Chips choose a corner:
+  heavy and often, light and never, heavy and never, or light and often,
+  each with its count, and a line under the chips says what the chosen
+  corner suggests. A command is heavy from 4,000 B, half the default path
+  budget, runs often from the median runs of the commands that ran, and
+  never when it has no runs. The loader's own queries, crumbkit's built-in
+  commands and commands with a page that was not measured stay out of
+  every corner. The tab loads as its own file and measures nothing of its
+  own.
 - The Usage view gains a Weight tab, after Figures. For each command it
   shows the help pages a reader passes to reach it, the tool's own page,
   each group page and the command's own page, and the 95th percentile of

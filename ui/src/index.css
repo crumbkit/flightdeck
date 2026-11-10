@@ -282,6 +282,15 @@
 @utility grid-cols-bar {
   grid-template-columns: 64px minmax(0, 1fr);
 }
+/* A bar and its value in the both table: the bar takes the room, the
+   value a fixed column. */
+@utility grid-cols-twobar {
+  grid-template-columns: minmax(80px, 1fr) 72px;
+}
+/* A both row on a phone: the bar's label, then the bar and its value. */
+@utility grid-cols-bars {
+  grid-template-columns: 48px minmax(0, 1fr);
+}
 /* The steps matrix takes the room, and the lists beside it wrap under it
    when the page is narrower than both. */
 @utility flex-matrix {

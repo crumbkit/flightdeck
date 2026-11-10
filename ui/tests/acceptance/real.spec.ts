@@ -654,6 +654,7 @@ test.describe("shelf after an agent ran books show", () => {
     await expect(tabs.getByRole("button")).toHaveText([
       "Figures",
       "Weight",
+      "Both",
       "Steps",
       "Sessions",
       "Flags",
@@ -792,6 +793,79 @@ test.describe("shelf after an agent read 9,000 bytes from books list", () => {
       await expect(first).toContainText(/^books list[\d,]+ B/);
       await first.getByRole("button", { name: "books list" }).click();
       await expect(first.getByText("shelf books list -h")).toBeVisible();
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow).toBe(0);
+      await expectNoAccessibilityViolations(page);
+    });
+  });
+});
+
+test.describe("Both, after an agent read 9,000 bytes from books list", () => {
+  test.use({ ranBefore: { runs: [["books", "list"]], heavy: true } });
+
+  /** Opens the Both tab of the Usage view. */
+  async function openBoth(page: Page, served: Served): Promise<void> {
+    await signIn(page, served);
+    await page
+      .getByRole("navigation", { name: "Views" })
+      .getByRole("button", { name: "Usage" })
+      .click();
+    await page
+      .getByRole("navigation", { name: "Usage views" })
+      .getByRole("button", { name: "Both" })
+      .click();
+  }
+
+  test("Both counts each corner, and the heavy and often chip keeps books list and names its action", async ({
+    page,
+    served,
+  }) => {
+    await openBoth(page, served);
+
+    await expect(
+      page.getByText(
+        /^Path weight times runs, .* · heavy is at least 4,000 B, half the default path budget · often is at least 2 runs, the median of commands that ran$/,
+      ),
+    ).toBeVisible();
+    const chips = page.getByRole("group", { name: "Corners" });
+    // shelf's six built-in commands stay under All and out of every corner.
+    await expect(chips.getByRole("button")).toHaveText([
+      "All 10",
+      "Heavy and often 1",
+      "Light and never 3",
+      "Heavy and never 0",
+      "Light and often 0",
+    ]);
+    const table = page.getByRole("table", { name: "Path weight and runs of each command" });
+    await expect(table.getByRole("row").nth(1)).toContainText(/^books list/);
+    await expectNoAccessibilityViolations(page);
+
+    await chips.getByRole("button", { name: /^Heavy and often/ }).click();
+
+    await expect(chips.getByRole("button", { name: /^Heavy and often/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(page.getByText("Heavy and often:")).toBeVisible();
+    await expect(table.getByRole("row")).toHaveCount(2);
+    await expect(table.getByRole("row").nth(1)).toContainText(/^books list.*tokens$/);
+    await expectNoAccessibilityViolations(page);
+  });
+
+  test.describe("on a phone", () => {
+    test.use({ viewport: { width: 375, height: 812 } });
+
+    test("Both lists one row per command with two labelled bars, with no sideways scroll", async ({
+      page,
+      served,
+    }) => {
+      await openBoth(page, served);
+
+      const list = page.getByRole("list", { name: "Path weight and runs of each command" });
+      await expect(list.getByRole("listitem")).toHaveCount(10);
+      await expect(list.getByRole("listitem").first()).toContainText(/^books list.*weight.*runs/);
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       );

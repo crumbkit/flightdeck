@@ -94,7 +94,9 @@ What works today:
   the top bar opens on Figures, a table of every command's runs, failures,
   refusals, help read first, wall time and output, and has a Weight tab of
   the help pages a reader passes to reach each command and its output
-  against crumbkit's default budgets. When the tool lists its
+  against crumbkit's default budgets. A Both tab sets each command's path
+  weight beside its runs, sorted by the tokens agents read, and picks out
+  the heavy and light commands that run often or never. When the tool lists its
   runs, the view also shows which command followed which, each session's
   runs and the flags each command's runs passed. It loads in its own file
   the first time it opens.
