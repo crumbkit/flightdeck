@@ -13,6 +13,8 @@
 //! - `POST /api/session` exchanges the launch code for the token, once.
 //! - `GET /api/model` returns the tool's model, whether the page is
 //!   read-only and the directory that flightdeck started in.
+//! - `GET /api/weight` runs `-h` of each distinct help page of the tool's
+//!   commands and returns the bytes of each, as `model::weight` describes.
 //! - `POST /api/runs` starts a run, `POST /api/previews` starts a preview,
 //!   and `POST /api/confirmations/<id>` starts a confirmed run. Each takes a
 //!   [`RunRequest`] and answers with the stream of `stream`, or with the
@@ -65,8 +67,9 @@ pub use self::session::{CODE_LIFETIME, Session};
 use self::stream::{Pacing, Stream};
 use crate::clock::Clock;
 use crate::lock::lock;
-use crate::model::Tool;
+use crate::model::{Tool, weight};
 use crate::runner::{Choices, ChoicesRequest, MOST_RUNS, Mode, RunFailure, RunRequest, Runner};
+use crate::spawn::HelpLimits;
 
 /// How long the server runs without an authenticated request.
 pub const IDLE_LIMIT: Duration = Duration::from_secs(30 * 60);
@@ -547,6 +550,15 @@ impl Shared {
                 Ok(Answer::Reply(Reply::Json(document.into_bytes())))
             }
             Route::Model => Ok(Answer::Reply(Reply::Json(self.model.clone()))),
+            Route::Weight => {
+                let weight =
+                    weight::measure(self.runner.program(), self.runner.tool(), HelpLimits::new());
+                // serde_json fails only on a map key that is not a string,
+                // and the weight has no map.
+                Ok(Answer::Reply(Reply::Json(
+                    serde_json::to_vec(&weight).unwrap_or_default(),
+                )))
+            }
             Route::Runs => {
                 let run = run_request(request, connection)?;
                 Ok(streamed(
@@ -752,6 +764,8 @@ enum Route<'a> {
     Session,
     /// `GET /api/model`.
     Model,
+    /// `GET /api/weight`.
+    Weight,
     /// `POST /api/runs`.
     Runs,
     /// `POST /api/previews`.
@@ -787,6 +801,7 @@ impl<'a> Route<'a> {
         match (method, path) {
             (Method::Post, "/api/session") => Self::Session,
             (Method::Get, "/api/model") => Self::Model,
+            (Method::Get, "/api/weight") => Self::Weight,
             (Method::Post, "/api/runs") => Self::Runs,
             (Method::Post, "/api/previews") => Self::Previews,
             (Method::Post, "/api/choices") => Self::Choices,

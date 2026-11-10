@@ -528,6 +528,31 @@ fn the_model_route_returns_shelfs_model_with_read_only_as_started() {
 }
 
 #[test]
+fn the_weight_route_needs_the_token_and_returns_the_bytes_of_each_help_page() {
+    serving(Setup::shelf(), |page| {
+        let refused = Call::get(page.port, "/api/weight").send(page.port);
+        assert_refused(&refused, 401, "flightdeck::session::unauthorized");
+
+        let reply = Call::get(page.port, "/api/weight")
+            .bearer(&page.token())
+            .send(page.port);
+
+        assert_eq!(reply.status, 200);
+        let weight = reply.json();
+        assert_eq!(weight["problem"], serde_json::Value::Null);
+        assert_eq!(weight["left_out"], 0);
+        let pages = weight["pages"].as_array().unwrap();
+        assert_eq!(pages[0]["path"], serde_json::json!([]));
+        assert_eq!(pages[1]["path"], serde_json::json!(["books"]));
+        assert!(
+            pages.iter().all(|page| page["bytes"].as_u64().unwrap() > 0),
+            "{pages:?}"
+        );
+        Then::Stop
+    });
+}
+
+#[test]
 fn the_server_stops_by_itself_after_the_idle_limit() {
     let ended = serving(Setup::shelf(), |page| {
         page.clock.advance(IDLE_LIMIT);

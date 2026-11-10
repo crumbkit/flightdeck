@@ -150,15 +150,17 @@ async function parseJson<T>(response: Response, schema: z.ZodType<T>): Promise<T
  * when the page holds one, parses the answer with `schema`, so every value
  * past this module has the schema's type (BASE-21), and throws ApiError for
  * a refused or malformed answer, because TanStack Query takes a thrown
- * error as the query's failure (BASE-23).
+ * error as the query's failure (BASE-23). `getJson` gives up after
+ * `deadline` milliseconds, 10 s unless the caller waits longer.
  */
 export async function getJson<T>(
   path: string,
   schema: z.ZodType<T>,
   signal: AbortSignal,
+  deadline = deadlineMs,
 ): Promise<T> {
   const response = await send(path, {
-    signal: AbortSignal.any([signal, AbortSignal.timeout(deadlineMs)]),
+    signal: AbortSignal.any([signal, AbortSignal.timeout(deadline)]),
     headers: headers(false),
   });
   return parseJson(response, schema);

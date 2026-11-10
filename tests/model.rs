@@ -12,10 +12,11 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crumbkit::{Failure as _, FieldValue};
+use crumbkit_flightdeck::model::weight;
 use crumbkit_flightdeck::model::{
     self, Arity, CrumbkitFlag, FindingKind, Kind, LoadError, TOOL_LOAD, TOOL_NOT_FOUND, Tool,
 };
-use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
+use crumbkit_flightdeck::spawn::{HelpLimits, Program, TIME_LIMIT};
 use tempfile::TempDir;
 
 /// Returns the path of one of crumbkit's example tools that the install
@@ -729,4 +730,62 @@ fn a_usage_call_that_answers_gives_the_command_its_findings() {
         .map(|finding| (finding.kind(), finding.p95_ms()))
         .collect();
     assert_eq!(findings, [(FindingKind::SlowCommand, None)]);
+}
+
+/// Runs `shelf` with `words` and its XDG directories in `dirs`, and returns
+/// what it printed.
+fn shelf_directly(shelf: &Path, dirs: &Path, words: &[&str]) -> Vec<u8> {
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the test runs shelf directly to compare with flightdeck's measurement"
+    )]
+    let ran = std::process::Command::new(shelf)
+        .args(words)
+        .envs(XDG.map(|(name, directory)| (name, dirs.join(directory))))
+        .output()
+        .unwrap();
+    assert!(ran.status.success(), "{ran:?}");
+    ran.stdout
+}
+
+#[test]
+fn measuring_shelfs_help_pages_counts_the_bytes_that_shelf_h_prints() {
+    let (dirs, program) = isolated(test_tool("shelf"));
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+    let printed = shelf_directly(&test_tool("shelf"), dirs.path(), &["-h"]);
+
+    let measured = weight::measure(&program, &tool, HelpLimits::new());
+
+    let root = &measured.pages()[0];
+    assert!(root.path().is_empty());
+    assert_eq!(root.bytes(), Some(u64::try_from(printed.len()).unwrap()));
+    assert_eq!(measured.problem(), None);
+}
+
+/// Returns the figures of each of shelf's commands, as JSON, from a new load.
+fn figures_of(program: &Program) -> Vec<serde_json::Value> {
+    model::load(program, TIME_LIMIT)
+        .unwrap()
+        .commands()
+        .iter()
+        .map(|command| serde_json::to_value(command.cost().map(model::Cost::figures)).unwrap())
+        .collect()
+}
+
+#[test]
+fn measuring_shelfs_help_pages_leaves_the_persons_usage_figures_unchanged() {
+    let shelf = test_tool("shelf");
+    let (dirs, program) = isolated(&shelf);
+    shelf_directly(&shelf, dirs.path(), &["books", "list"]);
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+    let before = figures_of(&program);
+
+    let measured = weight::measure(&program, &tool, HelpLimits::new());
+
+    assert!(measured.pages().iter().all(|page| page.bytes().is_some()));
+    assert_eq!(figures_of(&program), before);
+    // A help page that shelf prints outside the measurement is counted, so
+    // the measurement's pages would have shown had they reached the log.
+    shelf_directly(&shelf, dirs.path(), &["books", "list", "-h"]);
+    assert_ne!(figures_of(&program), before);
 }

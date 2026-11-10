@@ -9,6 +9,23 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The Usage view gains a Weight tab, after Figures. For each command it
+  shows the help pages a reader passes to reach it, the tool's own page,
+  each group page and the command's own page, and the 95th percentile of
+  the command's real output, as a stacked bar against crumbkit's default
+  path budget of 8,000 B, with the bytes, the tokens at 4 bytes a token,
+  the distance from the budget and the heaviest step. Opening a row shows
+  each step against its default page budget (1,500 B the root page, 800 B
+  a group page, 1,200 B a command page), and a step or path over budget
+  says "over by" in the danger colour. A page that could not be measured
+  shows why, and its path is marked partial and never called over or
+  under. The page measures the help pages the first time the tab opens,
+  through `GET /api/weight`, and keeps them until it reloads. The server
+  runs `-h` of each distinct page once with a cleared environment and a
+  temporary `XDG_STATE_HOME` that it removes afterwards, so the person's
+  usage log never counts the measurement. It runs 4 pages at a time, stops
+  a page after 2 seconds or 64 KiB, starts none after 30 seconds and
+  measures at most 400 pages. The tab loads as its own file.
 - The Usage view opens from the top bar on a Figures tab, a table of every
   command with its runs, failed runs, refused runs, help pages read before
   running, and the median and 95th percentile of its wall time and output,

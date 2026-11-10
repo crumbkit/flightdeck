@@ -689,3 +689,42 @@ fn a_tool_that_is_not_found_offers_a_name_on_path_and_a_path_as_two_repairs() {
         [Recovery::hint("give the path of a program")]
     );
 }
+
+/// Returns the pages of shelf's commands, at most `most`, as text.
+fn shelf_pages(most: usize) -> (Vec<String>, usize) {
+    let commands: CommandsList = serde_json::from_str(WITH_GOALS).unwrap();
+    let tool = Tool::assemble("shelf 0.1.1", commands, Vec::new()).unwrap();
+    let pages = super::weight::pages(&tool, most);
+    let paths = pages.paths().iter().map(|path| path.join(" ")).collect();
+    (paths, pages.left_out())
+}
+
+#[test]
+fn the_help_pages_of_a_tool_with_nested_groups_are_each_distinct_page_once_in_guide_order() {
+    let (paths, left_out) = shelf_pages(super::weight::MOST_PAGES);
+
+    assert_eq!(paths.first().map(String::as_str), Some(""));
+    assert_eq!(
+        paths.iter().take(3).map(String::as_str).collect::<Vec<_>>(),
+        ["", "books", "books list"]
+    );
+    let distinct: std::collections::BTreeSet<&String> = paths.iter().collect();
+    assert_eq!(distinct.len(), paths.len());
+    for page in ["self", "self figures", "self figures list"] {
+        assert!(paths.iter().any(|path| path == page), "{page} in {paths:?}");
+    }
+    assert_eq!(left_out, 0);
+}
+
+#[test]
+fn the_help_pages_stop_at_the_cap_and_count_the_commands_left_out() {
+    let (all, _) = shelf_pages(super::weight::MOST_PAGES);
+    let commands: CommandsList = serde_json::from_str(WITH_GOALS).unwrap();
+    let tool = Tool::assemble("shelf 0.1.1", commands, Vec::new()).unwrap();
+
+    let (paths, left_out) = shelf_pages(3);
+
+    assert_eq!(paths, ["", "books", "books list"]);
+    assert!(all.len() > 3);
+    assert_eq!(left_out, tool.commands().len() - 1);
+}

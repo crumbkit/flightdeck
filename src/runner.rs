@@ -246,6 +246,13 @@ impl Runner {
         &self.tool
     }
 
+    /// Returns the program that the runner runs, which also prints the
+    /// tool's help pages.
+    #[must_use]
+    pub const fn program(&self) -> &Program {
+        &self.program
+    }
+
     /// Returns which commands the runner may run.
     #[must_use]
     pub const fn mode(&self) -> Mode {

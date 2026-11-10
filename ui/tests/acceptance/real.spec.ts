@@ -651,7 +651,13 @@ test.describe("shelf after an agent ran books show", () => {
       .click();
 
     const tabs = page.getByRole("navigation", { name: "Usage views" });
-    await expect(tabs.getByRole("button")).toHaveText(["Figures", "Steps", "Sessions", "Flags"]);
+    await expect(tabs.getByRole("button")).toHaveText([
+      "Figures",
+      "Weight",
+      "Steps",
+      "Sessions",
+      "Flags",
+    ]);
     await expect(tabs.getByRole("button", { name: "Figures" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -720,6 +726,78 @@ test.describe("shelf after an agent ran books show", () => {
     const composer = await compose(page, "books summarize");
 
     await expect(composer.getByRole("region", { name: "Cost to an agent" })).toHaveCount(0);
+  });
+});
+
+test.describe("shelf after an agent read 9,000 bytes from books list", () => {
+  test.use({ ranBefore: { runs: [["books", "list"]], heavy: true } });
+
+  test("Weight measures shelf's help pages, opens a row and shows the path over budget in words", async ({
+    page,
+    served,
+  }) => {
+    await signIn(page, served);
+    await page
+      .getByRole("navigation", { name: "Views" })
+      .getByRole("button", { name: "Usage" })
+      .click();
+
+    await page
+      .getByRole("navigation", { name: "Usage views" })
+      .getByRole("button", { name: "Weight" })
+      .click();
+
+    const table = page.getByRole("table", { name: "Weight of each command's path" });
+    await expect(
+      page.getByText(
+        /^10 commands from \d+ help pages measured when this view opened · 1 path over budget$/,
+      ),
+    ).toBeVisible();
+    const first = table.getByRole("row").nth(1);
+    await expect(first.getByRole("button")).toHaveText("books list");
+    await expect(first).toContainText(/over by [\d,]+ B/);
+    await expectNoAccessibilityViolations(page);
+
+    await first.getByRole("button", { name: "books list" }).click();
+
+    await expect(first.getByRole("button", { name: "books list" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    await expect(table.getByText("shelf books list -h", { exact: true })).toBeVisible();
+    await expect(table.getByText("heaviest", { exact: true })).toBeVisible();
+    await expect(table.getByText("of 8,000 B default budget")).toBeVisible();
+    await expectNoAccessibilityViolations(page);
+  });
+
+  test.describe("on a phone", () => {
+    test.use({ viewport: { width: 375, height: 812 } });
+
+    test("Weight lists one row per command and opens its steps under it, with no sideways scroll", async ({
+      page,
+      served,
+    }) => {
+      await signIn(page, served);
+      await page
+        .getByRole("navigation", { name: "Views" })
+        .getByRole("button", { name: "Usage" })
+        .click();
+      await page
+        .getByRole("navigation", { name: "Usage views" })
+        .getByRole("button", { name: "Weight" })
+        .click();
+
+      const list = page.getByRole("list", { name: "Weight of each command's path" });
+      const first = list.getByRole("listitem").first();
+      await expect(first).toContainText(/^books list[\d,]+ B/);
+      await first.getByRole("button", { name: "books list" }).click();
+      await expect(first.getByText("shelf books list -h")).toBeVisible();
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow).toBe(0);
+      await expectNoAccessibilityViolations(page);
+    });
   });
 });
 

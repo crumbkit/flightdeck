@@ -9,6 +9,7 @@ import {
   figureOf,
   sortedRows,
 } from "@/lib/figures";
+import { SortHeader } from "./SortHeader";
 
 type Props = {
   /** The tool's name, such as "shelf". */
@@ -239,45 +240,6 @@ export function Figures({ name, rows, onOpen }: Props) {
         </p>
       )}
     </div>
-  );
-}
-
-/** A column header that sorts the table, marked with the direction it sorts in. */
-function SortHeader({
-  label,
-  sort,
-  onSort,
-  rowSpan,
-  className,
-}: {
-  label: string;
-  sort: Direction | null;
-  onSort: () => void;
-  rowSpan: number;
-  className: string;
-}) {
-  return (
-    <th
-      scope="col"
-      rowSpan={rowSpan}
-      aria-sort={sort ?? undefined}
-      className={cn(
-        "border-b px-2.5 py-1.75 text-right align-bottom font-medium whitespace-nowrap",
-        className,
-      )}
-    >
-      <button
-        type="button"
-        onClick={onSort}
-        className={cn(
-          "hover:text-foreground rounded-xs whitespace-nowrap",
-          sort === null ? "text-faint-foreground" : "text-foreground",
-        )}
-      >
-        {label}
-        {sort !== null && <span aria-hidden="true">{sort === "descending" ? " ↓" : " ↑"}</span>}
-      </button>
-    </th>
   );
 }
 

@@ -1,0 +1,189 @@
+//! The operation that measures a tool's help pages: it runs `<tool> -h`,
+//! `<tool> <group> -h` and `<tool> <command> -h` and counts the bytes each
+//! prints. It states the five items of PROC-2:
+//!
+//! - Program: the name or path that the person gave, as for `describe`.
+//! - Arguments: the words of one command path that the tool's model holds,
+//!   then `-h`, with no shell.
+//! - Environment: cleared, then the variables that [`Program::env`] adds,
+//!   such as the absolute `PATH` of [`Program::at_launch`], then
+//!   `XDG_STATE_HOME` set to a new temporary directory. A crumbkit tool logs
+//!   a help request to its usage log, and with a cleared environment it can
+//!   still find the person's home directory, so the temporary state
+//!   directory keeps every help run out of the person's usage log. The
+//!   directory is removed when the measurement ends, by a guard that drops
+//!   on every path.
+//! - Streams and deadline: standard input and standard error are null.
+//!   Standard output is kept up to [`HELP_LIMIT`] bytes, and a run that
+//!   prints more is stopped. Each run has [`HELP_TIME_LIMIT`], and no run
+//!   starts once [`MEASURE_LIMIT`] has passed since the measurement began.
+//!   At most [`AT_ONCE`] runs go at a time, each on a thread of a
+//!   `std::thread::scope` that joins it.
+//! - End: as for `describe`, crumbkit-process stops the child's whole
+//!   process group or job when it exits or its limit passes, and only then
+//!   reaps it. A help page only reads, so a stopped child leaves no partial
+//!   work.
+
+use std::ffi::OsStr;
+use std::io;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
+
+use crumbkit_process::{Capture, Outcome, OverLimit, RunOptions, StopReason};
+
+use super::{Exit, Program};
+use crate::lock::lock;
+
+#[cfg(unix)]
+#[cfg(test)]
+mod tests;
+
+/// The time limit of one help run. A crumbkit help page takes a few
+/// milliseconds.
+pub const HELP_TIME_LIMIT: Duration = Duration::from_secs(2);
+
+/// The most bytes of one help page. A larger output is not a help page.
+pub const HELP_LIMIT: usize = 64 * 1024;
+
+/// The time after which no further help run starts.
+pub const MEASURE_LIMIT: Duration = Duration::from_secs(30);
+
+/// The most help runs at a time.
+pub const AT_ONCE: usize = 4;
+
+/// The limits of one measurement, which the tests shorten.
+#[derive(Clone, Copy, Debug)]
+pub struct HelpLimits {
+    run: Duration,
+    total: Duration,
+}
+
+impl HelpLimits {
+    /// Returns the limits of [`HELP_TIME_LIMIT`] per run and
+    /// [`MEASURE_LIMIT`] in all.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            run: HELP_TIME_LIMIT,
+            total: MEASURE_LIMIT,
+        }
+    }
+
+    /// Returns the limits with `run` per help run.
+    #[must_use]
+    pub const fn run(mut self, run: Duration) -> Self {
+        self.run = run;
+        self
+    }
+
+    /// Returns the limits with `total` for the whole measurement.
+    #[must_use]
+    pub const fn total(mut self, total: Duration) -> Self {
+        self.total = total;
+        self
+    }
+}
+
+impl Default for HelpLimits {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// How one help run went: the bytes of its page, or why it has none.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HelpPage {
+    /// The run exited with 0 and printed this many bytes.
+    Bytes(u64),
+    /// The run exited with a code other than 0, or a signal ended it.
+    Exit(Exit),
+    /// The run exited with 0 and printed nothing.
+    Empty,
+    /// The run passed [`HELP_TIME_LIMIT`] and was stopped.
+    TimedOut,
+    /// The run printed more than [`HELP_LIMIT`] bytes and was stopped.
+    TooLarge,
+    /// The program would not start, or flightdeck could not follow it.
+    NotStarted,
+    /// [`MEASURE_LIMIT`] passed before the run's turn, so it never started.
+    NotRun,
+}
+
+/// Runs `-h` of each of `pages`, each a command path such as
+/// `["books", "list"]` or `[]` for the tool's own page, and returns each
+/// page's result in the same order.
+///
+/// # Errors
+///
+/// Returns the error of a temporary state directory that cannot be made,
+/// before any run starts.
+pub(crate) fn measure_help(
+    program: &Program,
+    pages: &[Vec<String>],
+    limits: HelpLimits,
+) -> io::Result<Vec<HelpPage>> {
+    let started = Instant::now();
+    let state = tempfile::tempdir()?;
+    let results = Mutex::new(vec![HelpPage::NotRun; pages.len()]);
+    let next = AtomicUsize::new(0);
+    std::thread::scope(|scope| {
+        for _ in 0..AT_ONCE.min(pages.len()) {
+            scope.spawn(|| {
+                loop {
+                    let index = next.fetch_add(1, Ordering::Relaxed);
+                    let Some(words) = pages.get(index) else {
+                        return;
+                    };
+                    if started.elapsed() >= limits.total {
+                        return;
+                    }
+                    let page = run_help(program, words, state.path().as_os_str(), limits.run);
+                    if let Some(slot) = lock(&results).get_mut(index) {
+                        *slot = page;
+                    }
+                }
+            });
+        }
+    });
+    // The state directory's guard drops here, after every run has ended.
+    drop(state);
+    Ok(results
+        .into_inner()
+        .unwrap_or_else(std::sync::PoisonError::into_inner))
+}
+
+/// Runs `<program> <words> -h` with a cleared environment and `state` as its
+/// `XDG_STATE_HOME`, and returns how it went.
+fn run_help(program: &Program, words: &[String], state: &OsStr, time_limit: Duration) -> HelpPage {
+    let mut command = program.command(&[] as &[&str]);
+    command
+        .env_clear()
+        .envs(program.env.iter().map(|(name, value)| (name, value)))
+        .env("XDG_STATE_HOME", state)
+        .args(words)
+        .arg("-h");
+    let settings = RunOptions::new()
+        .stdout(Capture::Whole {
+            limit: HELP_LIMIT,
+            over: OverLimit::Stop,
+        })
+        .deadline(Instant::now() + time_limit);
+    let Ok(finished) = crumbkit_process::run(command, &settings) else {
+        return HelpPage::NotStarted;
+    };
+    let exit = Exit::of(finished.status());
+    match finished.outcome() {
+        Outcome::TimedOut => return HelpPage::TimedOut,
+        Outcome::Stopped(StopReason::OverLimit) => return HelpPage::TooLarge,
+        _ => {}
+    }
+    let (stdout, _) = finished.into_output();
+    let printed = stdout.bytes().len();
+    match exit {
+        Exit::Code(0) if printed == 0 => HelpPage::Empty,
+        // A page is at most HELP_LIMIT bytes, so its length fits.
+        Exit::Code(0) => HelpPage::Bytes(u64::try_from(printed).unwrap_or(u64::MAX)),
+        other => HelpPage::Exit(other),
+    }
+}

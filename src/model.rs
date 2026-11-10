@@ -18,6 +18,7 @@ mod error;
 mod figures;
 mod links;
 mod runs;
+pub mod weight;
 mod wire;
 
 #[cfg(test)]

@@ -41,6 +41,13 @@ pub(super) const ALL: &[Asset] = &[
         content_type: "text/javascript; charset=utf-8",
         body: include_bytes!("../../ui/dist/assets/Usage.js"),
     },
+    // The usage view's weight tab, which the page loads the first time it
+    // opens.
+    Asset {
+        path: "/assets/Weight.js",
+        content_type: "text/javascript; charset=utf-8",
+        body: include_bytes!("../../ui/dist/assets/Weight.js"),
+    },
     Asset {
         path: "/assets/index.css",
         content_type: "text/css; charset=utf-8",

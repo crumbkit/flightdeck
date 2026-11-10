@@ -45,11 +45,11 @@ export function withPeriod(words: string, since: Day | null, today: Day): string
 }
 
 /**
- * A view of the usage page. Figures is about every command, and opens from
- * the top bar; Steps, Sessions and Flags are about one command, and open
- * from the top bar's view or the card's links.
+ * A view of the usage page. Figures and Weight are about every command,
+ * and Figures opens from the top bar. Steps, Sessions and Flags are about
+ * one command, and open from the tab bar or the card's links.
  */
-export type UsageTab = "figures" | "steps" | "sessions" | "flags";
+export type UsageTab = "figures" | "weight" | "steps" | "sessions" | "flags";
 
 /** Returns whether the tool reported figures for any of its commands. */
 export function hasFigures(tool: Tool): boolean {

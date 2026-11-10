@@ -3,7 +3,7 @@
 //! This module and its children are the only places that start a process
 //! (PROC-1). Every thread of flightdeck starts here, where the owner of each
 //! run joins it, or in a `std::thread::scope` that joins it, as the
-//! server's do (SVC-1). The module has three operations. [`open_browser`]
+//! server's do (SVC-1). The module has four operations. [`open_browser`]
 //! opens the opener page in the default browser, and its module states its
 //! five items of PROC-2. `stream` runs one command that the runner checked
 //! against the tool's model, and its module states its own five items of
@@ -48,12 +48,15 @@ use std::time::{Duration, Instant};
 use crumbkit_process::{Capture, Outcome, OverLimit, RunError, RunOptions, Status};
 
 mod browser;
+mod help;
 mod stream;
 
 #[cfg(test)]
 mod tests;
 
 pub use self::browser::{BROWSER_TIME_LIMIT, open_browser};
+pub(crate) use self::help::measure_help;
+pub use self::help::{AT_ONCE, HELP_LIMIT, HELP_TIME_LIMIT, HelpLimits, HelpPage, MEASURE_LIMIT};
 pub use self::stream::{
     DRAIN_GRACE, Escalation, INTERRUPT_GRACE, LINE_LIMIT, Limit, Limits, QUEUE, TERMINATE_GRACE,
     TOTAL_LIMIT,
