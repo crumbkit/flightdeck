@@ -450,6 +450,7 @@ impl Runner {
         if self.mode == Mode::ReadOnly && command.class() != Class::ReadOnly {
             return Err(RunFailure::ReadOnly {
                 path: command.path().to_string(),
+                program: self.program.name().to_string_lossy().into_owned(),
             });
         }
         Ok((command, vector))
