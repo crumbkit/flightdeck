@@ -5,7 +5,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use super::argument::{Argument, CrumbkitFlag};
-use super::figures::{Cost, is_loader_query};
+use super::figures::{Cost, is_built_in, is_loader_query};
 use super::wire::CommandRow;
 
 /// The words of a command below the tool's name, such as `books list`. It
@@ -88,7 +88,13 @@ pub struct Command {
     /// runs are left out of the figures by name (RUST-10 in `figures.rs`),
     /// so the page says so rather than showing that agents never ran them.
     counted: bool,
-    #[serde(skip)]
+    /// Whether crumbkit adds the command to every tool, such as
+    /// `self usage`, by the rule and its RUST-10 in `figures.rs`. The both
+    /// table leaves these commands out of its corners.
+    built_in: bool,
+    /// Whether `commands list` marks the command as one that prints no
+    /// result, so its runs report no output size, which the page reads as
+    /// no output rather than an unknown one.
     prints_no_result: bool,
 }
 
@@ -99,6 +105,7 @@ impl Command {
         let path = CommandPath::from_row(&row.path);
         Self {
             counted: !is_loader_query(&path.to_string()),
+            built_in: is_built_in(&path),
             path,
             about: row.about,
             long_about: row.long_about,

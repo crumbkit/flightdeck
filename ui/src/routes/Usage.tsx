@@ -35,18 +35,27 @@ type Props = {
   onOpen: (command: string) => void;
 };
 
-/** The tabs about every command, which show whenever the view does. */
+/**
+ * The tabs about every command. Both shows only when the tool reports
+ * figures, because it multiplies by runs.
+ */
 const everyCommand: [UsageTab, string][] = [
   ["figures", "Figures"],
   ["weight", "Weight"],
+  ["both", "Both"],
 ];
 
-// The weight tab loads in its own file the first time it opens, so the
-// usage view's file stays within its size budget. Its summary comes from
-// the same file and reads the same query.
+// The weight and both tabs each load in their own file the first time they
+// open, so the usage view's file stays within its size budget. Each
+// summary comes from its tab's file. Both reads the weight tab's query, so
+// the help pages run once.
 const Weight = lazy(() => import("./usage/Weight"));
 const WeightSummary = lazy(() =>
   import("./usage/Weight").then((module) => ({ default: module.WeightSummary })),
+);
+const Both = lazy(() => import("./usage/Both"));
+const BothSummary = lazy(() =>
+  import("./usage/Both").then((module) => ({ default: module.BothSummary })),
 );
 
 /** The tabs about one command, which show when the tool lists its runs. */
@@ -64,7 +73,9 @@ const laneLimit = 8;
 
 /**
  * The usage view: what agents ran. Figures is a table of every command's
- * figures, from the tool's `self figures list`. When the tool lists its
+ * figures, from the tool's `self figures list`. Weight measures each
+ * command's path through the help, and Both sets that weight beside the
+ * command's runs. When the tool lists its
  * runs in `self runs list`, a second group of tabs shows the steps between
  * commands, each session's runs and the flags each command's runs passed.
  * It loads apart from the page, the first time it opens.
@@ -95,6 +106,11 @@ export default function Usage({
         <WeightSummary tool={tool} />
       </Suspense>
     ),
+    both: (
+      <Suspense fallback={null}>
+        <BothSummary tool={tool} today={today} />
+      </Suspense>
+    ),
     steps: `${counted(runs.length, "run")} in ${counted(sessions.length, "session")}, ${days}`,
     sessions: `${counted(sessions.length, "session")}, ${days}.`,
     flags: `Which flags each command's runs passed, ${days}. The log keeps flag names, never their values.`,
@@ -104,12 +120,12 @@ export default function Usage({
       {label}
     </ViewButton>
   );
-  const perCommand = tab !== "figures" && tab !== "weight";
+  const perCommand = tab !== "figures" && tab !== "weight" && tab !== "both";
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-auto">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2">
         <nav aria-label="Usage views" className="flex flex-wrap items-center gap-1">
-          {everyCommand.map(button)}
+          {everyCommand.filter(([each]) => each !== "both" || figured).map(button)}
           {history !== null && (
             <>
               <span aria-hidden="true" className="bg-border mx-1 hidden h-5 w-px md:block" />
@@ -140,6 +156,13 @@ export default function Usage({
           fallback={<p className="text-muted-foreground m-0 px-4 py-3 text-sm">Loading…</p>}
         >
           <Weight tool={tool} />
+        </Suspense>
+      )}
+      {tab === "both" && figured && (
+        <Suspense
+          fallback={<p className="text-muted-foreground m-0 px-4 py-3 text-sm">Loading…</p>}
+        >
+          <Both tool={tool} onOpen={onOpen} />
         </Suspense>
       )}
       {tab === "figures" &&

@@ -48,6 +48,19 @@ pub(super) const ALL: &[Asset] = &[
         content_type: "text/javascript; charset=utf-8",
         body: include_bytes!("../../ui/dist/assets/Weight.js"),
     },
+    // The usage view's both tab, which the page loads the first time it
+    // opens.
+    Asset {
+        path: "/assets/Both.js",
+        content_type: "text/javascript; charset=utf-8",
+        body: include_bytes!("../../ui/dist/assets/Both.js"),
+    },
+    // The help-page measurement that the weight and both tabs share.
+    Asset {
+        path: "/assets/measure.js",
+        content_type: "text/javascript; charset=utf-8",
+        body: include_bytes!("../../ui/dist/assets/measure.js"),
+    },
     Asset {
         path: "/assets/index.css",
         content_type: "text/css; charset=utf-8",

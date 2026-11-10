@@ -75,6 +75,24 @@ describe("weightPaths", () => {
     expect(uncounted?.steps.at(-1)).toMatchObject({ bytes: 0, note: "not counted" });
   });
 
+  it("marks a path partial when its command ran but the figures do not know its output size", () => {
+    const [path] = pathsOf([costed("books list", figures(12, null))], shelfPages);
+
+    expect(path?.steps.at(-1)).toMatchObject({ bytes: null, note: "output size unknown" });
+    expect(path?.partial).toBe(true);
+    expect(path?.total).toBe(3560);
+  });
+
+  it("gives a command that prints no result an output of 0 bytes, so its path stays whole", () => {
+    const silent = { ...costed("books list", figures(12, null)), prints_no_result: true };
+
+    const [path] = pathsOf([silent], shelfPages);
+
+    expect(path?.steps.at(-1)).toMatchObject({ bytes: 0, note: "prints no result" });
+    expect(path?.partial).toBe(false);
+    expect(path?.total).toBe(3560);
+  });
+
   it("marks a path partial when one of its pages was not measured, and never calls it over or under", () => {
     const failed: Page = { path: ["books"], bytes: null, failure: "timed_out", exit: null };
     const [path] = pathsOf(

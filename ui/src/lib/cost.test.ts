@@ -9,6 +9,7 @@ import {
   periodWords,
   savedCalls,
   stripFindings,
+  tokenCount,
   tokensWords,
   topCodes,
   usageCommand,
@@ -130,6 +131,25 @@ describe("output in bytes and tokens", () => {
     expect(bytesWords(1384)).toBe("1,384 B");
     expect(tokensWords(1384)).toBe("about 346 tokens");
     expect(tokensWords(142)).toBe("about 36 tokens");
+    expect(tokensWords(4)).toBe("about 1 token");
+  });
+
+  it("counts tokens exactly below 10,000, then in thousands, then in millions", () => {
+    expect(tokensWords(39_996)).toBe("about 9,999 tokens");
+    expect(tokensWords(40_000)).toBe("about 10k tokens");
+    expect(tokensWords(495_000)).toBe("about 124k tokens");
+    expect(tokensWords(10_000_000)).toBe("about 2.5M tokens");
+  });
+
+  it("moves to the next unit when the rounded count reaches it", () => {
+    // 999,600 tokens round to 1,000k, which reads as 1.0M.
+    expect(tokensWords(3_998_400)).toBe("about 1.0M tokens");
+    // 9,999.6 tokens round to 10,000, which reads as 10k.
+    expect(tokensWords(39_998)).toBe("about 10k tokens");
+  });
+
+  it("says the tokens alone, for a sum that is only a lower bound", () => {
+    expect(tokenCount(452_000)).toBe("113k tokens");
   });
 });
 

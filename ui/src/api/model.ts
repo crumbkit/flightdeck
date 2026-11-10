@@ -146,6 +146,17 @@ const Command = z.object({
    * an agent's.
    */
   counted: z.boolean(),
+  /**
+   * Whether crumbkit adds the command to every tool, such as `self usage`.
+   * The server judges it by the command's first word, so a tool's own
+   * command under `commands`, `schemas`, `self` or `aliases` counts too.
+   */
+  built_in: z.boolean(),
+  /**
+   * Whether `commands list` marks the command as one that prints no
+   * result. Its runs report no output size, which means no output.
+   */
+  prints_no_result: z.boolean(),
 });
 export type Command = z.infer<typeof Command>;
 

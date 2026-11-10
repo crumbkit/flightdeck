@@ -45,11 +45,11 @@ export function withPeriod(words: string, since: Day | null, today: Day): string
 }
 
 /**
- * A view of the usage page. Figures and Weight are about every command,
- * and Figures opens from the top bar. Steps, Sessions and Flags are about
- * one command, and open from the tab bar or the card's links.
+ * A view of the usage page. Figures, Weight and Both are about every
+ * command, and Figures opens from the top bar. Steps, Sessions and Flags
+ * are about one command, and open from the tab bar or the card's links.
  */
-export type UsageTab = "figures" | "weight" | "steps" | "sessions" | "flags";
+export type UsageTab = "figures" | "weight" | "both" | "steps" | "sessions" | "flags";
 
 /** Returns whether the tool reported figures for any of its commands. */
 export function hasFigures(tool: Tool): boolean {
@@ -130,11 +130,30 @@ export function bytesWords(bytes: number): string {
 }
 
 /**
- * Returns the tokens that `bytes` of output cost an agent, at about four
- * bytes a token, such as "about 346 tokens".
+ * Returns the tokens that `bytes` cost an agent, at four bytes a token:
+ * exactly below 10,000, such as "346 tokens", then in thousands, such as
+ * "124k tokens", then in millions with one decimal, such as "2.5M
+ * tokens". A count that rounds up to the next unit reads in that unit, so
+ * 999,600 tokens read "1.0M tokens".
+ */
+export function tokenCount(bytes: number): string {
+  const count = Math.round(bytes / 4);
+  if (count < 10_000) {
+    return counted(count, "token");
+  }
+  const thousands = Math.round(count / 1000);
+  if (thousands < 1000) {
+    return `${thousands}k tokens`;
+  }
+  return `${(count / 1_000_000).toFixed(1)}M tokens`;
+}
+
+/**
+ * Returns the tokens that `bytes` cost an agent, as an estimate, such as
+ * "about 346 tokens" or "about 124k tokens".
  */
 export function tokensWords(bytes: number): string {
-  return `about ${counted(Math.round(bytes / 4), "token")}`;
+  return `about ${tokenCount(bytes)}`;
 }
 
 /** Returns `part` as a whole percentage of `whole`, or null when `whole` is 0. */

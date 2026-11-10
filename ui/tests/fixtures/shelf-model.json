@@ -221,7 +221,9 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": true
+        "counted": true,
+        "built_in": false,
+        "prints_no_result": false
       },
       {
         "path": ["books", "show"],
@@ -416,7 +418,9 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": true
+        "counted": true,
+        "built_in": false,
+        "prints_no_result": false
       },
       {
         "path": ["books", "summarize"],
@@ -560,7 +564,9 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": true
+        "counted": true,
+        "built_in": false,
+        "prints_no_result": false
       },
       {
         "path": ["books", "remove"],
@@ -780,7 +786,9 @@
         },
         "runs": 0,
         "cost": null,
-        "counted": true
+        "counted": true,
+        "built_in": false,
+        "prints_no_result": false
       },
       {
         "path": ["commands", "list"],
@@ -976,7 +984,9 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": false
+        "counted": false,
+        "built_in": true,
+        "prints_no_result": false
       },
       {
         "path": ["schemas", "list"],
@@ -1160,7 +1170,9 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": false
+        "counted": false,
+        "built_in": true,
+        "prints_no_result": false
       },
       {
         "path": ["schemas", "show"],
@@ -1311,7 +1323,9 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": false
+        "counted": false,
+        "built_in": true,
+        "prints_no_result": false
       },
       {
         "path": ["self", "usage"],
@@ -1495,7 +1509,9 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": false
+        "counted": false,
+        "built_in": true,
+        "prints_no_result": false
       },
       {
         "path": ["self", "figures", "list"],
@@ -1766,7 +1782,9 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": false
+        "counted": false,
+        "built_in": true,
+        "prints_no_result": false
       },
       {
         "path": ["self", "runs", "list"],
@@ -2042,7 +2060,9 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": false
+        "counted": false,
+        "built_in": true,
+        "prints_no_result": false
       }
     ],
     "documents": [

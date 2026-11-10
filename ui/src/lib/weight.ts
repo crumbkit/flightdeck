@@ -97,8 +97,15 @@ function outputStep(command: Tool["commands"][number]): Step {
   if (figures === null || figures.runs === 0) {
     return { ...step, bytes: 0, note: "no runs, so no output weight" };
   }
+  if (command.prints_no_result) {
+    // crumbkit's figures report no output size for a command that prints
+    // no result, because it prints nothing.
+    return { ...step, bytes: 0, note: "prints no result" };
+  }
   if (figures.p95_out_bytes === null) {
-    return { ...step, bytes: 0, note: "no figures" };
+    // The command ran, but the figures do not say how much it printed, so
+    // the path's sum is a lower bound.
+    return { ...step, bytes: null, note: "output size unknown" };
   }
   return { ...step, bytes: figures.p95_out_bytes, note: null };
 }
