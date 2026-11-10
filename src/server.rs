@@ -13,6 +13,10 @@
 //! - `POST /api/session` exchanges the launch code for the token, once.
 //! - `GET /api/model` returns the tool's model, whether the page is
 //!   read-only and the directory that flightdeck started in.
+//! - `GET /api/weight` returns the bytes of each distinct help page of the
+//!   tool's commands, as `model::weight` describes. The runner measures
+//!   them on the first request and keeps the result, so the tool's help
+//!   runs once however many requests arrive.
 //! - `POST /api/runs` starts a run, `POST /api/previews` starts a preview,
 //!   and `POST /api/confirmations/<id>` starts a confirmed run. Each takes a
 //!   [`RunRequest`] and answers with the stream of `stream`, or with the
@@ -85,7 +89,9 @@ pub const KEEPALIVE: Duration = Duration::from_secs(15);
 
 // Each run's stream holds a connection until the run ends, and a cancel
 // needs a connection of its own. The runner's cap leaves at least half the
-// connections free while every run streams.
+// connections free while every run streams. A weight request starts no run
+// of its own after the first: it waits on the runner's one measurement,
+// whose help runs are at most `AT_ONCE` and outside the runner's cap.
 const _: () = assert!(MOST_RUNS * 2 <= CONNECTION_LIMIT);
 
 /// The server's limits.
@@ -547,6 +553,13 @@ impl Shared {
                 Ok(Answer::Reply(Reply::Json(document.into_bytes())))
             }
             Route::Model => Ok(Answer::Reply(Reply::Json(self.model.clone()))),
+            Route::Weight => {
+                // serde_json fails only on a map key that is not a string,
+                // and the weight has no map.
+                Ok(Answer::Reply(Reply::Json(
+                    serde_json::to_vec(self.runner.weight()).unwrap_or_default(),
+                )))
+            }
             Route::Runs => {
                 let run = run_request(request, connection)?;
                 Ok(streamed(
@@ -752,6 +765,8 @@ enum Route<'a> {
     Session,
     /// `GET /api/model`.
     Model,
+    /// `GET /api/weight`.
+    Weight,
     /// `POST /api/runs`.
     Runs,
     /// `POST /api/previews`.
@@ -787,6 +802,7 @@ impl<'a> Route<'a> {
         match (method, path) {
             (Method::Post, "/api/session") => Self::Session,
             (Method::Get, "/api/model") => Self::Model,
+            (Method::Get, "/api/weight") => Self::Weight,
             (Method::Post, "/api/runs") => Self::Runs,
             (Method::Post, "/api/previews") => Self::Previews,
             (Method::Post, "/api/choices") => Self::Choices,

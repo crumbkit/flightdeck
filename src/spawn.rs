@@ -3,7 +3,7 @@
 //! This module and its children are the only places that start a process
 //! (PROC-1). Every thread of flightdeck starts here, where the owner of each
 //! run joins it, or in a `std::thread::scope` that joins it, as the
-//! server's do (SVC-1). The module has three operations. [`open_browser`]
+//! server's do (SVC-1). The module has four operations. [`open_browser`]
 //! opens the opener page in the default browser, and its module states its
 //! five items of PROC-2. `stream` runs one command that the runner checked
 //! against the tool's model, and its module states its own five items of
@@ -48,12 +48,15 @@ use std::time::{Duration, Instant};
 use crumbkit_process::{Capture, Outcome, OverLimit, RunError, RunOptions, Status};
 
 mod browser;
+mod help;
 mod stream;
 
 #[cfg(test)]
 mod tests;
 
 pub use self::browser::{BROWSER_TIME_LIMIT, open_browser};
+pub(crate) use self::help::measure_help;
+pub use self::help::{AT_ONCE, HELP_LIMIT, HELP_TIME_LIMIT, HelpLimits, HelpPage, MEASURE_LIMIT};
 pub use self::stream::{
     DRAIN_GRACE, Escalation, INTERRUPT_GRACE, LINE_LIMIT, Limit, Limits, QUEUE, TERMINATE_GRACE,
     TOTAL_LIMIT,
@@ -176,11 +179,27 @@ impl Program {
     /// variables and its directory. crumbkit-process sets its standard
     /// streams.
     fn command<S: AsRef<OsStr>>(&self, words: &[S]) -> std::process::Command {
+        self.build(words, false)
+    }
+
+    /// Returns the command that runs the program with `words` as
+    /// [`Program::command`] does, but in a cleared environment that holds
+    /// only the program's added variables.
+    fn cleared_command<S: AsRef<OsStr>>(&self, words: &[S]) -> std::process::Command {
+        self.build(words, true)
+    }
+
+    /// Returns the command of the program with `words`, its added variables
+    /// and its directory, in a cleared environment when `cleared` is true.
+    fn build<S: AsRef<OsStr>>(&self, words: &[S], cleared: bool) -> std::process::Command {
         #[expect(
             clippy::disallowed_methods,
             reason = "spawn owns flightdeck's child processes (PROC-1)"
         )]
         let mut command = std::process::Command::new(&self.program);
+        if cleared {
+            command.env_clear();
+        }
         command
             .args(words)
             .envs(self.env.iter().map(|(name, value)| (name, value)));

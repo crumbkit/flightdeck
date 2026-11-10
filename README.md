@@ -34,7 +34,9 @@ What works today:
   stops, it lets each run finish within five seconds and cancels the rest.
 - The browser signs in with a one-time launch code that the opener page
   holds in the URL's fragment, and exchanges it for a token that every API
-  request carries. `GET /api/model` returns the tool's model as JSON.
+  request carries. `GET /api/model` returns the tool's model as JSON, and
+  `GET /api/weight` returns the bytes of the tool's help pages, which the
+  server measures once.
   [docs/security.md](docs/security.md) states the threat model, every guard
   of the server and the test that proves it.
 - The page runs a command with `POST /api/runs`, previews a destructive
@@ -90,7 +92,9 @@ What works today:
   for it, and shows each run as a card with its result as a table or a
   record. When the tool keeps figures or lists its runs, a Usage view in
   the top bar opens on Figures, a table of every command's runs, failures,
-  refusals, help read first, wall time and output. When the tool lists its
+  refusals, help read first, wall time and output, and has a Weight tab of
+  the help pages a reader passes to reach each command and its output
+  against crumbkit's default budgets. When the tool lists its
   runs, the view also shows which command followed which, each session's
   runs and the flags each command's runs passed. It loads in its own file
   the first time it opens.

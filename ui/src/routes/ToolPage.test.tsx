@@ -239,7 +239,7 @@ describe("ToolPage", () => {
       within(tabs)
         .getAllByRole("button")
         .map((each) => each.textContent),
-    ).toEqual(["Figures", "Steps", "Sessions", "Flags"]);
+    ).toEqual(["Figures", "Weight", "Steps", "Sessions", "Flags"]);
     expect(within(tabs).getByRole("button", { name: "Figures" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -260,7 +260,7 @@ describe("ToolPage", () => {
     expect(screen.queryByRole("navigation", { name: "Usage views" })).toBeNull();
   });
 
-  it("has a usage view of Figures alone for a tool with figures that lists no runs, and a command's name opens its form", async () => {
+  it("has a usage view of Figures and Weight alone for a tool with figures that lists no runs, and a command's name opens its form", async () => {
     const commands = shelfReply.tool.commands.map((each) =>
       each.path.join(" ") === "books show"
         ? {
@@ -293,7 +293,7 @@ describe("ToolPage", () => {
       within(tabs)
         .getAllByRole("button")
         .map((each) => each.textContent),
-    ).toEqual(["Figures"]);
+    ).toEqual(["Figures", "Weight"]);
     const table = screen.getByRole("table", { name: "Figures of each command" });
 
     await userEvent.click(within(table).getByRole("button", { name: "books show" }));

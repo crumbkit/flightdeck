@@ -77,12 +77,13 @@ async function openerOf(child: ChildProcess): Promise<string> {
  * so its usage log holds those runs when flightdeck loads it. The runs sit
  * in an object, because Playwright reads an array option as a fixture.
  * `huge: true` adds a copy of the last run whose wall time and output are
- * too large for the page to hold as numbers.
+ * too large for the page to hold as numbers, and `heavy: true` adds a copy
+ * whose output is 9,000 bytes, so its command's path passes the budget.
  */
 export const test = checked.extend<{
   tool: "shelf" | "reading" | "slow reading" | "pretty shelf";
   readOnly: boolean;
-  ranBefore: { runs: string[][]; huge?: boolean };
+  ranBefore: { runs: string[][]; huge?: boolean; heavy?: boolean };
   served: Served;
 }>({
   tool: ["shelf", { option: true }],
@@ -105,13 +106,16 @@ export const test = checked.extend<{
     for (const words of ranBefore.runs) {
       spawnSync(program, words, { env, stdio: "ignore" });
     }
-    if (ranBefore.huge === true) {
+    if (ranBefore.huge === true || ranBefore.heavy === true) {
       const log = path.join(home, "state", tool, "usage.jsonl");
       const last = (await readFile(log, "utf8")).trimEnd().split("\n").at(-1) ?? "";
-      const huge = last
-        .replace(/"ms":\d+/, `"ms":9007199254740993`)
-        .replace(/"out_bytes":\d+/, `"out_bytes":18446744073709551615`);
-      await appendFile(log, `${huge}\n`);
+      const copy =
+        ranBefore.huge === true
+          ? last
+              .replace(/"ms":\d+/, `"ms":9007199254740993`)
+              .replace(/"out_bytes":\d+/, `"out_bytes":18446744073709551615`)
+          : last.replace(/"out_bytes":\d+/, `"out_bytes":9000`);
+      await appendFile(log, `${copy}\n`);
     }
     const child = spawn(
       path.join(root, "target/debug/flightdeck"),

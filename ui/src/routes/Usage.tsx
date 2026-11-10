@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { type ReactNode, useState } from "react";
+import { lazy, type ReactNode, Suspense, useState } from "react";
 import type { Day, Run, Tool } from "@/api/model";
 import { ViewButton } from "@/components/ViewButton";
 import { bytesWords, dayOf, dayWords, hasFigures, type UsageTab } from "@/lib/cost";
@@ -36,7 +36,18 @@ type Props = {
 };
 
 /** The tabs about every command, which show whenever the view does. */
-const everyCommand: [UsageTab, string][] = [["figures", "Figures"]];
+const everyCommand: [UsageTab, string][] = [
+  ["figures", "Figures"],
+  ["weight", "Weight"],
+];
+
+// The weight tab loads in its own file the first time it opens, so the
+// usage view's file stays within its size budget. Its summary comes from
+// the same file and reads the same query.
+const Weight = lazy(() => import("./usage/Weight"));
+const WeightSummary = lazy(() =>
+  import("./usage/Weight").then((module) => ({ default: module.WeightSummary })),
+);
 
 /** The tabs about one command, which show when the tool lists its runs. */
 const oneCommand: [UsageTab, string][] = [
@@ -79,6 +90,11 @@ export default function Usage({
   const figured = hasFigures(tool);
   const summary: Record<UsageTab, ReactNode> = {
     figures: figured ? figuresSummary(rows, tool.figures_since, today) : "",
+    weight: (
+      <Suspense fallback={null}>
+        <WeightSummary tool={tool} />
+      </Suspense>
+    ),
     steps: `${counted(runs.length, "run")} in ${counted(sessions.length, "session")}, ${days}`,
     sessions: `${counted(sessions.length, "session")}, ${days}.`,
     flags: `Which flags each command's runs passed, ${days}. The log keeps flag names, never their values.`,
@@ -88,7 +104,7 @@ export default function Usage({
       {label}
     </ViewButton>
   );
-  const perCommand = tab !== "figures";
+  const perCommand = tab !== "figures" && tab !== "weight";
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-auto">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2">
@@ -119,6 +135,13 @@ export default function Usage({
           </label>
         )}
       </div>
+      {tab === "weight" && (
+        <Suspense
+          fallback={<p className="text-muted-foreground m-0 px-4 py-3 text-sm">Loading…</p>}
+        >
+          <Weight tool={tool} />
+        </Suspense>
+      )}
       {tab === "figures" &&
         (figured ? (
           <Figures name={tool.name} rows={rows} onOpen={onOpen} />
