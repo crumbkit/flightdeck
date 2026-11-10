@@ -455,6 +455,65 @@ fn files_under(root: &Path, directory: &Path) -> Vec<PathBuf> {
     files
 }
 
+/// Returns the names of the files under `ui/dist/assets` that `text`
+/// names after `marker` and before the closing quote, such as `app.js`
+/// for `src="/assets/app.js"`.
+fn assets_named(text: &str, marker: &str) -> Vec<String> {
+    text.split(marker)
+        .skip(1)
+        .filter_map(|rest| rest.split(['"', '`', '\'']).next())
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn the_first_load_size_counts_every_file_that_the_page_loads_before_it_runs() {
+    let root = ui_dist();
+    let html = std::fs::read_to_string(root.join("index.html")).unwrap();
+    let mut first_load: Vec<String> = assets_named(&html, "\"/assets/");
+    // Each file that a first-load script imports statically loads before
+    // the page runs too.
+    let mut index = 0;
+    while let Some(name) = first_load.get(index).cloned() {
+        index += 1;
+        if !name.ends_with(".js") {
+            continue;
+        }
+        let script = std::fs::read_to_string(root.join("assets").join(&name)).unwrap();
+        for marker in ["from\"./", "import\"./"] {
+            for imported in assets_named(&script, marker) {
+                if !first_load.contains(&imported) {
+                    first_load.push(imported);
+                }
+            }
+        }
+    }
+    let manifest: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("ui/package.json")).unwrap(),
+    )
+    .unwrap();
+    let counted: Vec<&str> = manifest["size-limit"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["name"] == "first load")
+        .unwrap()["path"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|path| path.as_str().unwrap())
+        .collect();
+
+    assert!(first_load.contains(&"app.js".to_owned()), "{first_load:?}");
+    for name in &first_load {
+        let path = format!("dist/assets/{name}");
+        assert!(
+            counted.contains(&path.as_str()),
+            "the first load reads {path}, which the size step's first load does not count: {counted:?}"
+        );
+    }
+}
+
 #[test]
 fn every_built_file_of_the_page_is_served_with_its_bytes_and_its_media_type() {
     let root = ui_dist();

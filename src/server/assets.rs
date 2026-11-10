@@ -35,6 +35,19 @@ pub(super) const ALL: &[Asset] = &[
         content_type: "text/javascript; charset=utf-8",
         body: include_bytes!("../../ui/dist/assets/app.js"),
     },
+    // The libraries that the page uses, such as React, which the first load
+    // reads beside the page's own file.
+    Asset {
+        path: "/assets/shared.js",
+        content_type: "text/javascript; charset=utf-8",
+        body: include_bytes!("../../ui/dist/assets/shared.js"),
+    },
+    // The bundler's runtime, which the first load reads too.
+    Asset {
+        path: "/assets/rolldown-runtime.js",
+        content_type: "text/javascript; charset=utf-8",
+        body: include_bytes!("../../ui/dist/assets/rolldown-runtime.js"),
+    },
     // The usage view, which the page loads the first time it opens.
     Asset {
         path: "/assets/Usage.js",
@@ -60,14 +73,6 @@ pub(super) const ALL: &[Asset] = &[
         path: "/assets/measure.js",
         content_type: "text/javascript; charset=utf-8",
         body: include_bytes!("../../ui/dist/assets/measure.js"),
-    },
-    // The modules that the page's own file and the measurement share, such
-    // as React, which the bundler splits into a file of their own and names
-    // after its first module of the page's own.
-    Asset {
-        path: "/assets/cost.js",
-        content_type: "text/javascript; charset=utf-8",
-        body: include_bytes!("../../ui/dist/assets/cost.js"),
     },
     Asset {
         path: "/assets/index.css",

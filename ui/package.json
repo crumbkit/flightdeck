@@ -54,6 +54,8 @@
       "path": [
         "dist/index.html",
         "dist/assets/app.js",
+        "dist/assets/shared.js",
+        "dist/assets/rolldown-runtime.js",
         "dist/assets/index.css",
         "dist/fonts/*.woff2"
       ],

@@ -27,10 +27,21 @@ export default defineConfig({
         // states and the path arithmetic. Naming that shared chunk keeps its
         // file name apart from the tabs' own, which a disk that ignores case
         // would merge.
+        //
+        // Once the measurement's chunk imports an icon, the bundler moves
+        // React and the modules that the page's own file shares with it
+        // into a chunk it names after one of them. The libraries get a
+        // chunk of their own under a fixed name instead, `shared`, and the
+        // bundler's runtime goes in `rolldown-runtime`. The page's first
+        // load reads both, and the size step counts them.
         codeSplitting: {
-          // Only these files go in it; what they import stays where it was.
+          // Only these files go in each; what they import stays where it was.
           includeDependenciesRecursively: false,
           groups: [
+            {
+              name: "shared",
+              test: /node_modules/,
+            },
             {
               name: "measure",
               test: /src\/((api|lib)\/weight\.ts|routes\/usage\/useMeasured\.tsx)$/,
