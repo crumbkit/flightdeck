@@ -6,6 +6,10 @@ use clap::{Args, Parser, Subcommand};
 use crumbkit::Tool;
 use crumbkit::ViewFlags;
 use crumbkit::commands::{COMMANDS_LIST, CommandsList};
+use crumbkit::completion::{
+    COMPLETION_CHECK, COMPLETION_INSTALL, COMPLETION_PRINT, CompletionCheck, CompletionInstall,
+    CompletionPrint,
+};
 use crumbkit::help::{Effects, Example, Help, Leaf};
 use crumbkit::schemas::{SCHEMAS_LIST, SCHEMAS_SHOW, SchemasList, SchemasShow};
 use crumbkit::tool::Failures;
@@ -63,6 +67,30 @@ pub const TOOL: Tool = Tool::new()
                 )])
                 .effects(Effects::read_only())
                 .document(SCHEMAS_LIST),
+            Leaf::new(&["completion", "install"])
+                .examples(&[
+                    Example::new(&["--shell", "fish"], "Install flightdeck's completion for fish"),
+                    Example::new(
+                        &["--shell", "zsh", "--force"],
+                        "Install it for zsh, replacing a file or a link that install did not write",
+                    ),
+                ])
+                .effects(Effects::additive().idempotent())
+                .document(COMPLETION_INSTALL),
+            Leaf::new(&["completion", "check"])
+                .examples(&[Example::new(
+                    &["--shell", "zsh"],
+                    "Report zsh's completion file when it is missing or differs",
+                )])
+                .effects(Effects::read_only())
+                .document(COMPLETION_CHECK),
+            Leaf::new(&["completion", "print"])
+                .examples(&[Example::new(
+                    &["--shell", "fish"],
+                    "Print the registration script for fish",
+                )])
+                .effects(Effects::read_only())
+                .document(COMPLETION_PRINT),
             Leaf::new(&["schemas", "show"])
                 .examples(&[Example::new(
                     &["flightdeck/schemas-list/v1"],
@@ -84,6 +112,12 @@ pub(crate) enum Resource {
         #[command(subcommand)]
         command: CommandsCommand,
     },
+    /// Set up flightdeck's completion in a shell.
+    Completion {
+        /// What to do with the completion.
+        #[command(subcommand)]
+        command: CompletionCommand,
+    },
     /// Explore the JSON documents that flightdeck prints.
     Schemas {
         /// What to do with the documents.
@@ -97,6 +131,17 @@ pub(crate) enum Resource {
 pub(crate) enum CommandsCommand {
     /// List a branch of flightdeck's commands with their arguments, examples and columns.
     List(CommandsList),
+}
+
+/// The commands for flightdeck's shell completion.
+#[derive(Debug, Subcommand)]
+pub(crate) enum CompletionCommand {
+    /// Install flightdeck's completion where the shell loads it.
+    Install(CompletionInstall),
+    /// Check that flightdeck's installed completion file matches this flightdeck.
+    Check(CompletionCheck),
+    /// Print flightdeck's completion registration script for a shell.
+    Print(CompletionPrint),
 }
 
 /// The commands for the JSON documents that flightdeck prints.

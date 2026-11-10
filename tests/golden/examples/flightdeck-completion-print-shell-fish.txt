@@ -1,0 +1,1 @@
+complete --keep-order --exclusive --command flightdeck --arguments "(COMPLETE=fish flightdeck -- (commandline --current-process --tokenize --cut-at-cursor) (commandline --current-token))"

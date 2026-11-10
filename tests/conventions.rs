@@ -106,8 +106,10 @@ const TWINS: Twins<'_> = Twins::new(EXAMPLES, CODES).unprovoked(UNTWINNED);
 
 /// Everything the checks read, which `conventions!` expands to one test for
 /// each check. The grammar check needs no verb besides crumbkit's own,
-/// because `open` is a root verb of the tool record.
+/// because `open` is a root verb of the tool record, and it accepts the
+/// verbs of the `completion` commands.
 const SUITE: Suite<'_> = Suite::new(|| (Cli::command(), TOOL))
+    .verbs(&["install", "check", "print"])
     .path_budgets(PATH_BUDGETS)
     .examples(EXAMPLES)
     .recoveries(RECOVERIES)

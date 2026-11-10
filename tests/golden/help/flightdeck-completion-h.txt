@@ -1,0 +1,14 @@
+Set up flightdeck's completion in a shell
+
+Usage: flightdeck completion [OPTIONS] <COMMAND>
+
+Commands:
+  install  Install flightdeck's completion where the shell loads it
+  check    Check that flightdeck's installed completion file matches this flightdeck
+  print    Print flightdeck's completion registration script for a shell
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Global flags: --json, --fields <FIELD>, --long, --full. `flightdeck completion --help` describes them.
+Next: flightdeck completion <COMMAND> -h

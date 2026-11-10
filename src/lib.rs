@@ -21,8 +21,10 @@ pub mod spawn;
 use std::ffi::OsString;
 use std::process::ExitCode;
 
+use clap::CommandFactory as _;
+
 pub use crate::cli::{Cli, TOOL};
-use crate::cli::{CommandsCommand, Resource, SchemasCommand};
+use crate::cli::{CommandsCommand, CompletionCommand, Resource, SchemasCommand};
 pub use crate::open::{OpenError, SERVER_FAILED, TOOL_SEARCH_PATH};
 
 /// Every failure code that flightdeck declares, in one list for each error
@@ -60,6 +62,20 @@ where
             let result = crumbkit::commands::list(&mut run, &TOOL, &args);
             crumbkit::finish(run, crumbkit::commands::COMMANDS_LIST, result)
         }
+        Resource::Completion { command } => match command {
+            CompletionCommand::Install(args) => {
+                let result = crumbkit::completion::install(Cli::command, &args);
+                crumbkit::finish(run, crumbkit::completion::COMPLETION_INSTALL, result)
+            }
+            CompletionCommand::Check(args) => {
+                let result = crumbkit::completion::check(Cli::command, &args);
+                crumbkit::finish(run, crumbkit::completion::COMPLETION_CHECK, result)
+            }
+            CompletionCommand::Print(args) => {
+                let result = crumbkit::completion::print(Cli::command, &args);
+                crumbkit::finish(run, crumbkit::completion::COMPLETION_PRINT, result)
+            }
+        },
         Resource::Schemas { command } => match command {
             SchemasCommand::List(args) => {
                 let result = crumbkit::schemas::list(&mut run, &TOOL, &args);
