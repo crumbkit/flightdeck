@@ -31,9 +31,6 @@ export const cornerHints: Record<Corner, string> = {
   light_often: "nothing to do.",
 };
 
-/** The top-level groups whose commands crumbkit adds to every tool. */
-const builtInGroups = ["commands", "schemas", "self", "aliases"];
-
 /**
  * One row of the both table: a command, its path weight and whether a page
  * of the path was not measured, its runs and the bytes they read, both
@@ -49,19 +46,12 @@ export type BothRow = {
   corner: Corner | null;
 };
 
-/** Returns whether the command at `path` is one that crumbkit adds to every tool. */
-export function isBuiltIn(path: string[]): boolean {
-  return builtInGroups.includes(path[0] ?? "");
-}
-
-/** Returns whether a command can take a corner: counted by the figures and not built in. */
+/**
+ * Returns whether a command can take a corner: counted by the figures and
+ * not one that crumbkit adds to every tool, as the server marks it.
+ */
 function cornered(command: Tool["commands"][number]): boolean {
-  return command.counted && !isBuiltIn(command.path);
-}
-
-/** Returns a command's runs in the window, 0 when the figures hold none. */
-function runsOf(command: Tool["commands"][number]): number {
-  return command.cost?.figures?.runs ?? 0;
+  return command.counted && !command.built_in;
 }
 
 /**
@@ -72,7 +62,7 @@ function runsOf(command: Tool["commands"][number]): number {
 export function oftenRuns(tool: Tool): number | null {
   const runs = tool.commands
     .filter(cornered)
-    .map(runsOf)
+    .map((command) => command.runs)
     .filter((count) => count > 0)
     .sort((a, b) => a - b);
   if (runs.length === 0) {
@@ -98,7 +88,9 @@ function cornerOf(bytes: number, runs: number, often: number | null): Corner | n
 /**
  * Returns a row for each of the tool's commands, from the weight tab's
  * measurement and the figures, the most read first, with the commands the
- * figures do not count last, and ties in name order. A command takes a
+ * figures do not count last. Rows that read the same, such as the commands
+ * that never ran, list the heaviest first, so the biggest cut leads, and
+ * then in name order. A command takes a
  * corner only when the figures count it, crumbkit did not add it, and every
  * page of its path was measured.
  */
@@ -109,17 +101,20 @@ export function bothRows(tool: Tool, reply: WeightReply): BothRow[] {
     const path = paths[index];
     const bytes = path?.total ?? 0;
     const partial = path?.partial ?? true;
-    const runs = command.counted ? runsOf(command) : null;
+    const runs = command.counted ? command.runs : null;
     return {
       command: command.path.join(" "),
       bytes,
       partial,
       runs,
       read: runs === null ? null : bytes * runs,
-      corner: cornered(command) && !partial ? cornerOf(bytes, runsOf(command), often) : null,
+      corner: cornered(command) && !partial ? cornerOf(bytes, command.runs, often) : null,
     };
   });
-  return rows.sort((a, b) => (b.read ?? -1) - (a.read ?? -1) || a.command.localeCompare(b.command));
+  return rows.sort(
+    (a, b) =>
+      (b.read ?? -1) - (a.read ?? -1) || b.bytes - a.bytes || a.command.localeCompare(b.command),
+  );
 }
 
 /** Returns how many rows each corner holds. */
@@ -131,24 +126,6 @@ export function cornerCounts(rows: BothRow[]): Record<Corner, number> {
     }
   }
   return counts;
-}
-
-/**
- * Returns the tokens that `bytes` cost agents, at four bytes a token, such
- * as "about 124k tokens", or "none".
- */
-export function readWords(bytes: number): string {
-  const count = bytes / 4;
-  if (count === 0) {
-    return "none";
-  }
-  if (count >= 1_000_000) {
-    return `about ${(count / 1_000_000).toFixed(1)} M tokens`;
-  }
-  if (count >= 1000) {
-    return `about ${Math.round(count / 1000)}k tokens`;
-  }
-  return `about ${Math.round(count)} tokens`;
 }
 
 /**

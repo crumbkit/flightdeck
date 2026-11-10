@@ -22,7 +22,8 @@ function ran(path: string, runs: number, p95: number | null = null): Command {
     p50_out_bytes: 1,
     p95_out_bytes: p95,
   };
-  return { ...commandOf(shelf, path), cost: { figures, findings: null } };
+  const command = commandOf(shelf, path);
+  return { ...command, runs: command.counted ? runs : 0, cost: { figures, findings: null } };
 }
 
 const tool: Tool = {
@@ -160,7 +161,7 @@ describe("Both", () => {
     renderBoth();
 
     await screen.findByRole("table", { name: "Path weight and runs of each command" });
-    expect(rows()[0]).toEqual(["books list", "at least about 113k tokens"]);
+    expect(rows()[0]).toEqual(["books list", "at least 113k tokens"]);
   });
 
   it("opens a command's form from its name", async () => {

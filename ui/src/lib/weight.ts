@@ -98,7 +98,9 @@ function outputStep(command: Tool["commands"][number]): Step {
     return { ...step, bytes: 0, note: "no runs, so no output weight" };
   }
   if (figures.p95_out_bytes === null) {
-    return { ...step, bytes: 0, note: "no figures" };
+    // The command ran, but the figures do not say how much it printed, so
+    // the path's sum is a lower bound.
+    return { ...step, bytes: null, note: "output size unknown" };
   }
   return { ...step, bytes: figures.p95_out_bytes, note: null };
 }

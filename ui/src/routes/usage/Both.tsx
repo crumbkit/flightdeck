@@ -1,9 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
 import { type ReactNode, useState } from "react";
-import { describeFailure } from "@/api/failure";
 import type { Day, Tool } from "@/api/model";
-import { weightQuery } from "@/api/weight";
 import {
   type BothRow,
   bothRows,
@@ -13,10 +10,10 @@ import {
   cornerHints,
   cornerLabels,
   corners,
-  readWords,
 } from "@/lib/both";
-import { grouped } from "@/lib/cost";
+import { grouped, tokenCount, tokensWords } from "@/lib/cost";
 import { budgets } from "@/lib/weight";
+import { useMeasured } from "./useMeasured";
 
 type Props = {
   tool: Tool;
@@ -51,7 +48,10 @@ function readOf(row: BothRow): string {
   if (row.read === null) {
     return "not counted";
   }
-  return row.partial && row.read > 0 ? `at least ${readWords(row.read)}` : readWords(row.read);
+  if (row.read === 0) {
+    return "none";
+  }
+  return row.partial ? `at least ${tokenCount(row.read)}` : tokensWords(row.read);
 }
 
 /** A bar of `value` on a scale of `scale`, in `colour`, beside its value. */
@@ -96,30 +96,12 @@ function Bar({
  * width the table becomes one list row per command.
  */
 export default function Both({ tool, onOpen }: Props) {
-  const weight = useQuery(weightQuery());
+  const measured = useMeasured(tool);
   const [choice, setChoice] = useState<Choice>("all");
-  if (weight.isPending) {
-    return (
-      <p role="status" className="text-muted-foreground m-0 px-4 py-3 text-sm">
-        Measuring {tool.name}'s help pages…
-      </p>
-    );
+  if (measured.reply === null) {
+    return measured.instead;
   }
-  if (weight.isError) {
-    return (
-      <p role="alert" className="text-destructive m-0 px-4 py-3 text-sm">
-        {describeFailure(weight.error)}
-      </p>
-    );
-  }
-  if (weight.data.problem !== null) {
-    return (
-      <p role="alert" className="text-destructive m-0 px-4 py-3 text-sm">
-        flightdeck could not measure help pages: {weight.data.problem}
-      </p>
-    );
-  }
-  const all = bothRows(tool, weight.data);
+  const all = bothRows(tool, measured.reply);
   const counts = cornerCounts(all);
   const rows = choice === "all" ? all : all.filter((row) => row.corner === choice);
   const bytesScale = Math.max(1, ...all.map((row) => row.bytes));

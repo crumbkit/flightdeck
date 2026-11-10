@@ -19,8 +19,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   budget, runs often from the median runs of the commands that ran, and
   never when it has no runs. The loader's own queries, crumbkit's built-in
   commands and commands with a page that was not measured stay out of
-  every corner. The tab loads as its own file and measures nothing of its
-  own.
+  every corner. `GET /api/model` marks each command `built_in` when it
+  sits under crumbkit's `commands`, `schemas`, `self` or `aliases` groups.
+  A command that ran without the figures reporting its output size has a
+  partial path in both the Weight and Both tabs. Rows that read the same
+  list the heaviest first. The tab loads as its own file and measures
+  nothing of its own.
 - The Usage view gains a Weight tab, after Figures. For each command it
   shows the help pages a reader passes to reach it, the tool's own page,
   each group page and the command's own page, and the 95th percentile of

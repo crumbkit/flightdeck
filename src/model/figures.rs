@@ -449,6 +449,25 @@ pub(super) fn without_tool(code: String, prefix: &str) -> String {
     }
 }
 
+/// The top-level groups under which crumbkit adds its own commands to
+/// every tool, such as `self usage` and `schemas list`.
+///
+/// RUST-10: `commands list` does not say which commands crumbkit added, so
+/// a command counts as crumbkit's own by its first word. A tool's own
+/// command under `commands`, `schemas`, `self` or `aliases`, such as a
+/// `self update`, counts as built-in too, so the both table leaves it out
+/// of its corners and of the median it judges runs by. A marker for
+/// crumbkit's own commands in `commands list` replaces this.
+const BUILT_IN_GROUPS: [&str; 4] = ["commands", "schemas", "self", "aliases"];
+
+/// Returns true when `path` is the path of a command that crumbkit adds to
+/// every tool, by its first word.
+pub(super) fn is_built_in(path: &CommandPath) -> bool {
+    path.words()
+        .first()
+        .is_some_and(|word| BUILT_IN_GROUPS.contains(&word.as_str()))
+}
+
 /// Returns true when `command` is one of the loader's own queries.
 pub(super) fn is_loader_query(command: &str) -> bool {
     LOADER_QUERIES.contains(&command)

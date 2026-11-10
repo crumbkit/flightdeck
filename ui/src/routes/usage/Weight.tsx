@@ -2,10 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, type ReactNode, useState } from "react";
-import { describeFailure } from "@/api/failure";
 import type { Tool } from "@/api/model";
 import { weightQuery } from "@/api/weight";
-import { grouped } from "@/lib/cost";
+import { grouped, tokensWords } from "@/lib/cost";
 import {
   budgets,
   isOver,
@@ -19,6 +18,7 @@ import {
   weightSummary,
 } from "@/lib/weight";
 import { SortHeader } from "./SortHeader";
+import { useMeasured } from "./useMeasured";
 
 type Props = { tool: Tool };
 
@@ -177,7 +177,7 @@ function PhoneStepAgainst({ step }: { step: Step }) {
     return <span className="text-destructive">{step.note}</span>;
   }
   if (step.budget === null) {
-    return <span>about {grouped(tokens(step.bytes))} tokens</span>;
+    return <span>{tokensWords(step.bytes)}</span>;
   }
   return (
     <span className={cn(stepOver(step) && "text-destructive font-medium")}>
@@ -284,34 +284,16 @@ export function WeightSummary({ tool }: Props) {
  * command.
  */
 export default function Weight({ tool }: Props) {
-  const weight = useQuery(weightQuery());
+  const measured = useMeasured(tool);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const [sort, setSort] = useState<{ key: WeightKey; direction: "ascending" | "descending" }>({
     key: "bytes",
     direction: "descending",
   });
-  if (weight.isPending) {
-    return (
-      <p role="status" className="text-muted-foreground m-0 px-4 py-3 text-sm">
-        Measuring {tool.name}'s help pages…
-      </p>
-    );
+  if (measured.reply === null) {
+    return measured.instead;
   }
-  if (weight.isError) {
-    return (
-      <p role="alert" className="text-destructive m-0 px-4 py-3 text-sm">
-        {describeFailure(weight.error)}
-      </p>
-    );
-  }
-  if (weight.data.problem !== null) {
-    return (
-      <p role="alert" className="text-destructive m-0 px-4 py-3 text-sm">
-        flightdeck could not measure help pages: {weight.data.problem}
-      </p>
-    );
-  }
-  const paths = sortedPaths(weightPaths(tool, weight.data), sort.key, sort.direction);
+  const paths = sortedPaths(weightPaths(tool, measured.reply), sort.key, sort.direction);
   const scale = Math.max(budgets.path, ...paths.map((path) => path.total));
   const toggle = (command: string) => {
     const next = new Set(open);
@@ -470,7 +452,7 @@ export default function Weight({ tool }: Props) {
                   <PathBar path={path} scale={scale} />
                 </div>
                 <div className="text-muted-foreground text-2xs mt-1.25 flex justify-between gap-2">
-                  <span>about {grouped(tokens(path.total))} tokens</span>
+                  <span>{tokensWords(path.total)}</span>
                   <Against path={path} />
                 </div>
                 {opened && (

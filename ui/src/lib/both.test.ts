@@ -2,15 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Command, Figures, Tool } from "@/api/model";
 import type { Page, WeightReply } from "@/api/weight";
 import { command as commandOf, shelf } from "../../tests/fixtures/shelf";
-import {
-  bothRows,
-  bothSummary,
-  cornerCounts,
-  heavyBytes,
-  isBuiltIn,
-  oftenRuns,
-  readWords,
-} from "./both";
+import { bothRows, bothSummary, cornerCounts, heavyBytes, oftenRuns } from "./both";
 
 /** Returns figures with `runs` runs and `p95` bytes of output at the 95th percentile. */
 function figures(runs: number, p95: number | null): Figures {
@@ -29,7 +21,24 @@ function figures(runs: number, p95: number | null): Figures {
 
 /** Returns shelf's command at `path`, run `runs` times with `p95` bytes of output. */
 function ran(path: string, runs: number, p95: number | null = null): Command {
-  return { ...commandOf(shelf, path), cost: { figures: figures(runs, p95), findings: null } };
+  return {
+    ...commandOf(shelf, path),
+    runs: commandOf(shelf, path).counted ? runs : 0,
+    cost: { figures: figures(runs, p95), findings: null },
+  };
+}
+
+/**
+ * Returns a counted command of the tool's own under `self`, `self update`,
+ * run `runs` times, which the server marks built-in by its first word.
+ */
+function selfUpdate(runs: number): Command {
+  return {
+    ...ran("books list", runs, 100),
+    path: ["self", "update"],
+    counted: true,
+    built_in: true,
+  };
 }
 
 /** Returns a page of `path` with `bytes`, or one that timed out when `bytes` is null. */
@@ -63,20 +72,6 @@ function toolOf(commands: Command[]): Tool {
   return { ...shelf, commands };
 }
 
-describe("isBuiltIn", () => {
-  it("names the commands that crumbkit adds under commands, schemas, self and aliases", () => {
-    expect(
-      [
-        ["commands", "list"],
-        ["schemas", "show"],
-        ["self", "usage"],
-        ["aliases", "list"],
-      ].map(isBuiltIn),
-    ).toEqual([true, true, true, true]);
-    expect(isBuiltIn(["books", "list"])).toBe(false);
-  });
-});
-
 describe("oftenRuns", () => {
   it("is the median runs of the commands that ran, leaving out built-in commands", () => {
     const tool = toolOf([
@@ -88,6 +83,12 @@ describe("oftenRuns", () => {
     ]);
 
     expect(oftenRuns(tool)).toBe(40);
+  });
+
+  it("leaves out a counted command that the server marks built in", () => {
+    const tool = toolOf([ran("books list", 90), ran("books show", 10), selfUpdate(5000)]);
+
+    expect(oftenRuns(tool)).toBe(50);
   });
 
   it("is the mean of the two middle runs for an even count, and null when nothing ran", () => {
@@ -139,6 +140,36 @@ describe("bothRows", () => {
     });
   });
 
+  it("leaves a counted built-in command out of every corner, however heavy and often it runs", () => {
+    const rows = bothRows(toolOf([ran("books list", 90, 4000), selfUpdate(5000)]), reply);
+
+    expect(rows.find((row) => row.command === "self update")).toMatchObject({
+      runs: 5000,
+      corner: null,
+    });
+  });
+
+  it("lists commands that read the same, such as those that never ran, heaviest first", () => {
+    const long: WeightReply = {
+      ...reply,
+      pages: pages.map((each) =>
+        each.path.join(" ") === "books show" ? page("books show", 2500) : each,
+      ),
+    };
+
+    const rows = bothRows(
+      toolOf([ran("books list", 0), ran("books show", 0), ran("books remove", 0)]),
+      long,
+    );
+
+    // books show's page makes it the heaviest; books list and books remove tie on weight too.
+    expect(rows.map((row) => [row.command, row.bytes])).toEqual([
+      ["books show", 3500],
+      ["books list", 1500],
+      ["books remove", 1500],
+    ]);
+  });
+
   it("leaves a command whose path has a page that was not measured out of every corner", () => {
     const partial: WeightReply = {
       ...reply,
@@ -168,17 +199,6 @@ describe("bothRows", () => {
       bytes: 4000,
       corner: "heavy_never",
     });
-  });
-});
-
-describe("readWords", () => {
-  it("gives the tokens read, at 4 bytes a token, in millions, thousands or ones", () => {
-    expect([readWords(0), readWords(1200), readWords(495_000), readWords(10_000_000)]).toEqual([
-      "none",
-      "about 300 tokens",
-      "about 124k tokens",
-      "about 2.5 M tokens",
-    ]);
   });
 });
 
