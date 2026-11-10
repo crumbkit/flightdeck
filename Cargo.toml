@@ -154,3 +154,9 @@ overflow-checks = true
 lto = false
 codegen-units = 16
 strip = "none"
+
+# Throwaway probe: tests crumbkit/crumbkit#340 on Windows CI. Never merged.
+[patch.crates-io]
+crumbkit = { git = "https://github.com/crumbkit/crumbkit", branch = "test-windows-redaction" }
+crumbkit-test = { git = "https://github.com/crumbkit/crumbkit", branch = "test-windows-redaction" }
+crumbkit-process = { git = "https://github.com/crumbkit/crumbkit", branch = "test-windows-redaction" }
