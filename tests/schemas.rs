@@ -129,3 +129,70 @@ fn shelfs_failure_document_matches_crumbkits_schema_and_reads_into_a_tool_failur
     );
     assert_eq!(failure.alternatives().len(), 1);
 }
+
+/// Returns the schema that shelf prints for its own document `id`, such as
+/// `shelf/self-usage/v1`.
+fn shelf_schema(id: &str) -> Value {
+    let shown = run_shelf(&["schemas", "show", "--json", "--no-input", "--", id]);
+    shown["data"][0]["schema"].clone()
+}
+
+/// Returns the properties of the rows of the listing that `schema`
+/// describes, following one `$ref` into its `$defs`.
+fn row_properties<'a>(schema: &'a Value, path: &[&str]) -> &'a serde_json::Map<String, Value> {
+    let resolve = |value: &'a Value| -> &'a Value {
+        value["$ref"]
+            .as_str()
+            .and_then(|reference| reference.strip_prefix("#/$defs/"))
+            .map_or(value, |name| &schema["$defs"][name])
+    };
+    let mut node = resolve(&schema["properties"]["data"]["items"]);
+    for name in path {
+        node = resolve(&node["properties"][*name]);
+    }
+    node["properties"].as_object().unwrap()
+}
+
+/// The fields of a command's figures that flightdeck reads.
+const FIGURE_FIELDS: [&str; 7] = [
+    "runs",
+    "help_pages",
+    "help_before",
+    "refused",
+    "failed",
+    "p95_ms",
+    "p95_out_bytes",
+];
+
+#[test]
+fn shelfs_figures_fixture_matches_its_own_schema_which_declares_every_figure_flightdeck_reads() {
+    let schema = shelf_schema("shelf/self-figures-list/v1");
+    let fixture: Value =
+        serde_json::from_str(include_str!("fixtures/shelf/self-figures-list.json")).unwrap();
+
+    let validator = jsonschema::validator_for(&schema).unwrap();
+    assert!(validator.is_valid(&fixture));
+    let properties = row_properties(&schema, &[]);
+    for field in ["command"].iter().chain(&FIGURE_FIELDS) {
+        assert!(properties.contains_key(*field), "{field}");
+    }
+    assert!(schema["properties"]["summary"].is_object());
+}
+
+#[test]
+fn shelfs_usage_fixture_matches_its_own_schema_which_declares_every_field_flightdeck_reads() {
+    let schema = shelf_schema("shelf/self-usage/v1");
+    let fixture: Value =
+        serde_json::from_str(include_str!("fixtures/shelf/self-usage.json")).unwrap();
+
+    let validator = jsonschema::validator_for(&schema).unwrap();
+    assert!(validator.is_valid(&fixture));
+    let properties = row_properties(&schema, &[]);
+    for field in ["finding", "runs", "command", "suggestion", "code"] {
+        assert!(properties.contains_key(field), "{field}");
+    }
+    let figures = row_properties(&schema, &["figures"]);
+    for field in FIGURE_FIELDS {
+        assert!(figures.contains_key(field), "{field}");
+    }
+}

@@ -1,3 +1,5 @@
+use super::day::Day;
+use super::figures::{FiguresList, FindingKind, Usage};
 use super::{CommandsList, Document, Effects, Listing, NotDocument, StepCommand, Tool};
 
 /// shelf's `commands list` document, with `goals` on its root row.
@@ -143,4 +145,326 @@ fn a_tool_marks_no_result_only_when_its_own_commands_list_schema_declares_the_fi
     assert!(marking.marks_no_result());
     assert!(!older.marks_no_result());
     assert!(!elsewhere.marks_no_result());
+}
+
+/// shelf's `self figures list --json --full --all` after a few runs.
+const FIGURES: &str = include_str!("../../tests/fixtures/shelf/self-figures-list.json");
+
+/// shelf's `self usage --json --full` after the same runs.
+const USAGE: &str = include_str!("../../tests/fixtures/shelf/self-usage.json");
+
+/// Returns shelf's tool with the costs that `figures` and `usage` give it.
+fn shelf_with_costs(figures: &str, usage: Option<&str>) -> Tool {
+    let commands: CommandsList = serde_json::from_str(WITH_GOALS).unwrap();
+    let mut tool = Tool::assemble("shelf 0.1.1", commands, Vec::new()).unwrap();
+    let figures = FiguresList::read(figures.as_bytes());
+    let usage = usage.and_then(|usage| Usage::read(usage.as_bytes(), "shelf"));
+    if let Some(figures) = figures {
+        tool.add_costs(&figures, usage.as_ref());
+    }
+    tool
+}
+
+/// Returns `document` with `edit` applied to its parsed JSON.
+fn edited(document: &str, edit: impl FnOnce(&mut serde_json::Value)) -> String {
+    let mut value: serde_json::Value = serde_json::from_str(document).unwrap();
+    edit(&mut value);
+    value.to_string()
+}
+
+#[test]
+fn books_show_reads_every_figure_and_its_findings_in_the_order_shelf_prints_them() {
+    let tool = shelf_with_costs(FIGURES, Some(USAGE));
+
+    let show = tool.command(&["books", "show"]).unwrap();
+    let cost = show.cost().unwrap();
+    let figures = cost.figures();
+    assert_eq!(show.runs(), 5);
+    assert_eq!(
+        (
+            figures.help_pages(),
+            figures.help_before(),
+            figures.refused(),
+            figures.failed(),
+            figures.p95_ms(),
+            figures.p95_out_bytes(),
+        ),
+        (Some(1), Some(1), Some(1), Some(2), Some(0), Some(74))
+    );
+    let findings: Vec<(FindingKind, u64, Option<&str>, Option<u64>)> = cost
+        .findings()
+        .unwrap()
+        .iter()
+        .map(|finding| {
+            (
+                finding.kind(),
+                finding.runs(),
+                finding.code(),
+                finding.p95_out_bytes(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        findings,
+        [
+            (FindingKind::Other, 4, None, Some(74)),
+            (FindingKind::IdenticalRepeat, 2, None, Some(74)),
+            (
+                FindingKind::RetryAfterFailure,
+                2,
+                Some("books::not_found"),
+                Some(74)
+            ),
+            (FindingKind::UsageError, 1, None, Some(74)),
+        ]
+    );
+    assert_eq!(tool.figures_since(), Day::parse("2026-11-03"));
+}
+
+#[test]
+fn a_command_that_the_figures_do_not_list_and_the_loaders_own_queries_have_no_cost() {
+    let tool = shelf_with_costs(FIGURES, Some(USAGE));
+
+    for words in [
+        ["books", "remove"].as_slice(),
+        &["self", "figures", "list"],
+        &["self", "usage"],
+    ] {
+        let command = tool.command(words).unwrap();
+        assert!(command.cost().is_none(), "{words:?}");
+        assert_eq!(command.runs(), 0, "{words:?}");
+    }
+}
+
+#[test]
+fn fields_that_a_newer_crumbkit_adds_are_ignored_and_the_known_ones_still_read() {
+    let figures = edited(FIGURES, |document| {
+        for row in document["data"].as_array_mut().unwrap() {
+            row["p50_ms"] = serde_json::json!(3);
+        }
+        document["summary"]["window"] = serde_json::json!("7d");
+    });
+    let usage = edited(USAGE, |document| {
+        for row in document["data"].as_array_mut().unwrap() {
+            row["severity"] = serde_json::json!("high");
+        }
+    });
+
+    let tool = shelf_with_costs(&figures, Some(&usage));
+
+    let cost = tool.command(&["books", "show"]).unwrap().cost().unwrap();
+    assert_eq!(cost.figures().failed(), Some(2));
+    assert_eq!(cost.findings().unwrap().len(), 4);
+}
+
+#[test]
+fn a_figure_that_an_older_crumbkit_leaves_out_reads_as_not_reported() {
+    let figures = edited(FIGURES, |document| {
+        for row in document["data"].as_array_mut().unwrap() {
+            let row = row.as_object_mut().unwrap();
+            for name in [
+                "help_pages",
+                "help_before",
+                "refused",
+                "failed",
+                "p95_ms",
+                "p95_out_bytes",
+            ] {
+                row.remove(name);
+            }
+        }
+        document.as_object_mut().unwrap().remove("summary");
+    });
+
+    let tool = shelf_with_costs(&figures, None);
+
+    let show = tool.command(&["books", "show"]).unwrap();
+    let figures = show.cost().unwrap().figures();
+    assert_eq!(show.runs(), 5);
+    assert_eq!(
+        (
+            figures.help_pages(),
+            figures.help_before(),
+            figures.refused(),
+            figures.failed(),
+            figures.p95_ms(),
+            figures.p95_out_bytes(),
+        ),
+        (None, None, None, None, None, None)
+    );
+    assert_eq!(tool.figures_since(), None);
+}
+
+#[test]
+fn figures_of_another_schema_give_no_command_a_cost() {
+    let figures = edited(FIGURES, |document| {
+        document["schema"] = serde_json::json!("shelf/books-list/v1");
+    });
+
+    let tool = shelf_with_costs(&figures, Some(USAGE));
+
+    assert!(
+        tool.commands()
+            .iter()
+            .all(|command| command.cost().is_none())
+    );
+    assert_eq!(tool.figures_since(), None);
+}
+
+#[test]
+fn findings_of_another_schema_leave_the_figures_without_findings() {
+    let usage = edited(USAGE, |document| {
+        document["schema"] = serde_json::json!("shelf/self-figures-list/v1");
+    });
+
+    let tool = shelf_with_costs(FIGURES, Some(&usage));
+
+    let cost = tool.command(&["books", "show"]).unwrap().cost().unwrap();
+    assert_eq!(cost.figures().failed(), Some(2));
+    assert_eq!(cost.findings(), None);
+}
+
+#[test]
+fn a_finding_row_without_a_code_field_reads_as_no_code() {
+    let usage = edited(USAGE, |document| {
+        for row in document["data"].as_array_mut().unwrap() {
+            row.as_object_mut().unwrap().remove("code");
+        }
+    });
+
+    let tool = shelf_with_costs(FIGURES, Some(&usage));
+
+    let cost = tool.command(&["books", "show"]).unwrap().cost().unwrap();
+    assert!(cost.findings().unwrap().iter().all(|f| f.code().is_none()));
+}
+
+#[test]
+fn a_since_that_is_no_day_of_the_calendar_is_left_out_and_the_figures_still_read() {
+    for since in [
+        serde_json::json!("last week"),
+        serde_json::json!("2026-13-01"),
+        serde_json::json!("2026-02-30"),
+        serde_json::json!(20_261_103),
+    ] {
+        let figures = edited(FIGURES, |document| {
+            document["summary"]["since"] = since.clone();
+        });
+
+        let tool = shelf_with_costs(&figures, None);
+
+        assert_eq!(tool.figures_since(), None, "{since}");
+        assert!(tool.command(&["books", "show"]).unwrap().cost().is_some());
+    }
+}
+
+#[test]
+fn a_day_reads_only_from_a_date_of_the_calendar_and_serializes_as_its_parts() {
+    assert_eq!(
+        serde_json::to_value(Day::parse("2028-02-29").unwrap()).unwrap(),
+        serde_json::json!({"year": 2028, "month": 2, "day": 29})
+    );
+    for text in [
+        "2026-02-29",
+        "2026-00-10",
+        "2026-04-31",
+        "2026-4-03",
+        "2026-04-03-01",
+        "",
+    ] {
+        assert_eq!(Day::parse(text), None, "{text}");
+    }
+}
+
+#[test]
+fn a_finding_of_a_kind_flightdeck_does_not_know_reads_as_other() {
+    let usage = edited(USAGE, |document| {
+        document["data"][0]["finding"] = serde_json::json!("");
+        document["data"][1]["finding"] = serde_json::json!("mostly waiting");
+    });
+
+    let tool = shelf_with_costs(FIGURES, Some(&usage));
+
+    let cost = tool.command(&["books", "show"]).unwrap().cost().unwrap();
+    let kinds: Vec<FindingKind> = cost.findings().unwrap().iter().map(|f| f.kind()).collect();
+    assert_eq!(kinds[..2], [FindingKind::Other, FindingKind::Other]);
+}
+
+#[test]
+fn a_command_sends_the_runs_of_its_cost_and_zero_without_one() {
+    let tool = shelf_with_costs(FIGURES, Some(USAGE));
+
+    let reply = |words: &[&str]| serde_json::to_value(tool.command(words).unwrap()).unwrap();
+    let show = reply(&["books", "show"]);
+    let remove = reply(&["books", "remove"]);
+
+    assert_eq!(show["runs"], 5);
+    assert_eq!(show["cost"]["figures"]["runs"], 5);
+    assert_eq!(show["cost"]["findings"][2]["kind"], "retry_after_failure");
+    assert_eq!(remove["runs"], 0);
+    assert_eq!(remove["cost"], serde_json::Value::Null);
+}
+
+#[test]
+fn figures_that_give_no_command_a_cost_name_no_day() {
+    let figures = edited(FIGURES, |document| {
+        document["data"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|row| row["command"] == "self usage");
+    });
+
+    let tool = shelf_with_costs(&figures, Some(USAGE));
+
+    assert!(
+        tool.commands()
+            .iter()
+            .all(|command| command.cost().is_none())
+    );
+    assert_eq!(tool.figures_since(), None);
+}
+
+/// One past the largest count the page reads exactly, 2^53.
+const UNSAFE: u64 = 9_007_199_254_740_992;
+
+/// Returns every number in `value` and its children.
+fn numbers(value: &serde_json::Value) -> Vec<u64> {
+    match value {
+        serde_json::Value::Number(number) => number.as_u64().into_iter().collect(),
+        serde_json::Value::Array(items) => items.iter().flat_map(numbers).collect(),
+        serde_json::Value::Object(fields) => fields.values().flat_map(numbers).collect(),
+        _ => Vec::new(),
+    }
+}
+
+#[test]
+fn a_count_too_large_for_the_page_reads_as_not_reported_and_the_model_still_loads() {
+    let figures = edited(FIGURES, |document| {
+        for row in document["data"].as_array_mut().unwrap() {
+            if row["command"] == "books show" {
+                row["failed"] = serde_json::json!(UNSAFE);
+                row["p95_out_bytes"] = serde_json::json!(u64::MAX);
+            }
+            if row["command"] == "books list" {
+                row["runs"] = serde_json::json!(UNSAFE);
+            }
+        }
+    });
+    let usage = edited(USAGE, |document| {
+        document["data"][0]["runs"] = serde_json::json!(UNSAFE);
+        document["data"][1]["figures"]["p95_ms"] = serde_json::json!(UNSAFE);
+    });
+
+    let tool = shelf_with_costs(&figures, Some(&usage));
+
+    let show = tool.command(&["books", "show"]).unwrap().cost().unwrap();
+    assert_eq!(show.figures().failed(), None);
+    assert_eq!(show.figures().p95_out_bytes(), None);
+    assert_eq!(show.figures().refused(), Some(1));
+    let findings = show.findings().unwrap();
+    assert_eq!(findings.len(), 3);
+    assert_eq!(findings[0].kind(), FindingKind::IdenticalRepeat);
+    assert_eq!(findings[0].p95_ms(), None);
+    assert!(tool.command(&["books", "list"]).unwrap().cost().is_none());
+    let reply = serde_json::to_value(&tool).unwrap();
+    assert!(numbers(&reply).into_iter().all(|number| number < UNSAFE));
 }

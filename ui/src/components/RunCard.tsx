@@ -11,6 +11,7 @@ import { refusedSpan } from "@/lib/refusal";
 import type { PageSize, View } from "@/lib/table";
 import { copiedLine } from "@/lib/table";
 import type { Run, RunState } from "@/lib/transcript";
+import { counted } from "@/lib/words";
 import { CopyButton } from "./CopyButton";
 import { FailureCard } from "./FailureCard";
 import { NextChips } from "./NextChips";
@@ -43,11 +44,6 @@ function linesOf(state: RunState): string[] {
     : [];
 }
 
-/** Returns "1 row" or "6 rows". */
-function rowWords(count: number): string {
-  return count === 1 ? "1 row" : `${count} rows`;
-}
-
 /**
  * The status of a run in words, and whether it failed. `rows` is the
  * number of rows its table holds, or null for a result that is no table.
@@ -60,11 +56,11 @@ function statusOf(run: Run, rows: number | null): { words: string; failed: boole
   if (ask?.answer === "open" && ask.confirmation !== null) {
     return { words: "awaiting confirmation", failed: false };
   }
-  const counted = rows === null ? "" : ` · ${rowWords(rows)}`;
+  const rowCount = rows === null ? "" : ` · ${counted(rows, "row")}`;
   switch (state.kind) {
     case "starting":
     case "running":
-      return { words: ask?.answer === "open" ? "previewing" : `running${counted}`, failed: false };
+      return { words: ask?.answer === "open" ? "previewing" : `running${rowCount}`, failed: false };
     case "issued":
       return { words: "awaiting confirmation", failed: false };
     case "refused":
@@ -76,9 +72,9 @@ function statusOf(run: Run, rows: number | null): { words: string; failed: boole
     case "ended": {
       const exit = state.exit === null ? "no exit code" : `exit ${state.exit}`;
       if (state.outcome.kind === "cancelled") {
-        return { words: `cancelled · ${exit} · ${rowWords(rows ?? 0)} kept`, failed: false };
+        return { words: `cancelled · ${exit} · ${counted(rows ?? 0, "row")} kept`, failed: false };
       }
-      return { words: `${exit}${counted}`, failed: state.exit !== 0 };
+      return { words: `${exit}${rowCount}`, failed: state.exit !== 0 };
     }
   }
 }

@@ -224,9 +224,12 @@ pub enum Query<'a> {
     /// `schemas show` of these document ids, which crumbkit takes at most
     /// 100 at a time.
     SchemasShow(&'a [String]),
-    /// `self figures list`, with how often each command ran, from the
-    /// tool's usage log.
+    /// `self figures list`, with the figures of each command's runs, such
+    /// as how often it ran and failed, from the tool's usage log.
     FiguresList,
+    /// `self usage`, with the patterns in the tool's usage log where
+    /// callers waste effort, each with the code of a retried failure.
+    Usage,
 }
 
 impl<'a> Query<'a> {
@@ -254,8 +257,17 @@ impl<'a> Query<'a> {
                 words
             }
             Self::FiguresList => {
-                vec!["self", "figures", "list", "--json", "--all", "--no-input"]
+                vec![
+                    "self",
+                    "figures",
+                    "list",
+                    "--json",
+                    "--full",
+                    "--all",
+                    "--no-input",
+                ]
             }
+            Self::Usage => vec!["self", "usage", "--json", "--full", "--no-input"],
         }
     }
 }

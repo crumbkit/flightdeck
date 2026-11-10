@@ -5,6 +5,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use super::argument::{Argument, CrumbkitFlag};
+use super::figures::Cost;
 use super::wire::CommandRow;
 
 /// The words of a command below the tool's name, such as `books list`. It
@@ -80,7 +81,8 @@ pub struct Command {
     effects: Effects,
     class: Class,
     writes: Option<Writes>,
-    runs: u64,
+    #[serde(flatten)]
+    cost: Costed,
     #[serde(skip)]
     prints_no_result: bool,
 }
@@ -104,7 +106,7 @@ impl Command {
             class: Class::of(&row.effects),
             effects: row.effects,
             writes: row.writes,
-            runs: 0,
+            cost: Costed(None),
             prints_no_result: row.prints_no_result,
         }
     }
@@ -119,9 +121,10 @@ impl Command {
         }
     }
 
-    /// Records how often the command ran, from the tool's figures.
-    pub(super) const fn set_runs(&mut self, runs: u64) {
-        self.runs = runs;
+    /// Records what the command costs the agents that call it, and how
+    /// often it ran, from the tool's figures.
+    pub(super) fn set_cost(&mut self, cost: Cost) {
+        self.cost = Costed(Some(cost));
     }
 
     /// Records the id of the document that the command prints.
@@ -223,7 +226,37 @@ impl Command {
     /// always 0.
     #[must_use]
     pub const fn runs(&self) -> u64 {
-        self.runs
+        match &self.cost.0 {
+            Some(cost) => cost.figures().runs(),
+            None => 0,
+        }
+    }
+
+    /// Returns what the command costs the agents that call it, from the
+    /// tool's `self figures list` and `self usage`, or `None` when the
+    /// figures hold no row for it. The commands that the loader runs
+    /// itself have none.
+    #[must_use]
+    pub const fn cost(&self) -> Option<&Cost> {
+        self.cost.0.as_ref()
+    }
+}
+
+/// A command's cost, which serializes as two fields of the command: `runs`,
+/// which the cost's figures decide and the palette reads, and `cost`. The
+/// runs are never kept apart from the cost, so the two cannot disagree.
+#[derive(Clone, Debug)]
+struct Costed(Option<Cost>);
+
+impl Serialize for Costed {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap as _;
+
+        let runs = self.0.as_ref().map_or(0, |cost| cost.figures().runs());
+        let mut map = serializer.serialize_map(Some(2))?;
+        map.serialize_entry("runs", &runs)?;
+        map.serialize_entry("cost", &self.0)?;
+        map.end()
     }
 }
 

@@ -34,7 +34,7 @@ async function compose(page: Page, path: string) {
     .getByRole("button", { name: new RegExp(`^${path}`) })
     .click();
   const composer = page.getByRole("form", { name: "Composer" });
-  await expect(composer.getByRole("heading")).toHaveText(path);
+  await expect(composer.getByRole("heading", { level: 2 })).toHaveText(path);
   return composer;
 }
 
@@ -170,7 +170,7 @@ test("Edit fills the form from run 3, labels it and focuses its first field", as
   const composer = page.getByRole("form", { name: "Composer" });
   await expect(composer.getByText("Editing run 3")).toBeVisible();
   await expect(composer.getByLabel(/The ids of the books to show/)).toBeFocused();
-  await expect(composer.getByRole("heading")).toHaveText("books show");
+  await expect(composer.getByRole("heading", { level: 2 })).toHaveText("books show");
   await expect(composer.getByRole("button", { name: "Remove 2" })).toBeVisible();
   await expect(composer.getByRole("button", { name: "Remove 5" })).toBeVisible();
   await expectNoAccessibilityViolations(page);
@@ -204,7 +204,7 @@ test("the 2 cell of books list opens books show with 2 filled and runs nothing",
   await cell.click();
 
   const composer = page.getByRole("form", { name: "Composer" });
-  await expect(composer.getByRole("heading")).toHaveText("books show");
+  await expect(composer.getByRole("heading", { level: 2 })).toHaveText("books show");
   await expect(composer.getByRole("button", { name: "Remove 2" })).toBeVisible();
   await expect(page.getByRole("region", { name: /^Run / })).toHaveCount(1);
   await expectNoAccessibilityViolations(page);
@@ -295,7 +295,7 @@ test("a failure's recovery chip opens books list in the composer and runs nothin
 
   await card.getByRole("button", { name: "books list" }).click();
 
-  await expect(composer.getByRole("heading")).toHaveText("books list");
+  await expect(composer.getByRole("heading", { level: 2 })).toHaveText("books list");
   await expect(page.getByRole("region", { name: /^Run 2/ })).toHaveCount(0);
 });
 
@@ -328,7 +328,7 @@ test("books list shows the next chip books show <ID>…, which opens books show"
   await card.getByRole("button", { name: "books show <ID>…" }).click();
 
   const composer = page.getByRole("form", { name: "Composer" });
-  await expect(composer.getByRole("heading")).toHaveText("books show");
+  await expect(composer.getByRole("heading", { level: 2 })).toHaveText("books show");
   await expect(composer.getByLabel(/The ids of the books to show/)).toBeFocused();
   await expect(page.getByRole("region", { name: /^Run 2/ })).toHaveCount(0);
 });
@@ -534,6 +534,100 @@ test("a refused run's failure shows above the open form", async ({ page, served,
   const refusal = errors.findIndex((error) => error.includes("status of 422"));
   expect(refusal).toBeGreaterThanOrEqual(0);
   errors.splice(refusal, 1);
+});
+
+test.describe("shelf after an agent ran books show", () => {
+  // Two runs of books show 99 fail, the second within 60 s of the first,
+  // and a help page comes before them.
+  test.use({
+    ranBefore: {
+      runs: [
+        ["books", "show", "--help"],
+        ["books", "show", "99"],
+        ["books", "show", "99"],
+        ["books", "list"],
+      ],
+    },
+  });
+
+  test("books show's form shows what it cost the agent, with the failure it ran again after", async ({
+    page,
+    served,
+  }) => {
+    await signIn(page, served);
+
+    const composer = await compose(page, "books show");
+
+    const card = composer.getByRole("region", { name: "Cost to an agent" });
+    await expect(card).toContainText(/2 runs, \d{1,2} [A-Z][a-z]{2} to \d{1,2} [A-Z][a-z]{2}/);
+    await expect(card.getByRole("heading")).toHaveText([
+      "Cost to an agent",
+      "Wall time",
+      "Output an agent reads",
+      "Failed",
+      "Calls an agent could have saved",
+    ]);
+    await expect(card).toContainText("2 of 2100% of runs");
+    await expect(card).toContainText("Ran again after a failure1");
+    await expect(card).toContainText("Read help before running1");
+    await expect(card).toContainText("Help pages read1");
+    await expect(card.getByRole("list", { name: "Findings" })).toHaveText(
+      "retryAfter books::not_found, agents ran books show again 1 time within 60 s.",
+    );
+    await expectNoAccessibilityViolations(page);
+  });
+
+  for (const size of [
+    { width: 1280, height: 900 },
+    { width: 900, height: 900 },
+  ]) {
+    test(`at ${size.width}×${size.height} the card, the fields and Run show without the form scrolling`, async ({
+      page,
+      served,
+    }) => {
+      await page.setViewportSize(size);
+      await signIn(page, served);
+
+      const composer = await compose(page, "books show");
+
+      await expect(composer.getByRole("region", { name: "Cost to an agent" })).toBeInViewport();
+      await expect(composer.getByRole("button", { name: /^Run/ })).toBeInViewport();
+      const fields = composer.locator("div.overflow-y-auto").first();
+      const overflow = await fields.evaluate(
+        (element) => element.scrollHeight - element.clientHeight,
+      );
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  }
+
+  test("a command the agent never ran shows no cost card", async ({ page, served }) => {
+    await signIn(page, served);
+
+    const composer = await compose(page, "books summarize");
+
+    await expect(composer.getByRole("region", { name: "Cost to an agent" })).toHaveCount(0);
+  });
+});
+
+test.describe("shelf whose usage log holds a run too long for the page to count", () => {
+  test.use({ ranBefore: { runs: [["books", "list"]], huge: true } });
+
+  test("books list's card leaves out the figures the page cannot hold and keeps the rest", async ({
+    page,
+    served,
+  }) => {
+    await signIn(page, served);
+
+    const composer = await compose(page, "books list");
+
+    const card = composer.getByRole("region", { name: "Cost to an agent" });
+    await expect(card).toContainText(/^Cost to an agent2 runs/);
+    await expect(card.getByRole("heading")).toHaveText([
+      "Cost to an agent",
+      "Failed",
+      "Calls an agent could have saved",
+    ]);
+  });
 });
 
 test("a run starts in the directory the top bar shows and Run again keeps the card's directory", async ({

@@ -44,6 +44,9 @@
    exist and only the roles below can colour anything. */
 @theme {
   --color-*: initial;
+  /* The smallest words: the labels under a figure on a cost card. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1.4;
 }
 
 /* Tailwind's dark: variant follows the same choice as the tokens. */
@@ -228,6 +231,21 @@
    card keeps the larger share above it. The form scrolls inside it. */
 @utility max-h-dock {
   max-height: 40dvh;
+}
+/* The composer's tallest height while it shows a command's cost card: the
+   whole window under the top bar, so the card, the fields and Run show
+   together without the form scrolling. */
+@utility max-h-dock-costed {
+  max-height: calc(100dvh - 3rem);
+}
+
+/* A cost card's tiles: as many of at least 210 px as fit in a row. */
+@utility grid-cols-tiles {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+/* Rows of words and a count: the words take the room, the count its own. */
+@utility grid-cols-counts {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 /* The bar under a running card's header: a short bar that slides across
