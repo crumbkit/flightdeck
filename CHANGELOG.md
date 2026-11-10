@@ -9,6 +9,21 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The Usage view opens from the top bar on a Figures tab, a table of every
+  command with its runs, failed runs, refused runs, help pages read before
+  running, and the median and 95th percentile of its wall time and output,
+  from the tool's `self figures list`. A column header sorts the table, by
+  runs, most first, until another is chosen, and a command's name opens its
+  form. A command with no runs shows dashes. The loader's own queries,
+  such as `commands list`, show "not counted" last in every order, with a
+  note saying the figures leave out every run of them, and `GET
+  /api/model` gives each command a `counted` field, false for those
+  queries. At phone width each command is one row, sorted by a "Sort by"
+  select. Figures sits before Steps, Sessions and Flags in the view's tab
+  bar. The top bar shows Usage when the tool keeps figures or lists its
+  runs, so a tool whose crumbkit-usage prints no runs list still gets
+  Figures. The top bar's controls wrap at phone width, so the page never
+  scrolls sideways.
 - When the tool mounts `self runs list`, the page has a Usage view, reached
   from Commands and Usage in the top bar or from Steps, Sessions and Flags
   on a command's cost card. Steps is a matrix of which command an agent ran

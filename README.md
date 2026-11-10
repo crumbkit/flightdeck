@@ -88,9 +88,12 @@ What works today:
   grouped by goal, finds a command with ⌘K, builds a run from a form that
   starts with what the command costs an agent when the tool keeps figures
   for it, and shows each run as a card with its result as a table or a
-  record. When the tool lists its runs, a Usage view in the top bar shows
-  which command followed which, each session's runs and the flags each
-  command's runs passed; it loads in its own file the first time it opens.
+  record. When the tool keeps figures or lists its runs, a Usage view in
+  the top bar opens on Figures, a table of every command's runs, failures,
+  refusals, help read first, wall time and output. When the tool lists its
+  runs, the view also shows which command followed which, each session's
+  runs and the flags each command's runs passed. It loads in its own file
+  the first time it opens.
   A stream's rows appear as they arrive, under the time since the run
   started and a count of its rows, and Cancel or ⌘. stops the run and
   keeps the rows that came. A failure shows its message, cause, code,

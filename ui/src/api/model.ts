@@ -139,6 +139,13 @@ const Command = z.object({
   runs: z.number().int().nonnegative(),
   /** What the command costs an agent, or null when the figures hold no row for it. */
   cost: Cost.nullable(),
+  /**
+   * Whether the figures count the command's runs. The loader's own
+   * queries, such as `commands list`, are not counted: the figures leave
+   * out every run of them, because they cannot tell flightdeck's runs from
+   * an agent's.
+   */
+  counted: z.boolean(),
 });
 export type Command = z.infer<typeof Command>;
 

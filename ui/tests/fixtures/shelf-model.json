@@ -220,7 +220,8 @@
         "class": "read_only",
         "writes": null,
         "runs": 0,
-        "cost": null
+        "cost": null,
+        "counted": true
       },
       {
         "path": ["books", "show"],
@@ -414,7 +415,8 @@
         "class": "read_only",
         "writes": null,
         "runs": 0,
-        "cost": null
+        "cost": null,
+        "counted": true
       },
       {
         "path": ["books", "summarize"],
@@ -557,7 +559,8 @@
         "class": "read_only",
         "writes": null,
         "runs": 0,
-        "cost": null
+        "cost": null,
+        "counted": true
       },
       {
         "path": ["books", "remove"],
@@ -776,7 +779,8 @@
           "items": "all_or_none"
         },
         "runs": 0,
-        "cost": null
+        "cost": null,
+        "counted": true
       },
       {
         "path": ["commands", "list"],
@@ -971,7 +975,8 @@
         "class": "read_only",
         "writes": null,
         "runs": 0,
-        "cost": null
+        "cost": null,
+        "counted": false
       },
       {
         "path": ["schemas", "list"],
@@ -1154,7 +1159,8 @@
         "class": "read_only",
         "writes": null,
         "runs": 0,
-        "cost": null
+        "cost": null,
+        "counted": false
       },
       {
         "path": ["schemas", "show"],
@@ -1304,7 +1310,8 @@
         "class": "read_only",
         "writes": null,
         "runs": 0,
-        "cost": null
+        "cost": null,
+        "counted": false
       },
       {
         "path": ["self", "usage"],
@@ -1487,7 +1494,8 @@
         "class": "read_only",
         "writes": null,
         "runs": 0,
-        "cost": null
+        "cost": null,
+        "counted": false
       },
       {
         "path": ["self", "figures", "list"],
@@ -1757,7 +1765,8 @@
         "class": "read_only",
         "writes": null,
         "runs": 0,
-        "cost": null
+        "cost": null,
+        "counted": false
       },
       {
         "path": ["self", "runs", "list"],
@@ -2032,7 +2041,8 @@
         "class": "read_only",
         "writes": null,
         "runs": 0,
-        "cost": null
+        "cost": null,
+        "counted": false
       }
     ],
     "documents": [

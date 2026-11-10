@@ -26,7 +26,7 @@ import { Topbar } from "@/components/Topbar";
 import { Transcript } from "@/components/Transcript";
 import { Welcome } from "@/components/Welcome";
 import { asksForYes } from "@/lib/confirm";
-import { dayOf, type UsageTab, usageCommand } from "@/lib/cost";
+import { dayOf, hasFigures, type UsageTab, usageCommand } from "@/lib/cost";
 import { requestOfExample } from "@/lib/example";
 import {
   type Draft,
@@ -86,6 +86,8 @@ export function ToolPage({ reply, onSignedOut }: Props) {
   const [directory, setDirectory] = useState(reply.directory);
   const [viewing, setViewing] = useState<Viewing | null>(null);
   const { history } = tool;
+  // The usage view shows when the tool reports figures or lists its runs.
+  const usage = history !== null || hasFigures(tool);
   // The usage view's period ends on the day the page opened.
   const now = useMountTime();
   const counter = useRef(0);
@@ -362,9 +364,16 @@ export function ToolPage({ reply, onSignedOut }: Props) {
 
   // The usage view opens on the command in the form when it ran.
   const openUsage = (tab: UsageTab) => {
-    if (history !== null) {
-      const preferred = composing === null ? null : composing.command.path.join(" ");
-      setViewing({ tab, command: usageCommand(history, preferred) });
+    const preferred = composing === null ? null : composing.command.path.join(" ");
+    setViewing({ tab, command: usageCommand(history ?? [], preferred) });
+  };
+
+  // A command's name in the usage view opens its form in the commands view.
+  const openForm = (path: string) => {
+    const command = tool.commands.find((each) => each.path.join(" ") === path);
+    if (command !== undefined) {
+      choose(command);
+      setViewing(null);
     }
   };
 
@@ -389,17 +398,18 @@ export function ToolPage({ reply, onSignedOut }: Props) {
         readOnly={reply.read_only}
         onFind={() => setFinding(true)}
         views={
-          history === null
-            ? null
-            : {
+          usage
+            ? {
                 usage: viewing !== null,
-                onView: (usage) => (usage ? openUsage(viewing?.tab ?? "steps") : setViewing(null)),
+                // The top bar opens the view on Figures, and keeps the tab on screen.
+                onView: (on) => (on ? openUsage(viewing?.tab ?? "figures") : setViewing(null)),
               }
+            : null
         }
       >
         <DirectoryControl directory={directory} onChange={setDirectory} />
       </Topbar>
-      {history !== null && viewing !== null && (
+      {usage && viewing !== null && (
         <Suspense
           fallback={<p className="text-muted-foreground m-0 px-4 py-3 text-sm">Loading…</p>}
         >
@@ -411,6 +421,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
             today={dayOf(new Date(now))}
             onTab={(tab) => setViewing({ ...viewing, tab })}
             onCommand={(command) => setViewing({ ...viewing, command })}
+            onOpen={openForm}
           />
         </Suspense>
       )}
