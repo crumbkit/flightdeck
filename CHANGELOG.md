@@ -15,8 +15,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   installed file is missing or differs, and `flightdeck completion print`
   prints the registration script. flightdeck also answers a shell's
   completion request, which a shell makes by running flightdeck with
-  `COMPLETE` set to its name. flightdeck now builds on crumbkit 0.3.1 with
-  its `complete` feature, and on crumbkit-process and crumbkit-test 0.3.1.
+  `COMPLETE` set to its name. flightdeck now builds on crumbkit 0.3.2 with
+  its `complete` feature, and on crumbkit-process and crumbkit-test 0.3.2.
 - The Usage view gains a Both tab, after Weight, when the tool keeps
   figures. It lists every command with a bar of its path weight, from the
   Weight tab's measurement, and a bar of its runs, sorted by weight times
