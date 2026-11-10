@@ -108,3 +108,16 @@ fn a_choices_failure_offers_typing_the_value_and_running_the_source_as_two_repai
         "run books list to list every row"
     );
 }
+
+#[test]
+fn a_read_only_refusal_recovers_by_running_flightdeck_open_on_the_same_program() {
+    let refusal = RunFailure::ReadOnly {
+        path: "books remove".to_owned(),
+        program: "/tools/shelf".to_owned(),
+    };
+
+    let document = document(&refusal);
+
+    assert_eq!(document["recovery"]["kind"], "run");
+    assert_eq!(document["recovery"]["call"], "flightdeck open /tools/shelf");
+}

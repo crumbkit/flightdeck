@@ -2,9 +2,12 @@
 //! crumbkit's `crumbkit/failure/v1`, for a runner's refusal and for a run
 //! that fails at its end.
 
-use crumbkit::{Failure, Recovery, Spelling};
+use clap::CommandFactory as _;
+use crumbkit::{Failure, Recovery, RenderCall as _, Spelling};
 use serde::Serialize;
-use serde::ser::{SerializeMap as _, Serializer};
+use serde::ser::{SerializeMap, Serializer};
+
+use crate::cli::Cli;
 
 #[cfg(test)]
 mod tests;
@@ -93,16 +96,30 @@ impl Serialize for Step {
                 map.serialize_entry("kind", "none")?;
                 map.serialize_entry("reason", reason)?;
             }
-            // RUST-10: a `Run` recovery names a command of flightdeck, which
-            // only crumbkit's `Output` renders, and no failure of the
-            // runner has one. It prints as crumbkit prints a call that does
-            // not resolve. Rendering through `Output` replaces this when a
-            // failure that the server sends needs a call.
-            _ => {
-                map.serialize_entry("kind", "none")?;
-                map.serialize_entry("reason", "the suggested command is not available")?;
-            }
+            // RUST-10: a `Run` recovery names a command of flightdeck, so it
+            // renders against flightdeck's own command tree, and a call that
+            // does not resolve prints as crumbkit prints one. This handles a
+            // plain call. It misses a call built with `Call::all`, which needs
+            // the document's `all` field, and no failure the server sends has
+            // one. A failure-document writer in crumbkit that renders calls
+            // replaces this.
+            Recovery::Run(call) => match call.render(&mut Cli::command()) {
+                Ok(line) => {
+                    map.serialize_entry("kind", "run")?;
+                    map.serialize_entry("call", &line)?;
+                }
+                Err(_) => unavailable(&mut map)?,
+            },
+            _ => unavailable(&mut map)?,
         }
         map.end()
     }
+}
+
+/// Writes the recovery of a call that cannot be shown, as crumbkit writes a
+/// call that does not resolve: kind `none` with the reason that the suggested
+/// command is not available.
+fn unavailable<M: SerializeMap>(map: &mut M) -> Result<(), M::Error> {
+    map.serialize_entry("kind", "none")?;
+    map.serialize_entry("reason", "the suggested command is not available")
 }

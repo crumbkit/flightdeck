@@ -3,7 +3,7 @@
 
 use std::fmt;
 
-use crumbkit::{Code, Failure, FieldValue, Recovery};
+use crumbkit::{Call, Code, Failure, FieldValue, Recovery};
 
 use super::RunId;
 use crate::spawn::SpawnError;
@@ -96,12 +96,16 @@ pub enum RunFailure {
     /// The runner is read-only, and the command is not.
     #[failure(
         code = RUN_READ_ONLY,
-        hint = "start flightdeck without --read-only to run this command",
+        recovery = Recovery::Run(Call::new(&["open"]).value("tool", program.as_str())),
         field(path = path.as_str()),
     )]
     ReadOnly {
         /// The command's path.
         path: String,
+        /// The program that flightdeck runs, by the name or path that
+        /// `flightdeck open` resolved, which a new `flightdeck open`
+        /// without `--read-only` takes.
+        program: String,
     },
     /// The confirmation id does not confirm this request.
     #[failure(
@@ -222,7 +226,7 @@ impl fmt::Display for RunFailure {
                 f,
                 "{path} may destroy data, so it runs only after a preview and a confirmation"
             ),
-            Self::ReadOnly { path } => write!(
+            Self::ReadOnly { path, .. } => write!(
                 f,
                 "flightdeck is read-only, and {path} is not a read-only command"
             ),

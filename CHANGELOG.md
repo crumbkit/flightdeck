@@ -63,6 +63,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- When flightdeck is read-only and refuses a command that is not
+  read-only, the refusal now names the command to run, `flightdeck open
+  <tool>` with the program that flightdeck runs, in place of the words
+  "start flightdeck without --read-only". The failure document writes a run
+  recovery as kind `run` with its `call`.
 - A failure that offered two repairs joined by "or" now gives one as its
   recovery and the other as an alternative, so the page and `--json` list
   them separately: a tool that is not found, a relative `PATH` entry (which
