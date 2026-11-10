@@ -39,9 +39,11 @@ clap = { version = "4.6.7", default-features = false, features = [
     "suggestions",
 ] }
 # crumbkit parses flightdeck's own command line and mounts `commands list`,
-# `schemas list` and `schemas show`. The `derive` feature writes the `Failure`
-# impl of the model's load failures.
-crumbkit = { version = "0.2", default-features = false, features = ["derive"] }
+# `schemas list`, `schemas show` and the `completion` commands. The `derive`
+# feature writes the `Failure` impl of the model's load failures, and the
+# `complete` feature answers a shell's completion request and gives
+# `flightdeck completion install`, `check` and `print`.
+crumbkit = { version = "0.3.2", default-features = false, features = ["derive", "complete"] }
 # serde reads the JSON documents that a crumbkit tool prints into the model's
 # own types.
 serde = { version = "1.0.229", default-features = false, features = ["std", "derive"] }
@@ -79,7 +81,7 @@ tempfile = { version = "3.27.0", default-features = false }
 # child in a process group of its own on Unix or a job object on Windows,
 # reads its output within limits and a deadline, stops it by escalating
 # signals, and reaps it.
-crumbkit-process = { version = "0.2", default-features = false }
+crumbkit-process = { version = "0.3.2", default-features = false }
 # shlex quotes each word of a run's display line for a POSIX shell.
 shlex = { version = "2.0.1", default-features = false }
 # unicode-general-category tells the runner which characters are format
@@ -98,7 +100,7 @@ rustix = { version = "1.1.6", default-features = false, features = ["std", "proc
 wait-timeout = { version = "0.2.1", default-features = false }
 # The convention tests check flightdeck's command tree, tool record and codes with
 # crumbkit-test.
-crumbkit-test = { version = "0.2", default-features = false }
+crumbkit-test = { version = "0.3.2", default-features = false }
 # The schema tests validate real documents against crumbkit's checked-in
 # JSON Schemas, which use draft 2020-12.
 jsonschema = { version = "0.60.2", default-features = false }

@@ -3,11 +3,12 @@ Start a local web page for a crumbkit tool
 Usage: flightdeck [OPTIONS] <COMMAND>
 
 Verbs
-  open      Open a local web page that lists and runs a tool's commands
+  open        Open a local web page that lists and runs a tool's commands
 
 Commands
-  commands  Explore flightdeck's commands
-  schemas   Explore the JSON documents that flightdeck prints
+  commands    Explore flightdeck's commands
+  completion  Set up flightdeck's completion in a shell
+  schemas     Explore the JSON documents that flightdeck prints
 
 Options:
       --json

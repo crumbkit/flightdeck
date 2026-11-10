@@ -10,6 +10,7 @@ Start a local web page for a crumbkit tool
 
 - [`flightdeck open`](#flightdeck-open): Open a local web page that lists and runs a tool's commands
 - [`flightdeck commands`](#flightdeck-commands): Explore flightdeck's commands
+- [`flightdeck completion`](#flightdeck-completion): Set up flightdeck's completion in a shell
 - [`flightdeck schemas`](#flightdeck-schemas): Explore the JSON documents that flightdeck prints
 
 ### Arguments
@@ -86,6 +87,91 @@ flightdeck commands list commands list --json --full
 
 - `path`: The command line that runs the command, such as `shelf books list`.
 - `about`: The command's one-line description, or its full description when it has no one-line description.
+
+Effects: read-only, closed-world.
+
+## `flightdeck completion`
+
+Set up flightdeck's completion in a shell
+
+### Commands
+
+- [`flightdeck completion install`](#flightdeck-completion-install): Install flightdeck's completion where the shell loads it
+- [`flightdeck completion check`](#flightdeck-completion-check): Check that flightdeck's installed completion file matches this flightdeck
+- [`flightdeck completion print`](#flightdeck-completion-print): Print flightdeck's completion registration script for a shell
+
+## `flightdeck completion install`
+
+Install flightdeck's completion where the shell loads it
+
+### Arguments
+
+- `--shell <SHELL>`: Install for this shell in place of the one that SHELL names. One of `bash`, `elvish`, `fish`, `powershell`, `zsh`.
+- `--force`: Replace a file or a link that install did not write; a link's target stays as it is
+
+### Examples
+
+Install flightdeck's completion for fish.
+
+```sh
+flightdeck completion install --shell fish
+```
+
+Install it for zsh, replacing a file or a link that install did not write.
+
+```sh
+flightdeck completion install --shell zsh --force
+```
+
+### Columns
+
+- `state`: What install did: failed, skipped, written or unchanged.
+- `shell`: The shell: bash, elvish, fish, powershell or zsh.
+- `path`: The completion file that install wrote or left. When the file is a link to a file that install wrote, the path of that file.
+- `reason`: Why install skipped or failed, or what it replaced under --force, such as `linked to /src/shelf/shelf.fish`, or null.
+
+Effects: additive, idempotent, closed-world.
+
+## `flightdeck completion check`
+
+Check that flightdeck's installed completion file matches this flightdeck
+
+### Arguments
+
+- `--shell <SHELL>`: Check the file of this shell in place of the one that SHELL names. One of `bash`, `elvish`, `fish`, `powershell`, `zsh`.
+
+### Examples
+
+Report zsh's completion file when it is missing or differs.
+
+```sh
+flightdeck completion check --shell zsh
+```
+
+### Columns
+
+- `state`: Whether the file holds the script that install writes: missing, differs, unreadable, linked or current.
+- `shell`: The shell: bash, elvish, fish, powershell or zsh.
+- `path`: The completion file that was checked. When the file is a link to a file that install wrote, the path of that file.
+- `reason`: Why the file differs, cannot be read or is linked, such as `linked to /src/shelf/shelf.fish`, or null.
+
+Effects: read-only, closed-world.
+
+## `flightdeck completion print`
+
+Print flightdeck's completion registration script for a shell
+
+### Arguments
+
+- `--shell <SHELL>`: Print the script of this shell in place of the one that SHELL names. One of `bash`, `elvish`, `fish`, `powershell`, `zsh`.
+
+### Examples
+
+Print the registration script for fish.
+
+```sh
+flightdeck completion print --shell fish
+```
 
 Effects: read-only, closed-world.
 
