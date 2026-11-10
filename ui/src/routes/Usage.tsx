@@ -2,8 +2,9 @@ import { cn } from "cn";
 import { type ReactNode, useState } from "react";
 import type { Day, Run, Tool } from "@/api/model";
 import { ViewButton } from "@/components/ViewButton";
-import { bytesWords, dayOf, dayWords, type UsageTab } from "@/lib/cost";
+import { bytesWords, dayOf, dayWords, hasFigures, type UsageTab } from "@/lib/cost";
 import { elapsedWords } from "@/lib/duration";
+import { figureRows, figuresSummary } from "@/lib/figures";
 import {
   type FlagRow,
   flagRows,
@@ -18,20 +19,27 @@ import {
   timeWords,
 } from "@/lib/usage";
 import { counted } from "@/lib/words";
+import { Figures } from "./usage/Figures";
 
 type Props = {
   tool: Tool;
-  /** Each run in the tool's usage log. */
-  history: Run[];
+  /** Each run in the tool's usage log, or null when the tool lists none. */
+  history: Run[] | null;
   tab: UsageTab;
   /** The command the view is about, such as "books show". */
   command: string;
   today: Day;
   onTab: (tab: UsageTab) => void;
   onCommand: (command: string) => void;
+  /** Opens the form of the command named, such as "books show". */
+  onOpen: (command: string) => void;
 };
 
-const tabs: [UsageTab, string][] = [
+/** The tabs about every command, which show whenever the view does. */
+const everyCommand: [UsageTab, string][] = [["figures", "Figures"]];
+
+/** The tabs about one command, which show when the tool lists its runs. */
+const oneCommand: [UsageTab, string][] = [
   ["steps", "Steps"],
   ["sessions", "Sessions"],
   ["flags", "Flags"],
@@ -44,35 +52,57 @@ const matrixSize = 11;
 const laneLimit = 8;
 
 /**
- * The usage view: what agents ran, from the tool's `self runs list`, with
- * a tab for the steps between commands, one for each session's runs and
- * one for the flags each command's runs passed. It loads apart from the
- * page, the first time it opens.
+ * The usage view: what agents ran. Figures is a table of every command's
+ * figures, from the tool's `self figures list`. When the tool lists its
+ * runs in `self runs list`, a second group of tabs shows the steps between
+ * commands, each session's runs and the flags each command's runs passed.
+ * It loads apart from the page, the first time it opens.
  */
-export default function Usage({ tool, history, tab, command, today, onTab, onCommand }: Props) {
-  const sessions = sessionsOf(history);
+export default function Usage({
+  tool,
+  history,
+  tab,
+  command,
+  today,
+  onTab,
+  onCommand,
+  onOpen,
+}: Props) {
+  const runs = history ?? [];
+  const sessions = sessionsOf(runs);
   // A reduce, because a busy log can hold more runs than a call takes arguments.
-  const first = history.reduce((least, run) => Math.min(least, run.at), Number.POSITIVE_INFINITY);
+  const first = runs.reduce((least, run) => Math.min(least, run.at), Number.POSITIVE_INFINITY);
   const days =
-    history.length === 0 ? "" : `${dayWords(dayOf(new Date(first * 1000)))} to ${dayWords(today)}`;
-  const commands = [...new Set(history.filter((run) => !run.help).map((run) => run.command))];
+    runs.length === 0 ? "" : `${dayWords(dayOf(new Date(first * 1000)))} to ${dayWords(today)}`;
+  const commands = [...new Set(runs.filter((run) => !run.help).map((run) => run.command))];
+  const rows = figureRows(tool.commands);
+  const figured = hasFigures(tool);
   const summary: Record<UsageTab, ReactNode> = {
-    steps: `${counted(history.length, "run")} in ${counted(sessions.length, "session")}, ${days}`,
+    figures: figured ? figuresSummary(rows, tool.figures_since, today) : "",
+    steps: `${counted(runs.length, "run")} in ${counted(sessions.length, "session")}, ${days}`,
     sessions: `${counted(sessions.length, "session")}, ${days}.`,
     flags: `Which flags each command's runs passed, ${days}. The log keeps flag names, never their values.`,
   };
+  const button = ([each, label]: [UsageTab, string]) => (
+    <ViewButton key={each} on={each === tab} onClick={() => onTab(each)}>
+      {label}
+    </ViewButton>
+  );
+  const perCommand = tab !== "figures";
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-auto">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2">
         <nav aria-label="Usage views" className="flex flex-wrap items-center gap-1">
-          {tabs.map(([each, label]) => (
-            <ViewButton key={each} on={each === tab} onClick={() => onTab(each)}>
-              {label}
-            </ViewButton>
-          ))}
+          {everyCommand.map(button)}
+          {history !== null && (
+            <>
+              <span aria-hidden="true" className="bg-border mx-1 hidden h-5 w-px md:block" />
+              {oneCommand.map(button)}
+            </>
+          )}
         </nav>
         <span className="text-muted-foreground text-xs">{summary[tab]}</span>
-        {tab !== "flags" && commands.length > 0 && (
+        {(tab === "steps" || tab === "sessions") && commands.length > 0 && (
           <label className="text-muted-foreground ml-auto flex items-center gap-2 text-xs">
             Command
             <select
@@ -89,17 +119,23 @@ export default function Usage({ tool, history, tab, command, today, onTab, onCom
           </label>
         )}
       </div>
-      {history.length === 0 && (
+      {tab === "figures" &&
+        (figured ? (
+          <Figures name={tool.name} rows={rows} onOpen={onOpen} />
+        ) : (
+          <p className="text-muted-foreground m-0 px-4 py-3 text-sm">
+            {tool.name} keeps no usage figures.
+          </p>
+        ))}
+      {perCommand && runs.length === 0 && (
         <p className="text-muted-foreground m-0 px-4 py-3 text-sm">
           {tool.name}'s usage log holds no runs in the last 7 days.
         </p>
       )}
-      {history.length > 0 && tab === "steps" && <Steps history={history} command={command} />}
-      {history.length > 0 && tab === "sessions" && (
-        <Sessions sessions={sessions} command={command} />
-      )}
-      {history.length > 0 && tab === "flags" && (
-        <Flags tool={tool} history={history} command={command} commands={commands} />
+      {runs.length > 0 && tab === "steps" && <Steps history={runs} command={command} />}
+      {runs.length > 0 && tab === "sessions" && <Sessions sessions={sessions} command={command} />}
+      {runs.length > 0 && tab === "flags" && (
+        <Flags tool={tool} history={runs} command={command} commands={commands} />
       )}
     </div>
   );

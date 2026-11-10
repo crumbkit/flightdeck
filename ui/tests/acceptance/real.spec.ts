@@ -639,6 +639,75 @@ test.describe("shelf after an agent ran books show", () => {
     await expect(composer.getByRole("region", { name: "Cost to an agent" })).toBeVisible();
   });
 
+  test("the top bar opens Usage on Figures, which counts each command's runs, and a command's name opens its form", async ({
+    page,
+    served,
+  }) => {
+    await signIn(page, served);
+
+    await page
+      .getByRole("navigation", { name: "Views" })
+      .getByRole("button", { name: "Usage" })
+      .click();
+
+    const tabs = page.getByRole("navigation", { name: "Usage views" });
+    await expect(tabs.getByRole("button")).toHaveText(["Figures", "Steps", "Sessions", "Flags"]);
+    await expect(tabs.getByRole("button", { name: "Figures" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(page.getByText(/^3 runs of 10 commands, \d{1,2} [A-Z][a-z]{2} to/)).toBeVisible();
+    const table = page.getByRole("table", { name: "Figures of each command" });
+    const rows = table.getByRole("row");
+    // books show ran twice and failed twice; books list ran once; the rest never ran.
+    await expect(rows.nth(2)).toContainText(/^books show22/);
+    await expect(rows.nth(3)).toContainText(/^books list10/);
+    await expect(rows.nth(4)).toHaveText(/^books remove0(–){7}$/);
+    await expectNoAccessibilityViolations(page);
+
+    await table.getByRole("button", { name: "Command", exact: true }).click();
+
+    await expect(rows.nth(2).getByRole("rowheader")).toHaveText("books list");
+    await expect(table.getByRole("columnheader", { name: /^Command/ })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+
+    await table.getByRole("button", { name: "books show" }).click();
+
+    const composer = page.getByRole("form", { name: "Composer" });
+    await expect(composer.getByRole("heading", { level: 2 })).toHaveText("books show");
+    await expect(composer.getByRole("region", { name: "Cost to an agent" })).toBeVisible();
+  });
+
+  test.describe("on a phone", () => {
+    test.use({ viewport: { width: 375, height: 812 } });
+
+    test("Figures lists one row per command, sorted by the Sort by select, with no sideways scroll", async ({
+      page,
+      served,
+    }) => {
+      await signIn(page, served);
+
+      await page
+        .getByRole("navigation", { name: "Views" })
+        .getByRole("button", { name: "Usage" })
+        .click();
+
+      const list = page.getByRole("list", { name: "Figures of each command" });
+      await expect(list.getByRole("listitem").first()).toContainText(
+        /^books show2 runs2failed0refused/,
+      );
+      await page.getByRole("combobox", { name: "Sort by" }).selectOption("command");
+      await expect(list.getByRole("listitem").first()).toContainText(/^books list1 run/);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow).toBe(0);
+      await expectNoAccessibilityViolations(page);
+    });
+  });
+
   test("a command the agent never ran shows no cost card", async ({ page, served }) => {
     await signIn(page, served);
 

@@ -10,7 +10,8 @@ type Props = {
   onFind: (() => void) | null;
   /**
    * The Commands and Usage links, with whether the usage view is on screen,
-   * or null when the tool lists no runs and the page has one view.
+   * or null when the tool reports no figures and lists no runs, so the page
+   * has one view.
    */
   views?: { usage: boolean; onView: (usage: boolean) => void } | null;
   /** What follows the tool's name, such as the directory control. */
@@ -37,7 +38,7 @@ export function Topbar({ name, version, readOnly, onFind, views = null, children
         </span>
       )}
       {children}
-      <span className="ml-auto flex items-center gap-3">
+      <span className="ml-auto flex flex-wrap items-center gap-3">
         {views !== null && (
           <nav aria-label="Views" className="flex items-center gap-1">
             <ViewButton on={!views.usage} onClick={() => views.onView(false)}>

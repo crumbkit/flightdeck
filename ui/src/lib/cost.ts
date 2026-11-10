@@ -1,4 +1,4 @@
-import type { Cost, Day, Finding, Run } from "@/api/model";
+import type { Cost, Day, Finding, Run, Tool } from "@/api/model";
 import { counted } from "./words";
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -36,8 +36,17 @@ export function periodWords(
   return since === null ? count : `${count}, ${dayWords(since)} to ${dayWords(today)}`;
 }
 
-/** A view of the usage page, which the card's links open. */
-export type UsageTab = "steps" | "sessions" | "flags";
+/**
+ * A view of the usage page. Figures is about every command, and opens from
+ * the top bar; Steps, Sessions and Flags are about one command, and open
+ * from the top bar's view or the card's links.
+ */
+export type UsageTab = "figures" | "steps" | "sessions" | "flags";
+
+/** Returns whether the tool reported figures for any of its commands. */
+export function hasFigures(tool: Tool): boolean {
+  return tool.commands.some((command) => command.cost !== null);
+}
 
 /** How many runs failed with one code. */
 export type CodeCount = { code: string; count: number };

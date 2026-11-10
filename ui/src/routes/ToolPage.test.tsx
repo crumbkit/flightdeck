@@ -212,7 +212,7 @@ describe("ToolPage", () => {
     expect(sent.filter((path) => path === "/api/runs" || path === "/api/previews")).toEqual([]);
   });
 
-  it("opens the usage view from the top bar on the command that ran most, and Commands keeps the form", async () => {
+  it("opens the usage view from the top bar on Figures, and Steps on the command that ran most", async () => {
     const run = (step: number, command: string): Run => ({
       session: 1,
       step,
@@ -234,11 +234,25 @@ describe("ToolPage", () => {
 
     await userEvent.click(within(views).getByRole("button", { name: "Usage" }));
 
+    const tabs = await screen.findByRole("navigation", { name: "Usage views" });
     expect(
-      await screen.findByRole("heading", { name: "After each command, what the agent ran next" }),
+      within(tabs)
+        .getAllByRole("button")
+        .map((each) => each.textContent),
+    ).toEqual(["Figures", "Steps", "Sessions", "Flags"]);
+    expect(within(tabs).getByRole("button", { name: "Figures" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByText("shelf keeps no usage figures.")).toBeVisible();
+    expect(screen.getByRole("form", { name: "Composer", hidden: true })).not.toBeVisible();
+
+    await userEvent.click(within(tabs).getByRole("button", { name: "Steps" }));
+
+    expect(
+      screen.getByRole("heading", { name: "After each command, what the agent ran next" }),
     ).toBeVisible();
     expect(screen.getByRole("combobox", { name: "Command" })).toHaveValue("books show");
-    expect(screen.getByRole("form", { name: "Composer", hidden: true })).not.toBeVisible();
 
     await userEvent.click(within(views).getByRole("button", { name: "Commands" }));
 
@@ -246,7 +260,49 @@ describe("ToolPage", () => {
     expect(screen.queryByRole("navigation", { name: "Usage views" })).toBeNull();
   });
 
-  it("has no usage view for a tool that lists no runs", () => {
+  it("has a usage view of Figures alone for a tool with figures that lists no runs, and a command's name opens its form", async () => {
+    const commands = shelfReply.tool.commands.map((each) =>
+      each.path.join(" ") === "books show"
+        ? {
+            ...each,
+            runs: 4,
+            cost: {
+              figures: {
+                runs: 4,
+                help_pages: 1,
+                help_before: 1,
+                refused: 0,
+                failed: 2,
+                p50_ms: 8,
+                p95_ms: 30,
+                p50_out_bytes: 400,
+                p95_out_bytes: 900,
+              },
+              findings: null,
+            },
+          }
+        : each,
+    );
+    renderPage({ ...shelfReply, tool: { ...shelfReply.tool, commands, history: null } });
+    const views = screen.getByRole("navigation", { name: "Views" });
+
+    await userEvent.click(within(views).getByRole("button", { name: "Usage" }));
+
+    const tabs = await screen.findByRole("navigation", { name: "Usage views" });
+    expect(
+      within(tabs)
+        .getAllByRole("button")
+        .map((each) => each.textContent),
+    ).toEqual(["Figures"]);
+    const table = screen.getByRole("table", { name: "Figures of each command" });
+
+    await userEvent.click(within(table).getByRole("button", { name: "books show" }));
+
+    expect(screen.getByRole("form", { name: "Composer" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "books show" })).toBeVisible();
+  });
+
+  it("has no usage view for a tool that reports no figures and lists no runs", () => {
     renderPage({ ...shelfReply, tool: { ...shelfReply.tool, history: null } });
 
     expect(screen.queryByRole("navigation", { name: "Views" })).toBeNull();
