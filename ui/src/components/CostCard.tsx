@@ -1,9 +1,11 @@
 import { cn } from "cn";
 import { type ReactNode, useId } from "react";
-import type { Cost, Day, Figures, Finding } from "@/api/model";
+import type { Cost, Day, Figures } from "@/api/model";
 import {
   bytesWords,
   grouped,
+  type Phrased,
+  type PhrasedKind,
   percentOf,
   periodWords,
   savedCalls,
@@ -83,7 +85,14 @@ export function CostCard({ cost, command, since, today }: Props) {
           {periodWords(figures.runs, since, today)}
         </span>
       </div>
-      {tiles.length > 0 && <div className="grid-cols-tiles grid">{tiles}</div>}
+      {tiles.length > 0 && (
+        // Each tile draws its right and bottom lines, and the wrapper clips
+        // the ones that fall on the card's edge, so the dividers are right
+        // however the tiles wrap.
+        <div className="overflow-hidden">
+          <div className="grid-cols-tiles -mr-px -mb-px grid">{tiles}</div>
+        </div>
+      )}
       {phrased.length > 0 && (
         <ul
           aria-label="Findings"
@@ -103,7 +112,7 @@ export function CostCard({ cost, command, since, today }: Props) {
 
 function Tile({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-1.5 border-r px-3 py-2.5 last:border-r-0">
+    <div className="flex flex-col gap-1.5 border-r border-b px-3 py-2.5">
       <h4 className="text-muted-foreground m-0 text-xs font-medium">{title}</h4>
       {children}
     </div>
@@ -167,18 +176,15 @@ function Failed({ failed, runs }: { failed: number; runs: number }) {
 }
 
 /** The short word of each kind's badge, and whether it is red. */
-const badges: Partial<Record<Finding["kind"], { label: string; red: boolean }>> = {
+const badges: Record<PhrasedKind, { label: string; red: boolean }> = {
   slow_command: { label: "slow", red: true },
   help_loop: { label: "help loop", red: false },
   retry_after_failure: { label: "retry", red: false },
   heavy_output: { label: "heavy output", red: false },
 };
 
-function Badge({ kind }: { kind: Finding["kind"] }) {
+function Badge({ kind }: { kind: PhrasedKind }) {
   const badge = badges[kind];
-  if (badge === undefined) {
-    return null;
-  }
   return (
     <span
       className={cn(
@@ -195,7 +201,7 @@ function Badge({ kind }: { kind: Finding["kind"] }) {
  * Returns a finding in the card's words, with codes and the command in
  * mono, or null when the tool left out a figure the sentence needs.
  */
-function sentenceOf(finding: Finding, figures: Figures, command: string): ReactNode | null {
+function sentenceOf(finding: Phrased, figures: Figures, command: string): ReactNode | null {
   const name = <code>{command}</code>;
   switch (finding.kind) {
     case "slow_command": {
@@ -223,7 +229,5 @@ function sentenceOf(finding: Finding, figures: Figures, command: string): ReactN
         ? null
         : `The 95th percentile output is ${bytesWords(bytes)}, ${tokensWords(bytes)}.`;
     }
-    default:
-      return null;
   }
 }

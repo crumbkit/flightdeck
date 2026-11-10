@@ -23,6 +23,12 @@ export function useNow(intervalMs: number, active: boolean): number {
   return now;
 }
 
+/** Returns the time in milliseconds since the epoch when the component mounted. */
+export function useMountTime(): number {
+  const [now] = useState(() => Date.now());
+  return now;
+}
+
 /**
  * Returns `value` as it was at the last tick of an `intervalMs` timer while
  * `active` is true, so a live region changes at most once per interval,

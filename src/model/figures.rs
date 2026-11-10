@@ -53,32 +53,81 @@ const LOADER_QUERIES: [&str; 5] = [
     "self usage",
 ];
 
+/// The largest count that the page reads exactly, 2^53 - 1, JavaScript's
+/// `Number.MAX_SAFE_INTEGER`. A larger figure reads as one the tool does not
+/// report, because the page would refuse the whole model for it.
+const MOST_SAFE: u64 = 9_007_199_254_740_991;
+
+/// Reads a count that a tool may leave out, print as `null`, or print too
+/// large for the page, as `None` in each of those cases. A negative count,
+/// a fraction and a count past `u64` read as `None` too.
+fn safe_count<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let number = Option::<serde_json::Number>::deserialize(deserializer)?;
+    Ok(number
+        .as_ref()
+        .and_then(serde_json::Number::as_u64)
+        .filter(|count| *count <= MOST_SAFE))
+}
+
 /// The figures of one command's runs, as `self figures list` prints them.
 /// Each figure is `None` when the tool does not report it.
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Figures {
     /// The runs that did not print a help page.
     runs: u64,
     /// The runs that printed the command's help page.
-    #[serde(default)]
     help_pages: Option<u64>,
     /// The help pages that each run's session read since its last run
     /// that printed no help page, summed over the runs.
-    #[serde(default)]
     help_before: Option<u64>,
     /// The runs whose command line the parser refused.
-    #[serde(default)]
     refused: Option<u64>,
     /// The runs that failed.
-    #[serde(default)]
     failed: Option<u64>,
     /// The 95th percentile of the runs' wall time in milliseconds.
-    #[serde(default)]
     p95_ms: Option<u64>,
     /// The 95th percentile of the bytes that the runs wrote to standard
     /// output.
-    #[serde(default)]
     p95_out_bytes: Option<u64>,
+}
+
+/// The figures of one row as the tool prints them, each read by
+/// [`safe_count`].
+#[derive(Debug, Deserialize)]
+struct RawFigures {
+    #[serde(default, deserialize_with = "safe_count")]
+    runs: Option<u64>,
+    #[serde(default, deserialize_with = "safe_count")]
+    help_pages: Option<u64>,
+    #[serde(default, deserialize_with = "safe_count")]
+    help_before: Option<u64>,
+    #[serde(default, deserialize_with = "safe_count")]
+    refused: Option<u64>,
+    #[serde(default, deserialize_with = "safe_count")]
+    failed: Option<u64>,
+    #[serde(default, deserialize_with = "safe_count")]
+    p95_ms: Option<u64>,
+    #[serde(default, deserialize_with = "safe_count")]
+    p95_out_bytes: Option<u64>,
+}
+
+impl RawFigures {
+    /// Returns the figures, or `None` when the row has no runs the page
+    /// can read, which leaves its command without a cost.
+    fn checked(self) -> Option<Figures> {
+        Some(Figures {
+            runs: self.runs?,
+            help_pages: self.help_pages,
+            help_before: self.help_before,
+            refused: self.refused,
+            failed: self.failed,
+            p95_ms: self.p95_ms,
+            p95_out_bytes: self.p95_out_bytes,
+        })
+    }
 }
 
 impl Figures {
@@ -241,7 +290,7 @@ struct FigureRow {
     /// The command's path below the tool's name, such as `books list`.
     command: String,
     #[serde(flatten)]
-    figures: Figures,
+    figures: RawFigures,
 }
 
 /// One row of `self usage`.
@@ -249,7 +298,8 @@ struct FigureRow {
 struct FindingRow {
     /// What the pattern is, in the tool's words.
     finding: String,
-    runs: u64,
+    #[serde(default, deserialize_with = "safe_count")]
+    runs: Option<u64>,
     /// The command's path below the tool's name, such as `books show`.
     command: String,
     #[serde(default)]
@@ -262,9 +312,9 @@ struct FindingRow {
 /// The figures of a finding's command that the page's sentences use.
 #[derive(Debug, Default, Deserialize)]
 struct FindingFigures {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "safe_count")]
     p95_ms: Option<u64>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "safe_count")]
     p95_out_bytes: Option<u64>,
 }
 
@@ -293,7 +343,7 @@ impl FiguresList {
                 .into_data()
                 .into_iter()
                 .filter(|row| !is_loader_query(&row.command))
-                .map(|row| (row.command, row.figures))
+                .filter_map(|row| Some((row.command, row.figures.checked()?)))
                 .collect(),
             since,
         })
@@ -333,9 +383,10 @@ impl Usage {
         let prefix = format!("{tool}::");
         let mut by_command: HashMap<String, Vec<Finding>> = HashMap::new();
         for row in listing.into_data() {
-            if is_loader_query(&row.command) {
+            // A finding whose count the page cannot read is left out.
+            let Some(runs) = row.runs.filter(|_| !is_loader_query(&row.command)) else {
                 continue;
-            }
+            };
             let figures = row.figures.unwrap_or_default();
             let code = row.code.map(|code| match code.strip_prefix(&prefix) {
                 Some(rest) => rest.to_owned(),
@@ -343,7 +394,7 @@ impl Usage {
             });
             by_command.entry(row.command).or_default().push(Finding {
                 kind: FindingKind::of(&row.finding),
-                runs: row.runs,
+                runs,
                 code,
                 p95_ms: figures.p95_ms,
                 p95_out_bytes: figures.p95_out_bytes,

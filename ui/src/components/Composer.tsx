@@ -2,7 +2,7 @@ import { Eye, Play } from "lucide-react";
 import { type KeyboardEvent, useEffect, useId, useRef } from "react";
 import type { Argument, Command, Tool } from "@/api/model";
 import type { Value } from "@/api/runs";
-import { useNow } from "@/clock";
+import { useMountTime } from "@/clock";
 import { Button } from "@/components/ui/button";
 import { dayOf } from "@/lib/cost";
 import { chosenOf, type Draft, type FieldGroup, formOf, missing, setValue } from "@/lib/form";
@@ -53,8 +53,8 @@ export function Composer(props: Props) {
   const blocked = whyNotRunnable(command, readOnly);
   const runnable = blocked === null && unset.length === 0 && !lineRefused;
   const formRef = useRef<HTMLFormElement>(null);
-  // The cost card's period ends today, which the page reads once.
-  const now = useNow(60_000, false);
+  // The cost card's period ends on the day the form opened.
+  const now = useMountTime();
 
   // Each Edit moves focus to the first field, which may be a text field, a
   // chips field, a list or a checkbox, and selects its text, so the person

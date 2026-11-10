@@ -581,3 +581,24 @@ test.describe("shelf after an agent ran books show", () => {
     await expect(composer.getByRole("region", { name: "Cost to an agent" })).toHaveCount(0);
   });
 });
+
+test.describe("shelf whose usage log holds a run too long for the page to count", () => {
+  test.use({ ranBefore: { runs: [["books", "list"]], huge: true } });
+
+  test("books list's card leaves out the figures the page cannot hold and keeps the rest", async ({
+    page,
+    served,
+  }) => {
+    await signIn(page, served);
+
+    const composer = await compose(page, "books list");
+
+    const card = composer.getByRole("region", { name: "Cost to an agent" });
+    await expect(card).toContainText(/^Cost to an agent2 runs/);
+    await expect(card.getByRole("heading")).toHaveText([
+      "Cost to an agent",
+      "Failed",
+      "Calls an agent could have saved",
+    ]);
+  });
+});

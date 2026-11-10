@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, rm } from "node:fs/promises";
+import { appendFile, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
@@ -76,11 +76,13 @@ async function openerOf(child: ChildProcess): Promise<string> {
  * runs the tool with each argument vector first, in the same directories,
  * so its usage log holds those runs when flightdeck loads it. The runs sit
  * in an object, because Playwright reads an array option as a fixture.
+ * `huge: true` adds a copy of the last run whose wall time and output are
+ * too large for the page to hold as numbers.
  */
 export const test = checked.extend<{
   tool: "shelf" | "reading" | "slow reading" | "pretty shelf";
   readOnly: boolean;
-  ranBefore: { runs: string[][] };
+  ranBefore: { runs: string[][]; huge?: boolean };
   served: Served;
 }>({
   tool: ["shelf", { option: true }],
@@ -102,6 +104,14 @@ export const test = checked.extend<{
     };
     for (const words of ranBefore.runs) {
       spawnSync(program, words, { env, stdio: "ignore" });
+    }
+    if (ranBefore.huge === true) {
+      const log = path.join(home, "state", tool, "usage.jsonl");
+      const last = (await readFile(log, "utf8")).trimEnd().split("\n").at(-1) ?? "";
+      const huge = last
+        .replace(/"ms":\d+/, `"ms":9007199254740993`)
+        .replace(/"out_bytes":\d+/, `"out_bytes":18446744073709551615`);
+      await appendFile(log, `${huge}\n`);
     }
     const child = spawn(
       path.join(root, "target/debug/flightdeck"),

@@ -83,12 +83,13 @@ export function savedCalls(cost: Cost): Saved[] {
 }
 
 /** The kinds the strip phrases, in the order it shows them. */
-const stripOrder: Finding["kind"][] = [
-  "slow_command",
-  "help_loop",
-  "retry_after_failure",
-  "heavy_output",
-];
+const stripOrder = ["slow_command", "help_loop", "retry_after_failure", "heavy_output"] as const;
+
+/** A kind of finding that the strip phrases. */
+export type PhrasedKind = (typeof stripOrder)[number];
+
+/** A finding of a kind that the strip phrases. */
+export type Phrased = Finding & { kind: PhrasedKind };
 
 /**
  * Returns the findings that the card's strip phrases, in its order: a slow
@@ -97,10 +98,12 @@ const stripOrder: Finding["kind"][] = [
  * left out, because the saved-calls tile already counts them, and a kind
  * the page does not know is left out too.
  */
-export function stripFindings(findings: Finding[] | null): Finding[] {
+export function stripFindings(findings: Finding[] | null): Phrased[] {
   return stripOrder.flatMap((kind) => {
-    const ofKind = (findings ?? []).filter((finding) => finding.kind === kind);
-    const top = ofKind.reduce<Finding | undefined>(
+    const ofKind = (findings ?? []).flatMap((finding) =>
+      finding.kind === kind ? [{ ...finding, kind }] : [],
+    );
+    const top = ofKind.reduce<Phrased | undefined>(
       (best, each) => (best === undefined || each.runs > best.runs ? each : best),
       undefined,
     );

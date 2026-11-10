@@ -1,5 +1,6 @@
+import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { frameQueue } from "./clock";
+import { frameQueue, useMountTime } from "./clock";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -48,5 +49,18 @@ describe("frameQueue", () => {
     queue.flush();
 
     expect(delivered).toEqual([[1]]);
+  });
+});
+
+describe("useMountTime", () => {
+  it("keeps the time it read on mount across renders", () => {
+    vi.useFakeTimers({ now: 1_000 });
+    const { result, rerender } = renderHook(() => useMountTime());
+
+    vi.setSystemTime(90_000);
+    rerender();
+
+    expect(result.current).toBe(1_000);
+    vi.useRealTimers();
   });
 });

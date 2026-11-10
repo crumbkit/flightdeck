@@ -422,3 +422,49 @@ fn figures_that_give_no_command_a_cost_name_no_day() {
     );
     assert_eq!(tool.figures_since(), None);
 }
+
+/// One past the largest count the page reads exactly, 2^53.
+const UNSAFE: u64 = 9_007_199_254_740_992;
+
+/// Returns every number in `value` and its children.
+fn numbers(value: &serde_json::Value) -> Vec<u64> {
+    match value {
+        serde_json::Value::Number(number) => number.as_u64().into_iter().collect(),
+        serde_json::Value::Array(items) => items.iter().flat_map(numbers).collect(),
+        serde_json::Value::Object(fields) => fields.values().flat_map(numbers).collect(),
+        _ => Vec::new(),
+    }
+}
+
+#[test]
+fn a_count_too_large_for_the_page_reads_as_not_reported_and_the_model_still_loads() {
+    let figures = edited(FIGURES, |document| {
+        for row in document["data"].as_array_mut().unwrap() {
+            if row["command"] == "books show" {
+                row["failed"] = serde_json::json!(UNSAFE);
+                row["p95_out_bytes"] = serde_json::json!(u64::MAX);
+            }
+            if row["command"] == "books list" {
+                row["runs"] = serde_json::json!(UNSAFE);
+            }
+        }
+    });
+    let usage = edited(USAGE, |document| {
+        document["data"][0]["runs"] = serde_json::json!(UNSAFE);
+        document["data"][1]["figures"]["p95_ms"] = serde_json::json!(UNSAFE);
+    });
+
+    let tool = shelf_with_costs(&figures, Some(&usage));
+
+    let show = tool.command(&["books", "show"]).unwrap().cost().unwrap();
+    assert_eq!(show.figures().failed(), None);
+    assert_eq!(show.figures().p95_out_bytes(), None);
+    assert_eq!(show.figures().refused(), Some(1));
+    let findings = show.findings().unwrap();
+    assert_eq!(findings.len(), 3);
+    assert_eq!(findings[0].kind(), FindingKind::IdenticalRepeat);
+    assert_eq!(findings[0].p95_ms(), None);
+    assert!(tool.command(&["books", "list"]).unwrap().cost().is_none());
+    let reply = serde_json::to_value(&tool).unwrap();
+    assert!(numbers(&reply).into_iter().all(|number| number < UNSAFE));
+}
