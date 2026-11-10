@@ -86,3 +86,25 @@ fn a_failure_with_no_next_step_says_why_and_one_with_no_fields_has_none() {
     assert!(closed.get("fields").is_none(), "{closed}");
     assert_eq!(confirmation["fields"]["reason"], "expired");
 }
+
+#[test]
+fn a_choices_failure_offers_typing_the_value_and_running_the_source_as_two_repairs() {
+    let no_listing = document(&RunFailure::NoListing {
+        path: "books list".to_owned(),
+        outcome: "failure",
+    });
+    let time = document(&RunFailure::ChoicesTime {
+        path: "books list".to_owned(),
+    });
+
+    assert_eq!(no_listing["recovery"]["text"], "type the value");
+    assert_eq!(
+        no_listing["alternatives"][0]["text"],
+        "run books list to see why it fails"
+    );
+    assert_eq!(time["recovery"]["text"], "type the value");
+    assert_eq!(
+        time["alternatives"][0]["text"],
+        "run books list to list every row"
+    );
+}

@@ -63,6 +63,17 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- A failure that offered two repairs joined by "or" now gives one as its
+  recovery and the other as an alternative, so the page and `--json` list
+  them separately: a tool that is not found, a relative `PATH` entry (which
+  now leads with giving the tool's path), and a choices source that printed
+  no listing or ran out of time. A server
+  failure of `flightdeck open` recovers with a retry in place of the words
+  "run flightdeck open again", and one that has a check to make gives the
+  check as its hint and the retry as an alternative.
+- A second SIGTERM while `flightdeck open` stops ends it with 143, the
+  code a shell gives for SIGTERM, where it gave 130. `help exit-codes`,
+  `commands list` and `docs/commands.md` list 130 and 143 for `open`.
 - `GET /api/model` gives each command a `class` field, which is `read_only`,
   `additive` or `destructive`. The server decides it from the command's
   effects: a command that declares itself both read-only and destructive is

@@ -6,6 +6,7 @@ use std::io;
 use std::net::TcpStream;
 use std::time::Duration;
 
+use crumbkit::{Code, Spelling};
 use serde::Serialize;
 
 use super::StartError;
@@ -75,6 +76,35 @@ pub(super) enum Refusal {
 }
 
 impl Refusal {
+    /// The code of [`Refusal::Host`].
+    const HOST: Code = Code::new("flightdeck", "request", "host");
+    /// The code of [`Refusal::CrossSite`].
+    const CROSS_SITE: Code = Code::new("flightdeck", "request", "cross_site");
+    /// The code of [`Refusal::Origin`].
+    const ORIGIN: Code = Code::new("flightdeck", "request", "origin");
+    /// The code of [`Refusal::Method`].
+    const METHOD: Code = Code::new("flightdeck", "request", "method");
+    /// The code of [`Refusal::ContentType`].
+    const CONTENT_TYPE: Code = Code::new("flightdeck", "request", "content_type");
+    /// The code of [`Refusal::TooLarge`].
+    const TOO_LARGE: Code = Code::new("flightdeck", "request", "too_large");
+    /// The code of [`Refusal::HeadTooLarge`].
+    const HEAD_TOO_LARGE: Code = Code::new("flightdeck", "request", "head_too_large");
+    /// The code of [`Refusal::Malformed`].
+    const MALFORMED: Code = Code::new("flightdeck", "request", "malformed");
+    /// The code of [`Refusal::Busy`].
+    const BUSY: Code = Code::new("flightdeck", "request", "busy");
+    /// The code of [`Refusal::Body`].
+    const BODY: Code = Code::new("flightdeck", "request", "body");
+    /// The code of [`Refusal::Timeout`].
+    const TIMEOUT: Code = Code::new("flightdeck", "request", "timeout");
+    /// The code of [`Refusal::Unauthorized`].
+    const UNAUTHORIZED: Code = Code::new("flightdeck", "session", "unauthorized");
+    /// The code of [`Refusal::CodeRefused`].
+    const CODE_REFUSED: Code = Code::new("flightdeck", "session", "code_refused");
+    /// The code of [`Refusal::NotFound`].
+    const NOT_FOUND: Code = Code::new("flightdeck", "request", "not_found");
+
     /// Every refusal, in the order its document lists them.
     pub(super) const ALL: [Self; 14] = [
         Self::Host,
@@ -110,23 +140,23 @@ impl Refusal {
     }
 
     /// Returns the refusal's stable code, such as
-    /// `flightdeck::session::unauthorized`.
-    pub(super) const fn code(self) -> &'static str {
+    /// `flightdeck::session::unauthorized` in crumbkit's colon spelling.
+    pub(super) const fn code(self) -> &'static Code {
         match self {
-            Self::Host => "flightdeck::request::host",
-            Self::CrossSite => "flightdeck::request::cross_site",
-            Self::Origin => "flightdeck::request::origin",
-            Self::Method => "flightdeck::request::method",
-            Self::ContentType => "flightdeck::request::content_type",
-            Self::TooLarge => "flightdeck::request::too_large",
-            Self::HeadTooLarge => "flightdeck::request::head_too_large",
-            Self::Malformed => "flightdeck::request::malformed",
-            Self::Busy => "flightdeck::request::busy",
-            Self::Body => "flightdeck::request::body",
-            Self::Timeout => "flightdeck::request::timeout",
-            Self::Unauthorized => "flightdeck::session::unauthorized",
-            Self::CodeRefused => "flightdeck::session::code_refused",
-            Self::NotFound => "flightdeck::request::not_found",
+            Self::Host => &Self::HOST,
+            Self::CrossSite => &Self::CROSS_SITE,
+            Self::Origin => &Self::ORIGIN,
+            Self::Method => &Self::METHOD,
+            Self::ContentType => &Self::CONTENT_TYPE,
+            Self::TooLarge => &Self::TOO_LARGE,
+            Self::HeadTooLarge => &Self::HEAD_TOO_LARGE,
+            Self::Malformed => &Self::MALFORMED,
+            Self::Busy => &Self::BUSY,
+            Self::Body => &Self::BODY,
+            Self::Timeout => &Self::TIMEOUT,
+            Self::Unauthorized => &Self::UNAUTHORIZED,
+            Self::CodeRefused => &Self::CODE_REFUSED,
+            Self::NotFound => &Self::NOT_FOUND,
         }
     }
 
@@ -160,7 +190,7 @@ struct Problem {
     kind: &'static str,
     title: &'static str,
     status: u16,
-    code: &'static str,
+    code: String,
 }
 
 /// A reply of known length before it gets its headers.
@@ -204,7 +234,7 @@ impl Replies {
                     kind: "about:blank",
                     title: refusal.title(),
                     status: refusal.status(),
-                    code: refusal.code(),
+                    code: Spelling::COLONS.spell(refusal.code()),
                 };
                 serde_json::to_vec(&problem)
                     .map(|body| (refusal, body))

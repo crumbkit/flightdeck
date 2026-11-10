@@ -1,32 +1,34 @@
 use std::io::Read as _;
 use std::net::{TcpListener, TcpStream};
 
+use crumbkit::Spelling;
+
 use super::{Refusal, start};
 
 #[test]
 fn every_refusal_has_its_own_stable_code_and_a_client_error_status() {
-    let refusals: Vec<(&str, u16)> = Refusal::ALL
+    let refusals: Vec<(String, u16)> = Refusal::ALL
         .iter()
-        .map(|refusal| (refusal.code(), refusal.status()))
+        .map(|refusal| (Spelling::COLONS.spell(refusal.code()), refusal.status()))
         .collect();
 
     assert_eq!(
         refusals,
         [
-            ("flightdeck::request::host", 403),
-            ("flightdeck::request::cross_site", 403),
-            ("flightdeck::request::origin", 403),
-            ("flightdeck::request::method", 405),
-            ("flightdeck::request::content_type", 415),
-            ("flightdeck::request::too_large", 413),
-            ("flightdeck::request::head_too_large", 431),
-            ("flightdeck::request::malformed", 400),
-            ("flightdeck::request::busy", 503),
-            ("flightdeck::request::body", 400),
-            ("flightdeck::request::timeout", 408),
-            ("flightdeck::session::unauthorized", 401),
-            ("flightdeck::session::code_refused", 401),
-            ("flightdeck::request::not_found", 404),
+            ("flightdeck::request::host".to_owned(), 403),
+            ("flightdeck::request::cross_site".to_owned(), 403),
+            ("flightdeck::request::origin".to_owned(), 403),
+            ("flightdeck::request::method".to_owned(), 405),
+            ("flightdeck::request::content_type".to_owned(), 415),
+            ("flightdeck::request::too_large".to_owned(), 413),
+            ("flightdeck::request::head_too_large".to_owned(), 431),
+            ("flightdeck::request::malformed".to_owned(), 400),
+            ("flightdeck::request::busy".to_owned(), 503),
+            ("flightdeck::request::body".to_owned(), 400),
+            ("flightdeck::request::timeout".to_owned(), 408),
+            ("flightdeck::session::unauthorized".to_owned(), 401),
+            ("flightdeck::session::code_refused".to_owned(), 401),
+            ("flightdeck::request::not_found".to_owned(), 404),
         ]
     );
 }

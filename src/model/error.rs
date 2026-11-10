@@ -3,7 +3,7 @@
 use std::fmt;
 use std::io;
 
-use crumbkit::{Code, Failure, FieldValue};
+use crumbkit::{Code, Failure, FieldValue, Recovery};
 
 use crate::spawn::Exit;
 
@@ -23,7 +23,8 @@ pub enum LoadError {
     /// not start.
     #[failure(
         code = TOOL_NOT_FOUND,
-        hint = "give the name of a program on PATH, or the path of a program",
+        hint = "give the name of a program on PATH",
+        alternative = Recovery::hint("give the path of a program"),
         field(tool = tool.as_str()),
     )]
     NotFound {

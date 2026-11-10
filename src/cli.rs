@@ -8,6 +8,7 @@ use crumbkit::ViewFlags;
 use crumbkit::commands::{COMMANDS_LIST, CommandsList};
 use crumbkit::help::{Effects, Example, Help, Leaf};
 use crumbkit::schemas::{SCHEMAS_LIST, SCHEMAS_SHOW, SchemasList, SchemasShow};
+use crumbkit::tool::Failures;
 
 /// Start a local web page for a crumbkit tool.
 #[derive(Debug, Parser)]
@@ -24,7 +25,9 @@ pub struct Cli {
 
 /// flightdeck's tool record: `open` as a verb of the root, and the examples,
 /// effects and document of each command.
-pub const TOOL: Tool = Tool::new().help(
+pub const TOOL: Tool = Tool::new()
+    .failures(Failures::new().exits(&crate::open::FORCED_EXITS))
+    .help(
     Help::new()
         .root_verbs(
             &["open"],
