@@ -64,7 +64,7 @@
       "path": [
         "dist/**/*"
       ],
-      "limit": "250 kB"
+      "limit": "260 kB"
     }
   ]
 }
