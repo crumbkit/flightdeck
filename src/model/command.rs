@@ -92,7 +92,9 @@ pub struct Command {
     /// `self usage`, by the rule and its RUST-10 in `figures.rs`. The both
     /// table leaves these commands out of its corners.
     built_in: bool,
-    #[serde(skip)]
+    /// Whether `commands list` marks the command as one that prints no
+    /// result, so its runs report no output size, which the page reads as
+    /// no output rather than an unknown one.
     prints_no_result: bool,
 }
 

@@ -22,7 +22,9 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   every corner. `GET /api/model` marks each command `built_in` when it
   sits under crumbkit's `commands`, `schemas`, `self` or `aliases` groups.
   A command that ran without the figures reporting its output size has a
-  partial path in both the Weight and Both tabs. Rows that read the same
+  partial path in both the Weight and Both tabs, except one that
+  `commands list` marks as printing no result, whose output is 0 bytes.
+  `GET /api/model` sends `prints_no_result` on each command. Rows that read the same
   list the heaviest first. The tab loads as its own file and measures
   nothing of its own.
 - The Usage view gains a Weight tab, after Figures. For each command it
@@ -115,6 +117,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The cost card reads a large output in the short form: from 10,000
+  tokens in thousands, such as "about 12k tokens", and from a million in
+  millions, such as "about 2.5M tokens". A smaller output still reads as
+  an exact count, such as "about 346 tokens".
 - When flightdeck is read-only and refuses a command that is not
   read-only, the refusal now names the command to run, `flightdeck open
   <tool>` with the program that flightdeck runs, in place of the words

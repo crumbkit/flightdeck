@@ -152,6 +152,11 @@ const Command = z.object({
    * command under `commands`, `schemas`, `self` or `aliases` counts too.
    */
   built_in: z.boolean(),
+  /**
+   * Whether `commands list` marks the command as one that prints no
+   * result. Its runs report no output size, which means no output.
+   */
+  prints_no_result: z.boolean(),
 });
 export type Command = z.infer<typeof Command>;
 

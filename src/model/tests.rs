@@ -1,5 +1,6 @@
+use super::command::CommandPath;
 use super::day::Day;
-use super::figures::{FiguresList, FindingKind, Usage};
+use super::figures::{FiguresList, FindingKind, Usage, is_built_in};
 use super::runs::History;
 use super::{CommandsList, Document, Effects, Listing, NotDocument, StepCommand, Tool};
 
@@ -9,6 +10,10 @@ const WITH_GOALS: &str = include_str!("../../tests/fixtures/shelf/commands-list.
 /// shelf's `books list --json` document, with a next step that calls a
 /// shelf command and one that runs another program first.
 const WITH_NEXT: &str = include_str!("../../tests/fixtures/shelf/books-list-with-run-step.json");
+
+/// unruly's `commands list` document, whose `child silent` is marked
+/// `prints_no_result`.
+const UNRULY: &str = include_str!("../../tests/fixtures/runner/unruly-commands-list.json");
 
 /// crumbkit's `commands list` schema, which declares `prints_no_result`.
 const COMMANDS_LIST_SCHEMA: &str =
@@ -280,6 +285,28 @@ fn crumbkits_own_commands_are_marked_built_in_and_the_tools_commands_are_not() {
     for words in [["books", "list"].as_slice(), &["books", "remove"]] {
         assert_eq!(built_in(words), serde_json::json!(false), "{words:?}");
     }
+    // shelf mounts no aliases, so the rule is checked on the path alone.
+    assert!(is_built_in(&CommandPath::from_row("shelf aliases list")));
+}
+
+#[test]
+fn the_model_sends_whether_a_command_prints_no_result() {
+    let commands: CommandsList = serde_json::from_str(UNRULY).unwrap();
+    let schema = serde_json::from_str(COMMANDS_LIST_SCHEMA).unwrap();
+    let documents = vec![Document::output("unruly/commands-list/v1", schema)];
+    let tool = Tool::assemble("unruly 0.1.0", commands, documents).unwrap();
+    let prints_no_result = |words: &[&str]| {
+        serde_json::to_value(tool.command(words).unwrap()).unwrap()["prints_no_result"].clone()
+    };
+
+    assert_eq!(
+        prints_no_result(&["child", "silent"]),
+        serde_json::json!(true)
+    );
+    assert_eq!(
+        prints_no_result(&["child", "panic"]),
+        serde_json::json!(false)
+    );
 }
 
 #[test]
