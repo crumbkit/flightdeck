@@ -61,8 +61,10 @@ mod vector;
 use std::cmp;
 use std::fmt;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
+
+use crumbkit_process::Cancel;
 
 pub use self::choices::{CHOICES_OUTPUT, Choice, Choices, ChoicesRequest, MOST_CHOICES};
 pub use self::confirmations::ConfirmationId;
@@ -82,8 +84,9 @@ use self::trace::Trace;
 pub(crate) use self::vector::Argv;
 use self::vector::{Extra, Vector};
 use crate::clock::Clock;
+use crate::model::weight::{self, Weight};
 use crate::model::{Class, Command, Tool};
-use crate::spawn::{self, Event, Events, Exit, Program, Silent};
+use crate::spawn::{self, Event, Events, Exit, HelpLimits, Program, Silent};
 pub use crate::spawn::{DRAIN_GRACE, Escalation, Limit, Limits, QUEUE};
 
 /// How long a confirmation id works after the preview that issued it.
@@ -210,6 +213,8 @@ pub struct Runner {
     trace: Trace,
     confirmations: Arc<Confirmations>,
     runs: Runs,
+    weight: OnceLock<Weight>,
+    help_stop: Cancel,
 }
 
 impl Runner {
@@ -237,6 +242,8 @@ impl Runner {
             settings,
             clock,
             trace,
+            weight: OnceLock::new(),
+            help_stop: Cancel::new(),
         })
     }
 
@@ -246,11 +253,20 @@ impl Runner {
         &self.tool
     }
 
-    /// Returns the program that the runner runs, which also prints the
-    /// tool's help pages.
-    #[must_use]
-    pub const fn program(&self) -> &Program {
-        &self.program
+    /// Returns the weight of the tool's help pages, which the first call
+    /// measures within [`HelpLimits::new`]. A call while that measurement
+    /// runs waits for it, and every later call returns it, so the tool's
+    /// help runs at most once for the runner's life. A shutdown stops the
+    /// measurement, and the pages it did not finish say `not_run`.
+    pub fn weight(&self) -> &Weight {
+        self.weight.get_or_init(|| {
+            weight::measure(
+                &self.program,
+                &self.tool,
+                HelpLimits::new(),
+                &self.help_stop,
+            )
+        })
     }
 
     /// Returns which commands the runner may run.
@@ -442,11 +458,13 @@ impl Runner {
         self.runs.cancel(id)
     }
 
-    /// Refuses every new run with [`RunFailure::Closed`], lets the runs in
-    /// progress end by themselves within the shutdown grace of the
-    /// settings, then cancels the rest and waits for each to end. Dropping
-    /// the runner shuts it down.
+    /// Stops a measurement of the help pages at once, refuses every new run
+    /// with [`RunFailure::Closed`], lets the runs in progress end by
+    /// themselves within the shutdown grace of the settings, then cancels
+    /// the rest and waits for each to end. Dropping the runner shuts it
+    /// down.
     pub fn shutdown(&self) {
+        self.help_stop.cancel();
         self.runs.shutdown(self.settings.shutdown_grace);
     }
 

@@ -13,8 +13,10 @@
 //! - `POST /api/session` exchanges the launch code for the token, once.
 //! - `GET /api/model` returns the tool's model, whether the page is
 //!   read-only and the directory that flightdeck started in.
-//! - `GET /api/weight` runs `-h` of each distinct help page of the tool's
-//!   commands and returns the bytes of each, as `model::weight` describes.
+//! - `GET /api/weight` returns the bytes of each distinct help page of the
+//!   tool's commands, as `model::weight` describes. The runner measures
+//!   them on the first request and keeps the result, so the tool's help
+//!   runs once however many requests arrive.
 //! - `POST /api/runs` starts a run, `POST /api/previews` starts a preview,
 //!   and `POST /api/confirmations/<id>` starts a confirmed run. Each takes a
 //!   [`RunRequest`] and answers with the stream of `stream`, or with the
@@ -67,9 +69,8 @@ pub use self::session::{CODE_LIFETIME, Session};
 use self::stream::{Pacing, Stream};
 use crate::clock::Clock;
 use crate::lock::lock;
-use crate::model::{Tool, weight};
+use crate::model::Tool;
 use crate::runner::{Choices, ChoicesRequest, MOST_RUNS, Mode, RunFailure, RunRequest, Runner};
-use crate::spawn::HelpLimits;
 
 /// How long the server runs without an authenticated request.
 pub const IDLE_LIMIT: Duration = Duration::from_secs(30 * 60);
@@ -88,7 +89,9 @@ pub const KEEPALIVE: Duration = Duration::from_secs(15);
 
 // Each run's stream holds a connection until the run ends, and a cancel
 // needs a connection of its own. The runner's cap leaves at least half the
-// connections free while every run streams.
+// connections free while every run streams. A weight request starts no run
+// of its own after the first: it waits on the runner's one measurement,
+// whose help runs are at most `AT_ONCE` and outside the runner's cap.
 const _: () = assert!(MOST_RUNS * 2 <= CONNECTION_LIMIT);
 
 /// The server's limits.
@@ -551,12 +554,10 @@ impl Shared {
             }
             Route::Model => Ok(Answer::Reply(Reply::Json(self.model.clone()))),
             Route::Weight => {
-                let weight =
-                    weight::measure(self.runner.program(), self.runner.tool(), HelpLimits::new());
                 // serde_json fails only on a map key that is not a string,
                 // and the weight has no map.
                 Ok(Answer::Reply(Reply::Json(
-                    serde_json::to_vec(&weight).unwrap_or_default(),
+                    serde_json::to_vec(self.runner.weight()).unwrap_or_default(),
                 )))
             }
             Route::Runs => {

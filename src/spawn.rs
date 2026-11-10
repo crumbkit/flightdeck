@@ -179,11 +179,27 @@ impl Program {
     /// variables and its directory. crumbkit-process sets its standard
     /// streams.
     fn command<S: AsRef<OsStr>>(&self, words: &[S]) -> std::process::Command {
+        self.build(words, false)
+    }
+
+    /// Returns the command that runs the program with `words` as
+    /// [`Program::command`] does, but in a cleared environment that holds
+    /// only the program's added variables.
+    fn cleared_command<S: AsRef<OsStr>>(&self, words: &[S]) -> std::process::Command {
+        self.build(words, true)
+    }
+
+    /// Returns the command of the program with `words`, its added variables
+    /// and its directory, in a cleared environment when `cleared` is true.
+    fn build<S: AsRef<OsStr>>(&self, words: &[S], cleared: bool) -> std::process::Command {
         #[expect(
             clippy::disallowed_methods,
             reason = "spawn owns flightdeck's child processes (PROC-1)"
         )]
         let mut command = std::process::Command::new(&self.program);
+        if cleared {
+            command.env_clear();
+        }
         command
             .args(words)
             .envs(self.env.iter().map(|(name, value)| (name, value)));

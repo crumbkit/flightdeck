@@ -21,11 +21,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   shows why, and its path is marked partial and never called over or
   under. The page measures the help pages the first time the tab opens,
   through `GET /api/weight`, and keeps them until it reloads. The server
-  runs `-h` of each distinct page once with a cleared environment and a
+  measures once and keeps the result, so a second request, or one that
+  arrives during the measurement, starts no further help run, and stopping
+  flightdeck stops a measurement at once. It runs `-h` of each distinct
+  page once with a cleared environment and a
   temporary `XDG_STATE_HOME` that it removes afterwards, so the person's
   usage log never counts the measurement. It runs 4 pages at a time, stops
   a page after 2 seconds or 64 KiB, starts none after 30 seconds and
-  measures at most 400 pages. The tab loads as its own file.
+  measures at most 400 pages. A page whose path has a word that starts
+  with `-` is not run. The tab loads as its own file.
 - The Usage view opens from the top bar on a Figures tab, a table of every
   command with its runs, failed runs, refused runs, help pages read before
   running, and the median and 95th percentile of its wall time and output,

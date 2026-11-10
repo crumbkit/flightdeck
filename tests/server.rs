@@ -552,6 +552,94 @@ fn the_weight_route_needs_the_token_and_returns_the_bytes_of_each_help_page() {
     });
 }
 
+/// Writes a stand-in for shelf's help pages that appends its words to the
+/// file `log` names and then runs `then`, and returns its directory and path.
+#[cfg(unix)]
+fn help_stand_in(log: &Path, then: &str) -> (tempfile::TempDir, PathBuf) {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("stand-in");
+    let script = format!("#!/bin/sh\necho \"$*\" >> '{}'\n{then}\n", log.display());
+    std::fs::write(&path, script).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    (directory, path)
+}
+
+/// Returns the lines of the file at `log`, or none when it is not there.
+#[cfg(unix)]
+fn logged(log: &Path) -> Vec<String> {
+    std::fs::read_to_string(log)
+        .map(|text| text.lines().map(str::to_owned).collect())
+        .unwrap_or_default()
+}
+
+#[cfg(unix)]
+#[test]
+fn two_weight_requests_at_once_share_one_measurement_and_a_later_one_reuses_it() {
+    let logs = tempfile::tempdir().unwrap();
+    let log = logs.path().join("help");
+    let (_directory, stand_in) = help_stand_in(&log, "/bin/sleep 0.2; echo page");
+    serving(Setup::shelf().program(stand_in), |page| {
+        let token = page.token();
+        let weight = || {
+            Call::get(page.port, "/api/weight")
+                .bearer(&token)
+                .send(page.port)
+        };
+
+        let (first, second) = std::thread::scope(|scope| {
+            let first = scope.spawn(weight);
+            let second = scope.spawn(weight);
+            (first.join().unwrap(), second.join().unwrap())
+        });
+        let later = weight();
+
+        assert_eq!((first.status, second.status, later.status), (200, 200, 200));
+        assert_eq!(first.json(), second.json());
+        assert_eq!(first.json(), later.json());
+        let pages = first.json()["pages"].as_array().unwrap().len();
+        assert_eq!(logged(&log).len(), pages, "{:?}", logged(&log));
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn stopping_the_server_during_a_measurement_ends_it_within_the_shutdown_bound() {
+    let logs = tempfile::tempdir().unwrap();
+    let log = logs.path().join("help");
+    let (_directory, stand_in) = help_stand_in(&log, "exec /bin/sleep 30");
+    let stopped = std::sync::OnceLock::new();
+    serving(Setup::shelf().program(stand_in), |page| {
+        let token = page.token();
+        std::thread::scope(|scope| {
+            let measuring = scope.spawn(|| {
+                Call::get(page.port, "/api/weight")
+                    .bearer(&token)
+                    .send(page.port)
+            });
+            while logged(&log).is_empty() {
+                #[expect(
+                    clippy::disallowed_methods,
+                    reason = "the test waits for the first help run to start"
+                )]
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            stopped.set(std::time::Instant::now()).unwrap();
+            page.stop();
+            assert_eq!(measuring.join().unwrap().status, 200);
+        });
+        Then::Wait
+    });
+
+    // Server::run promises the write time after the runner's shutdown, which
+    // has no run to wait for here. A help run would otherwise hold the stop
+    // for its 2 s limit, and the measurement for up to 30 s.
+    let took = stopped.get().unwrap().elapsed();
+    assert!(took < Duration::from_secs(1), "the stop took {took:?}");
+}
+
 #[test]
 fn the_server_stops_by_itself_after_the_idle_limit() {
     let ended = serving(Setup::shelf(), |page| {

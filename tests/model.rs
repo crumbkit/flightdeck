@@ -17,6 +17,7 @@ use crumbkit_flightdeck::model::{
     self, Arity, CrumbkitFlag, FindingKind, Kind, LoadError, TOOL_LOAD, TOOL_NOT_FOUND, Tool,
 };
 use crumbkit_flightdeck::spawn::{HelpLimits, Program, TIME_LIMIT};
+use crumbkit_process::Cancel;
 use tempfile::TempDir;
 
 /// Returns the path of one of crumbkit's example tools that the install
@@ -754,7 +755,7 @@ fn measuring_shelfs_help_pages_counts_the_bytes_that_shelf_h_prints() {
     let tool = model::load(&program, TIME_LIMIT).unwrap();
     let printed = shelf_directly(&test_tool("shelf"), dirs.path(), &["-h"]);
 
-    let measured = weight::measure(&program, &tool, HelpLimits::new());
+    let measured = weight::measure(&program, &tool, HelpLimits::new(), &Cancel::new());
 
     let root = &measured.pages()[0];
     assert!(root.path().is_empty());
@@ -780,7 +781,7 @@ fn measuring_shelfs_help_pages_leaves_the_persons_usage_figures_unchanged() {
     let tool = model::load(&program, TIME_LIMIT).unwrap();
     let before = figures_of(&program);
 
-    let measured = weight::measure(&program, &tool, HelpLimits::new());
+    let measured = weight::measure(&program, &tool, HelpLimits::new(), &Cancel::new());
 
     assert!(measured.pages().iter().all(|page| page.bytes().is_some()));
     assert_eq!(figures_of(&program), before);

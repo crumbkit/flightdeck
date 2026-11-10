@@ -6,8 +6,9 @@ import { getJson } from "./client";
  * Why a help page has no bytes, as the server names it: an exit other than
  * 0, a signal, a page that printed nothing, a run that passed its time
  * limit, one that printed more than 64 KiB, a program that would not
- * start, or a run that never started because the measurement passed its
- * own time limit.
+ * start, a run that never started because the measurement passed its own
+ * time limit, or a page that was not run because a word of its path
+ * starts with `-`.
  */
 const PageFailure = z.enum([
   "exit",
@@ -17,6 +18,7 @@ const PageFailure = z.enum([
   "too_large",
   "not_started",
   "not_run",
+  "refused",
 ]);
 export type PageFailure = z.infer<typeof PageFailure>;
 
@@ -49,15 +51,21 @@ export type WeightReply = z.infer<typeof WeightReply>;
 const measureMs = 35_000;
 
 /**
- * The weight query (APP-10). The server runs every help page once for
- * each request, so the page asks only when the Weight tab first opens and
+ * The weight query (APP-10). The server measures the help pages once and
+ * keeps them, so the page asks only when the Weight tab first opens and
  * keeps the pages until it reloads.
+ *
+ * The request does not take the query's signal, so closing the tab before
+ * the reply leaves the request open, and reopening it waits for the same
+ * reply. A failure is not retried, because a measurement that timed out
+ * would time out again.
  */
 export function weightQuery() {
   return queryOptions({
     queryKey: ["weight"],
-    queryFn: ({ signal }) => getJson("/api/weight", WeightReply, signal, measureMs),
+    queryFn: () => getJson("/api/weight", WeightReply, new AbortController().signal, measureMs),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
+    retry: false,
   });
 }

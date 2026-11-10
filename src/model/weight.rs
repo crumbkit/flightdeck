@@ -7,6 +7,7 @@
 //! `shelf books -h` and `shelf books list -h`. Commands share the pages
 //! above them, so each distinct page runs once.
 
+use crumbkit_process::Cancel;
 use serde::Serialize;
 
 use super::Tool;
@@ -103,7 +104,8 @@ pub struct Measured {
     path: Vec<String>,
     bytes: Option<u64>,
     /// Why the page has no bytes: `exit`, `signal`, `empty`, `timed_out`,
-    /// `too_large`, `not_started` or `not_run`, or `None` when it has them.
+    /// `too_large`, `not_started`, `not_run` or `refused`, or `None` when it
+    /// has them.
     failure: Option<&'static str>,
     /// The exit code or signal number of a page that failed with one.
     exit: Option<i32>,
@@ -140,6 +142,7 @@ impl Measured {
             HelpPage::Empty => (None, Some("empty"), None),
             HelpPage::TooLarge => (None, Some("too_large"), None),
             HelpPage::NotRun => (None, Some("not_run"), None),
+            HelpPage::Refused => (None, Some("refused"), None),
         };
         Self {
             path,
@@ -151,12 +154,12 @@ impl Measured {
 }
 
 /// Measures the help pages of `tool`, whose program is `program`, within
-/// `limits`. A measurement that cannot make its temporary state directory
-/// measures nothing and says why.
+/// `limits`, until `stop` is cancelled. A measurement that cannot make its
+/// temporary state directory measures nothing and says why.
 #[must_use]
-pub fn measure(program: &Program, tool: &Tool, limits: HelpLimits) -> Weight {
+pub fn measure(program: &Program, tool: &Tool, limits: HelpLimits, stop: &Cancel) -> Weight {
     let pages = pages(tool, MOST_PAGES);
-    match spawn::measure_help(program, pages.paths(), limits) {
+    match spawn::measure_help(program, pages.paths(), limits, stop) {
         Ok(measured) => Weight {
             pages: pages
                 .paths

@@ -35,7 +35,8 @@ What works today:
 - The browser signs in with a one-time launch code that the opener page
   holds in the URL's fragment, and exchanges it for a token that every API
   request carries. `GET /api/model` returns the tool's model as JSON, and
-  `GET /api/weight` measures the bytes of the tool's help pages.
+  `GET /api/weight` returns the bytes of the tool's help pages, which the
+  server measures once.
   [docs/security.md](docs/security.md) states the threat model, every guard
   of the server and the test that proves it.
 - The page runs a command with `POST /api/runs`, previews a destructive

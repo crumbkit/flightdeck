@@ -154,4 +154,37 @@ describe("Weight", () => {
       "flightdeck could not measure help pages: cannot make a temporary state directory",
     );
   });
+
+  it("keeps the measurement going when the tab closes before the reply", async () => {
+    const signals: (AbortSignal | null | undefined)[] = [];
+    vi.stubGlobal("fetch", (_path: string, init: RequestInit) => {
+      signals.push(init.signal);
+      return new Promise<Response>(() => {});
+    });
+    const client = makeQueryClient();
+    const { unmount } = render(
+      <QueryClientProvider client={client}>
+        <Weight tool={tool} />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("status");
+
+    unmount();
+
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.aborted).toBe(false);
+  });
+
+  it("asks once when the measurement fails, so a timeout does not start another", async () => {
+    const count = { asked: 0 };
+    vi.stubGlobal("fetch", async () => {
+      count.asked += 1;
+      throw new TypeError("timed out");
+    });
+
+    renderWeight();
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(count.asked).toBe(1);
+  });
 });

@@ -4,7 +4,10 @@
 //!
 //! - Program: the name or path that the person gave, as for `describe`.
 //! - Arguments: the words of one command path that the tool's model holds,
-//!   then `-h`, with no shell.
+//!   then `-h`, with no shell. A page whose path has a word that starts
+//!   with `-` is refused without a run, because the tool would read the
+//!   word as an option. A `--` before the words would not help, because a
+//!   crumbkit tool reads every word after `--` as a value, not a command.
 //! - Environment: cleared, then the variables that [`Program::env`] adds,
 //!   such as the absolute `PATH` of [`Program::at_launch`], then
 //!   `XDG_STATE_HOME` set to a new temporary directory. A crumbkit tool logs
@@ -18,10 +21,12 @@
 //!   prints more is stopped. Each run has [`HELP_TIME_LIMIT`], and no run
 //!   starts once [`MEASURE_LIMIT`] has passed since the measurement began.
 //!   At most [`AT_ONCE`] runs go at a time, each on a thread of a
-//!   `std::thread::scope` that joins it.
+//!   `std::thread::scope` that joins it. The caller's stop starts no further
+//!   run and cancels the runs in progress, which the runner's shutdown uses
+//!   so that a measurement never holds up flightdeck's stop.
 //! - End: as for `describe`, crumbkit-process stops the child's whole
-//!   process group or job when it exits or its limit passes, and only then
-//!   reaps it. A help page only reads, so a stopped child leaves no partial
+//!   process group or job when it exits, its limit passes or the stop
+//!   cancels it, and only then reaps it. A help page only reads, so a stopped child leaves no partial
 //!   work.
 
 use std::ffi::OsStr;
@@ -30,7 +35,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use crumbkit_process::{Capture, Outcome, OverLimit, RunOptions, StopReason};
+use crumbkit_process::{Cancel, Capture, Outcome, OverLimit, RunOptions, StopReason};
 
 use super::{Exit, Program};
 use crate::lock::lock;
@@ -106,13 +111,17 @@ pub enum HelpPage {
     TooLarge,
     /// The program would not start, or flightdeck could not follow it.
     NotStarted,
-    /// [`MEASURE_LIMIT`] passed before the run's turn, so it never started.
+    /// [`MEASURE_LIMIT`] passed, or the measurement was stopped, before
+    /// the run ended, so it never started or was cancelled.
     NotRun,
+    /// A word of the page's path starts with `-`, so it was not run.
+    Refused,
 }
 
 /// Runs `-h` of each of `pages`, each a command path such as
 /// `["books", "list"]` or `[]` for the tool's own page, and returns each
-/// page's result in the same order.
+/// page's result in the same order. Once `stop` is cancelled no further
+/// run starts, and the runs in progress are cancelled.
 ///
 /// # Errors
 ///
@@ -122,6 +131,7 @@ pub(crate) fn measure_help(
     program: &Program,
     pages: &[Vec<String>],
     limits: HelpLimits,
+    stop: &Cancel,
 ) -> io::Result<Vec<HelpPage>> {
     let started = Instant::now();
     let state = tempfile::tempdir()?;
@@ -135,10 +145,10 @@ pub(crate) fn measure_help(
                     let Some(words) = pages.get(index) else {
                         return;
                     };
-                    if started.elapsed() >= limits.total {
+                    if started.elapsed() >= limits.total || stop.is_cancelled() {
                         return;
                     }
-                    let page = run_help(program, words, state.path().as_os_str(), limits.run);
+                    let page = run_help(program, words, state.path().as_os_str(), limits.run, stop);
                     if let Some(slot) = lock(&results).get_mut(index) {
                         *slot = page;
                     }
@@ -154,21 +164,26 @@ pub(crate) fn measure_help(
 }
 
 /// Runs `<program> <words> -h` with a cleared environment and `state` as its
-/// `XDG_STATE_HOME`, and returns how it went.
-fn run_help(program: &Program, words: &[String], state: &OsStr, time_limit: Duration) -> HelpPage {
-    let mut command = program.command(&[] as &[&str]);
-    command
-        .env_clear()
-        .envs(program.env.iter().map(|(name, value)| (name, value)))
-        .env("XDG_STATE_HOME", state)
-        .args(words)
-        .arg("-h");
+/// `XDG_STATE_HOME`, until `stop` cancels it, and returns how it went.
+fn run_help(
+    program: &Program,
+    words: &[String],
+    state: &OsStr,
+    time_limit: Duration,
+    stop: &Cancel,
+) -> HelpPage {
+    if words.iter().any(|word| word.starts_with('-')) {
+        return HelpPage::Refused;
+    }
+    let mut command = program.cleared_command(words);
+    command.env("XDG_STATE_HOME", state).arg("-h");
     let settings = RunOptions::new()
         .stdout(Capture::Whole {
             limit: HELP_LIMIT,
             over: OverLimit::Stop,
         })
-        .deadline(Instant::now() + time_limit);
+        .deadline(Instant::now() + time_limit)
+        .cancel(stop);
     let Ok(finished) = crumbkit_process::run(command, &settings) else {
         return HelpPage::NotStarted;
     };
@@ -176,6 +191,7 @@ fn run_help(program: &Program, words: &[String], state: &OsStr, time_limit: Dura
     match finished.outcome() {
         Outcome::TimedOut => return HelpPage::TimedOut,
         Outcome::Stopped(StopReason::OverLimit) => return HelpPage::TooLarge,
+        Outcome::Stopped(StopReason::Cancelled) => return HelpPage::NotRun,
         _ => {}
     }
     let (stdout, _) = finished.into_output();

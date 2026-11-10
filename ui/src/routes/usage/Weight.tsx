@@ -85,8 +85,10 @@ function StepBar({ step, scale }: { step: Step; scale: number }) {
   if (step.bytes === null) {
     return null;
   }
-  const over = stepOver(step) && step.budget !== null;
-  const filled = over && step.budget !== null ? step.budget : step.bytes;
+  // The budget that the step passes, or null for a step within its budget
+  // or without one.
+  const passed = stepOver(step) ? step.budget : null;
+  const filled = passed ?? step.bytes;
   const label =
     step.budget === null
       ? bytesText(step.bytes)
@@ -100,12 +102,12 @@ function StepBar({ step, scale }: { step: Step; scale: number }) {
         )}
         style={{ width: `${(filled / scale) * 100}%` }}
       />
-      {over && step.budget !== null && (
+      {passed !== null && (
         <span
           className="bg-destructive absolute inset-y-0 rounded-xs"
           style={{
-            left: `${(step.budget / scale) * 100}%`,
-            width: `${((step.bytes - step.budget) / scale) * 100}%`,
+            left: `${(passed / scale) * 100}%`,
+            width: `${((step.bytes - passed) / scale) * 100}%`,
           }}
         />
       )}
@@ -184,18 +186,30 @@ function PhoneStepAgainst({ step }: { step: Step }) {
   );
 }
 
+/**
+ * A step's kind, with a mark on the heaviest step, drawn on `tag` so it
+ * stands out from the row behind it.
+ */
+function KindLine({ step, heaviest, tag }: { step: Step; heaviest: boolean; tag: string }) {
+  return (
+    <span>
+      {stepKind(step)}
+      {heaviest && (
+        <span className={cn(tag, "text-accent-foreground ml-1.5 rounded-md px-1.5 font-medium")}>
+          heaviest
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** A step's label, with its kind under it and a mark on the heaviest step. */
 function StepLabel({ step, heaviest }: { step: Step; heaviest: boolean }) {
   return (
     <span className="flex flex-col">
       <code>{step.label}</code>
       <span className="text-muted-foreground text-2xs">
-        {stepKind(step)}
-        {heaviest && (
-          <span className="bg-accent text-accent-foreground text-2xs ml-1.5 rounded-md px-1.5 font-medium">
-            heaviest
-          </span>
-        )}
+        <KindLine step={step} heaviest={heaviest} tag="bg-accent" />
       </span>
     </span>
   );
@@ -471,14 +485,7 @@ export default function Weight({ tool }: Props) {
                           </span>
                         </div>
                         <div className="text-muted-foreground text-2xs mt-0.75 flex justify-between gap-2">
-                          <span>
-                            {stepKind(step)}
-                            {step === path.heaviest && (
-                              <span className="bg-card text-accent-foreground ml-1.5 rounded-md px-1.5 font-medium">
-                                heaviest
-                              </span>
-                            )}
-                          </span>
+                          <KindLine step={step} heaviest={step === path.heaviest} tag="bg-card" />
                           <PhoneStepAgainst step={step} />
                         </div>
                       </li>
