@@ -1,17 +1,22 @@
-//! The runner's weight cell, which keeps the measurement of the tool's help
-//! pages for the server's life once a measurement is complete.
+//! The runner's weight cell, which keeps the latest measurement of the
+//! tool's help pages and measures again only when the measurement failed or
+//! the request asks.
 //!
-//! The cell is empty, measuring or kept:
-//!
-//! | State | Held | Leaves on |
+//! | Last measurement | A plain request | A request to measure again |
 //! | --- | --- | --- |
-//! | Empty | no weight, or an incomplete one with its generation | a request takes `measuring` and finds the generation unchanged |
-//! | Measuring | one request holds `measuring` and measures; the others wait on it | the measurement returns: complete is kept, incomplete is empty with the next generation |
-//! | Kept | a complete weight | never, until the server stops |
+//! | None | measures | measures |
+//! | Failed: it has a problem | measures | measures |
+//! | Partial: a page says `not_run` | gets it | measures |
+//! | Complete | gets it | gets it |
+//!
+//! A complete measurement is never replaced. A partial one, which a tool
+//! whose help always passes the 30-second limit gives every time, is served
+//! to every plain request, so a page load never starts another measurement
+//! of such a tool; only the page's Measure again button asks for one.
 //!
 //! At most one measurement runs at a time, because `measuring` is held
 //! across it. A request that waited while a measurement ran gets that
-//! measurement's weight, complete or not, so concurrent requests never
+//! measurement's weight, whatever it is, so concurrent requests never
 //! multiply help runs. It knows a measurement ended while it waited because
 //! the generation moved between its first look and its turn on `measuring`.
 
@@ -23,6 +28,16 @@ use crate::model::weight::Weight;
 #[cfg(test)]
 mod tests;
 
+/// What a request asks of the cell.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Ask {
+    /// The latest measurement, measuring only when there is none or it
+    /// failed.
+    Kept,
+    /// A new measurement, unless the latest one is complete.
+    Again,
+}
+
 /// The last measurement and the generation that counts the measurements
 /// that ended.
 #[derive(Debug, Default)]
@@ -31,25 +46,41 @@ struct Last {
     weight: Option<Arc<Weight>>,
 }
 
-/// The measurement of the tool's help pages, kept only once it is complete.
+impl Last {
+    /// Returns the weight that serves `ask` without a new measurement.
+    fn serves(&self, ask: Ask) -> Option<&Arc<Weight>> {
+        self.weight.as_ref().filter(|weight| {
+            weight.is_complete() || (ask == Ask::Kept && weight.problem().is_none())
+        })
+    }
+}
+
+/// The latest measurement of the tool's help pages.
 #[derive(Debug, Default)]
 pub(super) struct WeightCell {
     last: Mutex<Last>,
     measuring: Mutex<()>,
+    /// How many calls have looked at the cell and are on their way to
+    /// measure or wait, which a test reads to know a second caller waits.
+    #[cfg(test)]
+    arrived: std::sync::atomic::AtomicUsize,
 }
 
 impl WeightCell {
-    /// Returns the kept weight, or the weight of a measurement that ended
-    /// while this call waited for it, or else the weight that `measure`
-    /// returns now, which the cell keeps when it is complete.
-    pub(super) fn get(&self, measure: impl FnOnce() -> Weight) -> Arc<Weight> {
+    /// Returns the latest weight when it serves `ask`, or the weight of a
+    /// measurement that ended while this call waited for it, or else the
+    /// weight that `measure` returns now, which becomes the latest.
+    pub(super) fn get(&self, ask: Ask, measure: impl FnOnce() -> Weight) -> Arc<Weight> {
         let seen = {
             let last = lock(&self.last);
-            if let Some(weight) = last.weight.as_ref().filter(|weight| weight.is_complete()) {
+            if let Some(weight) = last.serves(ask) {
                 return Arc::clone(weight);
             }
             last.generation
         };
+        #[cfg(test)]
+        self.arrived
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let _measuring = lock(&self.measuring);
         {
             let last = lock(&self.last);
@@ -64,5 +95,12 @@ impl WeightCell {
         last.generation += 1;
         last.weight = Some(Arc::clone(&weight));
         weight
+    }
+
+    /// Returns how many calls have looked at the cell and gone on to
+    /// measure or wait.
+    #[cfg(test)]
+    fn arrived(&self) -> usize {
+        self.arrived.load(std::sync::atomic::Ordering::SeqCst)
     }
 }

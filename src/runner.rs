@@ -84,7 +84,7 @@ use self::runs::Runs;
 use self::trace::Trace;
 pub(crate) use self::vector::Argv;
 use self::vector::{Extra, Vector};
-use self::weight::WeightCell;
+use self::weight::{Ask, WeightCell};
 use crate::clock::Clock;
 use crate::model::weight::Weight;
 use crate::model::{Class, Command, Tool};
@@ -265,16 +265,27 @@ impl Runner {
         &self.tool
     }
 
-    /// Returns the weight of the tool's help pages, measured within the
-    /// help limits of the settings. A call while a measurement runs waits
-    /// for it and returns its weight. The runner keeps a complete
-    /// measurement, which every later call returns, so the tool's help runs
-    /// to its end at most once for the runner's life. A measurement with a
-    /// problem, or with pages that say `not_run` because its time limit
-    /// passed or a shutdown stopped it, is not kept, and the next call
-    /// after it ended measures again.
+    /// Returns the latest weight of the tool's help pages, and measures
+    /// them within the help limits of the settings only when there is no
+    /// measurement yet or the latest one has a problem. A partial
+    /// measurement, with pages that say `not_run` because its time limit
+    /// passed or a shutdown stopped it, is returned as it is. A call while a
+    /// measurement runs waits for it and returns its weight, so concurrent
+    /// calls never multiply help runs.
     pub fn weight(&self) -> Arc<Weight> {
-        self.weight.get(|| {
+        self.measured(Ask::Kept)
+    }
+
+    /// Returns the weight of the tool's help pages as [`Runner::weight`]
+    /// does, but measures again when the latest measurement is partial. A
+    /// complete measurement is never measured again.
+    pub fn weight_again(&self) -> Arc<Weight> {
+        self.measured(Ask::Again)
+    }
+
+    /// Returns the weight that `ask` asks for, measuring when it must.
+    fn measured(&self, ask: Ask) -> Arc<Weight> {
+        self.weight.get(ask, || {
             crate::model::weight::measure(
                 &self.program,
                 &self.tool,

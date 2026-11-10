@@ -41,21 +41,23 @@ pub(super) enum Method {
 pub(super) struct Head {
     method: Method,
     path: String,
+    query: Option<String>,
     headers: Vec<(String, String)>,
     body_length: Option<u64>,
 }
 
 impl Head {
-    /// Returns the head with `method`, the request target `target`, whose
-    /// path leaves out the query, and `headers`, with no declared body.
+    /// Returns the head with `method`, the request target `target`, split
+    /// into its path and its query, and `headers`, with no declared body.
     pub(super) fn new(method: Method, target: String, headers: Vec<(String, String)>) -> Self {
-        let path = match target.split_once('?') {
-            Some((path, _)) => path.to_owned(),
-            None => target,
+        let (path, query) = match target.split_once('?') {
+            Some((path, query)) => (path.to_owned(), Some(query.to_owned())),
+            None => (target, None),
         };
         Self {
             method,
             path,
+            query,
             headers,
             body_length: None,
         }
@@ -76,6 +78,12 @@ impl Head {
     /// Returns the request's path, such as `/api/model`.
     pub(super) fn path(&self) -> &str {
         &self.path
+    }
+
+    /// Returns the request's query, the text after the first `?` of its
+    /// target, such as `again=1`, or `None` when it has none.
+    pub(super) fn query(&self) -> Option<&str> {
+        self.query.as_deref()
     }
 
     /// Returns the body length that the request declares.

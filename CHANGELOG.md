@@ -41,12 +41,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   through `GET /api/weight`, and keeps them until it reloads. The server
   keeps a complete measurement, so a later request starts no further help
   run, and a request that arrives during a measurement shares it. A
-  measurement with a problem, or one that stopped before some pages at its
-  30-second limit or flightdeck's stop, is not kept: the tab shows a
-  Measure again button after it, or after a failed request, and the next
-  request measures again. Stopping flightdeck stops a measurement at once. It runs `-h` of each distinct
-  page once with a cleared environment and a
-  temporary `XDG_STATE_HOME` that it removes afterwards, so the person's
+  measurement with a problem is measured again by the next request. One
+  that stopped before some pages at its 30-second limit or flightdeck's
+  stop is kept, and the tab shows a Measure again button above it, which
+  sends `GET /api/weight?again=1` to measure again. The button also shows
+  after a failed request or a measurement with a problem. Stopping
+  flightdeck stops a measurement at once. It runs `-h` of each distinct
+  page once with a cleared environment and a temporary `XDG_STATE_HOME` that it removes afterwards, so the person's
   usage log never counts the measurement. It runs 4 pages at a time, stops
   a page after 2 seconds or 64 KiB, starts none after 30 seconds and
   measures at most 400 pages. A page whose path has a word that starts

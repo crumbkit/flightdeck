@@ -49,21 +49,23 @@ export type WeightReply = z.infer<typeof WeightReply>;
 const measureMs = 35_000;
 
 /**
- * The weight query (APP-10). The server keeps only a complete measurement,
- * so the page asks when the Weight tab first opens and keeps the reply
- * until it reloads. It asks again only when the person presses Measure
- * again, after a failed request, a measurement with a problem, or a
- * partial measurement.
+ * The weight query (APP-10). The server keeps its latest measurement, so
+ * the page asks when the Weight tab first opens and keeps the reply until
+ * it reloads. When the person presses Measure again, after a failed
+ * request, a measurement with a problem or a partial measurement, the page
+ * asks with `again`, which sends `?again=1` so that the server measures a
+ * partial measurement again rather than serving the one it kept.
  *
  * The request does not take the query's signal, so closing the tab before
  * the reply leaves the request open, and reopening it waits for the same
  * reply. A failure is not retried by itself, because a measurement that
  * timed out would time out again.
  */
-export function weightQuery() {
+export function weightQuery({ again = false }: { again?: boolean } = {}) {
+  const path = again ? "/api/weight?again=1" : "/api/weight";
   return queryOptions({
     queryKey: ["weight"],
-    queryFn: () => getJson("/api/weight", WeightReply, new AbortController().signal, measureMs),
+    queryFn: () => getJson(path, WeightReply, new AbortController().signal, measureMs),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
     retry: false,

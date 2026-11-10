@@ -665,7 +665,7 @@ fn two_weight_requests_at_once_share_one_measurement_and_a_later_one_reuses_it()
 
 #[cfg(unix)]
 #[test]
-fn a_request_after_a_measurement_stopped_by_its_time_limit_measures_again() {
+fn a_partial_measurement_is_kept_for_a_plain_request_and_measured_again_when_asked() {
     use crumbkit_flightdeck::runner;
     use crumbkit_flightdeck::spawn::HelpLimits;
 
@@ -680,8 +680,8 @@ fn a_request_after_a_measurement_stopped_by_its_time_limit_measures_again() {
         .runner(runner::Settings::new().help_limits(limits));
     serving(setup, |page| {
         let token = page.token();
-        let weight = || {
-            Call::get(page.port, "/api/weight")
+        let weight = |path: &str| {
+            Call::get(page.port, path)
                 .bearer(&token)
                 .send(page.port)
                 .json()
@@ -695,14 +695,17 @@ fn a_request_after_a_measurement_stopped_by_its_time_limit_measures_again() {
                 .count()
         };
 
-        let first = weight();
+        let first = weight("/api/weight");
         let runs_of_first = logged(&log).len();
-        let second = weight();
+        let plain = weight("/api/weight");
+        let runs_after_plain = logged(&log).len();
+        let again = weight("/api/weight?again=1");
 
         assert!(not_run(&first) > 0, "{first}");
-        assert!(not_run(&second) > 0, "{second}");
-        assert!(runs_of_first > 0);
-        assert_eq!(logged(&log).len(), runs_of_first * 2, "{:?}", logged(&log));
+        assert_eq!(plain, first);
+        assert_eq!(runs_after_plain, runs_of_first);
+        assert!(not_run(&again) > 0, "{again}");
+        assert!(logged(&log).len() > runs_after_plain, "{:?}", logged(&log));
         Then::Stop
     });
 }

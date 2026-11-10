@@ -156,13 +156,17 @@ describe("Weight", () => {
     expect(screen.getByRole("button", { name: "Measure again" })).toBeInTheDocument();
   });
 
-  it("measures again when the person presses Measure again after a failed request", async () => {
+  it("asks the server to measure again when the person presses Measure again after a failed request", async () => {
     let answer: (reply: Response) => void = () => {};
     const replies: (() => Promise<Response>)[] = [
       () => Promise.reject(new TypeError("timed out")),
       () => new Promise<Response>((resolve) => (answer = resolve)),
     ];
-    vi.stubGlobal("fetch", () => (replies.shift() ?? (() => Promise.reject()))());
+    const paths: string[] = [];
+    vi.stubGlobal("fetch", (path: string) => {
+      paths.push(path);
+      return (replies.shift() ?? (() => Promise.reject()))();
+    });
     renderWeight();
     await screen.findByRole("alert");
 
@@ -172,24 +176,33 @@ describe("Weight", () => {
     expect(screen.queryByRole("button", { name: "Measure again" })).toBeNull();
     answer(Response.json(measured));
     await screen.findByRole("table", { name: "Weight of each command's path" });
-    expect(replies).toHaveLength(0);
+    expect(paths).toEqual(["/api/weight", "/api/weight?again=1"]);
   });
 
-  it("shows the paths of a partial measurement under a line that says how many pages it missed", async () => {
-    stubWeight({
+  it("shows a partial measurement under a line that says how many pages it missed, and measures again when asked", async () => {
+    const partial: WeightReply = {
       ...measured,
       pages: measured.pages.map((each) =>
         each.path.length === 2 ? { ...each, bytes: null, failure: "not_run" as const } : each,
       ),
+    };
+    const replies = [partial, measured];
+    const paths: string[] = [];
+    vi.stubGlobal("fetch", async (path: string) => {
+      paths.push(path);
+      return Response.json(replies.shift());
     });
-
     renderWeight();
-
     await screen.findByRole("table", { name: "Weight of each command's path" });
     expect(screen.getByRole("status")).toHaveTextContent(
       "flightdeck stopped measuring before 2 help pages, at its 30 s limit or its own stop.",
     );
-    expect(screen.getByRole("button", { name: "Measure again" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Measure again" }));
+
+    await screen.findByRole("table", { name: "Weight of each command's path" });
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(paths).toEqual(["/api/weight", "/api/weight?again=1"]);
   });
 
   it("keeps the measurement going when the tab closes before the reply", async () => {

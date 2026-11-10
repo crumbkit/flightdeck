@@ -77,17 +77,18 @@ function Alert({ children }: { children: ReactNode }) {
 
 /**
  * The button that asks the server to measure the help pages again. It
- * returns the weight query to pending, so the tab shows its measuring line
- * and fetches a new reply.
+ * returns the weight query to pending, so the tab shows its measuring line,
+ * and fetches a new reply with `?again=1`. Prefetching never throws, and a
+ * failure lands in the query, where the tab shows it.
  */
 function MeasureAgain() {
   const queryClient = useQueryClient();
+  const measureAgain = () => {
+    queryClient.getQueryCache().find({ queryKey: weightQuery().queryKey })?.reset();
+    void queryClient.prefetchQuery(weightQuery({ again: true }));
+  };
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={() => void queryClient.resetQueries({ queryKey: weightQuery().queryKey })}
-    >
+    <Button variant="outline" size="sm" onClick={measureAgain}>
       <RotateCw aria-hidden="true" />
       Measure again
     </Button>
