@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use super::{ConfirmationId, Confirmations, MOST, Problem};
+use crate::clock::{Clock as _, SystemClock};
 use crate::model::{CommandsList, Tool};
 use crate::runner::RunRequest;
-use crate::runner::clock::{Clock as _, SystemClock};
 use crate::runner::vector::{Vector, build};
 
 /// shelf's `commands list` document at the commit that the install script
@@ -22,7 +22,9 @@ fn remove_2() -> Vector {
 #[test]
 fn an_id_prints_as_32_lowercase_hex_digits_and_parses_back() {
     let confirmations = Confirmations::new(Duration::from_secs(600));
-    let id = confirmations.issue(remove_2(), SystemClock.now()).unwrap();
+    let id = confirmations
+        .issue(remove_2(), SystemClock.now().instant())
+        .unwrap();
 
     let text = id.to_string();
     let parsed: ConfirmationId = text.parse().unwrap();
@@ -51,7 +53,7 @@ fn text_that_is_not_32_lowercase_hex_digits_is_no_id() {
 #[test]
 fn the_oldest_id_is_dropped_when_the_store_holds_its_most() {
     let confirmations = Confirmations::new(Duration::from_secs(600));
-    let start = SystemClock.now();
+    let start = SystemClock.now().instant();
     let oldest = confirmations.issue(remove_2(), start).unwrap();
     let mut later = Vec::new();
     for second in 1..=MOST {

@@ -76,9 +76,9 @@ realizations = ["src/open.rs", "src/server.rs"]
 
 [[binding]]
 rule = "BASE-5"
-owners = ["src/runner/clock.rs", "src/server.rs"]
-checks = ["the expiry test in tests/runner.rs", "the idle-limit tests in tests/server.rs"]
-note = "The runner reads the time only through a runner::Clock, and runner::SystemClock reads Instant::now. The server reads the time only through a server::Clock, and server::SystemClock reads Instant::now and SystemTime::now. The two stay separate because the runner needs only the monotonic clock. The tests pass a clock that they move forward."
+owners = ["src/clock.rs", "src/runner.rs", "src/server.rs"]
+checks = ["the expiry test in tests/runner.rs", "the idle-limit tests in tests/server.rs", "a_confirmation_is_refused_as_expired_once_the_shared_clock_passes_the_runners_deadline in tests/server.rs"]
+note = "One clock::Clock serves the runner and the server, and clock::SystemClock reads Instant::now and SystemTime::now. The runner reads moment.instant() from the clock, and the server reads both clocks of the moment. The server's own deadlines (src/server.rs and src/server/http.rs), the timing in the spawn modules (src/spawn.rs, src/spawn/browser.rs and src/spawn/stream.rs) and src/model.rs read Instant::now directly rather than through the clock. The tests pass a clock that they move forward."
 
 [[binding]]
 rule = "BASE-50"
@@ -96,6 +96,20 @@ requirement = """
 """
 reason = "The pull-request lane stays on one runner. The weekly macOS run catches a difference in process handling between Linux and macOS; finding it after merge is safe because the release lane runs the tests on both systems before it releases. The daily advisory run catches an advisory published against a dependency already on main, and finding it after merge is safe because nothing is released before it passes."
 realizations = [".github/workflows/ci.yml", "scripts/install-test-tools.sh"]
+
+[[decision]]
+id = "http-server"
+requirement = """
+The page's HTTP server stays hand-written on std::net, with httparse reading each request's line and headers. It changes to a server crate only when a crate provides all of the following:
+- A read deadline and a write deadline on each connection.
+- Configurable limits on the size of the request head, the number of headers and the size of the body.
+- A cap on the number of open connections.
+- Exact control of every response header.
+- No async runtime.
+- A size small enough for flightdeck to read in full.
+"""
+reason = "Writing the server by hand gives exact control of every limit and header, needs no async runtime and leaves fewer dependencies to review. docs/security.md binds the per-connection deadlines, the head and header limits and the connection cap to tests. A small synchronous server crate, tiny_http 0.12, exposes no per-connection read or write deadlines, no head or header limits and no connection cap, so adopting it would mean rebuilding each of those around it."
+realizations = ["src/server/http.rs", "src/server.rs", "Cargo.toml"]
 
 [[decision]]
 id = "release-profile"

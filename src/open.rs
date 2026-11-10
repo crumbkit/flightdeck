@@ -19,12 +19,11 @@ use crumbkit::{Code, Failure, Run, Sink};
 use signal_hook::consts::{SIGINT, SIGTERM};
 
 use crate::cli::OpenArgs;
+use crate::clock::{Clock as _, SystemClock};
 use crate::model::{self, LoadError};
 use crate::opener::Opener;
 use crate::runner::{self, Mode, Runner};
-use crate::server::{
-    Clock as _, Ended, IDLE_LIMIT, Listener, Server, Session, Settings, StartError, SystemClock,
-};
+use crate::server::{Ended, IDLE_LIMIT, Listener, Server, Session, Settings, StartError};
 use crate::spawn::{self, Exit, Program};
 
 #[cfg(test)]
@@ -155,7 +154,7 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
         tool,
         program,
         mode,
-        Arc::new(runner::SystemClock),
+        Arc::new(SystemClock),
         runner::Settings::new(),
     )
     .map_err(OpenError::Random)?;

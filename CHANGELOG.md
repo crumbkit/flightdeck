@@ -22,6 +22,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   same tool and never a program planted there. With a bare tool name it refuses
   to start with `flightdeck::tool::search_path` when a relative `PATH` entry
   cannot be made absolute.
+- A value in a result that is wholly an absolute http or https URL is a link
+  that opens in a new tab. No other scheme becomes a link.
 - flightdeck builds and runs on Windows, and a release attaches a Windows
   binary in a zip archive beside the macOS and Linux archives. On Windows a
   tool and every process it starts run in a job object, and a cancel, a
@@ -39,6 +41,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   runner and the page both read this field. Before, the page counted a command
   that declares both as read-only and offered Run, where the server asked for a
   confirmation or refused it under `--read-only`.
+- The library has one `clock::Clock`, one `clock::SystemClock` and one
+  `clock::Moment`, which the runner and the server share. They replace
+  `runner::Clock`, `runner::SystemClock`, `server::Clock`,
+  `server::SystemClock` and `server::Moment`. The runner reads
+  `moment.instant()` from the clock it is given.
 - flightdeck starts, reads and stops every child through crumbkit-process
   from crumbkit's repository, in place of its own process code. Runs and
   loads behave as before on macOS and Linux, with two exceptions. A load

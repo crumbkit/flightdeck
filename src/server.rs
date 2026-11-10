@@ -52,7 +52,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TryRecvError};
 use std::sync::{Mutex, OnceLock};
 use std::thread::Scope;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 
 use secrecy::{ExposeSecret as _, SecretString};
 use serde::{Deserialize, Serialize};
@@ -63,6 +63,7 @@ use self::reply::{Refusal, Replies, Reply};
 use self::request::{API, Address, Head, Method};
 pub use self::session::{CODE_LIFETIME, Session};
 use self::stream::{Pacing, Stream};
+use crate::clock::Clock;
 use crate::lock::lock;
 use crate::model::Tool;
 use crate::runner::{Choices, ChoicesRequest, MOST_RUNS, Mode, RunFailure, RunRequest, Runner};
@@ -86,60 +87,6 @@ pub const KEEPALIVE: Duration = Duration::from_secs(15);
 // needs a connection of its own. The runner's cap leaves at least half the
 // connections free while every run streams.
 const _: () = assert!(MOST_RUNS * 2 <= CONNECTION_LIMIT);
-
-/// The source of the current time, which tests replace to move time on
-/// without waiting.
-pub trait Clock: Sync {
-    /// Returns the current time by the monotonic clock and the wall clock.
-    fn now(&self) -> Moment;
-}
-
-/// The system's monotonic clock and wall clock.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct SystemClock;
-
-impl Clock for SystemClock {
-    fn now(&self) -> Moment {
-        Moment::new(Instant::now(), SystemTime::now())
-    }
-}
-
-/// One moment by the monotonic clock and by the wall clock.
-///
-/// On macOS the monotonic clock stops while the machine sleeps, and the
-/// wall clock keeps counting. A time limit that both clocks measure ends
-/// when either says that it has passed, so a sleeping machine cannot keep a
-/// launch code or an idle session valid for longer than its limit.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Moment {
-    monotonic: Instant,
-    wall: SystemTime,
-}
-
-impl Moment {
-    /// Returns the moment at `monotonic` by the monotonic clock and `wall`
-    /// by the wall clock.
-    #[must_use]
-    pub const fn new(monotonic: Instant, wall: SystemTime) -> Self {
-        Self { monotonic, wall }
-    }
-
-    /// Returns the moment by the wall clock.
-    #[must_use]
-    pub const fn wall(self) -> SystemTime {
-        self.wall
-    }
-
-    /// Returns how long has passed from `earlier` to this moment: the
-    /// longer of the two clocks' measures. A wall clock set back measures
-    /// no time.
-    #[must_use]
-    pub fn since(self, earlier: Self) -> Duration {
-        let monotonic = self.monotonic.saturating_duration_since(earlier.monotonic);
-        let wall = self.wall.duration_since(earlier.wall).unwrap_or_default();
-        monotonic.max(wall)
-    }
-}
 
 /// The server's limits.
 #[derive(Clone, Copy, Debug)]

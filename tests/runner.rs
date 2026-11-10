@@ -17,20 +17,21 @@ mod signals;
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 #[cfg(unix)]
 use crumbkit::Failure as _;
 use crumbkit::FieldValue;
+use crumbkit_flightdeck::clock::{Clock, Moment};
 use crumbkit_flightdeck::model::{self, Tool};
 #[cfg(unix)]
 use crumbkit_flightdeck::runner::{
     ChoicesRequest, Limits, RUN_BUSY, RUN_CLOSED, RUN_NO_DOCUMENT, RUN_OUTPUT_LIMIT,
 };
 use crumbkit_flightdeck::runner::{
-    Clock, ConfirmationId, Escalation, Mode, Outcome, RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION,
+    ConfirmationId, Escalation, Mode, Outcome, RUN_CONFIRMATION, RUN_NEEDS_CONFIRMATION,
     RUN_NOT_RUNNING, RUN_READ_ONLY, RUN_REFUSED, RUN_SPAWN, RunEvent, RunId, RunRequest, Runner,
-    Settings, SystemClock, Value,
+    Settings, Value,
 };
 use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
 use tempfile::TempDir;
@@ -84,13 +85,15 @@ fn isolated(program: impl Into<std::ffi::OsString>) -> (TempDir, Program) {
 #[derive(Debug)]
 struct TestClock {
     start: Instant,
+    start_wall: SystemTime,
     passed: Mutex<Duration>,
 }
 
 impl TestClock {
     fn new() -> Arc<Self> {
         Arc::new(Self {
-            start: SystemClock.now(),
+            start: Instant::now(),
+            start_wall: SystemTime::now(),
             passed: Mutex::new(Duration::ZERO),
         })
     }
@@ -101,8 +104,9 @@ impl TestClock {
 }
 
 impl Clock for TestClock {
-    fn now(&self) -> Instant {
-        self.start + *self.passed.lock().unwrap()
+    fn now(&self) -> Moment {
+        let passed = *self.passed.lock().unwrap();
+        Moment::new(self.start + passed, self.start_wall + passed)
     }
 }
 

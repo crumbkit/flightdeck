@@ -9,10 +9,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant, SystemTime};
 
+use crumbkit_flightdeck::clock::{Clock, Moment};
 use crumbkit_flightdeck::model;
 use crumbkit_flightdeck::opener::Opener;
 use crumbkit_flightdeck::runner::{self, Mode, Runner};
-use crumbkit_flightdeck::server::{Clock, Ended, Listener, Moment, Server, Session, Settings};
+use crumbkit_flightdeck::server::{Ended, Listener, Server, Session, Settings};
 use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
 use tempfile::TempDir;
 
@@ -20,7 +21,9 @@ use crate::http::{Call, Reply, exchange, launch_code};
 
 /// A clock that moves only when a test moves it. Its monotonic time and
 /// its wall-clock time move apart when the test moves only the wall clock,
-/// as on a machine that sleeps.
+/// as on a machine that sleeps. The runner and the server read the same
+/// clock.
+#[derive(Debug)]
 pub(crate) struct FakeClock {
     start: Instant,
     start_wall: SystemTime,
@@ -216,15 +219,8 @@ pub(crate) fn serving(setup: Setup, test: impl FnOnce(&Running<'_>) -> Then) -> 
         Some(path) => setup.program_at(path, &dirs),
         None => loaded,
     };
-    let runner = Runner::new(
-        tool,
-        program,
-        setup.mode,
-        Arc::new(runner::SystemClock),
-        setup.runner,
-    )
-    .unwrap();
-    let clock = FakeClock::new();
+    let clock = Arc::new(FakeClock::new());
+    let runner = Runner::new(tool, program, setup.mode, clock.clone(), setup.runner).unwrap();
     let listener = Listener::bind().unwrap();
     let port = listener.port();
     let session = Session::new(clock.now()).unwrap();
@@ -233,7 +229,7 @@ pub(crate) fn serving(setup: Setup, test: impl FnOnce(&Running<'_>) -> Then) -> 
     let server = Server::new(listener, session, runner, setup.server, None).unwrap();
     let stop = AtomicBool::new(false);
     std::thread::scope(|scope| {
-        let handle = scope.spawn(|| server.run(&clock, &stop));
+        let handle = scope.spawn(|| server.run(&*clock, &stop));
         let running = Running {
             port,
             code,
