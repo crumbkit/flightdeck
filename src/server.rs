@@ -11,8 +11,8 @@
 //! security headers of `reply` and `Connection: close`. The routes are these:
 //!
 //! - `POST /api/session` exchanges the launch code for the token, once.
-//! - `GET /api/model` returns the tool's model and whether the page is
-//!   read-only.
+//! - `GET /api/model` returns the tool's model, whether the page is
+//!   read-only and the directory that flightdeck started in.
 //! - `POST /api/runs` starts a run, `POST /api/previews` starts a preview,
 //!   and `POST /api/confirmations/<id>` starts a confirmed run. Each takes a
 //!   [`RunRequest`] and answers with the stream of `stream`, or with the
@@ -233,6 +233,7 @@ pub enum Ended {
 /// The document of `GET /api/model`.
 #[derive(Serialize)]
 struct ModelReply<'a> {
+    directory: Option<&'a str>,
     read_only: bool,
     tool: &'a Tool,
 }
@@ -288,8 +289,10 @@ impl Server {
         session: Session,
         runner: Runner,
         settings: Settings,
+        directory: Option<&str>,
     ) -> Result<Self, StartError> {
         let model = serde_json::to_vec(&ModelReply {
+            directory,
             read_only: runner.mode() == Mode::ReadOnly,
             tool: runner.tool(),
         })
@@ -652,7 +655,8 @@ fn failure_status(failure: &RunFailure) -> u16 {
         RunFailure::Refused { .. }
         | RunFailure::NeedsConfirmation { .. }
         | RunFailure::ReadOnly { .. }
-        | RunFailure::Confirmation { .. } => 422,
+        | RunFailure::Confirmation { .. }
+        | RunFailure::Directory { .. } => 422,
         RunFailure::NotRunning { .. } => 404,
         RunFailure::Busy { .. } | RunFailure::Closed => 503,
         RunFailure::Spawn { .. } | RunFailure::Random { .. } => 500,

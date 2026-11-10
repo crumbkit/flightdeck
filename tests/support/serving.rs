@@ -226,7 +226,7 @@ pub(crate) fn serving(setup: Setup, test: impl FnOnce(&Running<'_>) -> Then) -> 
     let session = Session::new(clock.now()).unwrap();
     let opener = Opener::write(&listener.origin(), session.launch_code().unwrap()).unwrap();
     let code = launch_code(&std::fs::read_to_string(opener.page()).unwrap());
-    let server = Server::new(listener, session, runner, setup.server).unwrap();
+    let server = Server::new(listener, session, runner, setup.server, None).unwrap();
     let stop = AtomicBool::new(false);
     std::thread::scope(|scope| {
         let handle = scope.spawn(|| server.run(&*clock, &stop));

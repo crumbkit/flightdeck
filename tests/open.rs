@@ -384,3 +384,136 @@ fn a_cancel_ends_a_run_with_exit_130_when_flightdeck_starts_with_interrupt_ignor
     assert_eq!(ended["outcome"]["kind"], "cancelled", "{ended}");
     assert_eq!(ended["exit"], 130, "{ended}");
 }
+
+#[test]
+fn open_serves_the_directory_it_started_in_and_a_relative_tool_path_still_runs_from_another() {
+    let launch = tempfile::tempdir().unwrap();
+    let elsewhere = tempfile::tempdir().unwrap();
+    std::fs::create_dir(launch.path().join("tools")).unwrap();
+    std::os::unix::fs::symlink(shelf(), launch.path().join("tools/shelf")).unwrap();
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &[
+            "open".as_ref(),
+            "./tools/shelf".as_ref(),
+            "--no-browser".as_ref(),
+        ],
+        dirs.path(),
+    );
+    command.current_dir(launch.path());
+    let open = Open::start_with(command, dirs);
+    let token = exchange(
+        open.port,
+        &launch_code(&std::fs::read_to_string(&open.page).unwrap()),
+    );
+
+    let model = Call::get(open.port, "/api/model")
+        .bearer(&token)
+        .send(open.port)
+        .json();
+    let list = json!({"path": ["books", "list"], "directory": elsewhere.path()});
+    let lines = Call::post(open.port, "/api/runs", &list.to_string())
+        .bearer(&token)
+        .stream(open.port)
+        .rest();
+
+    assert_eq!(
+        model["directory"],
+        json!(launch.path().canonicalize().unwrap())
+    );
+    assert_eq!(
+        lines.last().unwrap()["outcome"]["kind"],
+        "result",
+        "{lines:?}"
+    );
+}
+
+/// Writes the shell script `body` at `path`, and makes it runnable.
+fn write_script(path: &Path, body: &str) {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(path, format!("#!/bin/sh\n{body}\n")).unwrap();
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+}
+
+/// Returns how many lines the log at `path` holds, or 0 before it exists.
+fn starts(path: &Path) -> usize {
+    std::fs::read_to_string(path).map_or(0, |text| text.lines().count())
+}
+
+#[test]
+fn a_bare_tool_name_starts_only_the_tool_found_at_launch_and_never_one_planted_in_the_run_directory()
+ {
+    let launch = tempfile::tempdir().unwrap();
+    let chosen = tempfile::tempdir().unwrap();
+    let logs = tempfile::tempdir().unwrap();
+    let real = logs.path().join("real.log");
+    let planted = logs.path().join("planted.log");
+    write_script(
+        &launch.path().join("bin/shelf"),
+        &format!(
+            "echo started >> '{}'\nexec '{}' \"$@\"",
+            real.display(),
+            shelf().display()
+        ),
+    );
+    write_script(
+        &chosen.path().join("bin/shelf"),
+        &format!("echo started >> '{}'", planted.display()),
+    );
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &["open".as_ref(), "shelf".as_ref(), "--no-browser".as_ref()],
+        dirs.path(),
+    );
+    command
+        .current_dir(launch.path())
+        .env("PATH", "bin:/usr/bin:/bin");
+    let open = Open::start_with(command, dirs);
+    let token = exchange(
+        open.port,
+        &launch_code(&std::fs::read_to_string(&open.page).unwrap()),
+    );
+    let before = starts(&real);
+
+    let list = json!({"path": ["books", "list"], "directory": chosen.path()});
+    let lines = Call::post(open.port, "/api/runs", &list.to_string())
+        .bearer(&token)
+        .stream(open.port)
+        .rest();
+
+    assert_eq!(
+        lines.last().unwrap()["outcome"]["kind"],
+        "result",
+        "{lines:?}"
+    );
+    assert_eq!(starts(&planted), 0, "the planted program started");
+    assert_eq!(starts(&real), before + 1, "the tool did not start once");
+}
+
+#[test]
+fn a_bare_tool_name_is_refused_when_a_relative_path_entry_cannot_be_made_absolute() {
+    let base = tempfile::tempdir().unwrap();
+    let launch = base.path().join("with:colon");
+    std::fs::create_dir_all(launch.join("bin")).unwrap();
+    std::os::unix::fs::symlink(shelf(), launch.join("bin/shelf")).unwrap();
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &["open".as_ref(), "shelf".as_ref(), "--no-browser".as_ref()],
+        dirs.path(),
+    );
+
+    let output = command
+        .current_dir(&launch)
+        .env("PATH", "bin:/usr/bin:/bin")
+        .output()
+        .unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("flightdeck::tool::search_path"), "{stderr}");
+    assert!(stderr.contains("from another directory"), "{stderr}");
+    assert!(stderr.contains("the tool's path"), "{stderr}");
+    assert!(!stderr.contains("http://"), "{stderr}");
+}

@@ -9,6 +9,21 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Each run starts in a directory that the page chooses. The top bar shows the
+  working directory, which starts as the directory flightdeck started in and
+  can be changed by typing a path, and each run's card records the directory
+  it used. `POST /api/runs`, `/api/previews`, `/api/confirmations/<id>` and
+  `/api/choices` take an optional `directory`, which must be an absolute path
+  to a directory that flightdeck can enter or the request is refused with 422
+  and `flightdeck::run::directory`. A confirmation id binds the directory as well
+  as the command line, and `GET /api/model` names the directory flightdeck
+  started in. `flightdeck open` makes a relative program path and each
+  `PATH` entry absolute at launch, so a run in another directory starts the
+  same tool and never a program planted there. With a bare tool name it refuses
+  to start with `flightdeck::tool::search_path` when a relative `PATH` entry
+  cannot be made absolute.
+- A value in a result that is wholly an absolute http or https URL is a link
+  that opens in a new tab. No other scheme becomes a link.
 - flightdeck builds and runs on Windows, and a release attaches a Windows
   binary in a zip archive beside the macOS and Linux archives. On Windows a
   tool and every process it starts run in a job object, and a cancel, a

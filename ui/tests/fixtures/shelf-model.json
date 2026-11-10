@@ -1,4 +1,5 @@
 {
+  "directory": "/work/shelf",
   "read_only": false,
   "tool": {
     "name": "shelf",

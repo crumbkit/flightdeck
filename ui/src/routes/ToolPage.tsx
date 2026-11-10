@@ -17,6 +17,7 @@ import {
 import { frameQueue } from "@/clock";
 import { Composer, type FieldError } from "@/components/Composer";
 import { Confirmation } from "@/components/Confirmation";
+import { DirectoryControl } from "@/components/DirectoryControl";
 import { LineEditor, shownLine, type Typed } from "@/components/LineEditor";
 import { Palette } from "@/components/Palette";
 import { Rail } from "@/components/Rail";
@@ -74,6 +75,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
   const [fieldError, setFieldError] = useState<FieldError | null>(null);
   const [typed, setTyped] = useState<Typed | null>(null);
   const [finding, setFinding] = useState(false);
+  const [directory, setDirectory] = useState(reply.directory);
   const counter = useRef(0);
   const focuses = useRef(0);
   // Each running run's controller, by its number. Leaving the page aborts
@@ -127,6 +129,10 @@ export function ToolPage({ reply, onSignedOut }: Props) {
 
   const commandAt = (request: RunRequest) =>
     tool.commands.find((each) => each.path.join(" ") === request.path.join(" "));
+
+  /** Returns `request` in the directory that the top bar shows as Run is pressed. */
+  const inShownDirectory = (request: RunRequest): RunRequest =>
+    directory === null ? request : { ...request, directory };
 
   /**
    * Streams the events of `open` into card `number`, and closes the card
@@ -293,7 +299,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     const draft = draftFrom(command, request);
     choose(command, draft);
     if (whyNotRunnable(command, reply.read_only) === null && missing(command, draft).length === 0) {
-      begin(request, false, draft);
+      begin(inShownDirectory(request), false, draft);
     }
   };
 
@@ -317,7 +323,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     setComposing({ ...next, editing: null });
     const { command, draft } = next;
     if (whyNotRunnable(command, reply.read_only) === null && missing(command, draft).length === 0) {
-      begin(requestOf(command, draft), longOf(draft), draft);
+      begin(inShownDirectory(requestOf(command, draft)), longOf(draft), draft);
     }
   };
 
@@ -362,7 +368,9 @@ export function ToolPage({ reply, onSignedOut }: Props) {
         version={tool.version}
         readOnly={reply.read_only}
         onFind={() => setFinding(true)}
-      />
+      >
+        <DirectoryControl directory={directory} onChange={setDirectory} />
+      </Topbar>
       <div className="flex min-h-0 flex-1">
         <Rail
           tool={tool}
@@ -448,6 +456,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
                 readOnly={reply.read_only}
                 fieldError={fieldError}
                 lineRefused={lineRefused}
+                directory={directory}
                 onChange={(draft) => setComposing({ ...composing, draft })}
                 onRun={() => run(composing)}
                 onStopEditing={() => setComposing({ ...composing, editing: null })}

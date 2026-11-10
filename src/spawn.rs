@@ -39,8 +39,10 @@
 //! outside the job that holds a pipe open holds the query until it closes
 //! the pipe.
 
+use std::env;
 use std::ffi::{OsStr, OsString};
 use std::io;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use crumbkit_process::{Capture, Outcome, OverLimit, RunError, RunOptions, Status};
@@ -74,12 +76,14 @@ pub const STDOUT_LIMIT: usize = 16 * 1024 * 1024;
 /// The most bytes at the end of standard error that a query keeps.
 pub const STDERR_LIMIT: usize = 64 * 1024;
 
-/// A program to start, by name or path, and the variables that its runs get
-/// beside flightdeck's own environment.
+/// A program to start, by name or path, the variables that its runs get
+/// beside flightdeck's own environment, and the directory that its runs
+/// start in when that is not flightdeck's own.
 #[derive(Clone, Debug)]
 pub struct Program {
     program: OsString,
     env: Vec<(OsString, OsString)>,
+    directory: Option<PathBuf>,
 }
 
 impl Program {
@@ -89,6 +93,57 @@ impl Program {
         Self {
             program: program.into(),
             env: Vec::new(),
+            directory: None,
+        }
+    }
+
+    /// Returns the program given as `program`, for a flightdeck that started
+    /// in `launch` with the search path `search`, so that it resolves the
+    /// same way in whichever directory a run starts.
+    ///
+    /// A relative path is made absolute against `launch`, because it would
+    /// stop resolving once a child starts in another directory. A name
+    /// without a separator stays a name for the `PATH` search, and each
+    /// entry of `search` is made absolute against `launch`, because a child's
+    /// search reads a relative or empty entry from the child's own directory,
+    /// where a chosen directory's `./bin/<tool>` would start instead of the
+    /// tool. Without `launch`, because flightdeck's own directory is gone, a
+    /// relative path stays as it was given, and the load of the tool then
+    /// reports a program that it cannot find.
+    ///
+    /// Returns `None` for a bare name when a relative entry cannot be made
+    /// absolute, because flightdeck's own directory is gone or its name holds
+    /// the search path's separator. Leaving that entry out could select
+    /// another tool, or leave an empty `PATH` that searches the child's own
+    /// directory.
+    ///
+    /// RUST-10: a tool given by its path keeps the `PATH` it inherited when
+    /// an entry cannot be made absolute, because that `PATH` cannot change
+    /// which tool starts. It handles the launch of that tool, and it misses
+    /// a program that the tool itself starts by a bare name through the
+    /// relative entry. A search path format that can hold any directory
+    /// would replace it.
+    #[must_use]
+    pub fn at_launch(
+        program: impl Into<OsString>,
+        launch: Option<&Path>,
+        search: Option<&OsStr>,
+    ) -> Option<Self> {
+        let program = program.into();
+        let path = Path::new(&program);
+        let bare = path.components().count() < 2;
+        let resolved = match launch {
+            Some(launch) if !bare && path.is_relative() => launch.join(path).into_os_string(),
+            _ => program,
+        };
+        let launched = Self::new(resolved);
+        let Some(search) = search else {
+            return Some(launched);
+        };
+        match absolute_search(search, launch) {
+            Some(search) => Some(launched.env("PATH", search)),
+            None if bare => None,
+            None => Some(launched),
         }
     }
 
@@ -100,14 +155,26 @@ impl Program {
         self
     }
 
+    /// Returns the program with every run starting in `directory`, with
+    /// `PWD` naming it, so a tool that reads `PWD` sees the directory as the
+    /// page named it rather than flightdeck's own.
+    #[must_use]
+    pub fn current_dir(self, directory: impl Into<PathBuf>) -> Self {
+        let directory = directory.into();
+        let mut program = self.env("PWD", directory.clone());
+        program.directory = Some(directory);
+        program
+    }
+
     /// Returns the name or path that the program was given.
     #[must_use]
     pub fn name(&self) -> &OsStr {
         &self.program
     }
 
-    /// Returns the command that runs the program with `words` and its added
-    /// variables. crumbkit-process sets its standard streams.
+    /// Returns the command that runs the program with `words`, its added
+    /// variables and its directory. crumbkit-process sets its standard
+    /// streams.
     fn command<S: AsRef<OsStr>>(&self, words: &[S]) -> std::process::Command {
         #[expect(
             clippy::disallowed_methods,
@@ -117,8 +184,32 @@ impl Program {
         command
             .args(words)
             .envs(self.env.iter().map(|(name, value)| (name, value)));
+        if let Some(directory) = &self.directory {
+            command.current_dir(directory);
+        }
         command
     }
+}
+
+/// Returns the search path `search` with each entry absolute against
+/// `launch`, where an empty entry means `launch` itself, or `None` when a
+/// relative entry cannot be made absolute: there is no `launch`, or the
+/// absolute form holds the search path's separator.
+fn absolute_search(search: &OsStr, launch: Option<&Path>) -> Option<OsString> {
+    let entries = env::split_paths(search)
+        .map(|entry| {
+            if entry.is_absolute() {
+                return Some(entry);
+            }
+            let launch = launch?;
+            Some(if entry.as_os_str().is_empty() {
+                launch.to_path_buf()
+            } else {
+                launch.join(entry)
+            })
+        })
+        .collect::<Option<Vec<PathBuf>>>()?;
+    env::join_paths(entries).ok()
 }
 
 /// A query that reads part of a crumbkit tool's description of itself.

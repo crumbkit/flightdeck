@@ -186,6 +186,9 @@ export function RunCard(props: Props) {
           {status.words}
         </span>
         <LiveStatus words={status.words} running={running} />
+        {run.request.directory !== undefined && (
+          <span className="font-mono wrap-anywhere">in {run.request.directory}</span>
+        )}
         <span className="ml-auto flex items-center gap-3">
           {state.kind === "running" && state.id !== null && (
             <button

@@ -30,6 +30,8 @@ type Props = {
   fieldError: FieldError | null;
   /** True while the line holds a word the tool would refuse, which keeps Run off. */
   lineRefused: boolean;
+  /** The directory shown in the top bar, or null for where flightdeck started. */
+  directory: string | null;
   onChange: (draft: Draft) => void;
   onRun: () => void;
   onStopEditing: () => void;
@@ -182,7 +184,7 @@ type FieldProps = Props & { group: FieldGroup };
  * One field, with a switch between alternatives when it has them, and the
  * IDs chooser when an inferred link fills the chosen argument.
  */
-function Field({ tool, command, group, draft, onChange, fieldError }: FieldProps) {
+function Field({ tool, command, group, draft, directory, onChange, fieldError }: FieldProps) {
   const chosen = chosenOf(draft, group);
   const [first] = group.choices;
   if (chosen === undefined || first === undefined) {
@@ -228,6 +230,7 @@ function Field({ tool, command, group, draft, onChange, fieldError }: FieldProps
           tool={tool}
           link={link}
           many={chosen.arity.kind === "many"}
+          directory={directory}
           value={draft.values[chosen.name]}
           onValue={(value) => onChange(setValue(draft, chosen.name, value))}
         />
