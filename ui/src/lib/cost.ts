@@ -33,7 +33,15 @@ export function periodWords(
     sessions === null
       ? counted(runs, "run")
       : `${counted(runs, "run")} in ${counted(sessions, "session")}`;
-  return since === null ? count : `${count}, ${dayWords(since)} to ${dayWords(today)}`;
+  return withPeriod(count, since, today);
+}
+
+/**
+ * Returns `words` followed by the days from `since` to `today`, such as
+ * "86 runs, 27 Oct to 10 Nov", or `words` alone when `since` is null.
+ */
+export function withPeriod(words: string, since: Day | null, today: Day): string {
+  return since === null ? words : `${words}, ${dayWords(since)} to ${dayWords(today)}`;
 }
 
 /**

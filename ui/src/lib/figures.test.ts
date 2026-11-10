@@ -19,23 +19,33 @@ function figures(runs: number, change: Partial<Figures> = {}): Figures {
   };
 }
 
-/** Returns a row of `command` with `figures`, or with none. */
+/** Returns a counted row of `command` with `figures`, or with none. */
 function row(command: string, of: Figures | null): FigureRow {
-  return { command, figures: of };
+  return { command, figures: of, counted: true };
 }
 
 const today = { year: 2026, month: 11, day: 10 };
 
 describe("figureRows", () => {
-  it("gives every command a row, with null figures for a command the figures hold no row for", () => {
-    const list = {
-      ...commandOf(shelf, "books list"),
-      cost: { figures: figures(3), findings: null },
-    };
+  it("gives every command a row, with no figures for a command that has no figures row or a row of no runs", () => {
+    const costed = (path: string, of: Figures) => ({
+      ...commandOf(shelf, path),
+      cost: { figures: of, findings: null },
+    });
 
-    const rows = figureRows([list, commandOf(shelf, "books show")]);
+    const rows = figureRows([
+      costed("books list", figures(3)),
+      costed("books summarize", figures(0)),
+      commandOf(shelf, "books show"),
+      commandOf(shelf, "commands list"),
+    ]);
 
-    expect(rows).toEqual([row("books list", figures(3)), row("books show", null)]);
+    expect(rows).toEqual([
+      row("books list", figures(3)),
+      row("books summarize", null),
+      row("books show", null),
+      { command: "commands list", figures: null, counted: false },
+    ]);
   });
 });
 
@@ -45,6 +55,7 @@ describe("sortedRows", () => {
     row("books add", null),
     row("books list", figures(9, { failed: 0, p95_ms: null })),
     row("loans list", figures(5, { failed: 1, p95_ms: 40 })),
+    { command: "about", figures: null, counted: false },
   ];
   const order = (key: Parameters<typeof sortedRows>[1], direction: "ascending" | "descending") =>
     sortedRows(rows, key, direction).map((each) => each.command);
@@ -55,21 +66,24 @@ describe("sortedRows", () => {
       "books show",
       "loans list",
       "books add",
+      "about",
     ]);
   });
 
-  it("puts a command with no figure for the key last in either direction", () => {
+  it("puts a command the figures do not count last, then one with no figure for the key, in either direction", () => {
     expect(order("p95_ms", "descending")).toEqual([
       "books show",
       "loans list",
       "books add",
       "books list",
+      "about",
     ]);
     expect(order("p95_ms", "ascending")).toEqual([
       "loans list",
       "books show",
       "books add",
       "books list",
+      "about",
     ]);
   });
 
@@ -79,12 +93,14 @@ describe("sortedRows", () => {
       "books list",
       "books show",
       "loans list",
+      "about",
     ]);
     expect(order("command", "descending")).toEqual([
       "loans list",
       "books show",
       "books list",
       "books add",
+      "about",
     ]);
   });
 });
@@ -95,11 +111,12 @@ describe("figuresSummary", () => {
       row("books list", figures(2_700)),
       row("books show", figures(27)),
       row("books add", null),
+      { command: "self usage", figures: figures(9), counted: false },
     ];
 
     expect(figuresSummary(rows, { year: 2026, month: 11, day: 3 }, today)).toBe(
-      "2,727 runs of 3 commands, 3 Nov to 10 Nov",
+      "2,727 runs of 4 commands, 3 Nov to 10 Nov",
     );
-    expect(figuresSummary(rows, null, today)).toBe("2,727 runs of 3 commands");
+    expect(figuresSummary(rows, null, today)).toBe("2,727 runs of 4 commands");
   });
 });

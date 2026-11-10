@@ -5,7 +5,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use super::argument::{Argument, CrumbkitFlag};
-use super::figures::Cost;
+use super::figures::{Cost, is_loader_query};
 use super::wire::CommandRow;
 
 /// The words of a command below the tool's name, such as `books list`. It
@@ -83,6 +83,11 @@ pub struct Command {
     writes: Option<Writes>,
     #[serde(flatten)]
     cost: Costed,
+    /// Whether the figures count the command's runs. The loader's own
+    /// queries, such as `commands list`, are not counted, because their
+    /// runs are left out of the figures by name (RUST-10 in `figures.rs`),
+    /// so the page says so rather than showing that agents never ran them.
+    counted: bool,
     #[serde(skip)]
     prints_no_result: bool,
 }
@@ -91,8 +96,10 @@ impl Command {
     /// Returns the command of a `commands list` row, with only the row's own
     /// arguments.
     pub(super) fn from_row(row: CommandRow) -> Self {
+        let path = CommandPath::from_row(&row.path);
         Self {
-            path: CommandPath::from_row(&row.path),
+            counted: !is_loader_query(&path.to_string()),
+            path,
             about: row.about,
             long_about: row.long_about,
             arguments: row.arguments.into_iter().map(Argument::from_row).collect(),

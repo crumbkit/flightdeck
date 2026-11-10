@@ -21,9 +21,10 @@ function figures(runs: number, failed: number, p95_ms: number): FiguresOf {
 }
 
 const rows: FigureRow[] = [
-  { command: "books show", figures: figures(611, 48, 64) },
-  { command: "books export", figures: null },
-  { command: "books list", figures: figures(842, 0, 1240) },
+  { command: "self usage", figures: null, counted: false },
+  { command: "books show", figures: figures(611, 48, 64), counted: true },
+  { command: "books export", figures: null, counted: true },
+  { command: "books list", figures: figures(842, 0, 1240), counted: true },
 ];
 
 /** Renders the tab, and returns the commands it opens. */
@@ -43,14 +44,18 @@ function cells(): string[][] {
 }
 
 describe("Figures", () => {
-  it("lists every command by runs, most first, with a dash for each figure of a command that never ran", () => {
+  it("lists every command by runs, most first, with a dash for each figure of a command that never ran and an uncounted command last", () => {
     renderFigures();
 
     expect(cells()).toEqual([
       ["books list", "842", "0", "1", "3", "12 ms", "1.2 s", "940 B", "2,310 B"],
       ["books show", "611", "48", "1", "3", "12 ms", "64 ms", "940 B", "2,310 B"],
       ["books export", "0", "–", "–", "–", "–", "–", "–", "–"],
+      ["self usage", "not counted"],
     ]);
+    expect(
+      screen.getByText(/^Not counted: flightdeck runs these commands itself to load shelf/),
+    ).toBeVisible();
     const table = screen.getByRole("table", { name: "Figures of each command" });
     expect(within(table).getByRole("columnheader", { name: "Runs" })).toHaveAttribute(
       "aria-sort",
@@ -68,11 +73,21 @@ describe("Figures", () => {
 
     await userEvent.click(within(table).getByRole("button", { name: "Failed" }));
 
-    expect(cells().map((row) => row[0])).toEqual(["books show", "books list", "books export"]);
+    expect(cells().map((row) => row[0])).toEqual([
+      "books show",
+      "books list",
+      "books export",
+      "self usage",
+    ]);
 
     await userEvent.click(within(table).getByRole("button", { name: /^Failed/ }));
 
-    expect(cells().map((row) => row[0])).toEqual(["books list", "books show", "books export"]);
+    expect(cells().map((row) => row[0])).toEqual([
+      "books list",
+      "books show",
+      "books export",
+      "self usage",
+    ]);
     expect(within(table).getByRole("columnheader", { name: /^Failed/ })).toHaveAttribute(
       "aria-sort",
       "ascending",
@@ -89,10 +104,11 @@ describe("Figures", () => {
       within(list)
         .getAllByRole("listitem")
         .map((item) => within(item).getByRole("button").textContent),
-    ).toEqual(["books export", "books list", "books show"]);
+    ).toEqual(["books export", "books list", "books show", "self usage"]);
     expect(within(list).getAllByRole("listitem")[0]).toHaveTextContent(
       "books export0 runs–failed–refused–help before– · –wall time, median · p95– · –output, median · p95",
     );
+    expect(within(list).getAllByRole("listitem")[3]).toHaveTextContent(/^self usagenot counted$/);
   });
 
   it("opens the form of the command whose name is pressed", async () => {

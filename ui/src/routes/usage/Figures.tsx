@@ -1,9 +1,14 @@
 import { cn } from "cn";
 import { type ReactNode, useState } from "react";
-import type { Figures as FiguresOf } from "@/api/model";
 import { bytesWords, grouped } from "@/lib/cost";
 import { elapsedWords } from "@/lib/duration";
-import { type Direction, type FigureKey, type FigureRow, sortedRows } from "@/lib/figures";
+import {
+  type Direction,
+  type FigureKey,
+  type FigureRow,
+  figureOf,
+  sortedRows,
+} from "@/lib/figures";
 
 type Props = {
   /** The tool's name, such as "shelf". */
@@ -40,11 +45,6 @@ function Value({
   words?: (n: number) => string;
 }) {
   return value === null ? <span className="text-faint-foreground">–</span> : words(value);
-}
-
-/** Returns the figure of `figures` that `key` names, or null. */
-function of(figures: FiguresOf | null, key: Exclude<FigureKey, "command" | "runs">) {
-  return figures === null ? null : figures[key];
 }
 
 /**
@@ -141,70 +141,89 @@ export function Figures({ name, rows, onOpen }: Props) {
             </tr>
           </thead>
           <tbody>
-            {sorted.map(({ command: path, figures }) => {
-              const failed = of(figures, "failed");
+            {sorted.map((row) => {
+              const of = (key: Exclude<FigureKey, "command">) => figureOf(row, key);
+              const failed = of("failed");
               return (
-                <tr key={path} className="hover:bg-muted border-b last:border-b-0">
+                <tr key={row.command} className="hover:bg-muted border-b last:border-b-0">
                   <th scope="row" className="px-2.5 py-1.5 text-left font-normal">
-                    {command(path)}
+                    {command(row.command)}
                   </th>
-                  <Cell>{grouped(figures?.runs ?? 0)}</Cell>
-                  <Cell className={cn(failed !== null && failed > 0 && "text-destructive")}>
-                    <Value value={failed} />
-                  </Cell>
-                  <Cell>
-                    <Value value={of(figures, "refused")} />
-                  </Cell>
-                  <Cell>
-                    <Value value={of(figures, "help_before")} />
-                  </Cell>
-                  <Cell>
-                    <Value value={of(figures, "p50_ms")} words={elapsedWords} />
-                  </Cell>
-                  <Cell>
-                    <Value value={of(figures, "p95_ms")} words={elapsedWords} />
-                  </Cell>
-                  <Cell>
-                    <Value value={of(figures, "p50_out_bytes")} words={bytesWords} />
-                  </Cell>
-                  <Cell>
-                    <Value value={of(figures, "p95_out_bytes")} words={bytesWords} />
-                  </Cell>
+                  {row.counted ? (
+                    <>
+                      <Cell>
+                        <Value value={of("runs")} />
+                      </Cell>
+                      <Cell className={cn(failed !== null && failed > 0 && "text-destructive")}>
+                        <Value value={failed} />
+                      </Cell>
+                      <Cell>
+                        <Value value={of("refused")} />
+                      </Cell>
+                      <Cell>
+                        <Value value={of("help_before")} />
+                      </Cell>
+                      <Cell>
+                        <Value value={of("p50_ms")} words={elapsedWords} />
+                      </Cell>
+                      <Cell>
+                        <Value value={of("p95_ms")} words={elapsedWords} />
+                      </Cell>
+                      <Cell>
+                        <Value value={of("p50_out_bytes")} words={bytesWords} />
+                      </Cell>
+                      <Cell>
+                        <Value value={of("p95_out_bytes")} words={bytesWords} />
+                      </Cell>
+                    </>
+                  ) : (
+                    <td colSpan={8} className="text-muted-foreground px-2.5 py-1.5 text-left">
+                      not counted
+                    </td>
+                  )}
                 </tr>
               );
             })}
           </tbody>
         </table>
         <ul aria-label="Figures of each command" className="m-0 list-none p-0 md:hidden">
-          {sorted.map(({ command: path, figures }) => {
-            const failed = of(figures, "failed");
+          {sorted.map((row) => {
+            const of = (key: Exclude<FigureKey, "command">) => figureOf(row, key);
+            const failed = of("failed");
+            const runs = of("runs") ?? 0;
             return (
-              <li key={path} className="border-b px-3 py-2.25 last:border-b-0">
+              <li key={row.command} className="border-b px-3 py-2.25 last:border-b-0">
                 <div className="flex items-baseline justify-between gap-2 text-xs">
-                  {command(path)}
-                  <span className="font-mono tabular-nums">
-                    {grouped(figures?.runs ?? 0)} {figures?.runs === 1 ? "run" : "runs"}
-                  </span>
+                  {command(row.command)}
+                  {row.counted ? (
+                    <span className="font-mono tabular-nums">
+                      {grouped(runs)} {runs === 1 ? "run" : "runs"}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">not counted</span>
+                  )}
                 </div>
-                <div className="mt-1 grid grid-cols-6 gap-x-2.5 gap-y-0.5 text-xs">
-                  <Pair label="failed" className="col-span-2" bad={failed !== null && failed > 0}>
-                    <Value value={failed} />
-                  </Pair>
-                  <Pair label="refused" className="col-span-2">
-                    <Value value={of(figures, "refused")} />
-                  </Pair>
-                  <Pair label="help before" className="col-span-2">
-                    <Value value={of(figures, "help_before")} />
-                  </Pair>
-                  <Pair label="wall time, median · p95" className="col-span-3">
-                    <Value value={of(figures, "p50_ms")} words={elapsedWords} /> ·{" "}
-                    <Value value={of(figures, "p95_ms")} words={elapsedWords} />
-                  </Pair>
-                  <Pair label="output, median · p95" className="col-span-3">
-                    <Value value={of(figures, "p50_out_bytes")} words={bytesWords} /> ·{" "}
-                    <Value value={of(figures, "p95_out_bytes")} words={bytesWords} />
-                  </Pair>
-                </div>
+                {row.counted && (
+                  <div className="mt-1 grid grid-cols-6 gap-x-2.5 gap-y-0.5 text-xs">
+                    <Pair label="failed" className="col-span-2" bad={failed !== null && failed > 0}>
+                      <Value value={failed} />
+                    </Pair>
+                    <Pair label="refused" className="col-span-2">
+                      <Value value={of("refused")} />
+                    </Pair>
+                    <Pair label="help before" className="col-span-2">
+                      <Value value={of("help_before")} />
+                    </Pair>
+                    <Pair label="wall time, median · p95" className="col-span-3">
+                      <Value value={of("p50_ms")} words={elapsedWords} /> ·{" "}
+                      <Value value={of("p95_ms")} words={elapsedWords} />
+                    </Pair>
+                    <Pair label="output, median · p95" className="col-span-3">
+                      <Value value={of("p50_out_bytes")} words={bytesWords} /> ·{" "}
+                      <Value value={of("p95_out_bytes")} words={bytesWords} />
+                    </Pair>
+                  </div>
+                )}
               </li>
             );
           })}
@@ -213,6 +232,12 @@ export function Figures({ name, rows, onOpen }: Props) {
       <p className="text-faint-foreground m-0 mt-2.5 text-xs">
         From <code>{name} self figures list</code>. Choose a command to open its form.
       </p>
+      {rows.some((row) => !row.counted) && (
+        <p className="text-faint-foreground m-0 mt-1 text-xs">
+          Not counted: flightdeck runs these commands itself to load {name}, and the figures cannot
+          tell its runs from an agent's, so they leave out every run of them.
+        </p>
+      )}
     </div>
   );
 }

@@ -243,6 +243,25 @@ fn a_command_that_the_figures_do_not_list_and_the_loaders_own_queries_have_no_co
 }
 
 #[test]
+fn the_loaders_own_queries_are_marked_as_not_counted_and_the_tools_commands_as_counted() {
+    let tool = shelf_with_costs(FIGURES, Some(USAGE));
+    let counted = |words: &[&str]| {
+        serde_json::to_value(tool.command(words).unwrap()).unwrap()["counted"].clone()
+    };
+
+    for words in [
+        ["commands", "list"].as_slice(),
+        &["schemas", "list"],
+        &["schemas", "show"],
+        &["self", "figures", "list"],
+        &["self", "usage"],
+    ] {
+        assert_eq!(counted(words), serde_json::json!(false), "{words:?}");
+    }
+    assert_eq!(counted(&["books", "remove"]), serde_json::json!(true));
+}
+
+#[test]
 fn fields_that_a_newer_crumbkit_adds_are_ignored_and_the_known_ones_still_read() {
     let figures = edited(FIGURES, |document| {
         for row in document["data"].as_array_mut().unwrap() {

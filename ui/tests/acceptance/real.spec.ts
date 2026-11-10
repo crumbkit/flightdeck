@@ -663,6 +663,12 @@ test.describe("shelf after an agent ran books show", () => {
     await expect(rows.nth(2)).toContainText(/^books show22/);
     await expect(rows.nth(3)).toContainText(/^books list10/);
     await expect(rows.nth(4)).toHaveText(/^books remove0(–){7}$/);
+    // flightdeck's own loader queries come last, marked as not counted.
+    await expect(rows.nth(6)).toHaveText("commands listnot counted");
+    await expect(rows.last()).toHaveText("self usagenot counted");
+    await expect(
+      page.getByText(/^Not counted: flightdeck runs these commands itself/),
+    ).toBeVisible();
     await expectNoAccessibilityViolations(page);
 
     await table.getByRole("button", { name: "Command", exact: true }).click();
