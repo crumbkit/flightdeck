@@ -71,19 +71,27 @@ What works today:
   `self figures list`, the model also reads what each command costs the
   agents that call it: how often the tool's usage log saw it run, fail and
   have its command line refused, the help pages read before it, and the
-  95th percentile of its wall time and output. When the tool also mounts
-  `self usage`, which runs at the same time, each command gets the tool's
-  findings about it, such as a retry after a failure. When the figures fail,
-  every count stays 0 and the tool still loads; when the findings fail, the
-  figures stay without them. `commands list`, `schemas list`,
-  `schemas show`, `self figures list` and `self usage` keep no count and no
-  cost, because the figures also count the runs that flightdeck makes to
-  load the tool.
+  median and 95th percentile of its wall time and output. When the tool
+  also mounts `self usage`, which runs at the same time, each command gets
+  the tool's findings about it, such as a retry after a failure. When it
+  mounts `self runs list`, which also runs at the same time, the model
+  holds each run of the last 7 days in order within its session: its
+  command, the names of the flags it passed, whether it printed help, its
+  exit code and failure code, its wall time and its output in bytes. When
+  the figures fail, every count stays 0 and the tool still loads; when the
+  findings or the runs fail, the figures stay without them. `commands list`,
+  `schemas list`, `schemas show`, `self figures list`, `self usage` and
+  `self runs list` keep no count and no cost, and the runs leave them and
+  the tool's `--version` out, because the usage log also records the runs
+  that flightdeck makes to load the tool.
 - The page in `ui/` is a React application. It lists the tool's commands
   grouped by goal, finds a command with ⌘K, builds a run from a form that
   starts with what the command costs an agent when the tool keeps figures
   for it, and shows each run as a card with its result as a table or a
-  record. A stream's rows appear as they arrive, under the time since the run
+  record. When the tool lists its runs, a Usage view in the top bar shows
+  which command followed which, each session's runs and the flags each
+  command's runs passed; it loads in its own file the first time it opens.
+  A stream's rows appear as they arrive, under the time since the run
   started and a count of its rows, and Cancel or ⌘. stops the run and
   keeps the rows that came. A failure shows its message, cause, code,
   fields and labels, and its recovery and alternatives as chips that fill

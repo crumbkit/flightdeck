@@ -9,6 +9,22 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- When the tool mounts `self runs list`, the page has a Usage view, reached
+  from Commands and Usage in the top bar or from Steps, Sessions and Flags
+  on a command's cost card. Steps is a matrix of which command an agent ran
+  next within a session, with the steps before and after the chosen command
+  and the commands run twice in a row. Sessions shows each session that ran
+  the command as a lane of runs coloured by what became of each one, and
+  one session run by run. Flags shows, for each command, how many runs
+  passed each flag, the flags no run passed and the defaults runs override.
+  The cost card adds the median wall time and output, the sessions that ran
+  the command and its failures by code. `GET /api/model` gives the tool a
+  `history` of runs, or null, and each command's figures a `p50_ms` and
+  `p50_out_bytes`. The loader runs `self runs list --json --full --all
+  --no-input` beside the figures and leaves out its own queries and the
+  tool's `--version`. A count of the wrong JSON type in the figures is read
+  as not reported for that figure alone. The test tools move to
+  crumbkit/crumbkit#328, whose shelf prints the runs list and the medians.
 - Each run starts in a directory that the page chooses. The top bar shows the
   working directory, which starts as the directory flightdeck started in and
   can be changed by typing a path, and each run's card records the directory

@@ -1,6 +1,8 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import type { Cost, Finding } from "@/api/model";
+import type { Cost, Finding, Run } from "@/api/model";
+import type { UsageTab } from "@/lib/cost";
 import { CostCard } from "./CostCard";
 
 /** Returns a finding of `kind` that counts `runs`, with `code` when given. */
@@ -16,7 +18,9 @@ const everyFigure: Cost = {
     help_before: 11,
     refused: 0,
     failed: 31,
+    p50_ms: 5900,
     p95_ms: 65_100,
+    p50_out_bytes: 142,
     p95_out_bytes: 1384,
   },
   findings: [
@@ -63,8 +67,10 @@ describe("CostCard", () => {
 
     const card = screen.getByRole("region", { name: "Cost to an agent" });
     expect(card).toHaveTextContent("86 runs, 27 Oct to 10 Nov");
-    expect(tile("Wall time")).toHaveTextContent("65.1 s95th percentile");
-    expect(tile("Output an agent reads")).toHaveTextContent("1,384 B95th, about 346 tokens");
+    expect(tile("Wall time")).toHaveTextContent("5.9 smedian65.1 s95th percentile");
+    expect(tile("Output an agent reads")).toHaveTextContent(
+      "142 Bmedian, about 36 tokens1,384 B95th, about 346 tokens",
+    );
     expect(tile("Failed")).toHaveTextContent(/^Failed31 of 8636% of runs$/);
     expect(rows(tile("Calls an agent could have saved"))).toEqual([
       ["Ran again after a failure", "18"],
@@ -91,7 +97,9 @@ describe("CostCard", () => {
         help_before: null,
         refused: null,
         failed: null,
+        p50_ms: null,
         p95_ms: null,
+        p50_out_bytes: null,
         p95_out_bytes: null,
       },
       findings: null,
@@ -120,6 +128,51 @@ describe("CostCard", () => {
       "Same call again within 60 s",
       "3",
     ]);
+  });
+
+  it("adds the sessions, the failures by code and links to the usage views when the tool lists its runs", async () => {
+    const run = (code: string | null, session: number): Run => ({
+      session,
+      step: 1,
+      at: 0,
+      caller: "claude-code",
+      command: "up",
+      flags: [],
+      help: false,
+      exit: code === null ? 0 : 1,
+      code,
+      ms: 1,
+      out_bytes: null,
+    });
+    const history = [
+      run("process::exited", 1),
+      run("process::exited", 1),
+      run("workspace::not_current", 2),
+      run(null, 3),
+    ];
+    const opened: UsageTab[] = [];
+
+    render(
+      <CostCard
+        cost={everyFigure}
+        command="up"
+        since={since}
+        today={today}
+        history={history}
+        onUsage={(tab) => opened.push(tab)}
+      />,
+    );
+
+    const card = screen.getByRole("region", { name: "Cost to an agent" });
+    expect(card).toHaveTextContent("86 runs in 3 sessions, 27 Oct to 10 Nov");
+    expect(rows(tile("Failed"))).toEqual([
+      ["process::exited", "2"],
+      ["workspace::not_current", "1"],
+    ]);
+    for (const name of ["Steps", "Sessions", "Flags"]) {
+      await userEvent.click(within(card).getByRole("button", { name }));
+    }
+    expect(opened).toEqual(["steps", "sessions", "flags"]);
   });
 
   it("phrases a slow command from the card's figures and a retry without a code", () => {

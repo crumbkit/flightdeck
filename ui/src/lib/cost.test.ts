@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { Cost, Finding } from "@/api/model";
+import type { Cost, Finding, Run } from "@/api/model";
 import {
   bytesWords,
+  commandHistory,
   dayOf,
   dayWords,
   percentOf,
@@ -9,6 +10,8 @@ import {
   savedCalls,
   stripFindings,
   tokensWords,
+  topCodes,
+  usageCommand,
 } from "./cost";
 
 /** Returns a finding of `kind` that counts `runs`, with `code` when given. */
@@ -22,7 +25,9 @@ const figures: Cost["figures"] = {
   help_before: 11,
   refused: 0,
   failed: 31,
+  p50_ms: 5900,
   p95_ms: 65_100,
+  p50_out_bytes: 142,
   p95_out_bytes: 1384,
 };
 
@@ -37,6 +42,77 @@ describe("periodWords", () => {
 
   it("names one run in the singular and leaves out the days when the tool names none", () => {
     expect(periodWords(1, null, today)).toBe("1 run");
+  });
+
+  it("names the sessions when the tool lists its runs", () => {
+    expect(periodWords(86, { year: 2026, month: 10, day: 27 }, today, 5)).toBe(
+      "86 runs in 5 sessions, 27 Oct to 10 Nov",
+    );
+    expect(periodWords(1, null, today, 1)).toBe("1 run in 1 session");
+  });
+});
+
+describe("commandHistory", () => {
+  /** Returns a run of `command` in `session` that exited with `exit` and `code`. */
+  function run(command: string, session: number, exit: number | null, code: string | null): Run {
+    return {
+      session,
+      step: 1,
+      at: 0,
+      caller: "claude-code",
+      command,
+      flags: [],
+      help: false,
+      exit,
+      code,
+      ms: 1,
+      out_bytes: null,
+    };
+  }
+
+  it("counts the command's sessions and its failures by code, most first, without usage errors or help", () => {
+    const history = [
+      run("up", 1, 1, "process::exited"),
+      run("up", 1, 1, "process::not_ready"),
+      run("up", 2, 1, "process::exited"),
+      run("up", 2, 2, "cli::usage"),
+      run("up", 3, 0, null),
+      { ...run("up", 4, 0, null), help: true },
+      run("down", 5, 1, "process::exited"),
+    ];
+
+    expect(commandHistory(history, "up")).toEqual({
+      sessions: 4,
+      codes: [
+        { code: "process::exited", count: 2 },
+        { code: "process::not_ready", count: 1 },
+      ],
+    });
+  });
+
+  it("opens the usage view on the command in the form when it ran, else on the one that ran most", () => {
+    const history = [
+      run("down", 1, 0, null),
+      run("up", 1, 0, null),
+      run("up", 2, 0, null),
+      { ...run("new", 2, 0, null), help: true },
+    ];
+
+    expect(usageCommand(history, "down")).toBe("down");
+    expect(usageCommand(history, "new")).toBe("up");
+    expect(usageCommand(history, null)).toBe("up");
+    expect(usageCommand([], "new")).toBe("new");
+  });
+
+  it("folds the codes after the first three into one row", () => {
+    const codes = ["a", "b", "c", "d", "e"].map((code, index) => ({ code, count: 5 - index }));
+
+    expect(topCodes(codes)).toEqual([
+      { code: "a", count: 5 },
+      { code: "b", count: 4 },
+      { code: "c", count: 3 },
+      { code: null, count: 3, others: 2 },
+    ]);
   });
 });
 

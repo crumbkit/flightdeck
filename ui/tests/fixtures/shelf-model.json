@@ -3,7 +3,7 @@
   "read_only": false,
   "tool": {
     "name": "shelf",
-    "version": "0.2.0+git-45d0015e1f94",
+    "version": "0.2.0+git-644f776e29ca",
     "about": "Browse a small catalogue of public-domain books",
     "headings": [
       {
@@ -21,7 +21,7 @@
       },
       {
         "title": "Review how shelf is used",
-        "commands": [["self", "usage"], ["self", "figures", "list"]]
+        "commands": [["self", "usage"], ["self", "figures", "list"], ["self", "runs", "list"]]
       }
     ],
     "commands": [
@@ -1701,6 +1701,11 @@
               "description": "The runs that failed."
             },
             {
+              "name": "p50_out_bytes",
+              "long": false,
+              "description": "The median of the bytes that the runs wrote to standard output, by the nearest-rank method, or null when no run printed a result."
+            },
+            {
               "name": "p95_out_bytes",
               "long": false,
               "description": "The 95th percentile of the bytes that the runs wrote to standard output, or null when no run printed a result."
@@ -1711,9 +1716,19 @@
               "description": "The runs whose command line was refused."
             },
             {
+              "name": "p50_ms",
+              "long": true,
+              "description": "The median of the runs' wall time in milliseconds, by the nearest-rank method, or null when every run printed help."
+            },
+            {
               "name": "p95_ms",
               "long": true,
               "description": "The 95th percentile of the runs' wall time in milliseconds, or null when every run printed help."
+            },
+            {
+              "name": "cut_short",
+              "long": true,
+              "description": "The runs whose output a listing or stream cut short, because it showed fewer rows than its total or the output budget stopped it."
             },
             {
               "name": "typed_full",
@@ -1729,6 +1744,281 @@
               "name": "typed_long",
               "long": true,
               "description": "The runs that typed `--long`."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "class": "read_only",
+        "writes": null,
+        "runs": 0,
+        "cost": null
+      },
+      {
+        "path": ["self", "runs", "list"],
+        "about": "List each run in shelf's usage log, grouped by session",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "--since",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["DURATION"]
+            },
+            "required": false,
+            "defaults": ["7d"],
+            "possible_values": [],
+            "help": {
+              "line": "How far back to read the usage log, such as 12h, 7d or 2w",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--log",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["FILE"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Read this usage log instead of the tool's own",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--limit",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["N"]
+            },
+            "required": false,
+            "defaults": ["25"],
+            "possible_values": [],
+            "help": {
+              "line": "Print at most this many rows",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": "--limit"
+          },
+          {
+            "name": "--all",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print every row",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": "--all"
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf self runs list",
+            "about": "Print each run of the last 7 days, grouped by session"
+          },
+          {
+            "command": "shelf self runs list --since 1d --all",
+            "about": "Print every run of the last day"
+          }
+        ],
+        "result": {
+          "document": "shelf/self-runs-list/v1",
+          "form": "document",
+          "columns": [
+            {
+              "name": "session",
+              "long": false,
+              "description": "The run's session, numbered from 1 in the order of each session's first run in the listing's window."
+            },
+            {
+              "name": "step",
+              "long": false,
+              "description": "The run's place in its session, from 1."
+            },
+            {
+              "name": "command",
+              "long": false,
+              "description": "The command path below the tool's name, such as `books show`, or the tool's name for its root command."
+            },
+            {
+              "name": "exit",
+              "long": false,
+              "description": "The run's exit code, or null when the run ended before it exited."
+            },
+            {
+              "name": "code",
+              "long": false,
+              "description": "The code of the run's failure or refusal, such as `shelf::books::not_found`, or null when the run recorded none."
+            },
+            {
+              "name": "ms",
+              "long": false,
+              "description": "The run's wall time in milliseconds."
+            },
+            {
+              "name": "out_bytes",
+              "long": false,
+              "description": "The bytes that the run wrote to standard output, or null when the run did not reach `finish`."
+            },
+            {
+              "name": "at",
+              "long": true,
+              "description": "When the run ended, in RFC 3339 to the second in UTC, such as `2026-10-11T11:56:40Z`."
+            },
+            {
+              "name": "caller",
+              "long": true,
+              "description": "The coding agent's id, such as claude-code, person or unknown."
+            },
+            {
+              "name": "flags",
+              "long": true,
+              "description": "The names of the flags that the caller typed, never their values."
+            },
+            {
+              "name": "help",
+              "long": true,
+              "description": "Whether the run printed a help page."
+            },
+            {
+              "name": "truncated",
+              "long": true,
+              "description": "Whether a listing or stream cut the run's output short."
+            },
+            {
+              "name": "trace",
+              "long": true,
+              "description": "The id of the W3C trace that the run belongs to, as 32 lowercase hex digits."
+            },
+            {
+              "name": "run",
+              "long": true,
+              "description": "The run's own span id, as 16 lowercase hex digits, which its child runs name as their parent."
+            },
+            {
+              "name": "parent",
+              "long": true,
+              "description": "The span id of the run's caller, as 16 lowercase hex digits, or null when the run started a new trace."
             }
           ]
         },
@@ -1772,6 +2062,19 @@
                       },
                       "kind": {
                         "const": "run"
+                      }
+                    },
+                    "required": ["kind", "call"],
+                    "type": "object"
+                  },
+                  {
+                    "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                    "properties": {
+                      "call": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "const": "terminal"
                       }
                     },
                     "required": ["kind", "call"],
@@ -1924,6 +2227,19 @@
                     },
                     "kind": {
                       "const": "run"
+                    }
+                  },
+                  "required": ["kind", "call"],
+                  "type": "object"
+                },
+                {
+                  "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                  "properties": {
+                    "call": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "const": "terminal"
                     }
                   },
                   "required": ["kind", "call"],
@@ -2347,6 +2663,19 @@
                           "type": "object"
                         },
                         {
+                          "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                          "properties": {
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "terminal"
+                            }
+                          },
+                          "required": ["kind", "call"],
+                          "type": "object"
+                        },
+                        {
                           "description": "Run the same command again later.",
                           "properties": {
                             "kind": {
@@ -2493,6 +2822,19 @@
                           },
                           "kind": {
                             "const": "run"
+                          }
+                        },
+                        "required": ["kind", "call"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                        "properties": {
+                          "call": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "terminal"
                           }
                         },
                         "required": ["kind", "call"],
@@ -2750,6 +3092,19 @@
                           "type": "object"
                         },
                         {
+                          "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                          "properties": {
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "terminal"
+                            }
+                          },
+                          "required": ["kind", "call"],
+                          "type": "object"
+                        },
+                        {
                           "description": "Run the same command again later.",
                           "properties": {
                             "kind": {
@@ -2896,6 +3251,19 @@
                           },
                           "kind": {
                             "const": "run"
+                          }
+                        },
+                        "required": ["kind", "call"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                        "properties": {
+                          "call": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "terminal"
                           }
                         },
                         "required": ["kind", "call"],
@@ -3231,6 +3599,10 @@
                         "description": "The short form, such as `-n`, when the argument has one.",
                         "type": ["string", "null"]
                       },
+                      "value_hint": {
+                        "description": "The kind of value that the argument takes, as the kebab-case name of clap's `ValueHint`, such as `file-path`, `dir-path` or `any-path`. It is `any-path` for an argument that parses to a `PathBuf` and declares no hint, and null when clap reports no hint.",
+                        "type": ["string", "null"]
+                      },
                       "value_names": {
                         "description": "The names of the values that the argument takes, such as `N`, and none for a flag.",
                         "items": {
@@ -3247,6 +3619,7 @@
                       "many",
                       "defaults",
                       "possible_values",
+                      "value_hint",
                       "help",
                       "long_help",
                       "global",
@@ -3712,6 +4085,19 @@
                           "type": "object"
                         },
                         {
+                          "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                          "properties": {
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "terminal"
+                            }
+                          },
+                          "required": ["kind", "call"],
+                          "type": "object"
+                        },
+                        {
                           "description": "Run the same command again later.",
                           "properties": {
                             "kind": {
@@ -3858,6 +4244,19 @@
                           },
                           "kind": {
                             "const": "run"
+                          }
+                        },
+                        "required": ["kind", "call"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                        "properties": {
+                          "call": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "terminal"
                           }
                         },
                         "required": ["kind", "call"],
@@ -4062,6 +4461,12 @@
             "CommandFigures": {
               "description": "The figures of one command since the start of the report.",
               "properties": {
+                "cut_short": {
+                  "description": "The runs whose output a listing or stream cut short, because it\nshowed fewer rows than its total or the output budget stopped it.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
                 "exits": {
                   "description": "The runs that exited with each code from 3, which the tool declares,\nin code order.",
                   "items": {
@@ -4086,6 +4491,18 @@
                   "format": "uint64",
                   "minimum": 0,
                   "type": "integer"
+                },
+                "p50_ms": {
+                  "description": "The median of the runs' wall time in milliseconds, by the\nnearest-rank method, or null when every run printed help.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": ["integer", "null"]
+                },
+                "p50_out_bytes": {
+                  "description": "The median of the bytes that the runs wrote to standard output, by\nthe nearest-rank method, or null when no run printed a result.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": ["integer", "null"]
                 },
                 "p95_ms": {
                   "description": "The 95th percentile of the runs' wall time in milliseconds, or null\nwhen every run printed help.",
@@ -4136,8 +4553,11 @@
                 "help_before",
                 "refused",
                 "failed",
+                "p50_ms",
                 "p95_ms",
+                "p50_out_bytes",
                 "p95_out_bytes",
+                "cut_short",
                 "typed_full",
                 "typed_all",
                 "typed_long",
@@ -4279,7 +4699,7 @@
                   "type": "string"
                 },
                 "skipped": {
-                  "description": "The records that the report left out, because they named a command,\nflag, code or caller that the tool does not write.",
+                  "description": "The records that the report left out, because they named a command,\nflag, code, caller or trace id that the tool does not write.",
                   "format": "uint64",
                   "minimum": 0,
                   "type": "integer"
@@ -4467,6 +4887,12 @@
                   "description": "The command path below the tool's name, such as `books show`, or the\ntool's name for its root command.",
                   "type": "string"
                 },
+                "cut_short": {
+                  "description": "The runs whose output a listing or stream cut short, because it\nshowed fewer rows than its total or the output budget stopped it.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
                 "exits": {
                   "description": "The runs that exited with each code from 3, which the tool declares,\nin code order.",
                   "items": {
@@ -4491,6 +4917,18 @@
                   "format": "uint64",
                   "minimum": 0,
                   "type": "integer"
+                },
+                "p50_ms": {
+                  "description": "The median of the runs' wall time in milliseconds, by the\nnearest-rank method, or null when every run printed help.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": ["integer", "null"]
+                },
+                "p50_out_bytes": {
+                  "description": "The median of the bytes that the runs wrote to standard output, by\nthe nearest-rank method, or null when no run printed a result.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": ["integer", "null"]
                 },
                 "p95_ms": {
                   "description": "The 95th percentile of the runs' wall time in milliseconds, or null\nwhen every run printed help.",
@@ -4541,6 +4979,7 @@
                 "help_pages",
                 "help_before",
                 "failed",
+                "p50_out_bytes",
                 "p95_out_bytes"
               ],
               "type": "object"
@@ -4572,7 +5011,7 @@
                   "type": "string"
                 },
                 "skipped": {
-                  "description": "The records that the report left out, because they named a command,\nflag, code or caller that the tool does not write.",
+                  "description": "The records that the report left out, because they named a command,\nflag, code, caller or trace id that the tool does not write.",
                   "format": "uint64",
                   "minimum": 0,
                   "type": "integer"
@@ -4686,6 +5125,271 @@
           "title": "shelf/self-figures-list/v1",
           "type": "object"
         }
+      },
+      {
+        "id": "shelf/self-runs-list/v1",
+        "kind": "output",
+        "form": "document",
+        "description": "Each run in the usage log, grouped by session and in order within each session, and a summary of the runs read.",
+        "commands": [["self", "runs", "list"]],
+        "schema": {
+          "$defs": {
+            "CallerRuns": {
+              "description": "The runs of one caller.",
+              "properties": {
+                "caller": {
+                  "description": "The coding agent's id, such as claude-code, person or unknown.",
+                  "type": "string"
+                },
+                "runs": {
+                  "description": "The caller's runs.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": ["caller", "runs"],
+              "type": "object"
+            },
+            "CodeRuns": {
+              "description": "The runs that tolerated one code.",
+              "properties": {
+                "code": {
+                  "description": "The code that the failed runs printed.",
+                  "type": "string"
+                },
+                "runs": {
+                  "description": "The runs that tolerated the code. A run counts each code once.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": ["code", "runs"],
+              "type": "object"
+            },
+            "RunRow": {
+              "description": "One run in the usage log.",
+              "properties": {
+                "at": {
+                  "description": "When the run ended, in RFC 3339 to the second in UTC, such as\n`2026-10-11T11:56:40Z`.",
+                  "type": "string"
+                },
+                "caller": {
+                  "description": "The coding agent's id, such as claude-code, person or unknown.",
+                  "type": "string"
+                },
+                "code": {
+                  "description": "The code of the run's failure or refusal, such as\n`shelf::books::not_found`, or null when the run recorded none.",
+                  "type": ["string", "null"]
+                },
+                "command": {
+                  "description": "The command path below the tool's name, such as `books show`, or the\ntool's name for its root command.",
+                  "type": "string"
+                },
+                "exit": {
+                  "description": "The run's exit code, or null when the run ended before it exited.",
+                  "format": "uint8",
+                  "maximum": 255,
+                  "minimum": 0,
+                  "type": ["integer", "null"]
+                },
+                "flags": {
+                  "description": "The names of the flags that the caller typed, never their values.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "help": {
+                  "description": "Whether the run printed a help page.",
+                  "type": "boolean"
+                },
+                "ms": {
+                  "description": "The run's wall time in milliseconds.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "out_bytes": {
+                  "description": "The bytes that the run wrote to standard output, or null when the\nrun did not reach `finish`.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": ["integer", "null"]
+                },
+                "parent": {
+                  "description": "The span id of the run's caller, as 16 lowercase hex digits, or null\nwhen the run started a new trace.",
+                  "type": ["string", "null"]
+                },
+                "run": {
+                  "description": "The run's own span id, as 16 lowercase hex digits, which its child\nruns name as their parent.",
+                  "type": "string"
+                },
+                "session": {
+                  "description": "The run's session, numbered from 1 in the order of each session's\nfirst run in the listing's window.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "step": {
+                  "description": "The run's place in its session, from 1.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "trace": {
+                  "description": "The id of the W3C trace that the run belongs to, as 32 lowercase hex\ndigits.",
+                  "type": "string"
+                },
+                "truncated": {
+                  "description": "Whether a listing or stream cut the run's output short.",
+                  "type": "boolean"
+                }
+              },
+              "required": ["session", "step", "command", "exit", "code", "ms", "out_bytes"],
+              "type": "object"
+            },
+            "UsageSummary": {
+              "description": "The summary of the runs that `self usage` read. The text output prints\nit as one line above the table, such as `1,284 runs in 23 sessions since\n30 Sep: claude-code 1,201, person 83.`",
+              "properties": {
+                "callers": {
+                  "description": "The runs of each caller, the most first.",
+                  "items": {
+                    "$ref": "#/$defs/CallerRuns"
+                  },
+                  "type": "array"
+                },
+                "runs": {
+                  "description": "The runs that the report read.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "sessions": {
+                  "description": "The sessions that the runs came from.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "since": {
+                  "description": "The day in UTC on which the report starts, such as 2026-09-30.",
+                  "type": "string"
+                },
+                "skipped": {
+                  "description": "The records that the report left out, because they named a command,\nflag, code, caller or trace id that the tool does not write.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "tolerated": {
+                  "description": "The codes of the failures that runs reported and carried on past,\nwith the runs that tolerated each, the most first, at most 10.",
+                  "items": {
+                    "$ref": "#/$defs/CodeRuns"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": ["runs", "sessions", "callers", "since", "skipped", "tolerated"],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "Each run in the usage log, grouped by session and in order within each session, and a summary of the runs read.",
+          "properties": {
+            "cut": {
+              "additionalProperties": false,
+              "description": "Present when the output budget cut the result short, so data holds only its first rows.",
+              "properties": {
+                "budget": {
+                  "description": "The most bytes that the run printed on standard output.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "code": {
+                  "description": "The over-budget code.",
+                  "type": "string"
+                }
+              },
+              "required": ["code", "budget"],
+              "type": "object"
+            },
+            "data": {
+              "description": "The rows of the page, up to the limit.",
+              "items": {
+                "$ref": "#/$defs/RunRow"
+              },
+              "type": "array"
+            },
+            "dry_run": {
+              "const": true,
+              "description": "Present, and true, when the run was a dry run that changed nothing."
+            },
+            "next": {
+              "description": "The next steps, in the order the text prints them. It is absent when there are none.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "commands": {
+                    "description": "The commands that carry out the step, in order.",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "call": {
+                              "description": "A command line of this tool.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["call"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "run": {
+                              "description": "A command line of another program.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["run"],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "text": {
+                    "description": "The sentence or phrase that the text prints for the step.",
+                    "type": "string"
+                  }
+                },
+                "required": ["text", "commands"],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "schema": {
+              "const": "shelf/self-runs-list/v1",
+              "description": "The id of this document."
+            },
+            "summary": {
+              "$ref": "#/$defs/UsageSummary"
+            },
+            "total": {
+              "description": "The number of rows that matched, of which data holds one page. It is absent when the tool did not count the rows.",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "truncated": {
+              "description": "True when the document leaves out rows that matched, because of the limit or the output budget, and false when data holds every row.",
+              "type": "boolean"
+            }
+          },
+          "required": ["schema", "data", "truncated", "summary"],
+          "title": "shelf/self-runs-list/v1",
+          "type": "object"
+        }
       }
     ],
     "links": [
@@ -4730,6 +5434,7 @@
         "argument": "<ID>"
       }
     ],
-    "figures_since": null
+    "figures_since": null,
+    "history": []
   }
 }

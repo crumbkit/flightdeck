@@ -512,7 +512,7 @@ fn the_model_route_returns_shelfs_model_with_read_only_as_started() {
             let model = reply.json();
             assert_eq!(model["read_only"], read_only);
             assert_eq!(model["tool"]["name"], "shelf");
-            assert_eq!(model["tool"]["commands"].as_array().unwrap().len(), 9);
+            assert_eq!(model["tool"]["commands"].as_array().unwrap().len(), 10);
             let books_show = &model["tool"]["commands"][1];
             assert_eq!(books_show["path"], serde_json::json!(["books", "show"]));
             assert_eq!(books_show["arguments"][0]["name"], "<ID>");

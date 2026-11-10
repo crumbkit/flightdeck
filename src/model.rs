@@ -17,6 +17,7 @@ mod documents;
 mod error;
 mod figures;
 mod links;
+mod runs;
 mod wire;
 
 #[cfg(test)]
@@ -45,6 +46,7 @@ pub use self::figures::{Cost, Figures, Finding, FindingKind};
 use self::figures::{FiguresList, Usage};
 pub(crate) use self::links::ID_COLUMN;
 pub use self::links::Link;
+pub use self::runs::{History, Run};
 use self::wire::CommandRow;
 use crate::spawn::{self, Exit, Program, Query, SpawnError, Stdout};
 
@@ -64,6 +66,9 @@ pub struct Tool {
     /// The day the tool's figures start, such as 3 November 2026, or `None`
     /// when no command has a cost.
     figures_since: Option<Day>,
+    /// Each run in the tool's usage log, in order within its session, or
+    /// `None` when the tool does not mount `self runs list` or it failed.
+    history: Option<Vec<Run>>,
     #[serde(skip)]
     marks_no_result: bool,
 }
@@ -145,6 +150,18 @@ impl Tool {
         self.figures_since
     }
 
+    /// Returns each run in the tool's usage log, in order within its
+    /// session, or `None` when the tool reported none.
+    #[must_use]
+    pub fn history(&self) -> Option<&[Run]> {
+        self.history.as_deref()
+    }
+
+    /// Records the runs of `history`, or none.
+    fn set_history(&mut self, history: Option<History>) {
+        self.history = history.map(|history| history.runs().to_vec());
+    }
+
     /// Gives each command the cost that `figures` and `usage` hold for its
     /// path, such as `books list`.
     /// The day the figures start is kept only when a command has a cost,
@@ -215,6 +232,7 @@ impl Tool {
             documents,
             links,
             figures_since: None,
+            history: None,
             marks_no_result,
         })
     }
@@ -280,9 +298,10 @@ impl Heading {
 /// exits with a code other than 0, passes the time limit, or prints
 /// something other than the document it names. A `schemas show` that leaves
 /// out an id that `schemas list` named is a document of the wrong shape.
-/// `self figures list` and `self usage` fail no load: when the figures
-/// fail, every command's runs stay 0 and it has no cost, and when the
-/// findings fail, each cost has no findings.
+/// `self figures list`, `self usage` and `self runs list` fail no load:
+/// when the figures fail, every command's runs stay 0 and it has no cost,
+/// when the findings fail, each cost has no findings, and when the runs
+/// fail, the tool has no history.
 pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> {
     let tool = program.name().to_string_lossy();
     let deadline = Instant::now() + time_limit;
@@ -334,20 +353,28 @@ pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> 
 
     // The figures only order the page's palette and fill its cost cards, so
     // a tool that does not mount them is never asked, and a failed call
-    // leaves every count at 0. The findings only add to the figures, so
-    // they are asked for only beside them, and both run at once.
+    // leaves every count at 0. The findings and the runs only add to the
+    // figures, so they are asked for only beside them, and all three run
+    // at once.
     if tool.command(&figures::FIGURES_COMMAND).is_some() {
         let asks_usage = tool.command(&figures::USAGE_COMMAND).is_some();
-        let (figures, usage) = std::thread::scope(|scope| {
+        let asks_runs = tool.command(&runs::RUNS_COMMAND).is_some();
+        let (figures, usage, history) = std::thread::scope(|scope| {
             let usage = asks_usage.then(|| scope.spawn(|| ask(Query::Usage)));
+            let history = asks_runs.then(|| scope.spawn(|| ask(Query::RunsList)));
             let figures = ask(Query::FiguresList);
-            let usage = usage.map(|usage| {
-                usage
+            let joined = |handle: std::thread::ScopedJoinHandle<'_, _>| {
+                handle
                     .join()
                     .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
-            });
-            (figures, usage)
+            };
+            (figures, usage.map(joined), history.map(joined))
         });
+        tool.set_history(
+            history
+                .and_then(Result::ok)
+                .and_then(|answer| History::read(&answer.stdout, &tool.name)),
+        );
         let usage = usage
             .and_then(Result::ok)
             .and_then(|answer| Usage::read(&answer.stdout, &tool.name));

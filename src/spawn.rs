@@ -230,6 +230,9 @@ pub enum Query<'a> {
     /// `self usage`, with the patterns in the tool's usage log where
     /// callers waste effort, each with the code of a retried failure.
     Usage,
+    /// `self runs list`, with each run in the tool's usage log in order
+    /// within its session.
+    RunsList,
 }
 
 impl<'a> Query<'a> {
@@ -268,6 +271,17 @@ impl<'a> Query<'a> {
                 ]
             }
             Self::Usage => vec!["self", "usage", "--json", "--full", "--no-input"],
+            Self::RunsList => {
+                vec![
+                    "self",
+                    "runs",
+                    "list",
+                    "--json",
+                    "--full",
+                    "--all",
+                    "--no-input",
+                ]
+            }
         }
     }
 }

@@ -1,8 +1,10 @@
 import { cn } from "cn";
 import { type ReactNode, useId } from "react";
-import type { Cost, Day, Figures } from "@/api/model";
+import type { Cost, Day, Figures, Run } from "@/api/model";
 import {
   bytesWords,
+  type CodeRow,
+  commandHistory,
   grouped,
   type Phrased,
   type PhrasedKind,
@@ -11,6 +13,8 @@ import {
   savedCalls,
   stripFindings,
   tokensWords,
+  topCodes,
+  type UsageTab,
 } from "@/lib/cost";
 import { elapsedWords } from "@/lib/duration";
 import { counted } from "@/lib/words";
@@ -22,18 +26,31 @@ type Props = {
   /** The day the tool's figures start, or null. */
   since: Day | null;
   today: Day;
+  /** Each run in the tool's usage log, or null when the tool lists none. */
+  history?: Run[] | null;
+  /** Opens a usage view on this command, or null when there is none to open. */
+  onUsage?: ((tab: UsageTab) => void) | null;
 };
+
+/** The usage views that the card links to, in the order it shows them. */
+const tabs: [UsageTab, string][] = [
+  ["steps", "Steps"],
+  ["sessions", "Sessions"],
+  ["flags", "Flags"],
+];
 
 /**
  * What a command costs the agents that call it, from the tool's own
- * `self figures list` and `self usage`: its wall time, the output an agent
- * reads, its failures, the calls an agent could have saved and the tool's
- * findings. Each figure shows only when the tool reports it.
+ * `self figures list`, `self usage` and `self runs list`: its wall time,
+ * the output an agent reads, its failures by code, the calls an agent
+ * could have saved and the tool's findings. Each figure shows only when
+ * the tool reports it.
  */
-export function CostCard({ cost, command, since, today }: Props) {
+export function CostCard({ cost, command, since, today, history = null, onUsage = null }: Props) {
   const titleId = useId();
   const { figures, findings } = cost;
   const saved = savedCalls(cost);
+  const ran = history === null ? null : commandHistory(history, command);
   // Each kind shows once, so the kind keys its item.
   const phrased = stripFindings(findings).flatMap((finding) => {
     const sentence = sentenceOf(finding, figures, command);
@@ -43,23 +60,38 @@ export function CostCard({ cost, command, since, today }: Props) {
     figures.p95_ms !== null && (
       <Tile key="time" title="Wall time">
         <Pair>
+          {figures.p50_ms !== null && (
+            <Figure value={elapsedWords(figures.p50_ms)} label="median" />
+          )}
           <Figure value={elapsedWords(figures.p95_ms)} label="95th percentile" />
         </Pair>
+        <Track median={figures.p50_ms} high={figures.p95_ms} label={(each) => elapsedWords(each)} />
       </Tile>
     ),
     figures.p95_out_bytes !== null && (
       <Tile key="output" title="Output an agent reads">
         <Pair>
+          {figures.p50_out_bytes !== null && (
+            <Figure
+              value={bytesWords(figures.p50_out_bytes)}
+              label={`median, ${tokensWords(figures.p50_out_bytes)}`}
+            />
+          )}
           <Figure
             value={bytesWords(figures.p95_out_bytes)}
             label={`95th, ${tokensWords(figures.p95_out_bytes)}`}
           />
         </Pair>
+        <Track median={figures.p50_out_bytes} high={figures.p95_out_bytes} label={bytesWords} />
       </Tile>
     ),
     figures.failed !== null && (
       <Tile key="failed" title="Failed">
-        <Failed failed={figures.failed} runs={figures.runs} />
+        <Failed
+          failed={figures.failed}
+          runs={figures.runs}
+          codes={ran === null ? [] : topCodes(ran.codes)}
+        />
       </Tile>
     ),
     saved.length > 0 && (
@@ -82,8 +114,22 @@ export function CostCard({ cost, command, since, today }: Props) {
           Cost to an agent
         </h3>
         <span className="text-muted-foreground text-xs">
-          {periodWords(figures.runs, since, today)}
+          {periodWords(figures.runs, since, today, ran?.sessions ?? null)}
         </span>
+        {onUsage !== null && (
+          <span className="ml-auto flex items-center gap-1">
+            {tabs.map(([tab, label]) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => onUsage(tab)}
+                className="text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-tint inline-flex h-8 items-center rounded-md px-2.5 text-xs font-medium"
+              >
+                {label}
+              </button>
+            ))}
+          </span>
+        )}
       </div>
       {tiles.length > 0 && (
         // Each tile draws its right and bottom lines, and the wrapper clips
@@ -119,10 +165,7 @@ function Tile({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-/**
- * The figures of one tile side by side. Today it holds the 95th
- * percentile alone; a tool that reports the median adds it here.
- */
+/** The figures of one tile side by side: the median, when reported, and the 95th percentile. */
 function Pair({ children }: { children: ReactNode }) {
   return <div className="flex items-baseline gap-4">{children}</div>;
 }
@@ -143,6 +186,38 @@ function Figure({ value, label, bad = false }: { value: string; label: string; b
   );
 }
 
+/**
+ * A bar as long as the 95th percentile with the median drawn over it, so
+ * the gap between them shows how far the slow runs reach. It shows only
+ * when the tool reports the median.
+ */
+function Track({
+  median,
+  high,
+  label,
+}: {
+  median: number | null;
+  high: number;
+  label: (value: number) => string;
+}) {
+  if (median === null || high === 0) {
+    return null;
+  }
+  return (
+    <div
+      role="img"
+      aria-label={`Median ${label(median)}, 95th percentile ${label(high)}`}
+      className="bg-muted relative h-2 rounded-xs"
+    >
+      <div className="bg-k-ok absolute inset-y-0 left-0 w-full rounded-xs" />
+      <div
+        className="bg-primary absolute inset-y-0 left-0 rounded-xs"
+        style={{ width: `${Math.min(100, (median / high) * 100)}%` }}
+      />
+    </div>
+  );
+}
+
 function Rows({ children }: { children: ReactNode }) {
   return (
     <dl className="grid-cols-counts m-0 grid gap-x-3 gap-y-0.5 text-xs tabular-nums">{children}</dl>
@@ -159,19 +234,57 @@ function Row({ count, children }: { count: number; children: ReactNode }) {
 }
 
 /**
- * The failed runs of all runs. A tool that reports failures by code adds
- * a bar and a row for each code here.
+ * The colour of each failure code's dot and bar, by its place: the first
+ * three codes, then the rest together. The colours tell the codes apart
+ * within the tile; each sits beside its code's name.
  */
-function Failed({ failed, runs }: { failed: number; runs: number }) {
+const codeColours = ["bg-k-fail", "bg-k-usage", "bg-k-repeat", "bg-faint-foreground"];
+
+/** The failed runs of all runs, with a bar and a row for each code when the tool lists its runs. */
+function Failed({ failed, runs, codes }: { failed: number; runs: number; codes: CodeRow[] }) {
   const percent = percentOf(failed, runs);
   return (
-    <Pair>
-      <Figure
-        value={`${grouped(failed)} of ${grouped(runs)}`}
-        label={percent === null ? "of runs" : `${percent}% of runs`}
-        bad={failed > 0}
-      />
-    </Pair>
+    <>
+      <Pair>
+        <Figure
+          value={`${grouped(failed)} of ${grouped(runs)}`}
+          label={percent === null ? "of runs" : `${percent}% of runs`}
+          bad={failed > 0}
+        />
+      </Pair>
+      {codes.length > 0 && runs > 0 && (
+        <>
+          <div
+            role="img"
+            aria-label="Failures by code"
+            className="bg-muted flex h-2 overflow-hidden rounded-xs"
+          >
+            {codes.map((row, index) => (
+              <div
+                key={row.code ?? "others"}
+                className={codeColours[index]}
+                style={{ width: `${(row.count / runs) * 100}%` }}
+              />
+            ))}
+          </div>
+          <Rows>
+            {codes.map((row, index) => (
+              <Row key={row.code ?? "others"} count={row.count}>
+                <span
+                  aria-hidden="true"
+                  className={cn("size-2 shrink-0 rounded-full", codeColours[index])}
+                />
+                {row.code === null ? (
+                  counted(row.others, "other code")
+                ) : (
+                  <code className="truncate">{row.code}</code>
+                )}
+              </Row>
+            ))}
+          </Rows>
+        </>
+      )}
+    </>
   );
 }
 

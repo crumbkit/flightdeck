@@ -86,6 +86,7 @@ fn each_query_is_a_fixed_argument_vector_and_each_document_query_passes_no_input
         Query::SchemasShow(&ids),
         Query::FiguresList,
         Query::Usage,
+        Query::RunsList,
     ]
     .iter()
     .map(Query::words)
@@ -123,6 +124,15 @@ fn each_query_is_a_fixed_argument_vector_and_each_document_query_passes_no_input
                 "--no-input"
             ],
             vec!["self", "usage", "--json", "--full", "--no-input"],
+            vec![
+                "self",
+                "runs",
+                "list",
+                "--json",
+                "--full",
+                "--all",
+                "--no-input"
+            ],
         ]
     );
 }

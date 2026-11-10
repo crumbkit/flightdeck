@@ -61,7 +61,7 @@ test("the rail shows shelf's three goal headings in help order", async ({ page, 
     "Explore the commands",
     "Review how shelf is used",
   ]);
-  await expect(rail.getByRole("button")).toHaveCount(9);
+  await expect(rail.getByRole("button")).toHaveCount(10);
   await expect(rail.getByRole("button", { name: "books remove destructive" })).toBeVisible();
   await expectNoAccessibilityViolations(page);
 });
@@ -559,7 +559,9 @@ test.describe("shelf after an agent ran books show", () => {
     const composer = await compose(page, "books show");
 
     const card = composer.getByRole("region", { name: "Cost to an agent" });
-    await expect(card).toContainText(/2 runs, \d{1,2} [A-Z][a-z]{2} to \d{1,2} [A-Z][a-z]{2}/);
+    await expect(card).toContainText(
+      /2 runs in 1 session, \d{1,2} [A-Z][a-z]{2} to \d{1,2} [A-Z][a-z]{2}/,
+    );
     await expect(card.getByRole("heading")).toHaveText([
       "Cost to an agent",
       "Wall time",
@@ -599,6 +601,43 @@ test.describe("shelf after an agent ran books show", () => {
       expect(overflow).toBeLessThanOrEqual(0);
     });
   }
+
+  test("the card's links open the usage view on books show, and Commands returns to the form", async ({
+    page,
+    served,
+  }) => {
+    await signIn(page, served);
+    const composer = await compose(page, "books show");
+    const card = composer.getByRole("region", { name: "Cost to an agent" });
+    await expect(card.getByRole("img", { name: "Failures by code" })).toBeVisible();
+
+    await card.getByRole("button", { name: "Sessions" }).click();
+
+    const tabs = page.getByRole("navigation", { name: "Usage views" });
+    await expect(tabs.getByRole("button", { name: "Sessions" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(
+      page.getByRole("img", { name: "Session 1: 4 runs, 2 failed, 0 repeated" }),
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Session 1/ })).toBeVisible();
+    await expectNoAccessibilityViolations(page);
+
+    await tabs.getByRole("button", { name: "Steps" }).click();
+    await expect(page.getByRole("table")).toContainText("books show");
+    await expectNoAccessibilityViolations(page);
+
+    await tabs.getByRole("button", { name: "Flags" }).click();
+    await expect(page.getByRole("region", { name: "books show" })).toContainText("--from");
+    await expectNoAccessibilityViolations(page);
+
+    await page
+      .getByRole("navigation", { name: "Views" })
+      .getByRole("button", { name: "Commands" })
+      .click();
+    await expect(composer.getByRole("region", { name: "Cost to an agent" })).toBeVisible();
+  });
 
   test("a command the agent never ran shows no cost card", async ({ page, served }) => {
     await signIn(page, served);

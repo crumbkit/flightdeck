@@ -35,6 +35,12 @@ pub(super) const ALL: &[Asset] = &[
         content_type: "text/javascript; charset=utf-8",
         body: include_bytes!("../../ui/dist/assets/app.js"),
     },
+    // The usage view, which the page loads the first time it opens.
+    Asset {
+        path: "/assets/Usage.js",
+        content_type: "text/javascript; charset=utf-8",
+        body: include_bytes!("../../ui/dist/assets/Usage.js"),
+    },
     Asset {
         path: "/assets/index.css",
         content_type: "text/css; charset=utf-8",
