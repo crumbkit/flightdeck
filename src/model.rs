@@ -4,9 +4,9 @@
 //! [`load`] runs its queries through [`crate::spawn`], all within one time
 //! limit: `--version`, `commands list`, `schemas list`, `schemas show` of
 //! every document that `schemas list` names, at most 100 ids at a time,
-//! and `self figures list` when the tool mounts it. It joins their
-//! documents into a [`Tool`]: its runnable commands with how often each
-//! ran, the goal headings that group them, the documents they print with
+//! and `self figures list` and `self usage` when the tool mounts them. It
+//! joins their documents into a [`Tool`]: its runnable commands with what
+//! each costs the agents that call it, the goal headings that group them, the documents they print with
 //! their JSON Schemas, and the links that crumbkit's command grammar
 //! implies between them.
 
@@ -21,7 +21,6 @@ mod wire;
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashMap;
 use std::io;
 use std::time::{Duration, Instant};
 
@@ -40,6 +39,8 @@ pub use self::documents::{
 };
 pub use self::error::{LoadError, NotDocument, Problem, TOOL_LOAD, TOOL_NOT_FOUND};
 pub(crate) use self::error::{exit_code, last_lines};
+pub use self::figures::{Cost, Figures, Finding};
+use self::figures::{FiguresList, Usage};
 pub(crate) use self::links::ID_COLUMN;
 pub use self::links::Link;
 use self::wire::CommandRow;
@@ -58,6 +59,9 @@ pub struct Tool {
     commands: Vec<Command>,
     documents: Vec<Document>,
     links: Vec<Link>,
+    /// The day the tool's figures start, such as `2026-11-03`, or `None`
+    /// when no command has a cost.
+    figures_since: Option<String>,
     #[serde(skip)]
     marks_no_result: bool,
 }
@@ -132,13 +136,27 @@ impl Tool {
         &self.links
     }
 
-    /// Gives each command the runs that `figures` holds for its path, such
-    /// as `books list`.
-    fn count_runs(&mut self, figures: &HashMap<String, u64>) {
+    /// Returns the day the tool's figures start, such as `2026-11-03`, or
+    /// `None` when no command has a cost or the tool printed no such day.
+    #[must_use]
+    pub fn figures_since(&self) -> Option<&str> {
+        self.figures_since.as_deref()
+    }
+
+    /// Gives each command the cost that `figures` and `usage` hold for its
+    /// path, such as `books list`.
+    /// The day the figures start is kept only when a command has a cost,
+    /// because only a cost card shows it.
+    fn add_costs(&mut self, figures: &FiguresList, usage: Option<&Usage>) {
+        let mut costed = false;
         for command in &mut self.commands {
-            if let Some(&runs) = figures.get(&command.path().to_string()) {
-                command.set_runs(runs);
+            if let Some(cost) = figures.cost(command.path(), usage) {
+                command.set_cost(cost);
+                costed = true;
             }
+        }
+        if costed {
+            self.figures_since = figures.since().map(str::to_owned);
         }
     }
 
@@ -194,6 +212,7 @@ impl Tool {
             commands,
             documents,
             links,
+            figures_since: None,
             marks_no_result,
         })
     }
@@ -259,8 +278,9 @@ impl Heading {
 /// exits with a code other than 0, passes the time limit, or prints
 /// something other than the document it names. A `schemas show` that leaves
 /// out an id that `schemas list` named is a document of the wrong shape.
-/// `self figures list` fails no load: when it fails, every command's runs
-/// stay 0.
+/// `self figures list` and `self usage` fail no load: when the figures
+/// fail, every command's runs stay 0 and it has no cost, and when the
+/// findings fail, each cost has no findings.
 pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> {
     let tool = program.name().to_string_lossy();
     let deadline = Instant::now() + time_limit;
@@ -310,12 +330,31 @@ pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> 
     let mut tool = Tool::assemble(version_line, commands, documents)
         .map_err(|problem| commands_answer.fail(Problem::NotDocument(problem)))?;
 
-    // The figures only order the page's palette, so a tool that does not
-    // mount them is never asked, and a failed call leaves every count at 0.
-    if tool.command(&figures::COMMAND).is_some()
-        && let Ok(answer) = ask(Query::FiguresList)
-    {
-        tool.count_runs(&figures::read(&answer.stdout));
+    // The figures only order the page's palette and fill its cost cards, so
+    // a tool that does not mount them is never asked, and a failed call
+    // leaves every count at 0. The findings only add to the figures, so
+    // they are asked for only beside them, and both run at once.
+    if tool.command(&figures::FIGURES_COMMAND).is_some() {
+        let asks_usage = tool.command(&figures::USAGE_COMMAND).is_some();
+        let (figures, usage) = std::thread::scope(|scope| {
+            let usage = asks_usage.then(|| scope.spawn(|| ask(Query::Usage)));
+            let figures = ask(Query::FiguresList);
+            let usage = usage.map(|usage| {
+                usage
+                    .join()
+                    .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+            });
+            (figures, usage)
+        });
+        let usage = usage
+            .and_then(Result::ok)
+            .and_then(|answer| Usage::read(&answer.stdout));
+        if let Some(figures) = figures
+            .ok()
+            .and_then(|answer| FiguresList::read(&answer.stdout))
+        {
+            tool.add_costs(&figures, usage.as_ref());
+        }
     }
     Ok(tool)
 }

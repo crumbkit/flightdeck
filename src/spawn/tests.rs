@@ -13,6 +13,7 @@ fn each_query_is_a_fixed_argument_vector_and_each_document_query_passes_no_input
         Query::SchemasList,
         Query::SchemasShow(&ids),
         Query::FiguresList,
+        Query::Usage,
     ]
     .iter()
     .map(Query::words)
@@ -40,7 +41,16 @@ fn each_query_is_a_fixed_argument_vector_and_each_document_query_passes_no_input
                 "shelf/books-list/v1",
                 "shelf/failure/v1",
             ],
-            vec!["self", "figures", "list", "--json", "--all", "--no-input"],
+            vec![
+                "self",
+                "figures",
+                "list",
+                "--json",
+                "--full",
+                "--all",
+                "--no-input"
+            ],
+            vec!["self", "usage", "--json", "--full", "--no-input"],
         ]
     );
 }

@@ -218,7 +218,8 @@
         },
         "class": "read_only",
         "writes": null,
-        "runs": 0
+        "runs": 0,
+        "cost": null
       },
       {
         "path": ["books", "show"],
@@ -411,7 +412,8 @@
         },
         "class": "read_only",
         "writes": null,
-        "runs": 0
+        "runs": 0,
+        "cost": null
       },
       {
         "path": ["books", "summarize"],
@@ -553,7 +555,8 @@
         },
         "class": "read_only",
         "writes": null,
-        "runs": 0
+        "runs": 0,
+        "cost": null
       },
       {
         "path": ["books", "remove"],
@@ -771,7 +774,8 @@
           "expect": false,
           "items": "all_or_none"
         },
-        "runs": 0
+        "runs": 0,
+        "cost": null
       },
       {
         "path": ["commands", "list"],
@@ -965,7 +969,8 @@
         },
         "class": "read_only",
         "writes": null,
-        "runs": 0
+        "runs": 0,
+        "cost": null
       },
       {
         "path": ["schemas", "list"],
@@ -1147,7 +1152,8 @@
         },
         "class": "read_only",
         "writes": null,
-        "runs": 0
+        "runs": 0,
+        "cost": null
       },
       {
         "path": ["schemas", "show"],
@@ -1296,7 +1302,8 @@
         },
         "class": "read_only",
         "writes": null,
-        "runs": 0
+        "runs": 0,
+        "cost": null
       },
       {
         "path": ["self", "usage"],
@@ -1478,7 +1485,8 @@
         },
         "class": "read_only",
         "writes": null,
-        "runs": 0
+        "runs": 0,
+        "cost": null
       },
       {
         "path": ["self", "figures", "list"],
@@ -1732,7 +1740,8 @@
         },
         "class": "read_only",
         "writes": null,
-        "runs": 0
+        "runs": 0,
+        "cost": null
       }
     ],
     "documents": [
@@ -4719,6 +4728,7 @@
         "target": ["schemas", "show"],
         "argument": "<ID>"
       }
-    ]
+    ],
+    "figures_since": null
   }
 }

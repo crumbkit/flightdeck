@@ -32,7 +32,7 @@ async function compose(page: Page, path: string) {
     .getByRole("button", { name: new RegExp(`^${path}`) })
     .click();
   const composer = page.getByRole("form", { name: "Composer" });
-  await expect(composer.getByRole("heading")).toHaveText(path);
+  await expect(composer.getByRole("heading", { level: 2 })).toHaveText(path);
   return composer;
 }
 
@@ -166,7 +166,7 @@ test("Edit fills the form from run 3, labels it and focuses its first field", as
   const composer = page.getByRole("form", { name: "Composer" });
   await expect(composer.getByText("Editing run 3")).toBeVisible();
   await expect(composer.getByLabel(/The ids of the books to show/)).toBeFocused();
-  await expect(composer.getByRole("heading")).toHaveText("books show");
+  await expect(composer.getByRole("heading", { level: 2 })).toHaveText("books show");
   await expect(composer.getByRole("button", { name: "Remove 2" })).toBeVisible();
   await expect(composer.getByRole("button", { name: "Remove 5" })).toBeVisible();
   await expectNoAccessibilityViolations(page);
@@ -200,7 +200,7 @@ test("the 2 cell of books list opens books show with 2 filled and runs nothing",
   await cell.click();
 
   const composer = page.getByRole("form", { name: "Composer" });
-  await expect(composer.getByRole("heading")).toHaveText("books show");
+  await expect(composer.getByRole("heading", { level: 2 })).toHaveText("books show");
   await expect(composer.getByRole("button", { name: "Remove 2" })).toBeVisible();
   await expect(page.getByRole("region", { name: /^Run / })).toHaveCount(1);
   await expectNoAccessibilityViolations(page);
@@ -291,7 +291,7 @@ test("a failure's recovery chip opens books list in the composer and runs nothin
 
   await card.getByRole("button", { name: "books list" }).click();
 
-  await expect(composer.getByRole("heading")).toHaveText("books list");
+  await expect(composer.getByRole("heading", { level: 2 })).toHaveText("books list");
   await expect(page.getByRole("region", { name: /^Run 2/ })).toHaveCount(0);
 });
 
@@ -324,7 +324,7 @@ test("books list shows the next chip books show <ID>…, which opens books show"
   await card.getByRole("button", { name: "books show <ID>…" }).click();
 
   const composer = page.getByRole("form", { name: "Composer" });
-  await expect(composer.getByRole("heading")).toHaveText("books show");
+  await expect(composer.getByRole("heading", { level: 2 })).toHaveText("books show");
   await expect(composer.getByLabel(/The ids of the books to show/)).toBeFocused();
   await expect(page.getByRole("region", { name: /^Run 2/ })).toHaveCount(0);
 });
@@ -507,4 +507,55 @@ test("a refused run's failure shows above the open form", async ({ page, served,
   const refusal = errors.findIndex((error) => error.includes("status of 422"));
   expect(refusal).toBeGreaterThanOrEqual(0);
   errors.splice(refusal, 1);
+});
+
+test.describe("shelf after an agent ran books show", () => {
+  // Two runs of books show 99 fail, the second within 60 s of the first,
+  // and a help page comes before them.
+  test.use({
+    ranBefore: {
+      runs: [
+        ["books", "show", "--help"],
+        ["books", "show", "99"],
+        ["books", "show", "99"],
+        ["books", "list"],
+      ],
+    },
+  });
+
+  test("books show's form shows what it cost the agent, with the failure it ran again after", async ({
+    page,
+    served,
+  }) => {
+    await signIn(page, served);
+
+    const composer = await compose(page, "books show");
+
+    const card = composer.getByRole("region", { name: "Cost to an agent" });
+    await expect(card).toContainText(/2 runs since \d{1,2} [A-Z][a-z]{2}/);
+    await expect(card.getByRole("heading")).toHaveText([
+      "Cost to an agent",
+      "Wall time",
+      "Output an agent reads",
+      "Failed",
+      "Calls an agent could have saved",
+    ]);
+    await expect(card).toContainText("2 of 2100% of runs");
+    await expect(card).toContainText("shelf::books::not_found");
+    await expect(card).toContainText("Ran again after a failure1");
+    await expect(card).toContainText("Read help before running1");
+    await expect(card).toContainText("Help pages read1");
+    await expect(card.getByRole("list", { name: "Findings" })).toContainText(
+      "retryshelf::books::not_found failed and the command ran again within 60 s (1 run)",
+    );
+    await expectNoAccessibilityViolations(page);
+  });
+
+  test("a command the agent never ran shows no cost card", async ({ page, served }) => {
+    await signIn(page, served);
+
+    const composer = await compose(page, "books summarize");
+
+    await expect(composer.getByRole("region", { name: "Cost to an agent" })).toHaveCount(0);
+  });
 });

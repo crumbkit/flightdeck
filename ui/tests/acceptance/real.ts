@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from "node:child_process";
+import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -72,35 +72,41 @@ async function openerOf(child: ChildProcess): Promise<string> {
  * shelf's JSON as a crumbkit tool that sets `JsonLayout::Pretty` does. Each test starts its own flightdeck, because a launch code
  * works once, and stops it when the test ends. The Rust lane builds both
  * before this lane runs. `test.use({ readOnly: true })` starts it with
- * `--read-only`.
+ * `--read-only`. `test.use({ ranBefore: { runs: [["books", "list"]] } })`
+ * runs the tool with each argument vector first, in the same directories,
+ * so its usage log holds those runs when flightdeck loads it. The runs sit
+ * in an object, because Playwright reads an array option as a fixture.
  */
 export const test = checked.extend<{
   tool: "shelf" | "reading" | "slow reading" | "pretty shelf";
   readOnly: boolean;
+  ranBefore: { runs: string[][] };
   served: Served;
 }>({
   tool: ["shelf", { option: true }],
   readOnly: [false, { option: true }],
-  served: async ({ tool, readOnly }, use) => {
+  ranBefore: [{ runs: [] }, { option: true }],
+  served: async ({ tool, readOnly, ranBefore }, use) => {
     const home = await mkdtemp(path.join(tmpdir(), "flightdeck-acceptance-"));
     const data = path.join(home, "data");
     const installed = (name: string) => path.join(root, "target/test-tools/bin", name);
     const slow = tool === "slow reading" ? await slowReading(home, installed("reading")) : null;
     const pretty = path.join(root, "tests/fixtures/pretty/shelf");
     const program = slow?.program ?? (tool === "pretty shelf" ? pretty : installed(tool));
+    const env = {
+      ...process.env,
+      XDG_CONFIG_HOME: path.join(home, "config"),
+      XDG_DATA_HOME: data,
+      XDG_STATE_HOME: path.join(home, "state"),
+      XDG_CACHE_HOME: path.join(home, "cache"),
+    };
+    for (const words of ranBefore.runs) {
+      spawnSync(program, words, { env, stdio: "ignore" });
+    }
     const child = spawn(
       path.join(root, "target/debug/flightdeck"),
       ["open", program, "--no-browser", ...(readOnly ? ["--read-only"] : [])],
-      {
-        env: {
-          ...process.env,
-          XDG_CONFIG_HOME: path.join(home, "config"),
-          XDG_DATA_HOME: data,
-          XDG_STATE_HOME: path.join(home, "state"),
-          XDG_CACHE_HOME: path.join(home, "cache"),
-        },
-        stdio: ["ignore", "ignore", "pipe"],
-      },
+      { env, stdio: ["ignore", "ignore", "pipe"] },
     );
     try {
       const release = async () => {

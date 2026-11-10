@@ -635,8 +635,93 @@ fn opening_shelf_again_counts_none_of_the_loaders_own_queries_as_runs() {
         &["schemas", "list"],
         &["schemas", "show"],
         &["self", "figures", "list"],
+        &["self", "usage"],
     ] {
         assert_eq!(runs(words), 0, "{words:?}");
+        assert!(shelf.command(words).unwrap().cost().is_none(), "{words:?}");
     }
     assert_eq!(runs(&["books", "list"]), 0);
+}
+
+#[test]
+fn a_failed_books_show_that_an_agent_ran_again_gives_its_cost_card_the_failure_and_the_retry() {
+    let shelf = test_tool("shelf");
+    let dirs = tempfile::tempdir().unwrap();
+    for _ in 0..2 {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the test runs shelf directly so that its usage log holds a failure and a retry"
+        )]
+        let ran = std::process::Command::new(&shelf)
+            .args(["books", "show", "99"])
+            .envs(XDG.map(|(name, directory)| (name, dirs.path().join(directory))))
+            .output()
+            .unwrap();
+        assert!(!ran.status.success(), "{ran:?}");
+    }
+
+    let tool = model::load(&within(&shelf, dirs.path()), TIME_LIMIT).unwrap();
+
+    let show = tool.command(&["books", "show"]).unwrap();
+    let cost = show.cost().unwrap();
+    assert_eq!(show.runs(), 2);
+    assert_eq!(cost.figures().failed(), Some(2));
+    let retries: Vec<(u64, Option<&str>)> = cost
+        .findings()
+        .unwrap()
+        .iter()
+        .filter(|finding| finding.finding() == "retry after failure")
+        .map(|finding| (finding.runs(), finding.code()))
+        .collect();
+    assert_eq!(retries, [(1, Some("shelf::books::not_found"))]);
+    assert!(tool.figures_since().is_some());
+}
+
+/// A fake tool like the one of [`fake_tool_with_figures`] that also mounts
+/// `self usage`, which runs `usage`, a shell command.
+#[cfg(unix)]
+fn fake_tool_with_usage(usage: &str) -> (TempDir, PathBuf) {
+    fake_tool(&format!(
+        r#"case "$1 $2 $3" in
+"--version  ") echo 'fake 0.1.0' ;;
+"commands list "*) echo '{{"schema":"fake/commands-list/v1","truncated":false,"data":[{{"path":"fake","about":"A fake tool"}},{{"path":"fake things","about":"Things"}},{{"path":"fake things list","about":"Lists things"}},{{"path":"fake self","about":"Reviews the use of fake"}},{{"path":"fake self usage","about":"Reports waste"}},{{"path":"fake self figures","about":"Figures"}},{{"path":"fake self figures list","about":"Lists the figures"}}]}}' ;;
+"schemas list "*) echo '{{"schema":"fake/schemas-list/v1","truncated":false,"data":[]}}' ;;
+"self figures list") echo '{{"schema":"fake/self-figures-list/v1","data":[{{"command":"things list","runs":7,"failed":2}}],"total":1,"truncated":false}}' ;;
+"self usage --json") {usage} ;;
+*) exit 2 ;;
+esac"#
+    ))
+}
+
+#[cfg(unix)]
+#[test]
+fn a_failing_usage_call_leaves_the_figures_without_findings() {
+    let (_directory, path) = fake_tool_with_usage("echo 'no usage' >&2; exit 1");
+    let (_dirs, program) = isolated(path);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    let cost = tool.command(&["things", "list"]).unwrap().cost().unwrap();
+    assert_eq!(cost.figures().failed(), Some(2));
+    assert_eq!(cost.findings(), None);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_usage_call_that_answers_gives_the_command_its_findings() {
+    let (_directory, path) = fake_tool_with_usage(
+        r#"echo '{"schema":"fake/self-usage/v1","data":[{"finding":"slow command","runs":3,"command":"things list","suggestion":"the 95th percentile of its wall time is 1,200 ms","code":null}],"total":1,"truncated":false}'"#,
+    );
+    let (_dirs, program) = isolated(path);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    let cost = tool.command(&["things", "list"]).unwrap().cost().unwrap();
+    let findings: Vec<&str> = cost
+        .findings()
+        .unwrap()
+        .iter()
+        .map(|finding| finding.finding())
+        .collect();
+    assert_eq!(findings, ["slow command"]);
 }

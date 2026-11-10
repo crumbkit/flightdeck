@@ -5,6 +5,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use super::argument::{Argument, CrumbkitFlag};
+use super::figures::Cost;
 use super::wire::CommandRow;
 
 /// The words of a command below the tool's name, such as `books list`. It
@@ -81,6 +82,7 @@ pub struct Command {
     class: Class,
     writes: Option<Writes>,
     runs: u64,
+    cost: Option<Cost>,
     #[serde(skip)]
     prints_no_result: bool,
 }
@@ -105,6 +107,7 @@ impl Command {
             effects: row.effects,
             writes: row.writes,
             runs: 0,
+            cost: None,
             prints_no_result: row.prints_no_result,
         }
     }
@@ -119,9 +122,11 @@ impl Command {
         }
     }
 
-    /// Records how often the command ran, from the tool's figures.
-    pub(super) const fn set_runs(&mut self, runs: u64) {
-        self.runs = runs;
+    /// Records what the command costs the agents that call it, and how
+    /// often it ran, from the tool's figures.
+    pub(super) fn set_cost(&mut self, cost: Cost) {
+        self.runs = cost.figures().runs();
+        self.cost = Some(cost);
     }
 
     /// Records the id of the document that the command prints.
@@ -224,6 +229,15 @@ impl Command {
     #[must_use]
     pub const fn runs(&self) -> u64 {
         self.runs
+    }
+
+    /// Returns what the command costs the agents that call it, from the
+    /// tool's `self figures list` and `self usage`, or `None` when the
+    /// figures hold no row for it. The commands that the loader runs
+    /// itself have none.
+    #[must_use]
+    pub const fn cost(&self) -> Option<&Cost> {
+        self.cost.as_ref()
     }
 }
 

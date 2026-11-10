@@ -7,6 +7,7 @@ import { chosenOf, type Draft, type FieldGroup, formOf, missing, setValue } from
 import { chooserLinkOf } from "@/lib/links";
 import { needsConfirmation, whyNotRunnable } from "@/lib/rail";
 import { ChipsInput } from "./ChipsInput";
+import { CostCard } from "./CostCard";
 import { IdChooser } from "./IdChooser";
 import { CommandPathText } from "./Rail";
 
@@ -34,7 +35,8 @@ type Props = {
 };
 
 /**
- * The composer's form, under the command line: the command's required
+ * The composer's form, under the command line: what the command costs an
+ * agent, when the tool keeps figures for it, the command's required
  * fields, then its other options under "More options", and Run, which ⌘↩
  * or Ctrl-↩ presses from anywhere in the form. A command that needs a
  * confirmation has Preview in place of Run, and `onRun` previews it. Under
@@ -120,6 +122,7 @@ export function Composer(props: Props) {
         {command.about !== null && (
           <p className="text-muted-foreground mt-0 mb-2">{command.about}</p>
         )}
+        {command.cost !== null && <CostCard cost={command.cost} since={props.tool.figures_since} />}
         <div className="flex flex-col gap-2.5">
           {form.required.map((group) => (
             <Field key={group.choices[0]?.name} group={group} {...props} />

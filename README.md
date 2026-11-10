@@ -68,15 +68,22 @@ What works today:
   crumbkit's own flags, such as `--json` and `--limit`, apart
   from the tool's own arguments. It refuses a tool whose name, command
   words or argument names hold a control character. When the tool mounts
-  `self figures list`, the model also counts how often the tool's usage log
-  saw each command run. When that call fails, every count stays 0 and the
-  tool still loads. `commands list`, `schemas list`, `schemas show` and
-  `self figures list` keep no count, because the figures also count the
-  runs that flightdeck makes to load the tool.
+  `self figures list`, the model also reads what each command costs the
+  agents that call it: how often the tool's usage log saw it run, fail and
+  have its command line refused, the help pages read before it, and the
+  95th percentile of its wall time and output. When the tool also mounts
+  `self usage`, which runs at the same time, each command gets the tool's
+  findings about it, such as a retry after a failure. When the figures fail,
+  every count stays 0 and the tool still loads; when the findings fail, the
+  figures stay without them. `commands list`, `schemas list`,
+  `schemas show`, `self figures list` and `self usage` keep no count and no
+  cost, because the figures also count the runs that flightdeck makes to
+  load the tool.
 - The page in `ui/` is a React application. It lists the tool's commands
-  grouped by goal, finds a command with ⌘K, builds a run from a form, and
-  shows each run as a card with its result as a table or a record. A
-  stream's rows appear as they arrive, under the time since the run
+  grouped by goal, finds a command with ⌘K, builds a run from a form that
+  starts with what the command costs an agent when the tool keeps figures
+  for it, and shows each run as a card with its result as a table or a
+  record. A stream's rows appear as they arrive, under the time since the run
   started and a count of its rows, and Cancel or ⌘. stops the run and
   keeps the rows that came. A failure shows its message, cause, code,
   fields and labels, and its recovery and alternatives as chips that fill

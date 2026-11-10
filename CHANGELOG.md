@@ -16,6 +16,16 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and SIGTERM steps that Unix gets. `flightdeck open` on Windows prints the
   opener page's path for you to open, because flightdeck has no Windows
   browser opener yet.
+- A command's form shows what the command costs the agents that call it,
+  from the tool's own `self figures list` and `self usage`: the 95th
+  percentile of its wall time and of its output in bytes and about how many
+  tokens, how many runs failed and the codes agents ran it again after, the
+  calls an agent could have saved, and the tool's findings about it. Each
+  figure shows only when the tool reports it. `GET /api/model` gives each
+  command a `cost` field and the tool a `figures_since` field. The loader
+  runs `self figures list` with `--full`, and runs `self usage --json --full
+  --no-input` at the same time when the tool mounts it. When `self usage`
+  fails, the card shows the figures without findings.
 
 ### Changed
 

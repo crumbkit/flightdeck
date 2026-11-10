@@ -128,6 +128,37 @@ describe("Composer", () => {
     expect(screen.getByRole("checkbox")).toHaveFocus();
     expect(screen.getByText("More options").closest("details")).toHaveAttribute("open");
   });
+
+  it("shows the command's cost between its about line and its fields, and no card without one", () => {
+    const list = command(shelf, "books list");
+    const costed: Command = {
+      ...list,
+      cost: {
+        figures: {
+          runs: 3,
+          help_pages: 0,
+          help_before: 1,
+          refused: 0,
+          failed: 0,
+          p95_ms: 12,
+          p95_out_bytes: 648,
+        },
+        findings: [],
+      },
+    };
+
+    const { rerender } = render(edited(costed, null, makeQueryClient()));
+
+    const card = screen.getByRole("region", { name: "Cost to an agent" });
+    const about = screen.getByText(list.about ?? "");
+    const fields = screen.getByText("More options");
+    expect(about.compareDocumentPosition(card)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(card.compareDocumentPosition(fields)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    rerender(edited(list, null, makeQueryClient()));
+
+    expect(screen.queryByRole("region", { name: "Cost to an agent" })).toBeNull();
+  });
 });
 
 describe("Composer's IDs chooser", () => {

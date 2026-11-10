@@ -56,6 +56,49 @@ export type Effects = z.infer<typeof Effects>;
 /** How a command's effects decide how it starts, which the server decides. */
 const Class = z.enum(["read_only", "additive", "destructive"]);
 
+/** A figure that the tool may not report: null when it does not. */
+const Figure = z.number().int().nonnegative().nullable();
+
+/**
+ * The figures of a command's runs from the tool's `self figures list`. The
+ * server sends null for each figure the tool does not report.
+ */
+const Figures = z.object({
+  /** The runs that printed no help page. */
+  runs: z.number().int().nonnegative(),
+  /** The runs that printed the command's help page. */
+  help_pages: Figure,
+  /** The help pages that sessions read before their runs, summed. */
+  help_before: Figure,
+  /** The runs whose command line the parser refused. */
+  refused: Figure,
+  failed: Figure,
+  p95_ms: Figure,
+  p95_out_bytes: Figure,
+});
+export type Figures = z.infer<typeof Figures>;
+
+/** One finding of the tool's `self usage` about a command. */
+const Finding = z.object({
+  /** What the pattern is, such as "retry after failure". */
+  finding: z.string().min(1),
+  runs: z.number().int().nonnegative(),
+  suggestion: z.string(),
+  /** The code of the failure that the runs retried, for a retry after failure. */
+  code: z.string().nullable(),
+});
+export type Finding = z.infer<typeof Finding>;
+
+/**
+ * What a command costs the agents that call it. `findings` is null when the
+ * tool's `self usage` failed or the tool does not mount it.
+ */
+const Cost = z.object({
+  figures: Figures,
+  findings: z.array(Finding).nullable(),
+});
+export type Cost = z.infer<typeof Cost>;
+
 const Command = z.object({
   path: CommandPath,
   about: z.string().nullable(),
@@ -70,6 +113,8 @@ const Command = z.object({
   class: Class,
   /** How often the command ran, from the tool's usage figures, or 0. */
   runs: z.number().int().nonnegative(),
+  /** What the command costs an agent, or null when the figures hold no row for it. */
+  cost: Cost.nullable(),
 });
 export type Command = z.infer<typeof Command>;
 
@@ -96,6 +141,8 @@ const Tool = z.object({
   headings: z.array(Heading),
   commands: z.array(Command),
   links: z.array(Link),
+  /** The day the tool's figures start, such as "2026-11-03", or null. */
+  figures_since: z.iso.date().nullable(),
 });
 export type Tool = z.infer<typeof Tool>;
 
