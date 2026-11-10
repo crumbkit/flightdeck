@@ -651,3 +651,22 @@ fn a_tool_sends_its_history_and_null_without_one() {
     assert_eq!(reply["history"].as_array().unwrap().len(), 7);
     assert_eq!(reply["history"][1]["code"], "books::not_found");
 }
+
+#[test]
+fn a_tool_that_is_not_found_offers_a_name_on_path_and_a_path_as_two_repairs() {
+    use crumbkit::{Failure as _, Recovery};
+
+    let failure = super::LoadError::NotFound {
+        tool: "shelf".to_owned(),
+        source: std::io::Error::from(std::io::ErrorKind::NotFound),
+    };
+
+    assert_eq!(
+        failure.recovery(),
+        Recovery::hint("give the name of a program on PATH")
+    );
+    assert_eq!(
+        failure.alternatives(),
+        [Recovery::hint("give the path of a program")]
+    );
+}

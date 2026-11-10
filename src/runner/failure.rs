@@ -166,7 +166,8 @@ pub enum RunFailure {
     /// The source of a choices run ended without a listing to read.
     #[failure(
         code = CHOICES_NO_LISTING,
-        hint = "type the value, or run {path} to see why it fails",
+        hint = "type the value",
+        alternative = Recovery::hint(format!("run {path} to see why it fails")),
         field(path = path.as_str(), outcome = *outcome),
     )]
     NoListing {
@@ -180,7 +181,8 @@ pub enum RunFailure {
     /// and the runner stopped it.
     #[failure(
         code = CHOICES_TIME_LIMIT,
-        hint = "type the value, or run {path} to list every row",
+        hint = "type the value",
+        alternative = Recovery::hint(format!("run {path} to list every row")),
         field(path = path.as_str()),
     )]
     ChoicesTime {

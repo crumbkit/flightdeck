@@ -45,6 +45,11 @@ flightdeck open ./target/debug/shelf --read-only --no-browser
 
 Effects: read-only, open-world.
 
+### Exit codes
+
+- `130`: A second Ctrl-C while flightdeck stopped ended it at once and left the opener page behind.
+- `143`: A second SIGTERM while flightdeck stopped ended it at once and left the opener page behind.
+
 ## `flightdeck commands`
 
 Explore flightdeck's commands

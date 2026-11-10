@@ -2,7 +2,7 @@
 //! crumbkit's `crumbkit/failure/v1`, for a runner's refusal and for a run
 //! that fails at its end.
 
-use crumbkit::{Code, Failure, Recovery};
+use crumbkit::{Failure, Recovery, Spelling};
 use serde::Serialize;
 use serde::ser::{SerializeMap as _, Serializer};
 
@@ -30,7 +30,7 @@ impl Serialize for Document<'_> {
         let failure = self.0;
         let mut map = serializer.serialize_map(None)?;
         map.serialize_entry("schema", SCHEMA)?;
-        map.serialize_entry("code", &spelled(failure.code()))?;
+        map.serialize_entry("code", &Spelling::COLONS.spell(failure.code()))?;
         map.serialize_entry("message", &failure.to_string())?;
         let causes = causes(failure);
         if !causes.is_empty() {
@@ -50,11 +50,6 @@ impl Serialize for Document<'_> {
         }
         map.end()
     }
-}
-
-/// Returns `code` as crumbkit spells it, such as `flightdeck::run::refused`.
-fn spelled(code: &Code) -> String {
-    format!("{}::{}::{}", code.component(), code.area(), code.reason())
 }
 
 /// Returns the message of each error under `failure`, in order.

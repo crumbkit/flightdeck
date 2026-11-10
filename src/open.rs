@@ -15,7 +15,8 @@ use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-use crumbkit::{Code, Failure, Run, Sink};
+use crumbkit::{Code, Failure, Recovery, Run, Sink};
+use crumbkit_process::Status;
 use signal_hook::consts::{SIGINT, SIGTERM};
 
 use crate::cli::OpenArgs;
@@ -36,9 +37,21 @@ pub const SERVER_FAILED: Code = Code::new("flightdeck", "server", "failed");
 /// from every directory, because an entry of `PATH` cannot be made absolute.
 pub const TOOL_SEARCH_PATH: Code = Code::new("flightdeck", "tool", "search_path");
 
-/// The exit code of a second Ctrl-C or SIGTERM while flightdeck stops,
-/// which ends the process at once.
-const FORCED_EXIT: i32 = 130;
+/// The exit codes of a second Ctrl-C or SIGTERM while `flightdeck open`
+/// stops, which ends the process at once. The tool record declares them,
+/// and [`forced_exit`] gives the same numbers.
+pub(crate) const FORCED_EXITS: [crumbkit::tool::Exit; 2] = [
+    crumbkit::tool::Exit::new(
+        130,
+        "A second Ctrl-C while flightdeck stopped ended it at once and left the opener page behind.",
+    )
+    .commands(&[&["open"]]),
+    crumbkit::tool::Exit::new(
+        143,
+        "A second SIGTERM while flightdeck stopped ended it at once and left the opener page behind.",
+    )
+    .commands(&[&["open"]]),
+];
 
 /// Why `flightdeck open` stopped before or while it served the page.
 #[derive(Debug, Failure)]
@@ -47,32 +60,35 @@ pub enum OpenError {
     /// name could start a different program in a run's directory.
     #[failure(
         code = TOOL_SEARCH_PATH,
-        hint = "run flightdeck open from another directory, or give the tool's path"
+        hint = "give the tool's path",
+        alternative = Recovery::hint("run flightdeck open from another directory"),
     )]
     SearchPath,
     /// The tool's model could not be loaded.
     #[failure(forward)]
     Load(LoadError),
     /// flightdeck could not watch for Ctrl-C and SIGTERM.
-    #[failure(code = SERVER_FAILED, hint = "run flightdeck open again")]
+    #[failure(code = SERVER_FAILED, recovery = Recovery::Retry)]
     Signals(io::Error),
     /// The server could not listen or build its replies.
     #[failure(
         code = SERVER_FAILED,
-        hint = "check that flightdeck may listen on 127.0.0.1, then run flightdeck open again"
+        hint = "check that flightdeck may listen on 127.0.0.1",
+        alternative = Recovery::Retry,
     )]
     Start(StartError),
     /// The operating system's random source failed.
-    #[failure(code = SERVER_FAILED, hint = "run flightdeck open again")]
+    #[failure(code = SERVER_FAILED, recovery = Recovery::Retry)]
     Random(getrandom::Error),
     /// The opener page could not be written.
     #[failure(
         code = SERVER_FAILED,
-        hint = "check that the temporary directory is writable, then run flightdeck open again"
+        hint = "check that the temporary directory is writable",
+        alternative = Recovery::Retry,
     )]
     Opener(io::Error),
     /// The server stopped accepting connections.
-    #[failure(code = SERVER_FAILED, hint = "run flightdeck open again")]
+    #[failure(code = SERVER_FAILED, recovery = Recovery::Retry)]
     Serve(io::Error),
 }
 
@@ -240,14 +256,25 @@ const fn is_bidi_control(character: char) -> bool {
     )
 }
 
+/// Returns the exit code of a second `signal` while flightdeck stops: the
+/// code that a shell gives a process that the signal ended, 130 for Ctrl-C
+/// and 143 for SIGTERM.
+fn forced_exit(signal: i32) -> i32 {
+    Status::Signal(signal).shell_code()
+}
+
 /// Sets `stop` on Ctrl-C and SIGTERM. A second signal while flightdeck
-/// stops ends the process at once with exit code 130 and leaves the opener
-/// directory behind.
+/// stops ends the process at once with the code that [`forced_exit`] gives
+/// and leaves the opener directory behind.
 fn watch_signals(stop: &Arc<AtomicBool>) -> io::Result<()> {
     for signal in [SIGINT, SIGTERM] {
         // signal-hook runs the handlers in the order they were registered,
         // so the shutdown sees the flag that only an earlier signal set.
-        signal_hook::flag::register_conditional_shutdown(signal, FORCED_EXIT, Arc::clone(stop))?;
+        signal_hook::flag::register_conditional_shutdown(
+            signal,
+            forced_exit(signal),
+            Arc::clone(stop),
+        )?;
         signal_hook::flag::register(signal, Arc::clone(stop))?;
     }
     Ok(())
