@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { cn } from "cn";
-import { useEffect, useReducer, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useReducer, useRef, useState } from "react";
 import { ApiError } from "@/api/client";
 import { describeFailure, fieldErrorOf, isSignedOut } from "@/api/failure";
 import type { Command, Example, Link, ModelReply } from "@/api/model";
@@ -14,7 +14,7 @@ import {
   streamRun,
   type Value,
 } from "@/api/runs";
-import { frameQueue } from "@/clock";
+import { frameQueue, useMountTime } from "@/clock";
 import { Composer, type FieldError } from "@/components/Composer";
 import { Confirmation } from "@/components/Confirmation";
 import { DirectoryControl } from "@/components/DirectoryControl";
@@ -26,6 +26,7 @@ import { Topbar } from "@/components/Topbar";
 import { Transcript } from "@/components/Transcript";
 import { Welcome } from "@/components/Welcome";
 import { asksForYes } from "@/lib/confirm";
+import { dayOf, type UsageTab, usageCommand } from "@/lib/cost";
 import { requestOfExample } from "@/lib/example";
 import {
   type Draft,
@@ -48,6 +49,13 @@ import { drawnKey, type Run, transcript } from "@/lib/transcript";
  * number that changes each time the composer should take focus.
  */
 type Composing = { command: Command; draft: Draft; editing: number | null; focus: number | null };
+
+/** The usage view on screen: its tab and the command it is about. */
+type Viewing = { tab: UsageTab; command: string };
+
+// The usage view loads in its own file the first time it opens, so the
+// page's first load stays within its size budget.
+const Usage = lazy(() => import("./Usage"));
 
 /** Returns the page's words for a failed cancel, or null when the run had already ended. */
 function cancelFailure(error: unknown): string | null {
@@ -76,6 +84,10 @@ export function ToolPage({ reply, onSignedOut }: Props) {
   const [typed, setTyped] = useState<Typed | null>(null);
   const [finding, setFinding] = useState(false);
   const [directory, setDirectory] = useState(reply.directory);
+  const [viewing, setViewing] = useState<Viewing | null>(null);
+  const { history } = tool;
+  // The usage view's period ends on the day the page opened.
+  const now = useMountTime();
   const counter = useRef(0);
   const focuses = useRef(0);
   // Each running run's controller, by its number. Leaving the page aborts
@@ -348,6 +360,14 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     document.getElementById(`run-${number}`)?.scrollIntoView({ block: "nearest" });
   };
 
+  // The usage view opens on the command in the form when it ran.
+  const openUsage = (tab: UsageTab) => {
+    if (history !== null) {
+      const preferred = composing === null ? null : composing.command.path.join(" ");
+      setViewing({ tab, command: usageCommand(history, preferred) });
+    }
+  };
+
   const canonical = composing === null ? "" : textOf(tool, composing.command, composing.draft);
   const lineRefused = shownLine(tool, typed, canonical).parsed.problem !== null;
   const line = (
@@ -368,10 +388,35 @@ export function ToolPage({ reply, onSignedOut }: Props) {
         version={tool.version}
         readOnly={reply.read_only}
         onFind={() => setFinding(true)}
+        views={
+          history === null
+            ? null
+            : {
+                usage: viewing !== null,
+                onView: (usage) => (usage ? openUsage(viewing?.tab ?? "steps") : setViewing(null)),
+              }
+        }
       >
         <DirectoryControl directory={directory} onChange={setDirectory} />
       </Topbar>
-      <div className="flex min-h-0 flex-1">
+      {history !== null && viewing !== null && (
+        <Suspense
+          fallback={<p className="text-muted-foreground m-0 px-4 py-3 text-sm">Loading…</p>}
+        >
+          <Usage
+            tool={tool}
+            history={history}
+            tab={viewing.tab}
+            command={viewing.command}
+            today={dayOf(new Date(now))}
+            onTab={(tab) => setViewing({ ...viewing, tab })}
+            onCommand={(command) => setViewing({ ...viewing, command })}
+          />
+        </Suspense>
+      )}
+      {/* The commands view stays mounted under the usage view, so its runs,
+          form and scroll are as they were when the person comes back. */}
+      <div hidden={viewing !== null} className="flex min-h-0 flex-1">
         <Rail
           tool={tool}
           selected={composing?.command ?? null}
@@ -461,6 +506,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
                 onRun={() => run(composing)}
                 onStopEditing={() => setComposing({ ...composing, editing: null })}
                 onShowRun={showRun}
+                onUsage={history === null ? null : openUsage}
               />
             )}
           </div>

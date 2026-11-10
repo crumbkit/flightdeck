@@ -11,8 +11,10 @@ do not run shelf. They move with that commit.
   holds one step that calls a shelf command. A second step was added by
   hand, because shelf prints no step that runs another program: it runs
   `rm` and then calls a shelf command.
-- `self-figures-list.json` is `shelf self figures list --json --full --all`
-  and `self-usage.json` is `shelf self usage --json --full`, each run after
+- `self-figures-list.json` is `shelf self figures list --json --full --all`,
+  `self-usage.json` is `shelf self usage --json --full` and
+  `self-runs-list.json` is `shelf self runs list --json --full --all`, each
+  run in that order after
   `books list`, two runs of `books show 99`, which fail, `books show
   --help`, two runs of `books show 2` and `books show --bogus`, in one
   session with an empty usage log.

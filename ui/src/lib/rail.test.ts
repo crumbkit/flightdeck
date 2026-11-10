@@ -11,7 +11,7 @@ describe("railGroups", () => {
     expect(titles(railGroups(shelf))).toEqual([
       ["Browse the catalogue", ["books list", "books show", "books summarize", "books remove"]],
       ["Explore the commands", ["commands list", "schemas list", "schemas show"]],
-      ["Review how shelf is used", ["self usage", "self figures list"]],
+      ["Review how shelf is used", ["self usage", "self figures list", "self runs list"]],
     ]);
   });
 
@@ -20,7 +20,7 @@ describe("railGroups", () => {
 
     expect(groups).toHaveLength(1);
     expect(groups[0]?.title).toBeNull();
-    expect(groups[0]?.commands).toHaveLength(9);
+    expect(groups[0]?.commands).toHaveLength(10);
   });
 
   it("keeps the guide's order whatever the runs counts are", () => {

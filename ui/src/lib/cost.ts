@@ -1,4 +1,4 @@
-import type { Cost, Day, Finding } from "@/api/model";
+import type { Cost, Day, Finding, Run } from "@/api/model";
 import { counted } from "./words";
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -19,13 +19,92 @@ export function grouped(count: number): string {
 }
 
 /**
- * Returns the card's line under its title: the runs, and the days the
- * figures cover when the tool names the first, such as
- * "86 runs, 27 Oct to 10 Nov".
+ * Returns the card's line under its title: the runs, the sessions when the
+ * tool lists its runs, and the days the figures cover when the tool names
+ * the first, such as "86 runs in 5 sessions, 27 Oct to 10 Nov".
  */
-export function periodWords(runs: number, since: Day | null, today: Day): string {
-  const count = counted(runs, "run");
+export function periodWords(
+  runs: number,
+  since: Day | null,
+  today: Day,
+  sessions: number | null = null,
+): string {
+  const count =
+    sessions === null
+      ? counted(runs, "run")
+      : `${counted(runs, "run")} in ${counted(sessions, "session")}`;
   return since === null ? count : `${count}, ${dayWords(since)} to ${dayWords(today)}`;
+}
+
+/** A view of the usage page, which the card's links open. */
+export type UsageTab = "steps" | "sessions" | "flags";
+
+/** How many runs failed with one code. */
+export type CodeCount = { code: string; count: number };
+
+/**
+ * Returns the sessions that ran `command` and its failures by code, most
+ * first, from the tool's runs. Only runs that exited with 1 count, as the
+ * figures' `failed` does, so the codes never add up to more than the Failed
+ * tile's count; usage errors (exit 2) and help pages are counted apart.
+ */
+export function commandHistory(
+  history: Run[],
+  command: string,
+): { sessions: number; codes: CodeCount[] } {
+  const sessions = new Set<number>();
+  const codes = new Map<string, number>();
+  for (const run of history) {
+    if (run.command !== command) {
+      continue;
+    }
+    sessions.add(run.session);
+    if (!run.help && run.exit === 1 && run.code !== null) {
+      codes.set(run.code, (codes.get(run.code) ?? 0) + 1);
+    }
+  }
+  const sorted = [...codes].map(([code, count]) => ({ code, count }));
+  sorted.sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
+  return { sessions: sessions.size, codes: sorted };
+}
+
+/**
+ * Returns the command that the usage view opens on: `preferred`, the
+ * command in the form, when it ran other than as a help page, else the
+ * command that ran most, else `preferred` or "".
+ */
+export function usageCommand(history: Run[], preferred: string | null): string {
+  const counts = new Map<string, number>();
+  for (const run of history) {
+    if (!run.help) {
+      counts.set(run.command, (counts.get(run.command) ?? 0) + 1);
+    }
+  }
+  if (preferred !== null && counts.has(preferred)) {
+    return preferred;
+  }
+  // Ties go to the first name, so the view opens on the same command each time.
+  const most = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+  return most?.[0] ?? preferred ?? "";
+}
+
+/** A row of the card's failures: one code, or the codes past the first three. */
+export type CodeRow = CodeCount | { code: null; count: number; others: number };
+
+/** Returns the first three codes and one row that sums the rest, if any. */
+export function topCodes(codes: CodeCount[]): CodeRow[] {
+  const rest = codes.slice(3);
+  const others: CodeRow[] =
+    rest.length === 0
+      ? []
+      : [
+          {
+            code: null,
+            count: rest.reduce((sum, each) => sum + each.count, 0),
+            others: rest.length,
+          },
+        ];
+  return [...codes.slice(0, 3), ...others];
 }
 
 /** Returns bytes in words, such as "1,384 B". */

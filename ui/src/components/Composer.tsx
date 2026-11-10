@@ -4,7 +4,7 @@ import type { Argument, Command, Tool } from "@/api/model";
 import type { Value } from "@/api/runs";
 import { useMountTime } from "@/clock";
 import { Button } from "@/components/ui/button";
-import { dayOf } from "@/lib/cost";
+import { dayOf, type UsageTab } from "@/lib/cost";
 import { chosenOf, type Draft, type FieldGroup, formOf, missing, setValue } from "@/lib/form";
 import { chooserLinkOf } from "@/lib/links";
 import { needsConfirmation, whyNotRunnable } from "@/lib/rail";
@@ -36,6 +36,8 @@ type Props = {
   onRun: () => void;
   onStopEditing: () => void;
   onShowRun: (number: number) => void;
+  /** Opens a usage view on the command, or null when the tool lists no runs. */
+  onUsage?: ((tab: UsageTab) => void) | null;
 };
 
 /**
@@ -134,6 +136,8 @@ export function Composer(props: Props) {
             command={command.path.join(" ")}
             since={props.tool.figures_since}
             today={dayOf(new Date(now))}
+            history={props.tool.history}
+            onUsage={props.onUsage ?? null}
           />
         )}
         <div className="flex flex-col gap-2.5">

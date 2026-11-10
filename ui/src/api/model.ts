@@ -30,6 +30,8 @@ const Argument = z.object({
   one_of: z.array(z.string()),
   /** Which of crumbkit's own flags the argument is, such as `--json`. */
   crumbkit_flag: z.string().nullable(),
+  /** Whether every command takes the flag, as `--json` and `--no-input` are. */
+  global: z.boolean(),
 });
 export type Argument = z.infer<typeof Argument>;
 
@@ -81,7 +83,9 @@ const Figures = z.object({
   /** The runs whose command line the parser refused. */
   refused: Figure,
   failed: Figure,
+  p50_ms: Figure,
   p95_ms: Figure,
+  p50_out_bytes: Figure,
   p95_out_bytes: Figure,
 });
 export type Figures = z.infer<typeof Figures>;
@@ -138,6 +142,34 @@ const Command = z.object({
 });
 export type Command = z.infer<typeof Command>;
 
+/**
+ * One run in the tool's usage log, from the tool's `self runs list`, in
+ * order within its session. The log keeps flag names, never their values.
+ */
+const Run = z.object({
+  /** The run's session, numbered from 1. */
+  session: z.number().int().positive(),
+  /** The run's place in its session, from 1. */
+  step: z.number().int().positive(),
+  /** When the run ended, in whole seconds since the Unix epoch. */
+  at: z.number().int().nonnegative(),
+  /** The agent that ran it, such as "claude-code". */
+  caller: z.string(),
+  /** The command's words below the tool's name, such as "books show". */
+  command: z.string(),
+  flags: z.array(z.string()),
+  /** Whether the run printed a help page. */
+  help: z.boolean(),
+  /** The exit code, or null when the run ended before it exited. */
+  exit: z.number().int().min(0).max(255).nullable(),
+  /** The failure's code without the tool's name in front, such as "books::not_found". */
+  code: z.string().nullable(),
+  ms: z.number().int().nonnegative(),
+  /** The bytes written to standard output, or null when the run did not finish. */
+  out_bytes: Figure,
+});
+export type Run = z.infer<typeof Run>;
+
 const Heading = z.object({
   title: z.string(),
   commands: z.array(CommandPath),
@@ -163,6 +195,8 @@ const Tool = z.object({
   links: z.array(Link),
   /** The day the tool's figures start, or null when no command has a cost. */
   figures_since: Day.nullable(),
+  /** Each run in the tool's usage log, or null when the tool reports none. */
+  history: z.array(Run).nullable(),
 });
 export type Tool = z.infer<typeof Tool>;
 

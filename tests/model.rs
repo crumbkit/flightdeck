@@ -125,7 +125,7 @@ fn a_tool_that_indents_its_json_loads_the_same_model_and_figures_as_one_that_pri
 }
 
 #[test]
-fn shelf_has_nine_runnable_commands_its_version_and_its_about_line() {
+fn shelf_has_ten_runnable_commands_its_version_and_its_about_line() {
     let shelf = load("shelf");
 
     let paths: Vec<String> = shelf
@@ -145,10 +145,11 @@ fn shelf_has_nine_runnable_commands_its_version_and_its_about_line() {
             "schemas show",
             "self usage",
             "self figures list",
+            "self runs list",
         ]
     );
     assert_eq!(shelf.name(), "shelf");
-    assert_eq!(shelf.version(), "0.2.0+git-45d0015e1f94");
+    assert_eq!(shelf.version(), "0.2.0+git-644f776e29ca");
     assert_eq!(
         shelf.about(),
         Some("Browse a small catalogue of public-domain books")
@@ -174,7 +175,7 @@ fn shelf_and_reading_declare_prints_no_result_and_mark_none_of_their_commands() 
 fn every_document_that_shelf_prints_has_its_schema_and_books_list_names_its_own() {
     let shelf = load("shelf");
 
-    assert_eq!(shelf.documents().len(), 10);
+    assert_eq!(shelf.documents().len(), 11);
     let books_list = shelf.command(&["books", "list"]).unwrap();
     let id = books_list.result().document().unwrap();
     assert_eq!(id, "shelf/books-list/v1");
@@ -316,7 +317,11 @@ fn shelfs_goal_headings_hold_its_commands_in_help_order() {
             ),
             (
                 "Review how shelf is used",
-                vec!["self usage".to_owned(), "self figures list".to_owned()]
+                vec![
+                    "self usage".to_owned(),
+                    "self figures list".to_owned(),
+                    "self runs list".to_owned(),
+                ]
             ),
         ]
     );

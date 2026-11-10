@@ -2,7 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Command, ModelReply } from "@/api/model";
+import type { Command, ModelReply, Run } from "@/api/model";
 import { makeQueryClient } from "@/queryClient";
 import { shelfReply } from "../../tests/fixtures/shelf";
 import { ToolPage } from "./ToolPage";
@@ -210,5 +210,45 @@ describe("ToolPage", () => {
 
     expect(screen.queryByRole("region", { name: /^Run 1/ })).toBeNull();
     expect(sent.filter((path) => path === "/api/runs" || path === "/api/previews")).toEqual([]);
+  });
+
+  it("opens the usage view from the top bar on the command that ran most, and Commands keeps the form", async () => {
+    const run = (step: number, command: string): Run => ({
+      session: 1,
+      step,
+      at: 1_794_000_000 + step,
+      caller: "claude-code",
+      command,
+      flags: [],
+      help: false,
+      exit: 0,
+      code: null,
+      ms: 4,
+      out_bytes: 12,
+    });
+    const history = [run(1, "books list"), run(2, "books show"), run(3, "books show")];
+    renderPage({ ...shelfReply, tool: { ...shelfReply.tool, history } });
+    const rail = screen.getByRole("navigation", { name: "Commands" });
+    await userEvent.click(within(rail).getByRole("button", { name: /^books summarize/ }));
+    const views = screen.getByRole("navigation", { name: "Views" });
+
+    await userEvent.click(within(views).getByRole("button", { name: "Usage" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "After each command, what the agent ran next" }),
+    ).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "Command" })).toHaveValue("books show");
+    expect(screen.getByRole("form", { name: "Composer", hidden: true })).not.toBeVisible();
+
+    await userEvent.click(within(views).getByRole("button", { name: "Commands" }));
+
+    expect(screen.getByRole("form", { name: "Composer" })).toBeVisible();
+    expect(screen.queryByRole("navigation", { name: "Usage views" })).toBeNull();
+  });
+
+  it("has no usage view for a tool that lists no runs", () => {
+    renderPage({ ...shelfReply, tool: { ...shelfReply.tool, history: null } });
+
+    expect(screen.queryByRole("navigation", { name: "Views" })).toBeNull();
   });
 });

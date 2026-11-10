@@ -1,18 +1,24 @@
 import { Lock, Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { ThemeControl } from "./ThemeControl";
+import { ViewButton } from "./ViewButton";
 
 type Props = {
   name: string;
   version: string;
   readOnly: boolean;
   onFind: (() => void) | null;
+  /**
+   * The Commands and Usage links, with whether the usage view is on screen,
+   * or null when the tool lists no runs and the page has one view.
+   */
+  views?: { usage: boolean; onView: (usage: boolean) => void } | null;
   /** What follows the tool's name, such as the directory control. */
   children?: ReactNode;
 };
 
-/** The bar across the top: the tool, the ⌘K search and the theme control. */
-export function Topbar({ name, version, readOnly, onFind, children }: Props) {
+/** The bar across the top: the tool, the view links, the ⌘K search and the theme control. */
+export function Topbar({ name, version, readOnly, onFind, views = null, children }: Props) {
   return (
     <header className="bg-card flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2">
       <span className="font-semibold tracking-tight">flightdeck</span>
@@ -32,6 +38,16 @@ export function Topbar({ name, version, readOnly, onFind, children }: Props) {
       )}
       {children}
       <span className="ml-auto flex items-center gap-3">
+        {views !== null && (
+          <nav aria-label="Views" className="flex items-center gap-1">
+            <ViewButton on={!views.usage} onClick={() => views.onView(false)}>
+              Commands
+            </ViewButton>
+            <ViewButton on={views.usage} onClick={() => views.onView(true)}>
+              Usage
+            </ViewButton>
+          </nav>
+        )}
         {onFind !== null && (
           <button
             type="button"

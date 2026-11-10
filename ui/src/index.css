@@ -119,6 +119,17 @@
   --destructive: light-dark(oklch(50% 0.2 27), oklch(74% 0.17 25));
   --destructive-soft: light-dark(oklch(94% 0.04 27), oklch(25% 0.07 25));
   --destructive-foreground: light-dark(oklch(99.5% 0.002 240), oklch(14% 0.02 230));
+
+  /* What became of each run in the usage views and on the cost card's
+     bars, each always shown beside its word in a legend or a row: it
+     succeeded, printed a help page, was refused as a usage error, failed,
+     or was the same call again. A retry after a failure stripes the failed
+     and the succeeded colours. */
+  --k-ok: light-dark(oklch(82% 0.02 240), oklch(38% 0.02 240));
+  --k-help: light-dark(oklch(62% 0.13 230), oklch(70% 0.12 225));
+  --k-usage: light-dark(oklch(76% 0.15 80), oklch(70% 0.14 80));
+  --k-fail: light-dark(oklch(50% 0.2 27), oklch(62% 0.19 27));
+  --k-repeat: light-dark(oklch(45% 0.14 300), oklch(80% 0.1 300));
 }
 
 :root[data-theme="light"] {
@@ -159,6 +170,11 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-popover: var(--popover);
   --color-primary-hover: var(--primary-hover);
+  --color-k-ok: var(--k-ok);
+  --color-k-help: var(--k-help);
+  --color-k-usage: var(--k-usage);
+  --color-k-fail: var(--k-fail);
+  --color-k-repeat: var(--k-repeat);
   --font-sans: var(--sans);
   --font-mono: var(--mono);
   /* Controls and cards share the 3px corner. */
@@ -246,6 +262,33 @@
 /* Rows of words and a count: the words take the room, the count its own. */
 @utility grid-cols-counts {
   grid-template-columns: minmax(0, 1fr) auto;
+}
+
+/* A retry after a failure: the failed colour striped over the succeeded
+   one. */
+@utility bg-k-retry {
+  background: repeating-linear-gradient(135deg, var(--k-fail) 0 3px, var(--k-ok) 3px 6px);
+}
+/* The flag table of the usage view: the flag, its bar, its count and a
+   note. */
+@utility grid-cols-flags {
+  grid-template-columns: minmax(150px, 220px) minmax(160px, 1fr) 64px minmax(160px, 260px);
+}
+/* A session lane: what the session is, then its runs. */
+@utility grid-cols-lane {
+  grid-template-columns: 200px minmax(0, 1fr);
+}
+/* A command's name and its bar, in the lists beside the steps matrix. */
+@utility grid-cols-bar {
+  grid-template-columns: 64px minmax(0, 1fr);
+}
+/* The steps matrix takes the room, and the lists beside it wrap under it
+   when the page is narrower than both. */
+@utility flex-matrix {
+  flex: 999 1 640px;
+}
+@utility flex-aside {
+  flex: 1 1 300px;
 }
 
 /* The bar under a running card's header: a short bar that slides across

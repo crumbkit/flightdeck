@@ -1,5 +1,6 @@
 use super::day::Day;
 use super::figures::{FiguresList, FindingKind, Usage};
+use super::runs::History;
 use super::{CommandsList, Document, Effects, Listing, NotDocument, StepCommand, Tool};
 
 /// shelf's `commands list` document, with `goals` on its root row.
@@ -219,6 +220,11 @@ fn books_show_reads_every_figure_and_its_findings_in_the_order_shelf_prints_them
         ]
     );
     assert_eq!(tool.figures_since(), Day::parse("2026-11-03"));
+    let list = tool.command(&["books", "list"]).unwrap().cost().unwrap();
+    assert_eq!(
+        (list.figures().p50_ms(), list.figures().p50_out_bytes()),
+        (Some(6), Some(235))
+    );
 }
 
 #[test]
@@ -240,7 +246,7 @@ fn a_command_that_the_figures_do_not_list_and_the_loaders_own_queries_have_no_co
 fn fields_that_a_newer_crumbkit_adds_are_ignored_and_the_known_ones_still_read() {
     let figures = edited(FIGURES, |document| {
         for row in document["data"].as_array_mut().unwrap() {
-            row["p50_ms"] = serde_json::json!(3);
+            row["p75_ms"] = serde_json::json!(3);
         }
         document["summary"]["window"] = serde_json::json!("7d");
     });
@@ -267,7 +273,9 @@ fn a_figure_that_an_older_crumbkit_leaves_out_reads_as_not_reported() {
                 "help_before",
                 "refused",
                 "failed",
+                "p50_ms",
                 "p95_ms",
+                "p50_out_bytes",
                 "p95_out_bytes",
             ] {
                 row.remove(name);
@@ -289,8 +297,10 @@ fn a_figure_that_an_older_crumbkit_leaves_out_reads_as_not_reported() {
             figures.failed(),
             figures.p95_ms(),
             figures.p95_out_bytes(),
+            figures.p50_ms(),
+            figures.p50_out_bytes(),
         ),
-        (None, None, None, None, None, None)
+        (None, None, None, None, None, None, None, None)
     );
     assert_eq!(tool.figures_since(), None);
 }
@@ -467,4 +477,177 @@ fn a_count_too_large_for_the_page_reads_as_not_reported_and_the_model_still_load
     assert!(tool.command(&["books", "list"]).unwrap().cost().is_none());
     let reply = serde_json::to_value(&tool).unwrap();
     assert!(numbers(&reply).into_iter().all(|number| number < UNSAFE));
+}
+
+#[test]
+fn a_count_of_the_wrong_json_type_reads_as_not_reported_for_that_figure_alone() {
+    let figures = edited(FIGURES, |document| {
+        for row in document["data"].as_array_mut().unwrap() {
+            if row["command"] == "books show" {
+                row["failed"] = serde_json::json!("2");
+                row["p50_ms"] = serde_json::json!(true);
+                row["p95_ms"] = serde_json::json!(-1);
+            }
+        }
+    });
+    let usage = edited(USAGE, |document| {
+        document["data"][1]["figures"]["p95_out_bytes"] = serde_json::json!([74]);
+    });
+
+    let tool = shelf_with_costs(&figures, Some(&usage));
+
+    let show = tool.command(&["books", "show"]).unwrap().cost().unwrap();
+    assert_eq!(show.figures().failed(), None);
+    assert_eq!(show.figures().p50_ms(), None);
+    assert_eq!(show.figures().p95_ms(), None);
+    assert_eq!(show.figures().refused(), Some(1));
+    assert!(tool.command(&["books", "list"]).unwrap().cost().is_some());
+    let findings = show.findings().unwrap();
+    assert_eq!(findings.len(), 4);
+    assert_eq!(findings[1].p95_out_bytes(), None);
+}
+
+/// shelf's `self runs list --json --full --all` after the same runs.
+const RUNS: &str = include_str!("../../tests/fixtures/shelf/self-runs-list.json");
+
+/// A run's session, step, command, help, exit, code and out_bytes, the
+/// fields that the tests compare.
+type Compared<'a> = (
+    u64,
+    u64,
+    &'a str,
+    bool,
+    Option<u8>,
+    Option<&'a str>,
+    Option<u64>,
+);
+
+/// Returns each run as the fields that the tests compare.
+fn runs_of(history: &History) -> Vec<Compared<'_>> {
+    history
+        .runs()
+        .iter()
+        .map(|run| {
+            (
+                run.session(),
+                run.step(),
+                run.command(),
+                run.help(),
+                run.exit(),
+                run.code(),
+                run.out_bytes(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn the_runs_list_reads_each_run_in_order_without_the_loaders_queries_or_the_tools_name() {
+    let history = History::read(RUNS.as_bytes(), "shelf").unwrap();
+
+    assert_eq!(
+        runs_of(&history),
+        [
+            (1, 1, "books list", false, Some(0), None, Some(235)),
+            (
+                1,
+                2,
+                "books show",
+                false,
+                Some(1),
+                Some("books::not_found"),
+                Some(0)
+            ),
+            (
+                1,
+                3,
+                "books show",
+                false,
+                Some(1),
+                Some("books::not_found"),
+                Some(0)
+            ),
+            (1, 4, "books show", true, Some(0), None, None),
+            (1, 5, "books show", false, Some(0), None, Some(74)),
+            (1, 6, "books show", false, Some(0), None, Some(74)),
+            (1, 7, "books show", false, Some(2), Some("cli::usage"), None),
+        ]
+    );
+    let first = &history.runs()[0];
+    assert_eq!(first.caller(), "claude-code");
+    assert!(first.flags().is_empty());
+    let reply = serde_json::to_value(first).unwrap();
+    assert!(reply["at"].as_u64().unwrap() > 1_700_000_000, "{reply}");
+}
+
+#[test]
+fn a_run_row_that_does_not_read_is_left_out_and_the_others_still_read() {
+    let runs = edited(RUNS, |document| {
+        document["data"][0]["at"] = serde_json::json!("yesterday");
+        document["data"][1]["ms"] = serde_json::json!("0");
+        document["data"][2]["session"] = serde_json::json!(UNSAFE);
+        document["data"][3]["flags"] = serde_json::json!("--json");
+        document["data"][4]["exit"] = serde_json::json!(256);
+        document["data"][5]["step"] = serde_json::json!(0);
+        document["data"][6]["p99_ms"] = serde_json::json!(4);
+    });
+
+    let history = History::read(runs.as_bytes(), "shelf").unwrap();
+
+    let steps: Vec<u64> = history.runs().iter().map(|run| run.step()).collect();
+    assert_eq!(steps, [7]);
+}
+
+#[test]
+fn the_loaders_version_query_is_left_out_and_the_tools_other_root_runs_stay() {
+    let root = |help: bool, exit: u8, flags: serde_json::Value| {
+        serde_json::json!({
+            "session": 2, "step": 1, "at": "2026-11-10T10:14:45Z",
+            "caller": "person", "command": "shelf", "flags": flags,
+            "help": help, "exit": exit, "code": null, "ms": 1, "out_bytes": null,
+        })
+    };
+    let runs = edited(RUNS, |document| {
+        let data = document["data"].as_array_mut().unwrap();
+        data.clear();
+        data.push(root(false, 0, serde_json::json!([])));
+        data.push(root(true, 0, serde_json::json!([])));
+        data.push(root(false, 2, serde_json::json!([])));
+        data.push(root(false, 0, serde_json::json!(["--json"])));
+    });
+
+    let history = History::read(runs.as_bytes(), "shelf").unwrap();
+
+    let kept: Vec<(bool, Option<u8>, usize)> = history
+        .runs()
+        .iter()
+        .map(|run| (run.help(), run.exit(), run.flags().len()))
+        .collect();
+    assert_eq!(
+        kept,
+        [(true, Some(0), 0), (false, Some(2), 0), (false, Some(0), 1)]
+    );
+}
+
+#[test]
+fn runs_of_another_schema_or_not_json_give_no_history() {
+    let other = edited(RUNS, |document| {
+        document["schema"] = serde_json::json!("shelf/self-usage/v1");
+    });
+
+    assert!(History::read(other.as_bytes(), "shelf").is_none());
+    assert!(History::read(b"no runs", "shelf").is_none());
+}
+
+#[test]
+fn a_tool_sends_its_history_and_null_without_one() {
+    let mut tool = shelf_with_costs(FIGURES, Some(USAGE));
+    let none = serde_json::to_value(&tool).unwrap();
+    tool.set_history(History::read(RUNS.as_bytes(), "shelf"));
+
+    let reply = serde_json::to_value(&tool).unwrap();
+
+    assert_eq!(none["history"], serde_json::Value::Null);
+    assert_eq!(reply["history"].as_array().unwrap().len(), 7);
+    assert_eq!(reply["history"][1]["code"], "books::not_found");
 }

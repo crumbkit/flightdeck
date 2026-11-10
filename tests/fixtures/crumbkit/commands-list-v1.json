@@ -182,6 +182,13 @@
                   "null"
                 ]
               },
+              "value_hint": {
+                "description": "The kind of value that the argument takes, as the kebab-case name of clap's `ValueHint`, such as `file-path`, `dir-path` or `any-path`. It is `any-path` for an argument that parses to a `PathBuf` and declares no hint, and null when clap reports no hint.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
               "value_names": {
                 "description": "The names of the values that the argument takes, such as `N`, and none for a flag.",
                 "type": "array",
@@ -198,6 +205,7 @@
               "many",
               "defaults",
               "possible_values",
+              "value_hint",
               "help",
               "long_help",
               "global",

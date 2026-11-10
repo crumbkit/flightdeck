@@ -29,7 +29,7 @@ pub(super) const FIGURES_COMMAND: [&str; 3] = ["self", "figures", "list"];
 pub(super) const USAGE_COMMAND: [&str; 2] = ["self", "usage"];
 
 /// The commands that the loader runs to describe the tool, by their path
-/// below the tool's name.
+/// below the tool's name. Their runs are left out of the history too.
 ///
 /// RUST-10: the usage log counts the loader's own runs of these commands
 /// beside the person's, one each per `flightdeck open`, so their counts
@@ -45,12 +45,13 @@ pub(super) const USAGE_COMMAND: [&str; 2] = ["self", "usage"];
 /// palette matches of equal text and add to its cost card. A usage log that
 /// records which program ran each command, so flightdeck's own runs can be
 /// left out, replaces this.
-const LOADER_QUERIES: [&str; 5] = [
+const LOADER_QUERIES: [&str; 6] = [
     "commands list",
     "schemas list",
     "schemas show",
     "self figures list",
     "self usage",
+    "self runs list",
 ];
 
 /// The largest count that the page reads exactly, 2^53 - 1, JavaScript's
@@ -58,18 +59,21 @@ const LOADER_QUERIES: [&str; 5] = [
 /// report, because the page would refuse the whole model for it.
 const MOST_SAFE: u64 = 9_007_199_254_740_991;
 
-/// Reads a count that a tool may leave out, print as `null`, or print too
-/// large for the page, as `None` in each of those cases. A negative count,
-/// a fraction and a count past `u64` read as `None` too.
+/// Reads a count that a tool may leave out, print as `null`, print too
+/// large for the page, or print as another JSON type, such as `"5"` or
+/// `true`, as `None` in each of those cases, so only that figure is lost. A
+/// negative count, a fraction and a count past `u64` read as `None` too.
 fn safe_count<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
-    let number = Option::<serde_json::Number>::deserialize(deserializer)?;
-    Ok(number
-        .as_ref()
-        .and_then(serde_json::Number::as_u64)
-        .filter(|count| *count <= MOST_SAFE))
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(value.as_u64().filter(|count| is_safe(*count)))
+}
+
+/// Returns true when the page reads `count` exactly.
+pub(super) const fn is_safe(count: u64) -> bool {
+    count <= MOST_SAFE
 }
 
 /// The figures of one command's runs, as `self figures list` prints them.
@@ -87,8 +91,12 @@ pub struct Figures {
     refused: Option<u64>,
     /// The runs that failed.
     failed: Option<u64>,
+    /// The median of the runs' wall time in milliseconds.
+    p50_ms: Option<u64>,
     /// The 95th percentile of the runs' wall time in milliseconds.
     p95_ms: Option<u64>,
+    /// The median of the bytes that the runs wrote to standard output.
+    p50_out_bytes: Option<u64>,
     /// The 95th percentile of the bytes that the runs wrote to standard
     /// output.
     p95_out_bytes: Option<u64>,
@@ -109,7 +117,11 @@ struct RawFigures {
     #[serde(default, deserialize_with = "safe_count")]
     failed: Option<u64>,
     #[serde(default, deserialize_with = "safe_count")]
+    p50_ms: Option<u64>,
+    #[serde(default, deserialize_with = "safe_count")]
     p95_ms: Option<u64>,
+    #[serde(default, deserialize_with = "safe_count")]
+    p50_out_bytes: Option<u64>,
     #[serde(default, deserialize_with = "safe_count")]
     p95_out_bytes: Option<u64>,
 }
@@ -124,7 +136,9 @@ impl RawFigures {
             help_before: self.help_before,
             refused: self.refused,
             failed: self.failed,
+            p50_ms: self.p50_ms,
             p95_ms: self.p95_ms,
+            p50_out_bytes: self.p50_out_bytes,
             p95_out_bytes: self.p95_out_bytes,
         })
     }
@@ -161,10 +175,22 @@ impl Figures {
         self.failed
     }
 
+    /// Returns the median of the runs' wall time in milliseconds.
+    #[must_use]
+    pub const fn p50_ms(&self) -> Option<u64> {
+        self.p50_ms
+    }
+
     /// Returns the 95th percentile of the runs' wall time in milliseconds.
     #[must_use]
     pub const fn p95_ms(&self) -> Option<u64> {
         self.p95_ms
+    }
+
+    /// Returns the median of the bytes the runs printed.
+    #[must_use]
+    pub const fn p50_out_bytes(&self) -> Option<u64> {
+        self.p50_out_bytes
     }
 
     /// Returns the 95th percentile of the bytes the runs printed.
@@ -319,7 +345,7 @@ struct FindingFigures {
 }
 
 /// Reads `stdout` as the listing whose id ends with `/<name>/v1`.
-fn read_listing<T: DeserializeOwned>(stdout: &[u8], name: &str) -> Option<Listing<T>> {
+pub(super) fn read_listing<T: DeserializeOwned>(stdout: &[u8], name: &str) -> Option<Listing<T>> {
     let listing: Listing<T> = serde_json::from_slice(stdout).ok()?;
     is_document(listing.schema(), name).then_some(listing)
 }
@@ -380,7 +406,7 @@ impl Usage {
     /// `books::not_found`.
     pub(super) fn read(stdout: &[u8], tool: &str) -> Option<Self> {
         let listing = read_listing::<FindingRow>(stdout, "self-usage")?;
-        let prefix = format!("{tool}::");
+        let prefix = tool_prefix(tool);
         let mut by_command: HashMap<String, Vec<Finding>> = HashMap::new();
         for row in listing.into_data() {
             // A finding whose count the page cannot read is left out.
@@ -388,10 +414,7 @@ impl Usage {
                 continue;
             };
             let figures = row.figures.unwrap_or_default();
-            let code = row.code.map(|code| match code.strip_prefix(&prefix) {
-                Some(rest) => rest.to_owned(),
-                None => code,
-            });
+            let code = row.code.map(|code| without_tool(code, &prefix));
             by_command.entry(row.command).or_default().push(Finding {
                 kind: FindingKind::of(&row.finding),
                 runs,
@@ -410,7 +433,23 @@ impl Usage {
     }
 }
 
+/// Returns the prefix that the codes of the tool named `tool` start with,
+/// such as `shelf::`.
+pub(super) fn tool_prefix(tool: &str) -> String {
+    format!("{tool}::")
+}
+
+/// Returns `code` without `prefix`, the tool's name in front, so
+/// `shelf::books::not_found` reads `books::not_found`. A code of another
+/// tool keeps its name.
+pub(super) fn without_tool(code: String, prefix: &str) -> String {
+    match code.strip_prefix(prefix) {
+        Some(rest) => rest.to_owned(),
+        None => code,
+    }
+}
+
 /// Returns true when `command` is one of the loader's own queries.
-fn is_loader_query(command: &str) -> bool {
+pub(super) fn is_loader_query(command: &str) -> bool {
     LOADER_QUERIES.contains(&command)
 }
