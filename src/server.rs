@@ -15,8 +15,11 @@
 //!   read-only and the directory that flightdeck started in.
 //! - `GET /api/weight` returns the bytes of each distinct help page of the
 //!   tool's commands, as `model::weight` describes. The runner measures
-//!   them on the first request and keeps the result, so the tool's help
-//!   runs once however many requests arrive.
+//!   them on the first request and keeps a complete result, so the tool's
+//!   help runs to its end once however many requests arrive. Requests that
+//!   arrive during a measurement share it. A measurement with a problem or
+//!   with pages it did not run is not kept, so a request after it measures
+//!   again.
 //! - `POST /api/runs` starts a run, `POST /api/previews` starts a preview,
 //!   and `POST /api/confirmations/<id>` starts a confirmed run. Each takes a
 //!   [`RunRequest`] and answers with the stream of `stream`, or with the
@@ -557,7 +560,7 @@ impl Shared {
                 // serde_json fails only on a map key that is not a string,
                 // and the weight has no map.
                 Ok(Answer::Reply(Reply::Json(
-                    serde_json::to_vec(self.runner.weight()).unwrap_or_default(),
+                    serde_json::to_vec(&*self.runner.weight()).unwrap_or_default(),
                 )))
             }
             Route::Runs => {

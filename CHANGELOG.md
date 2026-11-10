@@ -39,9 +39,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   shows why, and its path is marked partial and never called over or
   under. The page measures the help pages the first time the tab opens,
   through `GET /api/weight`, and keeps them until it reloads. The server
-  measures once and keeps the result, so a second request, or one that
-  arrives during the measurement, starts no further help run, and stopping
-  flightdeck stops a measurement at once. It runs `-h` of each distinct
+  keeps a complete measurement, so a later request starts no further help
+  run, and a request that arrives during a measurement shares it. A
+  measurement with a problem, or one that stopped before some pages at its
+  30-second limit or flightdeck's stop, is not kept: the tab shows a
+  Measure again button after it, or after a failed request, and the next
+  request measures again. Stopping flightdeck stops a measurement at once. It runs `-h` of each distinct
   page once with a cleared environment and a
   temporary `XDG_STATE_HOME` that it removes afterwards, so the person's
   usage log never counts the measurement. It runs 4 pages at a time, stops

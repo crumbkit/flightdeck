@@ -145,7 +145,7 @@ describe("Weight", () => {
     expect(within(table).queryByText(/^over by 520 B/)).toBeNull();
   });
 
-  it("says why when flightdeck could not measure the help pages", async () => {
+  it("says why when flightdeck could not measure the help pages, and offers to measure again", async () => {
     stubWeight({ pages: [], left_out: 0, problem: "cannot make a temporary state directory" });
 
     renderWeight();
@@ -153,6 +153,43 @@ describe("Weight", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "flightdeck could not measure help pages: cannot make a temporary state directory",
     );
+    expect(screen.getByRole("button", { name: "Measure again" })).toBeInTheDocument();
+  });
+
+  it("measures again when the person presses Measure again after a failed request", async () => {
+    let answer: (reply: Response) => void = () => {};
+    const replies: (() => Promise<Response>)[] = [
+      () => Promise.reject(new TypeError("timed out")),
+      () => new Promise<Response>((resolve) => (answer = resolve)),
+    ];
+    vi.stubGlobal("fetch", () => (replies.shift() ?? (() => Promise.reject()))());
+    renderWeight();
+    await screen.findByRole("alert");
+
+    await userEvent.click(screen.getByRole("button", { name: "Measure again" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Measuring shelf's help pages…");
+    expect(screen.queryByRole("button", { name: "Measure again" })).toBeNull();
+    answer(Response.json(measured));
+    await screen.findByRole("table", { name: "Weight of each command's path" });
+    expect(replies).toHaveLength(0);
+  });
+
+  it("shows the paths of a partial measurement under a line that says how many pages it missed", async () => {
+    stubWeight({
+      ...measured,
+      pages: measured.pages.map((each) =>
+        each.path.length === 2 ? { ...each, bytes: null, failure: "not_run" as const } : each,
+      ),
+    });
+
+    renderWeight();
+
+    await screen.findByRole("table", { name: "Weight of each command's path" });
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "flightdeck stopped measuring before 2 help pages, at its 30 s limit or its own stop.",
+    );
+    expect(screen.getByRole("button", { name: "Measure again" })).toBeInTheDocument();
   });
 
   it("keeps the measurement going when the tab closes before the reply", async () => {

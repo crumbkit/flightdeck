@@ -96,7 +96,35 @@ impl Weight {
     pub fn problem(&self) -> Option<&str> {
         self.problem.as_deref()
     }
+
+    /// Returns true when the measurement ran to its end: it has no problem
+    /// and no page says `not_run`, which a page does when the measurement's
+    /// time limit passed or flightdeck began to stop before it ran. A page
+    /// that failed for a reason of the tool's own, such as `timed_out`,
+    /// still counts as measured, because measuring again would give the
+    /// same answer.
+    #[must_use]
+    pub fn is_complete(&self) -> bool {
+        self.problem.is_none() && !self.pages.iter().any(|page| page.failure == Some(NOT_RUN))
+    }
+
+    /// Returns the weight of `pages`, each a command path and how its help
+    /// run went, with `problem`.
+    #[cfg(test)]
+    pub(crate) fn of_pages(pages: Vec<(Vec<String>, HelpPage)>, problem: Option<&str>) -> Self {
+        Self {
+            pages: pages
+                .into_iter()
+                .map(|(path, page)| Measured::of(path, page))
+                .collect(),
+            left_out: 0,
+            problem: problem.map(str::to_owned),
+        }
+    }
 }
+
+/// The failure of a page that the measurement never ran or cancelled.
+const NOT_RUN: &str = "not_run";
 
 /// One help page: its command path, and its bytes or why it has none.
 #[derive(Debug, Serialize)]
@@ -141,7 +169,7 @@ impl Measured {
             }
             HelpPage::Empty => (None, Some("empty"), None),
             HelpPage::TooLarge => (None, Some("too_large"), None),
-            HelpPage::NotRun => (None, Some("not_run"), None),
+            HelpPage::NotRun => (None, Some(NOT_RUN), None),
             HelpPage::Refused => (None, Some("refused"), None),
         };
         Self {

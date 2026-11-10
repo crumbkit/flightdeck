@@ -18,9 +18,11 @@ mod signals;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use crumbkit_flightdeck::runner;
 use crumbkit_flightdeck::server::{
     BODY_LIMIT, CONNECTION_LIMIT, Ended, HEAD_LIMIT, HEADER_LIMIT, IDLE_LIMIT, Settings,
 };
+use crumbkit_flightdeck::spawn::HelpLimits;
 use http::{Call, Reply, raw};
 use serving::{Setup, Then, serving};
 
@@ -600,6 +602,47 @@ fn two_weight_requests_at_once_share_one_measurement_and_a_later_one_reuses_it()
         assert_eq!(first.json(), later.json());
         let pages = first.json()["pages"].as_array().unwrap().len();
         assert_eq!(logged(&log).len(), pages, "{:?}", logged(&log));
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn a_request_after_a_measurement_stopped_by_its_time_limit_measures_again() {
+    let logs = tempfile::tempdir().unwrap();
+    let log = logs.path().join("help");
+    let (_directory, stand_in) = help_stand_in(&log, "/bin/sleep 1; echo page");
+    // The first help runs end after the measurement's limit, so no other
+    // page starts and the measurement is partial.
+    let limits = HelpLimits::new().total(Duration::from_millis(500));
+    let setup = Setup::shelf()
+        .program(stand_in)
+        .runner(runner::Settings::new().help_limits(limits));
+    serving(setup, |page| {
+        let token = page.token();
+        let weight = || {
+            Call::get(page.port, "/api/weight")
+                .bearer(&token)
+                .send(page.port)
+                .json()
+        };
+        let not_run = |weight: &serde_json::Value| {
+            weight["pages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|page| page["failure"] == "not_run")
+                .count()
+        };
+
+        let first = weight();
+        let runs_of_first = logged(&log).len();
+        let second = weight();
+
+        assert!(not_run(&first) > 0, "{first}");
+        assert!(not_run(&second) > 0, "{second}");
+        assert!(runs_of_first > 0);
+        assert_eq!(logged(&log).len(), runs_of_first * 2, "{:?}", logged(&log));
         Then::Stop
     });
 }

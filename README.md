@@ -36,7 +36,7 @@ What works today:
   holds in the URL's fragment, and exchanges it for a token that every API
   request carries. `GET /api/model` returns the tool's model as JSON, and
   `GET /api/weight` returns the bytes of the tool's help pages, which the
-  server measures once.
+  server measures once and keeps when the measurement is complete.
   [docs/security.md](docs/security.md) states the threat model, every guard
   of the server and the test that proves it.
 - The page runs a command with `POST /api/runs`, previews a destructive

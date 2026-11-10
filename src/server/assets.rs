@@ -61,6 +61,14 @@ pub(super) const ALL: &[Asset] = &[
         content_type: "text/javascript; charset=utf-8",
         body: include_bytes!("../../ui/dist/assets/measure.js"),
     },
+    // The modules that the page's own file and the measurement share, such
+    // as React, which the bundler splits into a file of their own and names
+    // after its first module of the page's own.
+    Asset {
+        path: "/assets/cost.js",
+        content_type: "text/javascript; charset=utf-8",
+        body: include_bytes!("../../ui/dist/assets/cost.js"),
+    },
     Asset {
         path: "/assets/index.css",
         content_type: "text/css; charset=utf-8",

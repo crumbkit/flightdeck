@@ -329,6 +329,7 @@ export default function Weight({ tool }: Props) {
   );
   return (
     <div className="px-4 pt-3 pb-4">
+      {measured.notice}
       <div className="text-muted-foreground mb-2.5 flex flex-wrap gap-x-3.5 gap-y-1.5 text-xs">
         <span className="inline-flex items-center gap-1.5">
           <span aria-hidden="true" className="bg-k-help size-3 shrink-0 rounded-xs" />

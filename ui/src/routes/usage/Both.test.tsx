@@ -117,6 +117,25 @@ describe("Both", () => {
     expect(asked.asked).toBe(1);
   });
 
+  it("shows a partial measurement's rows under a line that offers to measure again", async () => {
+    stubWeight({
+      ...measured,
+      pages: measured.pages.map((each) =>
+        each.path.join(" ") === "books remove"
+          ? { ...each, bytes: null, failure: "not_run" as const }
+          : each,
+      ),
+    });
+
+    renderBoth();
+
+    await screen.findByRole("table", { name: "Path weight and runs of each command" });
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "flightdeck stopped measuring before 1 help page, at its 30 s limit or its own stop.",
+    );
+    expect(screen.getByRole("button", { name: "Measure again" })).toBeInTheDocument();
+  });
+
   it("shows each corner's count on its chip, and a chosen chip keeps its rows and names its action", async () => {
     stubWeight(measured);
     renderBoth();

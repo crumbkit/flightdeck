@@ -162,6 +162,7 @@ export default function Both({ tool, onOpen }: Props) {
   );
   return (
     <div className="px-4 pt-3 pb-4">
+      {measured.notice}
       <fieldset className="m-0 mb-2.5 flex min-w-0 flex-wrap gap-1.5 border-0 p-0">
         <legend className="sr-only">Corners</legend>
         {chip("all", "All", all.length)}
