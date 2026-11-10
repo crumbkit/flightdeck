@@ -188,18 +188,28 @@ fn run_help(
         return HelpPage::NotStarted;
     };
     let exit = Exit::of(finished.status());
-    match finished.outcome() {
-        Outcome::TimedOut => return HelpPage::TimedOut,
-        Outcome::Stopped(StopReason::OverLimit) => return HelpPage::TooLarge,
-        Outcome::Stopped(StopReason::Cancelled) => return HelpPage::NotRun,
-        _ => {}
-    }
+    let outcome = finished.outcome();
     let (stdout, _) = finished.into_output();
-    let printed = stdout.bytes().len();
-    match exit {
-        Exit::Code(0) if printed == 0 => HelpPage::Empty,
-        // A page is at most HELP_LIMIT bytes, so its length fits.
-        Exit::Code(0) => HelpPage::Bytes(u64::try_from(printed).unwrap_or(u64::MAX)),
-        other => HelpPage::Exit(other),
+    page_of(outcome, exit, stdout.bytes().len(), stdout.over_limit())
+}
+
+/// Returns the page of a run that ended with `outcome` and `exit`, printing
+/// `printed` bytes, of which `over` says whether they passed
+/// [`HELP_LIMIT`]. Output over the limit is too large however the run
+/// ended, because a child can print past the limit and exit before
+/// crumbkit-process stops it, and the run then reports an ordinary exit
+/// with only the first [`HELP_LIMIT`] bytes.
+fn page_of(outcome: Outcome, exit: Exit, printed: usize, over: bool) -> HelpPage {
+    match outcome {
+        _ if over => HelpPage::TooLarge,
+        Outcome::TimedOut => HelpPage::TimedOut,
+        Outcome::Stopped(StopReason::OverLimit) => HelpPage::TooLarge,
+        Outcome::Stopped(StopReason::Cancelled) => HelpPage::NotRun,
+        _ => match exit {
+            Exit::Code(0) if printed == 0 => HelpPage::Empty,
+            // A page is at most HELP_LIMIT bytes, so its length fits.
+            Exit::Code(0) => HelpPage::Bytes(u64::try_from(printed).unwrap_or(u64::MAX)),
+            other => HelpPage::Exit(other),
+        },
     }
 }

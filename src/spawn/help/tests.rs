@@ -2,10 +2,10 @@ use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use crumbkit_process::Cancel;
+use crumbkit_process::{Cancel, Outcome, Status, StopReason};
 use tempfile::TempDir;
 
-use super::{HELP_LIMIT, HelpLimits, HelpPage, measure_help};
+use super::{HELP_LIMIT, HelpLimits, HelpPage, measure_help, page_of};
 use crate::spawn::{Exit, Program};
 
 /// Writes a shell script that runs `body` for `-h` of any page, and returns
@@ -41,13 +41,31 @@ fn a_page_that_passes_its_time_limit_is_stopped_and_timed_out() {
     assert_eq!(page, HelpPage::TimedOut);
 }
 
+/// Returns the page of a stand-in that prints `bytes` bytes and exits with 0.
+fn printing(bytes: usize) -> HelpPage {
+    measured(&format!("head -c {bytes} /dev/zero"), HelpLimits::new())
+}
+
 #[test]
-fn a_page_over_64_kib_is_stopped_and_too_large() {
-    let body = format!("head -c {} /dev/zero", HELP_LIMIT + 1);
+fn a_page_far_over_64_kib_is_too_large() {
+    assert_eq!(printing(HELP_LIMIT * 4), HelpPage::TooLarge);
+}
 
-    let page = measured(&body, HelpLimits::new());
+#[test]
+fn a_page_one_byte_over_64_kib_is_too_large_whether_the_child_exits_or_is_stopped_first() {
+    // The child may exit before flightdeck stops it, or be stopped first,
+    // depending on the system's pipe size and the scheduler. Each run tries
+    // that race again, and every outcome must say the page is too large.
+    for _ in 0..20 {
+        assert_eq!(printing(HELP_LIMIT + 1), HelpPage::TooLarge);
+    }
+}
 
-    assert_eq!(page, HelpPage::TooLarge);
+#[test]
+fn a_page_of_exactly_64_kib_is_measured() {
+    let bytes = u64::try_from(HELP_LIMIT).unwrap();
+
+    assert_eq!(printing(HELP_LIMIT), HelpPage::Bytes(bytes));
 }
 
 #[test]
@@ -155,4 +173,33 @@ fn a_page_whose_path_has_a_word_that_starts_with_a_dash_is_refused_without_a_run
 
     assert_eq!(measured, [HelpPage::Refused]);
     assert!(!mark.exists(), "the page ran");
+}
+
+#[test]
+fn output_over_the_limit_is_too_large_even_when_the_child_exited_before_it_was_stopped() {
+    // On Linux a child can print 65,537 bytes and exit before flightdeck
+    // stops it, so the run reports an ordinary exit with the first 64 KiB.
+    let ended = Outcome::Ended(Status::Code(0));
+
+    assert_eq!(
+        page_of(ended, Exit::Code(0), HELP_LIMIT, true),
+        HelpPage::TooLarge
+    );
+    assert_eq!(
+        page_of(ended, Exit::Code(3), HELP_LIMIT, true),
+        HelpPage::TooLarge
+    );
+    assert_eq!(
+        page_of(
+            Outcome::Stopped(StopReason::OverLimit),
+            Exit::Signal(9),
+            HELP_LIMIT,
+            true
+        ),
+        HelpPage::TooLarge
+    );
+    assert_eq!(
+        page_of(ended, Exit::Code(0), HELP_LIMIT, false),
+        HelpPage::Bytes(u64::try_from(HELP_LIMIT).unwrap())
+    );
 }
