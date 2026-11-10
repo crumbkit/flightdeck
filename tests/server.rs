@@ -18,11 +18,9 @@ mod signals;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use crumbkit_flightdeck::runner;
 use crumbkit_flightdeck::server::{
     BODY_LIMIT, CONNECTION_LIMIT, Ended, HEAD_LIMIT, HEADER_LIMIT, IDLE_LIMIT, Settings,
 };
-use crumbkit_flightdeck::spawn::HelpLimits;
 use http::{Call, Reply, raw};
 use serving::{Setup, Then, serving};
 
@@ -609,6 +607,9 @@ fn two_weight_requests_at_once_share_one_measurement_and_a_later_one_reuses_it()
 #[cfg(unix)]
 #[test]
 fn a_request_after_a_measurement_stopped_by_its_time_limit_measures_again() {
+    use crumbkit_flightdeck::runner;
+    use crumbkit_flightdeck::spawn::HelpLimits;
+
     let logs = tempfile::tempdir().unwrap();
     let log = logs.path().join("help");
     let (_directory, stand_in) = help_stand_in(&log, "/bin/sleep 1; echo page");
