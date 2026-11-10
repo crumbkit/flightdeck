@@ -248,7 +248,9 @@ pub struct Document {
 }
 
 impl Document {
-    /// Returns the document of a `schemas list` row with its schema.
+    /// Returns the document of a `schemas list` row with its schema. A
+    /// command path that does not parse is left out, because no command can
+    /// have it once `commands list` has refused such paths.
     pub(super) fn new(row: SchemaRow, schema: Value) -> Self {
         Self {
             id: row.id,
@@ -258,7 +260,7 @@ impl Document {
             commands: row
                 .commands
                 .iter()
-                .map(|path| CommandPath::from_row(path))
+                .filter_map(|path| CommandPath::from_row(path).ok())
                 .collect(),
             schema,
         }

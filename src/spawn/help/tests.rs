@@ -158,25 +158,6 @@ fn a_stop_during_a_measurement_ends_the_runs_in_progress_at_once() {
 }
 
 #[test]
-fn a_page_whose_path_has_a_word_that_starts_with_a_dash_is_refused_without_a_run() {
-    let marks = tempfile::tempdir().unwrap();
-    let mark = marks.path().join("ran");
-    let (_directory, path) = stand_in(&format!("touch '{}'; echo page", mark.display()));
-    let pages = [vec!["books".to_owned(), "--delete-all".to_owned()]];
-
-    let measured = measure_help(
-        &Program::new(path),
-        &pages,
-        HelpLimits::new(),
-        &Cancel::new(),
-    )
-    .unwrap();
-
-    assert_eq!(measured, [HelpPage::Refused]);
-    assert!(!mark.exists(), "the page ran");
-}
-
-#[test]
 fn output_over_the_limit_is_too_large_even_when_the_child_exited_before_it_was_stopped() {
     // On Linux a child can print 65,537 bytes and exit before flightdeck
     // stops it, so the run reports an ordinary exit with the first 64 KiB.

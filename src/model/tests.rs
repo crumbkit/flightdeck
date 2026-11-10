@@ -128,6 +128,56 @@ fn a_command_word_or_an_argument_name_with_a_control_character_is_refused_when_t
 }
 
 #[test]
+fn a_command_path_with_a_word_that_starts_with_a_dash_or_an_empty_word_is_refused_when_the_model_loads()
+ {
+    for to in [
+        r#""path":"shelf books --config=/x""#,
+        r#""path":"shelf books  show""#,
+    ] {
+        let from = r#""path":"shelf books show""#;
+        let commands: CommandsList = serde_json::from_str(&WITH_GOALS.replace(from, to)).unwrap();
+
+        let refused = Tool::assemble("shelf 0.1.1", commands, Vec::new());
+
+        assert!(matches!(refused, Err(NotDocument::OptionWord)), "{to}");
+    }
+}
+
+#[test]
+fn a_goal_or_a_schemas_list_path_that_does_not_parse_is_skipped() {
+    let from = r#""commands":["books"]"#;
+    assert!(WITH_GOALS.contains(from));
+    let commands: CommandsList =
+        serde_json::from_str(&WITH_GOALS.replace(from, r#""commands":["books","-x"]"#)).unwrap();
+    let schemas: super::SchemasList = serde_json::from_value(serde_json::json!({
+        "schema": "shelf/schemas-list/v1",
+        "truncated": false,
+        "data": [{
+            "id": "shelf/books-list/v1",
+            "kind": "output",
+            "form": "document",
+            "commands": ["shelf --books list", "shelf books list"],
+        }],
+    }))
+    .unwrap();
+    let documents = schemas
+        .into_rows()
+        .into_iter()
+        .map(|row| Document::new(row, serde_json::json!({})))
+        .collect();
+
+    let tool = Tool::assemble("shelf 0.1.1", commands, documents).unwrap();
+
+    let browse = &tool.headings()[0];
+    assert_eq!(browse.title(), "Browse the catalogue");
+    assert_eq!(browse.commands().len(), 4);
+    assert_eq!(
+        tool.document("shelf/books-list/v1").unwrap().commands(),
+        [CommandPath::from_row("shelf books list").unwrap()]
+    );
+}
+
+#[test]
 fn a_tool_marks_no_result_only_when_its_own_commands_list_schema_declares_the_field() {
     let schema: serde_json::Value = serde_json::from_str(COMMANDS_LIST_SCHEMA).unwrap();
     let mut before = schema.clone();
@@ -288,7 +338,9 @@ fn crumbkits_own_commands_are_marked_built_in_and_the_tools_commands_are_not() {
         assert_eq!(built_in(words), serde_json::json!(false), "{words:?}");
     }
     // shelf mounts no aliases, so the rule is checked on the path alone.
-    assert!(is_built_in(&CommandPath::from_row("shelf aliases list")));
+    assert!(is_built_in(
+        &CommandPath::from_row("shelf aliases list").unwrap()
+    ));
 }
 
 #[test]

@@ -59,7 +59,7 @@ pub(super) struct ArgumentRow {
 }
 
 /// One goal heading of a group's help.
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub(super) struct GoalRow {
     pub(super) heading: String,
     /// The commands under the heading, each named by its words below the

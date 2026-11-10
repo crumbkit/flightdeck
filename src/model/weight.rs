@@ -132,8 +132,7 @@ pub struct Measured {
     path: Vec<String>,
     bytes: Option<u64>,
     /// Why the page has no bytes: `exit`, `signal`, `empty`, `timed_out`,
-    /// `too_large`, `not_started`, `not_run` or `refused`, or `None` when it
-    /// has them.
+    /// `too_large`, `not_started` or `not_run`, or `None` when it has them.
     failure: Option<&'static str>,
     /// The exit code or signal number of a page that failed with one.
     exit: Option<i32>,
@@ -170,7 +169,6 @@ impl Measured {
             HelpPage::Empty => (None, Some("empty"), None),
             HelpPage::TooLarge => (None, Some("too_large"), None),
             HelpPage::NotRun => (None, Some(NOT_RUN), None),
-            HelpPage::Refused => (None, Some("refused"), None),
         };
         Self {
             path,

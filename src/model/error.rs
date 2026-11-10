@@ -125,6 +125,9 @@ impl fmt::Display for LoadError {
                     (Problem::NotDocument(NotDocument::Control), _) => {
                         f.write_str("names a command or an argument with a control character")
                     }
+                    (Problem::NotDocument(NotDocument::OptionWord), _) => f.write_str(
+                        "names a command with an empty word or a word that starts with -",
+                    ),
                     (Problem::NotDocument(_), _) => {
                         f.write_str("printed something other than the crumbkit document it names")
                     }
@@ -205,6 +208,9 @@ pub enum NotDocument {
     /// A command word or an argument name holds a control character, which
     /// a command line that flightdeck shows could not show.
     Control,
+    /// A command's path has a word that is empty or starts with `-`, which
+    /// the tool would read as an option.
+    OptionWord,
 }
 
 /// Returns the exit code that a failure's `exit` field holds, or null when

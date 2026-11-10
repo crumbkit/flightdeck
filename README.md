@@ -69,7 +69,8 @@ What works today:
   prints its JSON on one line and one that indents it load alike. It sets
   crumbkit's own flags, such as `--json` and `--limit`, apart
   from the tool's own arguments. It refuses a tool whose name, command
-  words or argument names hold a control character. When the tool mounts
+  words or argument names hold a control character, or whose command paths
+  have a word that is empty or starts with `-`. When the tool mounts
   `self figures list`, the model also reads what each command costs the
   agents that call it: how often the tool's usage log saw it run, fail and
   have its command line refused, the help pages read before it, and the

@@ -50,7 +50,7 @@ use self::figures::{FiguresList, Usage};
 pub(crate) use self::links::ID_COLUMN;
 pub use self::links::Link;
 pub use self::runs::{History, Run};
-use self::wire::CommandRow;
+use self::wire::{CommandRow, GoalRow};
 use crate::spawn::{self, Exit, FreshState, Program, Query, SpawnError, Stdout};
 
 /// The most document ids that one `schemas show` takes.
@@ -206,9 +206,9 @@ impl Tool {
             .ok_or(NotDocument::NoRoot)?;
         let name = root.path.clone();
         let about = root.about.clone();
-        let goals = headings_of(root, &rows);
-        let commands = commands_of(rows, &documents);
-        let headings = goals.unwrap_or_else(|| {
+        let goals = root.goals.clone();
+        let commands = commands_of(rows, &documents)?;
+        let headings = headings_of(&goals, &commands).unwrap_or_else(|| {
             vec![Heading {
                 title: name.clone(),
                 commands: commands
@@ -493,35 +493,34 @@ impl<'a> Answer<'a> {
     }
 }
 
-/// Returns the headings of the root row's goals, with the runnable commands
-/// under each, or `None` when the root row has no goals.
+/// Returns the headings of the root row's `goals`, with the runnable
+/// `commands` under each, or `None` when the root row has no goals. A goal's
+/// command that does not parse as a path matches no command, so it is
+/// skipped.
 ///
 /// RUST-10: only the root's goals become headings. A goal heading of a
 /// group below the root, which a newer crumbkit may print, is ignored, and a
 /// command that no root goal names is under no heading. Nested headings
 /// replace this when the page groups commands below the root.
-fn headings_of(root: &CommandRow, rows: &[CommandRow]) -> Option<Vec<Heading>> {
-    if root.goals.is_empty() {
+fn headings_of(goals: &[GoalRow], commands: &[Command]) -> Option<Vec<Heading>> {
+    if goals.is_empty() {
         return None;
     }
-    let root_path = CommandPath::from_row(&root.path);
-    let leaves: Vec<CommandPath> = leaf_rows(rows)
-        .map(|row| CommandPath::from_row(&row.path))
-        .collect();
-    let headings = root
-        .goals
+    let root = CommandPath::default();
+    let headings = goals
         .iter()
         .map(|goal| {
             let prefixes: Vec<CommandPath> = goal
                 .commands
                 .iter()
-                .map(|words| root_path.join(words))
+                .filter_map(|words| root.join(words).ok())
                 .collect();
             Heading {
                 title: goal.heading.clone(),
-                commands: leaves
+                commands: commands
                     .iter()
-                    .filter(|leaf| prefixes.iter().any(|prefix| leaf.starts_with(prefix)))
+                    .map(Command::path)
+                    .filter(|path| prefixes.iter().any(|prefix| path.starts_with(prefix)))
                     .cloned()
                     .collect(),
             }
@@ -539,12 +538,17 @@ fn headings_of(root: &CommandRow, rows: &[CommandRow]) -> Option<Vec<Heading>> {
 /// page cannot ask for it. crumbkit 0.1.0's tools have no such argument.
 /// Carrying each group's arguments with their position replaces this when a
 /// tool has one.
-fn commands_of(rows: Vec<CommandRow>, documents: &[Document]) -> Vec<Command> {
+///
+/// # Errors
+///
+/// Returns [`NotDocument::OptionWord`] when a row's path has a word that is
+/// empty or starts with `-`.
+fn commands_of(rows: Vec<CommandRow>, documents: &[Document]) -> Result<Vec<Command>, NotDocument> {
     let leaves: Vec<bool> = rows.iter().map(|row| is_leaf(row, &rows)).collect();
     let mut groups = Vec::new();
     let mut commands = Vec::new();
     for (row, leaf) in rows.into_iter().zip(leaves) {
-        let command = Command::from_row(row);
+        let command = Command::from_row(row)?;
         if leaf {
             commands.push(command);
         } else {
@@ -569,12 +573,7 @@ fn commands_of(rows: Vec<CommandRow>, documents: &[Document]) -> Vec<Command> {
             command.set_document(document.id().to_owned());
         }
     }
-    commands
-}
-
-/// Returns the rows that no other row is below.
-fn leaf_rows(rows: &[CommandRow]) -> impl Iterator<Item = &CommandRow> {
-    rows.iter().filter(|row| is_leaf(row, rows))
+    Ok(commands)
 }
 
 /// Returns true when no row of `rows` is below `row`.

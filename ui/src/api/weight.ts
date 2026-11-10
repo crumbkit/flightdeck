@@ -6,9 +6,8 @@ import { getJson } from "./client";
  * Why a help page has no bytes, as the server names it: an exit other than
  * 0, a signal, a page that printed nothing, a run that passed its time
  * limit, one that printed more than 64 KiB, a program that would not
- * start, a run that never started because the measurement passed its own
- * time limit, or a page that was not run because a word of its path
- * starts with `-`.
+ * start, or a run that never started or was cancelled because the
+ * measurement passed its own time limit or flightdeck began to stop.
  */
 const PageFailure = z.enum([
   "exit",
@@ -18,7 +17,6 @@ const PageFailure = z.enum([
   "too_large",
   "not_started",
   "not_run",
-  "refused",
 ]);
 export type PageFailure = z.infer<typeof PageFailure>;
 

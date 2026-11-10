@@ -503,6 +503,37 @@ fn a_tool_whose_schemas_show_leaves_out_a_listed_id_is_tool_load() {
 
 #[cfg(unix)]
 #[test]
+fn a_tool_whose_commands_list_names_a_path_with_an_option_word_is_refused_at_load() {
+    let (_directory, path) = fake_tool(
+        r#"case "$1 $2" in
+"--version ") echo 'fake 0.1.0' ;;
+"commands list") echo '{"schema":"fake/commands-list/v1","truncated":false,"data":[{"path":"fake","about":"A fake tool"}, {"path":"fake things","about":"Things"},{"path":"fake things --config=/x","about":"Not a command"}]}' ;;
+"schemas list") echo '{"schema":"fake/schemas-list/v1","truncated":false,"data":[]}' ;;
+*) exit 2 ;;
+esac"#,
+    );
+    let (_dirs, program) = isolated(path);
+
+    let error = model::load(&program, TIME_LIMIT).unwrap_err();
+
+    assert_eq!(code(&error), &TOOL_LOAD);
+    assert_eq!(
+        field(&error, "command"),
+        Some(FieldValue::from(
+            "commands list --json --full --all --no-input"
+        ))
+    );
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "{} commands list --json --full --all --no-input names a command with an empty word or a word that starts with -",
+            program.name().to_string_lossy()
+        )
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn a_file_that_may_not_be_run_is_tool_not_found() {
     use std::os::unix::fs::PermissionsExt as _;
 

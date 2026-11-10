@@ -4,10 +4,9 @@
 //!
 //! - Program: the name or path that the person gave, as for `describe`.
 //! - Arguments: the words of one command path that the tool's model holds,
-//!   then `-h`, with no shell. A page whose path has a word that starts
-//!   with `-` is refused without a run, because the tool would read the
-//!   word as an option. A `--` before the words would not help, because a
-//!   crumbkit tool reads every word after `--` as a value, not a command.
+//!   then `-h`, with no shell. The model refuses a tool whose `commands
+//!   list` names a path with a word that is empty or starts with `-`, so no
+//!   such word reaches a help run as an option.
 //! - Environment: cleared, then the variables that [`Program::env`] adds,
 //!   such as the absolute `PATH` of [`Program::at_launch`], then
 //!   `XDG_STATE_HOME` set to one [`FreshState`] for the whole measurement.
@@ -113,8 +112,6 @@ pub enum HelpPage {
     /// [`MEASURE_LIMIT`] passed, or the measurement was stopped, before
     /// the run ended, so it never started or was cancelled.
     NotRun,
-    /// A word of the page's path starts with `-`, so it was not run.
-    Refused,
 }
 
 /// Runs `-h` of each of `pages`, each a command path such as
@@ -166,9 +163,6 @@ pub(crate) fn measure_help(
 /// Runs `<program> <words> -h` with a cleared environment that holds only
 /// `program`'s variables, until `stop` cancels it, and returns how it went.
 fn run_help(program: &Program, words: &[String], time_limit: Duration, stop: &Cancel) -> HelpPage {
-    if words.iter().any(|word| word.starts_with('-')) {
-        return HelpPage::Refused;
-    }
     let mut command = program.cleared_command(words);
     command.arg("-h");
     let settings = RunOptions::new()

@@ -5,12 +5,19 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use super::argument::{Argument, CrumbkitFlag};
+use super::error::NotDocument;
 use super::figures::{Cost, is_built_in, is_loader_query};
 use super::wire::CommandRow;
 
 /// The words of a command below the tool's name, such as `books list`. It
 /// serializes as the array of its words.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+///
+/// No word is empty or starts with `-`. A crumbkit tool reads such a word as
+/// an option, so no command could have it, and a run, a preview, a choices
+/// run or a help run that put it on a command line would pass the tool an
+/// option. A `--` before the words would not help, because a crumbkit tool
+/// reads every word after `--` as a value, not a command.
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(transparent)]
 pub struct CommandPath {
     words: Vec<String>,
@@ -19,10 +26,29 @@ pub struct CommandPath {
 impl CommandPath {
     /// Returns the path of a `commands list` row, whose first word is the
     /// tool's name.
-    pub(super) fn from_row(path: &str) -> Self {
-        Self {
-            words: path.split(' ').skip(1).map(str::to_owned).collect(),
-        }
+    ///
+    /// # Errors
+    ///
+    /// Returns [`NotDocument::OptionWord`] when a word below the tool's name
+    /// is empty or starts with `-`.
+    pub(super) fn from_row(path: &str) -> Result<Self, NotDocument> {
+        Self::of(path.split(' ').skip(1))
+    }
+
+    /// Returns the path of `words`, or [`NotDocument::OptionWord`] when one
+    /// is empty or starts with `-`.
+    fn of<'a>(words: impl IntoIterator<Item = &'a str>) -> Result<Self, NotDocument> {
+        let words = words
+            .into_iter()
+            .map(|word| {
+                if word.is_empty() || word.starts_with('-') {
+                    Err(NotDocument::OptionWord)
+                } else {
+                    Ok(word.to_owned())
+                }
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(Self { words })
     }
 
     /// Returns the path's words, such as `["books", "list"]`.
@@ -54,10 +80,18 @@ impl CommandPath {
     }
 
     /// Returns this path with `words`, split at spaces, appended.
-    pub(super) fn join(&self, words: &str) -> Self {
-        let mut joined = self.words.clone();
-        joined.extend(words.split(' ').map(str::to_owned));
-        Self { words: joined }
+    ///
+    /// # Errors
+    ///
+    /// Returns [`NotDocument::OptionWord`] when a word of `words` is empty
+    /// or starts with `-`.
+    pub(super) fn join(&self, words: &str) -> Result<Self, NotDocument> {
+        Self::of(
+            self.words
+                .iter()
+                .map(String::as_str)
+                .chain(words.split(' ')),
+        )
     }
 }
 
@@ -102,9 +136,14 @@ pub struct Command {
 impl Command {
     /// Returns the command of a `commands list` row, with only the row's own
     /// arguments.
-    pub(super) fn from_row(row: CommandRow) -> Self {
-        let path = CommandPath::from_row(&row.path);
-        Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`NotDocument::OptionWord`] when a word of the row's path is
+    /// empty or starts with `-`.
+    pub(super) fn from_row(row: CommandRow) -> Result<Self, NotDocument> {
+        let path = CommandPath::from_row(&row.path)?;
+        Ok(Self {
             counted: !is_loader_query(&path.to_string()),
             built_in: is_built_in(&path),
             path,
@@ -123,7 +162,7 @@ impl Command {
             writes: row.writes,
             cost: Costed(None),
             prints_no_result: row.prints_no_result,
-        }
+        })
     }
 
     /// Adds the global arguments of a group above the command, after the

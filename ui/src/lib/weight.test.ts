@@ -148,7 +148,6 @@ describe("failureWords", () => {
         failed("too_large"),
         failed("not_started"),
         failed("not_run"),
-        failed("refused"),
       ].map(failureWords),
     ).toEqual([
       "not measured: exited with 2",
@@ -157,7 +156,6 @@ describe("failureWords", () => {
       "over 64 KiB, not a help page",
       "not measured: would not start",
       "not measured: flightdeck stopped measuring before this page, at its 30 s limit or its own stop",
-      "not measured: a word of its path starts with -",
     ]);
   });
 });
