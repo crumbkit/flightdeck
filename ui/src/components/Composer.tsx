@@ -2,7 +2,9 @@ import { Eye, Play } from "lucide-react";
 import { type KeyboardEvent, useEffect, useId, useRef } from "react";
 import type { Argument, Command, Tool } from "@/api/model";
 import type { Value } from "@/api/runs";
+import { useNow } from "@/clock";
 import { Button } from "@/components/ui/button";
+import { dayOf } from "@/lib/cost";
 import { chosenOf, type Draft, type FieldGroup, formOf, missing, setValue } from "@/lib/form";
 import { chooserLinkOf } from "@/lib/links";
 import { needsConfirmation, whyNotRunnable } from "@/lib/rail";
@@ -51,6 +53,8 @@ export function Composer(props: Props) {
   const blocked = whyNotRunnable(command, readOnly);
   const runnable = blocked === null && unset.length === 0 && !lineRefused;
   const formRef = useRef<HTMLFormElement>(null);
+  // The cost card's period ends today, which the page reads once.
+  const now = useNow(60_000, false);
 
   // Each Edit moves focus to the first field, which may be a text field, a
   // chips field, a list or a checkbox, and selects its text, so the person
@@ -122,7 +126,14 @@ export function Composer(props: Props) {
         {command.about !== null && (
           <p className="text-muted-foreground mt-0 mb-2">{command.about}</p>
         )}
-        {command.cost !== null && <CostCard cost={command.cost} since={props.tool.figures_since} />}
+        {command.cost !== null && (
+          <CostCard
+            cost={command.cost}
+            command={command.path.join(" ")}
+            since={props.tool.figures_since}
+            today={dayOf(new Date(now))}
+          />
+        )}
         <div className="flex flex-col gap-2.5">
           {form.required.map((group) => (
             <Field key={group.choices[0]?.name} group={group} {...props} />

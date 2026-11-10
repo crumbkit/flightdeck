@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { Cost, Finding } from "@/api/model";
 import {
-  badgeOf,
   bytesWords,
+  dayOf,
   dayWords,
   percentOf,
-  retriedCodes,
-  runsWords,
+  periodWords,
   savedCalls,
+  stripFindings,
   tokensWords,
 } from "./cost";
 
 /** Returns a finding of `kind` that counts `runs`, with `code` when given. */
-function finding(kind: string, runs: number, code: string | null = null): Finding {
-  return { finding: kind, runs, suggestion: "", code };
+function finding(kind: Finding["kind"], runs: number, code: string | null = null): Finding {
+  return { kind, runs, code, p95_ms: null, p95_out_bytes: null };
 }
 
 const figures: Cost["figures"] = {
@@ -26,19 +26,24 @@ const figures: Cost["figures"] = {
   p95_out_bytes: 1384,
 };
 
-describe("runsWords", () => {
-  it("names the runs and the day the figures start", () => {
-    expect(runsWords(86, "2026-10-27")).toBe("86 runs since 27 Oct");
+const today = { year: 2026, month: 11, day: 10 };
+
+describe("periodWords", () => {
+  it("names the runs and the days from the figures' first to today", () => {
+    expect(periodWords(86, { year: 2026, month: 10, day: 27 }, today)).toBe(
+      "86 runs, 27 Oct to 10 Nov",
+    );
   });
 
-  it("names one run in the singular and leaves out a day the tool does not name", () => {
-    expect(runsWords(1, null)).toBe("1 run");
+  it("names one run in the singular and leaves out the days when the tool names none", () => {
+    expect(periodWords(1, null, today)).toBe("1 run");
   });
 });
 
-describe("dayWords", () => {
-  it("writes a day as its date and the month's short name", () => {
-    expect(dayWords("2026-11-03")).toBe("3 Nov");
+describe("days", () => {
+  it("writes a day as its date and the month's short name, and reads one from a local date", () => {
+    expect(dayWords({ year: 2026, month: 11, day: 3 })).toBe("3 Nov");
+    expect(dayOf(new Date(2026, 0, 31, 23, 59))).toEqual({ year: 2026, month: 1, day: 31 });
   });
 });
 
@@ -60,10 +65,10 @@ describe("percentOf", () => {
 describe("savedCalls", () => {
   it("counts retries and repeats from the findings and the help and usage errors from the figures", () => {
     const findings = [
-      finding("retry after failure", 11, "process::exited"),
-      finding("retry after failure", 7, "workspace::not_current"),
-      finding("identical repeat", 18),
-      finding("slow command", 4),
+      finding("retry_after_failure", 11, "process::exited"),
+      finding("retry_after_failure", 7, "workspace::not_current"),
+      finding("identical_repeat", 18),
+      finding("slow_command", 4),
     ];
 
     expect(savedCalls({ figures, findings })).toEqual([
@@ -84,30 +89,28 @@ describe("savedCalls", () => {
   });
 });
 
-describe("retriedCodes", () => {
-  it("sums the retries of each failure's code, most retried first", () => {
+describe("stripFindings", () => {
+  it("keeps a slow command, a help loop, the most retried failure and heavy output, in that order", () => {
     const findings = [
-      finding("retry after failure", 3, "process::not_ready"),
-      finding("retry after failure", 11, "process::exited"),
-      finding("retry after failure", 2, "process::not_ready"),
-      finding("identical repeat", 9),
+      finding("heavy_output", 3),
+      finding("identical_repeat", 18),
+      finding("retry_after_failure", 7, "workspace::not_current"),
+      finding("retry_after_failure", 11, "process::exited"),
+      finding("usage_error", 2),
+      finding("other", 5),
+      finding("help_loop", 9),
+      finding("slow_command", 4),
     ];
 
-    expect(retriedCodes(findings)).toEqual([
-      { code: "process::exited", runs: 11 },
-      { code: "process::not_ready", runs: 5 },
+    expect(stripFindings(findings).map((each) => [each.kind, each.code])).toEqual([
+      ["slow_command", null],
+      ["help_loop", null],
+      ["retry_after_failure", "process::exited"],
+      ["heavy_output", null],
     ]);
   });
 
-  it("has no codes without findings", () => {
-    expect(retriedCodes(null)).toEqual([]);
-  });
-});
-
-describe("badgeOf", () => {
-  it("shortens a slow command and a retry, and keeps any other finding's own words", () => {
-    expect(badgeOf(finding("slow command", 1))).toEqual({ label: "slow", tone: "slow" });
-    expect(badgeOf(finding("retry after failure", 1))).toEqual({ label: "retry", tone: "waste" });
-    expect(badgeOf(finding("help loop", 1))).toEqual({ label: "help loop", tone: "waste" });
+  it("has nothing to phrase without findings", () => {
+    expect(stripFindings(null)).toEqual([]);
   });
 });

@@ -1,26 +1,25 @@
 import { cn } from "cn";
 import { type ReactNode, useId } from "react";
-import type { Cost, Finding } from "@/api/model";
+import type { Cost, Day, Figures, Finding } from "@/api/model";
 import {
-  badgeOf,
   bytesWords,
   grouped,
   percentOf,
-  type RetriedCode,
-  retriedCodes,
-  runsWords,
+  periodWords,
   savedCalls,
+  stripFindings,
   tokensWords,
 } from "@/lib/cost";
 import { elapsedWords } from "@/lib/duration";
-
-/** The dot of each of the first three retried codes; the rest share one. */
-const codeDots = ["bg-k-fail", "bg-k-usage", "bg-k-repeat"];
+import { counted } from "@/lib/words";
 
 type Props = {
   cost: Cost;
-  /** The day the tool's figures start, such as "2026-11-03", or null. */
-  since: string | null;
+  /** The command's words below the tool's name, such as "books show". */
+  command: string;
+  /** The day the tool's figures start, or null. */
+  since: Day | null;
+  today: Day;
 };
 
 /**
@@ -29,10 +28,15 @@ type Props = {
  * reads, its failures, the calls an agent could have saved and the tool's
  * findings. Each figure shows only when the tool reports it.
  */
-export function CostCard({ cost, since }: Props) {
+export function CostCard({ cost, command, since, today }: Props) {
   const titleId = useId();
   const { figures, findings } = cost;
   const saved = savedCalls(cost);
+  // Each kind shows once, so the kind keys its item.
+  const phrased = stripFindings(findings).flatMap((finding) => {
+    const sentence = sentenceOf(finding, figures, command);
+    return sentence === null ? [] : [{ finding, sentence }];
+  });
   const tiles = [
     figures.p95_ms !== null && (
       <Tile key="time" title="Wall time">
@@ -53,7 +57,7 @@ export function CostCard({ cost, since }: Props) {
     ),
     figures.failed !== null && (
       <Tile key="failed" title="Failed">
-        <Failed failed={figures.failed} runs={figures.runs} codes={retriedCodes(findings)} />
+        <Failed failed={figures.failed} runs={figures.runs} />
       </Tile>
     ),
     saved.length > 0 && (
@@ -75,18 +79,21 @@ export function CostCard({ cost, since }: Props) {
         <h3 id={titleId} className="m-0 font-semibold">
           Cost to an agent
         </h3>
-        <span className="text-muted-foreground text-xs">{runsWords(figures.runs, since)}</span>
+        <span className="text-muted-foreground text-xs">
+          {periodWords(figures.runs, since, today)}
+        </span>
       </div>
       {tiles.length > 0 && <div className="grid-cols-tiles grid">{tiles}</div>}
-      {findings !== null && findings.length > 0 && (
+      {phrased.length > 0 && (
         <ul
           aria-label="Findings"
           className="m-0 flex list-none flex-wrap gap-x-4 gap-y-1.5 border-t px-3 py-2 text-xs"
         >
-          {findings.map((finding, index) => (
-            // The tool may print one finding twice, so its place keys it.
-            // biome-ignore lint/suspicious/noArrayIndexKey: the list never reorders
-            <FindingItem key={index} finding={finding} />
+          {phrased.map(({ finding, sentence }) => (
+            <li key={finding.kind} className="inline-flex flex-wrap items-center gap-1.5">
+              <Badge kind={finding.kind} />
+              <span>{sentence}</span>
+            </li>
           ))}
         </ul>
       )}
@@ -143,68 +150,80 @@ function Row({ count, children }: { count: number; children: ReactNode }) {
 }
 
 /**
- * The failed runs of all runs, and the codes of the failures that agents
- * ran the command again after, each with how often they did.
+ * The failed runs of all runs. A tool that reports failures by code adds
+ * a bar and a row for each code here.
  */
-function Failed({ failed, runs, codes }: { failed: number; runs: number; codes: RetriedCode[] }) {
+function Failed({ failed, runs }: { failed: number; runs: number }) {
   const percent = percentOf(failed, runs);
-  const shown = codes.slice(0, codeDots.length);
-  const others = codes.slice(codeDots.length);
   return (
-    <>
-      <Pair>
-        <Figure
-          value={`${grouped(failed)} of ${grouped(runs)}`}
-          label={percent === null ? "of runs" : `${percent}% of runs`}
-          bad={failed > 0}
-        />
-      </Pair>
-      {codes.length > 0 && (
-        <>
-          <div className="text-faint-foreground text-2xs">Ran again after</div>
-          <Rows>
-            {shown.map((each, index) => (
-              <Row key={each.code} count={each.runs}>
-                <span
-                  aria-hidden="true"
-                  className={cn("size-2 shrink-0 rounded-full", codeDots[index])}
-                />
-                <code className="truncate">{each.code}</code>
-              </Row>
-            ))}
-            {others.length > 0 && (
-              <Row count={others.reduce((sum, each) => sum + each.runs, 0)}>
-                <span
-                  aria-hidden="true"
-                  className="bg-faint-foreground size-2 shrink-0 rounded-full"
-                />
-                {others.length} other {others.length === 1 ? "code" : "codes"}
-              </Row>
-            )}
-          </Rows>
-        </>
-      )}
-    </>
+    <Pair>
+      <Figure
+        value={`${grouped(failed)} of ${grouped(runs)}`}
+        label={percent === null ? "of runs" : `${percent}% of runs`}
+        bad={failed > 0}
+      />
+    </Pair>
   );
 }
 
-function FindingItem({ finding }: { finding: Finding }) {
-  const badge = badgeOf(finding);
+/** The short word of each kind's badge, and whether it is red. */
+const badges: Partial<Record<Finding["kind"], { label: string; red: boolean }>> = {
+  slow_command: { label: "slow", red: true },
+  help_loop: { label: "help loop", red: false },
+  retry_after_failure: { label: "retry", red: false },
+  heavy_output: { label: "heavy output", red: false },
+};
+
+function Badge({ kind }: { kind: Finding["kind"] }) {
+  const badge = badges[kind];
+  if (badge === undefined) {
+    return null;
+  }
   return (
-    <li className="inline-flex items-center gap-1.5">
-      <span
-        className={cn(
-          "text-2xs inline-flex items-center rounded-sm px-1.5 leading-4.5 font-medium",
-          badge.tone === "slow"
-            ? "bg-destructive-soft text-destructive"
-            : "bg-additive-soft text-additive",
-        )}
-      >
-        {badge.label}
-      </span>
-      <span>
-        {finding.suggestion} ({grouped(finding.runs)} {finding.runs === 1 ? "run" : "runs"})
-      </span>
-    </li>
+    <span
+      className={cn(
+        "text-2xs inline-flex items-center rounded-sm px-1.5 leading-4.5 font-medium",
+        badge.red ? "bg-destructive-soft text-destructive" : "bg-additive-soft text-additive",
+      )}
+    >
+      {badge.label}
+    </span>
   );
+}
+
+/**
+ * Returns a finding in the card's words, with codes and the command in
+ * mono, or null when the tool left out a figure the sentence needs.
+ */
+function sentenceOf(finding: Finding, figures: Figures, command: string): ReactNode | null {
+  const name = <code>{command}</code>;
+  switch (finding.kind) {
+    case "slow_command": {
+      const ms = finding.p95_ms ?? figures.p95_ms;
+      return ms === null ? null : `The 95th percentile wall time is ${elapsedWords(ms)}.`;
+    }
+    case "help_loop":
+      // crumbkit-usage counts a help loop's pages, not its sessions.
+      return (
+        <>
+          Agents read 3 or more help pages before {name} first succeeded,{" "}
+          {counted(finding.runs, "page")} in all.
+        </>
+      );
+    case "retry_after_failure":
+      return (
+        <>
+          After {finding.code === null ? "a failure" : <code>{finding.code}</code>}, agents ran{" "}
+          {name} again {counted(finding.runs, "time")} within 60 s.
+        </>
+      );
+    case "heavy_output": {
+      const bytes = finding.p95_out_bytes ?? figures.p95_out_bytes;
+      return bytes === null
+        ? null
+        : `The 95th percentile output is ${bytesWords(bytes)}, ${tokensWords(bytes)}.`;
+    }
+    default:
+      return null;
+  }
 }

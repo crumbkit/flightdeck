@@ -1,4 +1,5 @@
-use super::figures::{FiguresList, Usage};
+use super::day::Day;
+use super::figures::{FiguresList, FindingKind, Usage};
 use super::{CommandsList, Document, Effects, Listing, NotDocument, StepCommand, Tool};
 
 /// shelf's `commands list` document, with `goals` on its root row.
@@ -157,7 +158,7 @@ fn shelf_with_costs(figures: &str, usage: Option<&str>) -> Tool {
     let commands: CommandsList = serde_json::from_str(WITH_GOALS).unwrap();
     let mut tool = Tool::assemble("shelf 0.1.1", commands, Vec::new()).unwrap();
     let figures = FiguresList::read(figures.as_bytes());
-    let usage = usage.and_then(|usage| Usage::read(usage.as_bytes()));
+    let usage = usage.and_then(|usage| Usage::read(usage.as_bytes(), "shelf"));
     if let Some(figures) = figures {
         tool.add_costs(&figures, usage.as_ref());
     }
@@ -190,22 +191,34 @@ fn books_show_reads_every_figure_and_its_findings_in_the_order_shelf_prints_them
         ),
         (Some(1), Some(1), Some(1), Some(2), Some(0), Some(74))
     );
-    let findings: Vec<(&str, u64, Option<&str>)> = cost
+    let findings: Vec<(FindingKind, u64, Option<&str>, Option<u64>)> = cost
         .findings()
         .unwrap()
         .iter()
-        .map(|finding| (finding.finding(), finding.runs(), finding.code()))
+        .map(|finding| {
+            (
+                finding.kind(),
+                finding.runs(),
+                finding.code(),
+                finding.p95_out_bytes(),
+            )
+        })
         .collect();
     assert_eq!(
         findings,
         [
-            ("one id at a time", 4, None),
-            ("identical repeat", 2, None),
-            ("retry after failure", 2, Some("shelf::books::not_found")),
-            ("usage error", 1, None),
+            (FindingKind::Other, 4, None, Some(74)),
+            (FindingKind::IdenticalRepeat, 2, None, Some(74)),
+            (
+                FindingKind::RetryAfterFailure,
+                2,
+                Some("books::not_found"),
+                Some(74)
+            ),
+            (FindingKind::UsageError, 1, None, Some(74)),
         ]
     );
-    assert_eq!(tool.figures_since(), Some("2026-11-03"));
+    assert_eq!(tool.figures_since(), Day::parse("2026-11-03"));
 }
 
 #[test]
@@ -326,15 +339,69 @@ fn a_finding_row_without_a_code_field_reads_as_no_code() {
 }
 
 #[test]
-fn a_since_that_is_not_a_day_is_left_out() {
-    let figures = edited(FIGURES, |document| {
-        document["summary"]["since"] = serde_json::json!("last week");
+fn a_since_that_is_no_day_of_the_calendar_is_left_out_and_the_figures_still_read() {
+    for since in [
+        serde_json::json!("last week"),
+        serde_json::json!("2026-13-01"),
+        serde_json::json!("2026-02-30"),
+        serde_json::json!(20_261_103),
+    ] {
+        let figures = edited(FIGURES, |document| {
+            document["summary"]["since"] = since.clone();
+        });
+
+        let tool = shelf_with_costs(&figures, None);
+
+        assert_eq!(tool.figures_since(), None, "{since}");
+        assert!(tool.command(&["books", "show"]).unwrap().cost().is_some());
+    }
+}
+
+#[test]
+fn a_day_reads_only_from_a_date_of_the_calendar_and_serializes_as_its_parts() {
+    assert_eq!(
+        serde_json::to_value(Day::parse("2028-02-29").unwrap()).unwrap(),
+        serde_json::json!({"year": 2028, "month": 2, "day": 29})
+    );
+    for text in [
+        "2026-02-29",
+        "2026-00-10",
+        "2026-04-31",
+        "2026-4-03",
+        "2026-04-03-01",
+        "",
+    ] {
+        assert_eq!(Day::parse(text), None, "{text}");
+    }
+}
+
+#[test]
+fn a_finding_of_a_kind_flightdeck_does_not_know_reads_as_other() {
+    let usage = edited(USAGE, |document| {
+        document["data"][0]["finding"] = serde_json::json!("");
+        document["data"][1]["finding"] = serde_json::json!("mostly waiting");
     });
 
-    let tool = shelf_with_costs(&figures, None);
+    let tool = shelf_with_costs(FIGURES, Some(&usage));
 
-    assert_eq!(tool.figures_since(), None);
-    assert!(tool.command(&["books", "show"]).unwrap().cost().is_some());
+    let cost = tool.command(&["books", "show"]).unwrap().cost().unwrap();
+    let kinds: Vec<FindingKind> = cost.findings().unwrap().iter().map(|f| f.kind()).collect();
+    assert_eq!(kinds[..2], [FindingKind::Other, FindingKind::Other]);
+}
+
+#[test]
+fn a_command_sends_the_runs_of_its_cost_and_zero_without_one() {
+    let tool = shelf_with_costs(FIGURES, Some(USAGE));
+
+    let reply = |words: &[&str]| serde_json::to_value(tool.command(words).unwrap()).unwrap();
+    let show = reply(&["books", "show"]);
+    let remove = reply(&["books", "remove"]);
+
+    assert_eq!(show["runs"], 5);
+    assert_eq!(show["cost"]["figures"]["runs"], 5);
+    assert_eq!(show["cost"]["findings"][2]["kind"], "retry_after_failure");
+    assert_eq!(remove["runs"], 0);
+    assert_eq!(remove["cost"], serde_json::Value::Null);
 }
 
 #[test]

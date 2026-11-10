@@ -119,12 +119,6 @@
   --destructive: light-dark(oklch(50% 0.2 27), oklch(74% 0.17 25));
   --destructive-soft: light-dark(oklch(94% 0.04 27), oklch(25% 0.07 25));
   --destructive-foreground: light-dark(oklch(99.5% 0.002 240), oklch(14% 0.02 230));
-
-  /* The kinds of wasted call on a command's cost card, each always shown
-     beside its words: a failure, a usage error and a repeat. */
-  --k-fail: light-dark(oklch(50% 0.2 27), oklch(62% 0.19 27));
-  --k-usage: light-dark(oklch(76% 0.15 80), oklch(70% 0.14 80));
-  --k-repeat: light-dark(oklch(45% 0.14 300), oklch(80% 0.1 300));
 }
 
 :root[data-theme="light"] {
@@ -165,9 +159,6 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-popover: var(--popover);
   --color-primary-hover: var(--primary-hover);
-  --color-k-fail: var(--k-fail);
-  --color-k-usage: var(--k-usage);
-  --color-k-repeat: var(--k-repeat);
   --font-sans: var(--sans);
   --font-mono: var(--mono);
   /* Controls and cards share the 3px corner. */
@@ -240,6 +231,12 @@
    card keeps the larger share above it. The form scrolls inside it. */
 @utility max-h-dock {
   max-height: 40dvh;
+}
+/* The composer's tallest height while it shows a command's cost card: the
+   whole window under the top bar, so the card, the fields and Run show
+   together without the form scrolling. */
+@utility max-h-dock-costed {
+  max-height: calc(100dvh - 3rem);
 }
 
 /* A cost card's tiles: as many of at least 210 px as fit in a row. */

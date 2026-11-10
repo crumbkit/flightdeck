@@ -532,7 +532,7 @@ test.describe("shelf after an agent ran books show", () => {
     const composer = await compose(page, "books show");
 
     const card = composer.getByRole("region", { name: "Cost to an agent" });
-    await expect(card).toContainText(/2 runs since \d{1,2} [A-Z][a-z]{2}/);
+    await expect(card).toContainText(/2 runs, \d{1,2} [A-Z][a-z]{2} to \d{1,2} [A-Z][a-z]{2}/);
     await expect(card.getByRole("heading")).toHaveText([
       "Cost to an agent",
       "Wall time",
@@ -541,15 +541,37 @@ test.describe("shelf after an agent ran books show", () => {
       "Calls an agent could have saved",
     ]);
     await expect(card).toContainText("2 of 2100% of runs");
-    await expect(card).toContainText("shelf::books::not_found");
     await expect(card).toContainText("Ran again after a failure1");
     await expect(card).toContainText("Read help before running1");
     await expect(card).toContainText("Help pages read1");
-    await expect(card.getByRole("list", { name: "Findings" })).toContainText(
-      "retryshelf::books::not_found failed and the command ran again within 60 s (1 run)",
+    await expect(card.getByRole("list", { name: "Findings" })).toHaveText(
+      "retryAfter books::not_found, agents ran books show again 1 time within 60 s.",
     );
     await expectNoAccessibilityViolations(page);
   });
+
+  for (const size of [
+    { width: 1280, height: 900 },
+    { width: 900, height: 900 },
+  ]) {
+    test(`at ${size.width}×${size.height} the card, the fields and Run show without the form scrolling`, async ({
+      page,
+      served,
+    }) => {
+      await page.setViewportSize(size);
+      await signIn(page, served);
+
+      const composer = await compose(page, "books show");
+
+      await expect(composer.getByRole("region", { name: "Cost to an agent" })).toBeInViewport();
+      await expect(composer.getByRole("button", { name: /^Run/ })).toBeInViewport();
+      const fields = composer.locator("div.overflow-y-auto").first();
+      const overflow = await fields.evaluate(
+        (element) => element.scrollHeight - element.clientHeight,
+      );
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  }
 
   test("a command the agent never ran shows no cost card", async ({ page, served }) => {
     await signIn(page, served);

@@ -7,7 +7,18 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::command::CommandPath;
+use super::day::{Day, day_or_none};
 use super::wire::CommandRow;
+
+/// Returns true when the document id `schema` ends with `/<name>/v1`, as
+/// the id of the document `name` does whatever tool printed it, such as
+/// `shelf/commands-list/v1` for `commands-list`.
+pub(super) fn is_document(schema: &str, name: &str) -> bool {
+    schema
+        .strip_suffix("/v1")
+        .and_then(|rest| rest.strip_suffix(name))
+        .is_some_and(|rest| rest.ends_with('/'))
+}
 
 /// The envelope of a listing: one page of rows and what the tool knows
 /// about the rows it left out.
@@ -20,6 +31,26 @@ pub struct Listing<T> {
     total: Option<u64>,
     #[serde(default, deserialize_with = "super::wire::null_as_empty")]
     next: Vec<NextStep>,
+    #[serde(default)]
+    summary: Option<Summary>,
+}
+
+/// The summary that a report of the tool's usage log, such as `self
+/// figures list`, prints beside its rows.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct Summary {
+    /// The day the report's window starts, or `None` when the tool names
+    /// no day or a text that is no day.
+    #[serde(default, deserialize_with = "day_or_none")]
+    since: Option<Day>,
+}
+
+impl Summary {
+    /// Returns the day the report's window starts, such as 3 November 2026.
+    #[must_use]
+    pub const fn since(&self) -> Option<Day> {
+        self.since
+    }
 }
 
 impl<T> Listing<T> {
@@ -53,6 +84,13 @@ impl<T> Listing<T> {
     #[must_use]
     pub fn next(&self) -> &[NextStep] {
         &self.next
+    }
+
+    /// Returns the summary of a report of the usage log, or `None` when the
+    /// listing has none.
+    #[must_use]
+    pub const fn summary(&self) -> Option<&Summary> {
+        self.summary.as_ref()
     }
 
     /// Returns the rows, consuming the listing.

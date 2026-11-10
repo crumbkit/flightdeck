@@ -15,9 +15,12 @@
 
 use std::collections::HashMap;
 
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use super::command::CommandPath;
+use super::day::Day;
+use super::documents::{Listing, Summary, is_document};
 
 /// The words of the command that prints the figures.
 pub(super) const FIGURES_COMMAND: [&str; 3] = ["self", "figures", "list"];
@@ -122,45 +125,90 @@ impl Figures {
     }
 }
 
+/// What a finding of `self usage` is. The tool's words for each kind live
+/// here alone, and the page switches on the kind.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FindingKind {
+    /// A session ran the command again within 60 seconds of its failure.
+    RetryAfterFailure,
+    /// A session ran the same command line again within 60 seconds.
+    IdenticalRepeat,
+    /// The 95th percentile of the command's wall time is at least 1 second.
+    SlowCommand,
+    /// A session read at least 3 help pages before its first success.
+    HelpLoop,
+    /// The parser refused the command line.
+    UsageError,
+    /// The 95th percentile of the command's output is at least 20,000
+    /// bytes.
+    HeavyOutput,
+    /// A kind that flightdeck does not know, such as one that a newer
+    /// crumbkit-usage adds.
+    Other,
+}
+
+impl FindingKind {
+    /// Returns the kind that the tool's word `finding` names, such as
+    /// `retry after failure`.
+    fn of(finding: &str) -> Self {
+        match finding {
+            "retry after failure" => Self::RetryAfterFailure,
+            "identical repeat" => Self::IdenticalRepeat,
+            "slow command" => Self::SlowCommand,
+            "help loop" => Self::HelpLoop,
+            "usage error" => Self::UsageError,
+            "heavy output" => Self::HeavyOutput,
+            _ => Self::Other,
+        }
+    }
+}
+
 /// One finding of `self usage` about a command: a pattern in its runs that
-/// suggests where callers waste effort.
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+/// suggests where callers waste effort, with the figures that describe it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Finding {
-    /// What the pattern is, such as `retry after failure`.
-    finding: String,
-    /// The runs that show the pattern.
+    kind: FindingKind,
     runs: u64,
-    /// The tool's words for what the pattern suggests.
-    suggestion: String,
-    /// The code of the failure that the runs retried, for a retry after
-    /// failure only.
-    #[serde(default)]
     code: Option<String>,
+    p95_ms: Option<u64>,
+    p95_out_bytes: Option<u64>,
 }
 
 impl Finding {
-    /// Returns what the pattern is, such as `retry after failure`.
+    /// Returns what the pattern is.
     #[must_use]
-    pub fn finding(&self) -> &str {
-        &self.finding
+    pub const fn kind(&self) -> FindingKind {
+        self.kind
     }
 
-    /// Returns the runs that show the pattern.
+    /// Returns the runs that show the pattern. A help loop counts the help
+    /// pages that its sessions read.
     #[must_use]
     pub const fn runs(&self) -> u64 {
         self.runs
     }
 
-    /// Returns the tool's words for what the pattern suggests.
-    #[must_use]
-    pub fn suggestion(&self) -> &str {
-        &self.suggestion
-    }
-
-    /// Returns the code of the failure that the runs retried.
+    /// Returns the code of the failure that the runs retried, for a retry
+    /// after failure, without the tool's name in front, such as
+    /// `books::not_found`.
     #[must_use]
     pub fn code(&self) -> Option<&str> {
         self.code.as_deref()
+    }
+
+    /// Returns the 95th percentile of the command's wall time in
+    /// milliseconds, when the tool reports it beside the finding.
+    #[must_use]
+    pub const fn p95_ms(&self) -> Option<u64> {
+        self.p95_ms
+    }
+
+    /// Returns the 95th percentile of the bytes the command printed, when
+    /// the tool reports it beside the finding.
+    #[must_use]
+    pub const fn p95_out_bytes(&self) -> Option<u64> {
+        self.p95_out_bytes
     }
 }
 
@@ -199,45 +247,38 @@ struct FigureRow {
 /// One row of `self usage`.
 #[derive(Debug, Deserialize)]
 struct FindingRow {
+    /// What the pattern is, in the tool's words.
+    finding: String,
+    runs: u64,
     /// The command's path below the tool's name, such as `books show`.
     command: String,
-    #[serde(flatten)]
-    finding: Finding,
+    #[serde(default)]
+    code: Option<String>,
+    /// The command's figures, which `--full` prints.
+    #[serde(default)]
+    figures: Option<FindingFigures>,
 }
 
-/// The summary of the runs that a report read.
+/// The figures of a finding's command that the page's sentences use.
 #[derive(Debug, Default, Deserialize)]
-struct Summary {
-    /// The day the report's window starts, such as `2026-11-03`.
+struct FindingFigures {
     #[serde(default)]
-    since: Option<String>,
+    p95_ms: Option<u64>,
+    #[serde(default)]
+    p95_out_bytes: Option<u64>,
 }
 
-/// A document of rows that `self figures list` or `self usage` prints.
-#[derive(Debug, Deserialize)]
-struct Report<T> {
-    schema: String,
-    data: Vec<T>,
-    #[serde(default)]
-    summary: Summary,
-}
-
-impl<T: for<'de> Deserialize<'de>> Report<T> {
-    /// Reads `stdout` as the document whose id ends with `/<name>/v1`.
-    fn read(stdout: &[u8], name: &str) -> Option<Self> {
-        let report: Self = serde_json::from_slice(stdout).ok()?;
-        report
-            .schema
-            .ends_with(&format!("/{name}/v1"))
-            .then_some(report)
-    }
+/// Reads `stdout` as the listing whose id ends with `/<name>/v1`.
+fn read_listing<T: DeserializeOwned>(stdout: &[u8], name: &str) -> Option<Listing<T>> {
+    let listing: Listing<T> = serde_json::from_slice(stdout).ok()?;
+    is_document(listing.schema(), name).then_some(listing)
 }
 
 /// The figures of each command, by its path, and the day they start.
 #[derive(Debug, Default)]
 pub(super) struct FiguresList {
     by_command: HashMap<String, Figures>,
-    since: Option<String>,
+    since: Option<Day>,
 }
 
 impl FiguresList {
@@ -245,21 +286,22 @@ impl FiguresList {
     /// when it is not that document. The loader's own queries are left
     /// out.
     pub(super) fn read(stdout: &[u8]) -> Option<Self> {
-        let report = Report::<FigureRow>::read(stdout, "self-figures-list")?;
+        let listing = read_listing::<FigureRow>(stdout, "self-figures-list")?;
+        let since = listing.summary().and_then(Summary::since);
         Some(Self {
-            by_command: report
-                .data
+            by_command: listing
+                .into_data()
                 .into_iter()
                 .filter(|row| !is_loader_query(&row.command))
                 .map(|row| (row.command, row.figures))
                 .collect(),
-            since: report.summary.since.filter(|since| is_day(since)),
+            since,
         })
     }
 
-    /// Returns the day the figures' window starts, such as `2026-11-03`.
-    pub(super) fn since(&self) -> Option<&str> {
-        self.since.as_deref()
+    /// Returns the day the figures' window starts.
+    pub(super) const fn since(&self) -> Option<Day> {
+        self.since
     }
 
     /// Returns the cost of the command at `path`, with the findings about
@@ -281,16 +323,31 @@ pub(super) struct Usage {
 }
 
 impl Usage {
-    /// Reads the standard output of `self usage`, or returns `None` when it
-    /// is not that document. Findings about the loader's own queries are
-    /// left out.
-    pub(super) fn read(stdout: &[u8]) -> Option<Self> {
-        let report = Report::<FindingRow>::read(stdout, "self-usage")?;
+    /// Reads the standard output of `self usage` from the tool named
+    /// `tool`, or returns `None` when it is not that document. Findings
+    /// about the loader's own queries are left out, and each code loses the
+    /// tool's name in front, so `shelf::books::not_found` reads
+    /// `books::not_found`.
+    pub(super) fn read(stdout: &[u8], tool: &str) -> Option<Self> {
+        let listing = read_listing::<FindingRow>(stdout, "self-usage")?;
+        let prefix = format!("{tool}::");
         let mut by_command: HashMap<String, Vec<Finding>> = HashMap::new();
-        for row in report.data {
-            if !is_loader_query(&row.command) {
-                by_command.entry(row.command).or_default().push(row.finding);
+        for row in listing.into_data() {
+            if is_loader_query(&row.command) {
+                continue;
             }
+            let figures = row.figures.unwrap_or_default();
+            let code = row.code.map(|code| match code.strip_prefix(&prefix) {
+                Some(rest) => rest.to_owned(),
+                None => code,
+            });
+            by_command.entry(row.command).or_default().push(Finding {
+                kind: FindingKind::of(&row.finding),
+                runs: row.runs,
+                code,
+                p95_ms: figures.p95_ms,
+                p95_out_bytes: figures.p95_out_bytes,
+            });
         }
         Some(Self { by_command })
     }
@@ -305,14 +362,4 @@ impl Usage {
 /// Returns true when `command` is one of the loader's own queries.
 fn is_loader_query(command: &str) -> bool {
     LOADER_QUERIES.contains(&command)
-}
-
-/// Returns true when `text` is a day written as `YYYY-MM-DD`.
-fn is_day(text: &str) -> bool {
-    let bytes = text.as_bytes();
-    bytes.len() == 10
-        && bytes.iter().enumerate().all(|(index, byte)| match index {
-            4 | 7 => *byte == b'-',
-            _ => byte.is_ascii_digit(),
-        })
 }

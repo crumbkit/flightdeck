@@ -56,6 +56,14 @@ export type Effects = z.infer<typeof Effects>;
 /** How a command's effects decide how it starts, which the server decides. */
 const Class = z.enum(["read_only", "additive", "destructive"]);
 
+/** A day of the calendar, which the server checked. */
+const Day = z.object({
+  year: z.number().int(),
+  month: z.number().int().min(1).max(12),
+  day: z.number().int().min(1).max(31),
+});
+export type Day = z.infer<typeof Day>;
+
 /** A figure that the tool may not report: null when it does not. */
 const Figure = z.number().int().nonnegative().nullable();
 
@@ -78,14 +86,26 @@ const Figures = z.object({
 });
 export type Figures = z.infer<typeof Figures>;
 
-/** One finding of the tool's `self usage` about a command. */
+/** What a finding of the tool's `self usage` is, as the server names it. */
+const FindingKind = z.enum([
+  "retry_after_failure",
+  "identical_repeat",
+  "slow_command",
+  "help_loop",
+  "usage_error",
+  "heavy_output",
+  "other",
+]);
+
+/** One finding of the tool's `self usage` about a command, with the figures that describe it. */
 const Finding = z.object({
-  /** What the pattern is, such as "retry after failure". */
-  finding: z.string().min(1),
+  kind: FindingKind,
+  /** The runs that show the pattern; a help loop counts its help pages. */
   runs: z.number().int().nonnegative(),
-  suggestion: z.string(),
-  /** The code of the failure that the runs retried, for a retry after failure. */
+  /** The code of the failure that the runs retried, without the tool's name in front. */
   code: z.string().nullable(),
+  p95_ms: Figure,
+  p95_out_bytes: Figure,
 });
 export type Finding = z.infer<typeof Finding>;
 
@@ -141,8 +161,8 @@ const Tool = z.object({
   headings: z.array(Heading),
   commands: z.array(Command),
   links: z.array(Link),
-  /** The day the tool's figures start, such as "2026-11-03", or null. */
-  figures_since: z.iso.date().nullable(),
+  /** The day the tool's figures start, or null when no command has a cost. */
+  figures_since: Day.nullable(),
 });
 export type Tool = z.infer<typeof Tool>;
 

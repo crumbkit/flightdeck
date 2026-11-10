@@ -1,15 +1,16 @@
-import type { Cost, Finding } from "@/api/model";
-
-/** The findings that count calls an agent could have saved. */
-const retry = "retry after failure";
-const repeat = "identical repeat";
+import type { Cost, Day, Finding } from "@/api/model";
+import { counted } from "./words";
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** Returns a day written as `YYYY-MM-DD` in words, such as "3 Nov". */
-export function dayWords(day: string): string {
-  const [, month = "", date = ""] = day.split("-");
-  return `${Number(date)} ${months[Number(month) - 1] ?? month}`;
+/** Returns a day in words, such as "3 Nov". */
+export function dayWords(day: Day): string {
+  return `${day.day} ${months[day.month - 1]}`;
+}
+
+/** Returns the day that `date` falls on in the browser's time zone. */
+export function dayOf(date: Date): Day {
+  return { year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate() };
 }
 
 /** Returns a count with its thousands grouped, such as "1,384". */
@@ -18,12 +19,13 @@ export function grouped(count: number): string {
 }
 
 /**
- * Returns the card's line under its title: the runs, and the day the
- * figures start when the tool names one, such as "5 runs since 3 Nov".
+ * Returns the card's line under its title: the runs, and the days the
+ * figures cover when the tool names the first, such as
+ * "86 runs, 27 Oct to 10 Nov".
  */
-export function runsWords(runs: number, since: string | null): string {
-  const counted = `${grouped(runs)} ${runs === 1 ? "run" : "runs"}`;
-  return since === null ? counted : `${counted} since ${dayWords(since)}`;
+export function periodWords(runs: number, since: Day | null, today: Day): string {
+  const count = counted(runs, "run");
+  return since === null ? count : `${count}, ${dayWords(since)} to ${dayWords(today)}`;
 }
 
 /** Returns bytes in words, such as "1,384 B". */
@@ -36,8 +38,7 @@ export function bytesWords(bytes: number): string {
  * bytes a token, such as "about 346 tokens".
  */
 export function tokensWords(bytes: number): string {
-  const tokens = Math.round(bytes / 4);
-  return `about ${grouped(tokens)} ${tokens === 1 ? "token" : "tokens"}`;
+  return `about ${counted(Math.round(bytes / 4), "token")}`;
 }
 
 /** Returns `part` as a whole percentage of `whole`, or null when `whole` is 0. */
@@ -49,9 +50,9 @@ export function percentOf(part: number, whole: number): number | null {
 export type Saved = { label: string; count: number };
 
 /** Returns the runs that the findings of `kind` count. */
-function runsOf(findings: Finding[], kind: string): number {
+function runsOf(findings: Finding[], kind: Finding["kind"]): number {
   return findings
-    .filter((finding) => finding.finding === kind)
+    .filter((finding) => finding.kind === kind)
     .reduce((sum, finding) => sum + finding.runs, 0);
 }
 
@@ -67,8 +68,8 @@ export function savedCalls(cost: Cost): Saved[] {
     findings === null
       ? []
       : [
-          { label: "Ran again after a failure", count: runsOf(findings, retry) },
-          { label: "Same call again within 60 s", count: runsOf(findings, repeat) },
+          { label: "Ran again after a failure", count: runsOf(findings, "retry_after_failure") },
+          { label: "Same call again within 60 s", count: runsOf(findings, "identical_repeat") },
         ];
   const fromFigures: [string, number | null][] = [
     ["Read help before running", figures.help_before],
@@ -81,36 +82,28 @@ export function savedCalls(cost: Cost): Saved[] {
   ];
 }
 
-/** A failure code that agents ran the command again after, and how often. */
-export type RetriedCode = { code: string; runs: number };
+/** The kinds the strip phrases, in the order it shows them. */
+const stripOrder: Finding["kind"][] = [
+  "slow_command",
+  "help_loop",
+  "retry_after_failure",
+  "heavy_output",
+];
 
 /**
- * Returns the codes of the failures that agents ran the command again
- * after, most retried first, from the findings of a retry after failure.
+ * Returns the findings that the card's strip phrases, in its order: a slow
+ * command, a help loop, the retry after failure with the most runs, and
+ * heavy output. Identical repeats, the other retries and usage errors are
+ * left out, because the saved-calls tile already counts them, and a kind
+ * the page does not know is left out too.
  */
-export function retriedCodes(findings: Finding[] | null): RetriedCode[] {
-  const byCode = new Map<string, number>();
-  for (const finding of findings ?? []) {
-    if (finding.finding === retry && finding.code !== null) {
-      byCode.set(finding.code, (byCode.get(finding.code) ?? 0) + finding.runs);
-    }
-  }
-  return [...byCode]
-    .map(([code, runs]) => ({ code, runs }))
-    .sort((a, b) => b.runs - a.runs || a.code.localeCompare(b.code));
-}
-
-/** How a finding's badge reads: a slow command in red, any other in amber. */
-export type BadgeTone = "slow" | "waste";
-
-/** Returns the short word of a finding's badge and its tone. */
-export function badgeOf(finding: Finding): { label: string; tone: BadgeTone } {
-  switch (finding.finding) {
-    case "slow command":
-      return { label: "slow", tone: "slow" };
-    case retry:
-      return { label: "retry", tone: "waste" };
-    default:
-      return { label: finding.finding, tone: "waste" };
-  }
+export function stripFindings(findings: Finding[] | null): Finding[] {
+  return stripOrder.flatMap((kind) => {
+    const ofKind = (findings ?? []).filter((finding) => finding.kind === kind);
+    const top = ofKind.reduce<Finding | undefined>(
+      (best, each) => (best === undefined || each.runs > best.runs ? each : best),
+      undefined,
+    );
+    return top === undefined ? [] : [top];
+  });
 }

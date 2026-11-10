@@ -12,6 +12,7 @@
 
 mod argument;
 mod command;
+mod day;
 mod documents;
 mod error;
 mod figures;
@@ -33,13 +34,14 @@ pub use self::command::{
     Class, Column, Command, CommandPath, Effects, Example, ExitMeaning, Form, Items, ResultSpec,
     Writes,
 };
+pub use self::day::Day;
 pub use self::documents::{
     CommandsList, Document, DocumentForm, DocumentKind, Listing, NextStep, Recovery, SchemasList,
     SchemasShow, StepCommand, ToolFailure,
 };
 pub use self::error::{LoadError, NotDocument, Problem, TOOL_LOAD, TOOL_NOT_FOUND};
 pub(crate) use self::error::{exit_code, last_lines};
-pub use self::figures::{Cost, Figures, Finding};
+pub use self::figures::{Cost, Figures, Finding, FindingKind};
 use self::figures::{FiguresList, Usage};
 pub(crate) use self::links::ID_COLUMN;
 pub use self::links::Link;
@@ -59,9 +61,9 @@ pub struct Tool {
     commands: Vec<Command>,
     documents: Vec<Document>,
     links: Vec<Link>,
-    /// The day the tool's figures start, such as `2026-11-03`, or `None`
+    /// The day the tool's figures start, such as 3 November 2026, or `None`
     /// when no command has a cost.
-    figures_since: Option<String>,
+    figures_since: Option<Day>,
     #[serde(skip)]
     marks_no_result: bool,
 }
@@ -136,11 +138,11 @@ impl Tool {
         &self.links
     }
 
-    /// Returns the day the tool's figures start, such as `2026-11-03`, or
+    /// Returns the day the tool's figures start, such as 3 November 2026, or
     /// `None` when no command has a cost or the tool printed no such day.
     #[must_use]
-    pub fn figures_since(&self) -> Option<&str> {
-        self.figures_since.as_deref()
+    pub const fn figures_since(&self) -> Option<Day> {
+        self.figures_since
     }
 
     /// Gives each command the cost that `figures` and `usage` hold for its
@@ -156,7 +158,7 @@ impl Tool {
             }
         }
         if costed {
-            self.figures_since = figures.since().map(str::to_owned);
+            self.figures_since = figures.since();
         }
     }
 
@@ -348,7 +350,7 @@ pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> 
         });
         let usage = usage
             .and_then(Result::ok)
-            .and_then(|answer| Usage::read(&answer.stdout));
+            .and_then(|answer| Usage::read(&answer.stdout, &tool.name));
         if let Some(figures) = figures
             .ok()
             .and_then(|answer| FiguresList::read(&answer.stdout))
@@ -437,7 +439,7 @@ impl<'a> Answer<'a> {
     /// Refuses a document whose id `schema` does not end with
     /// `/<name>/v1`, or a listing that leaves out rows.
     fn check(&self, schema: &str, name: &str, truncated: bool) -> Result<(), LoadError> {
-        if !schema.ends_with(&format!("/{name}/v1")) {
+        if !documents::is_document(schema, name) {
             let schema = NotDocument::Schema(schema.to_owned());
             return Err(self.fail(Problem::NotDocument(schema)));
         }

@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use crumbkit::{Failure as _, FieldValue};
 use crumbkit_flightdeck::model::{
-    self, Arity, CrumbkitFlag, Kind, LoadError, TOOL_LOAD, TOOL_NOT_FOUND, Tool,
+    self, Arity, CrumbkitFlag, FindingKind, Kind, LoadError, TOOL_LOAD, TOOL_NOT_FOUND, Tool,
 };
 use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
 use tempfile::TempDir;
@@ -670,10 +670,10 @@ fn a_failed_books_show_that_an_agent_ran_again_gives_its_cost_card_the_failure_a
         .findings()
         .unwrap()
         .iter()
-        .filter(|finding| finding.finding() == "retry after failure")
+        .filter(|finding| finding.kind() == FindingKind::RetryAfterFailure)
         .map(|finding| (finding.runs(), finding.code()))
         .collect();
-    assert_eq!(retries, [(1, Some("shelf::books::not_found"))]);
+    assert_eq!(retries, [(1, Some("books::not_found"))]);
     assert!(tool.figures_since().is_some());
 }
 
@@ -717,11 +717,11 @@ fn a_usage_call_that_answers_gives_the_command_its_findings() {
     let tool = model::load(&program, TIME_LIMIT).unwrap();
 
     let cost = tool.command(&["things", "list"]).unwrap().cost().unwrap();
-    let findings: Vec<&str> = cost
+    let findings: Vec<(FindingKind, Option<u64>)> = cost
         .findings()
         .unwrap()
         .iter()
-        .map(|finding| finding.finding())
+        .map(|finding| (finding.kind(), finding.p95_ms()))
         .collect();
-    assert_eq!(findings, ["slow command"]);
+    assert_eq!(findings, [(FindingKind::SlowCommand, None)]);
 }

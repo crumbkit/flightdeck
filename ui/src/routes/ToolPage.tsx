@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
+import { cn } from "cn";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { ApiError } from "@/api/client";
 import { describeFailure, fieldErrorOf, isSignedOut } from "@/api/failure";
@@ -422,7 +423,14 @@ export function ToolPage({ reply, onSignedOut }: Props) {
           </Transcript>
           {/* The line stays in one place in the page, so it keeps its focus
               when the first command it names opens the form. */}
-          <div className="bg-card max-h-dock sticky bottom-0 flex shrink-0 flex-col border-t px-4 py-3">
+          <div
+            className={cn(
+              "bg-card sticky bottom-0 flex shrink-0 flex-col border-t px-4 py-3",
+              composing === null || composing.command.cost === null
+                ? "max-h-dock"
+                : "max-h-dock-costed",
+            )}
+          >
             {line}
             {composing === null ? (
               <p className="text-muted-foreground m-0 text-xs">
