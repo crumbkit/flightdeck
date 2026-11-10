@@ -148,7 +148,7 @@ checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 [[package]]
 name = "crumbkit"
 version = "0.3.1"
-source = "git+https://github.com/crumbkit/crumbkit?branch=test-windows-redaction#993b4d9c20b4c75caf757e44914d10a9201be2af"
+source = "git+https://github.com/crumbkit/crumbkit?branch=test-windows-redaction#c808437c33624fdff2a4838777c066dcc4a70112"
 dependencies = [
  "clap",
  "clap_complete",
@@ -164,7 +164,7 @@ dependencies = [
 [[package]]
 name = "crumbkit-derive"
 version = "0.3.1"
-source = "git+https://github.com/crumbkit/crumbkit?branch=test-windows-redaction#993b4d9c20b4c75caf757e44914d10a9201be2af"
+source = "git+https://github.com/crumbkit/crumbkit?branch=test-windows-redaction#c808437c33624fdff2a4838777c066dcc4a70112"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -198,7 +198,7 @@ dependencies = [
 [[package]]
 name = "crumbkit-markdown"
 version = "0.3.1"
-source = "git+https://github.com/crumbkit/crumbkit?branch=test-windows-redaction#993b4d9c20b4c75caf757e44914d10a9201be2af"
+source = "git+https://github.com/crumbkit/crumbkit?branch=test-windows-redaction#c808437c33624fdff2a4838777c066dcc4a70112"
 dependencies = [
  "crumbkit",
  "serde",
@@ -208,7 +208,7 @@ dependencies = [
 [[package]]
 name = "crumbkit-process"
 version = "0.3.1"
-source = "git+https://github.com/crumbkit/crumbkit?branch=test-windows-redaction#993b4d9c20b4c75caf757e44914d10a9201be2af"
+source = "git+https://github.com/crumbkit/crumbkit?branch=test-windows-redaction#c808437c33624fdff2a4838777c066dcc4a70112"
 dependencies = [
  "process-wrap",
  "rustix",
@@ -218,7 +218,7 @@ dependencies = [
 [[package]]
 name = "crumbkit-test"
 version = "0.3.1"
-source = "git+https://github.com/crumbkit/crumbkit?branch=test-windows-redaction#993b4d9c20b4c75caf757e44914d10a9201be2af"
+source = "git+https://github.com/crumbkit/crumbkit?branch=test-windows-redaction#c808437c33624fdff2a4838777c066dcc4a70112"
 dependencies = [
  "clap",
  "crumbkit",
