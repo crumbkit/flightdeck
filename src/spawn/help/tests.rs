@@ -1,5 +1,5 @@
 use std::os::unix::fs::PermissionsExt as _;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use crumbkit_process::{Cancel, Outcome, Status, StopReason};
@@ -74,12 +74,13 @@ fn a_page_that_prints_nothing_is_empty() {
 }
 
 #[test]
-fn each_run_gets_only_the_programs_variables_and_a_temporary_state_directory_that_is_gone_afterwards()
- {
+fn each_run_gets_only_the_programs_variables_and_a_fresh_state_directory() {
     let marks = tempfile::tempdir().unwrap();
     let mark = marks.path().join("env");
     let (_directory, path) = stand_in(&format!("env > '{}'; echo page", mark.display()));
-    let program = Program::new(path).env("ADDED", "yes");
+    let program = Program::new(path)
+        .env("ADDED", "yes")
+        .env("XDG_STATE_HOME", "/the-persons-state");
 
     let pages = measure_help(&program, &[Vec::new()], HelpLimits::new(), &Cancel::new()).unwrap();
 
@@ -89,9 +90,9 @@ fn each_run_gets_only_the_programs_variables_and_a_temporary_state_directory_tha
         .lines()
         .find_map(|line| line.strip_prefix("XDG_STATE_HOME="))
         .unwrap();
+    assert_ne!(state, "/the-persons-state");
     assert!(env.lines().any(|line| line == "ADDED=yes"), "{env}");
     assert!(!env.lines().any(|line| line.starts_with("HOME=")), "{env}");
-    assert!(!Path::new(state).exists(), "{state} is still there");
 }
 
 #[test]

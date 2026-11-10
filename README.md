@@ -81,11 +81,13 @@ What works today:
   command, the names of the flags it passed, whether it printed help, its
   exit code and failure code, its wall time and its output in bytes. When
   the figures fail, every count stays 0 and the tool still loads; when the
-  findings or the runs fail, the figures stay without them. `commands list`,
-  `schemas list`, `schemas show`, `self figures list`, `self usage` and
-  `self runs list` keep no count and no cost, and the runs leave them and
-  the tool's `--version` out, because the usage log also records the runs
-  that flightdeck makes to load the tool.
+  findings or the runs fail, the figures stay without them. flightdeck asks
+  `--version`, `commands list`, `schemas list` and `schemas show` with
+  `XDG_STATE_HOME` set to a temporary directory, so those runs stay out of
+  the person's usage log and the person's own runs of them are counted.
+  `self figures list`, `self usage` and `self runs list` read that log, so
+  the log records flightdeck's runs of them; they keep no count and no
+  cost, and the runs leave them and the tool's `--version` out.
 - The page in `ui/` is a React application. It lists the tool's commands
   grouped by goal, finds a command with ⌘K, builds a run from a form that
   starts with what the command costs an agent when the tool keeps figures

@@ -4,7 +4,9 @@
 //! [`load`] runs its queries through [`crate::spawn`], all within one time
 //! limit: `--version`, `commands list`, `schemas list`, `schemas show` of
 //! every document that `schemas list` names, at most 100 ids at a time,
-//! and `self figures list` and `self usage` when the tool mounts them. It
+//! and `self figures list`, `self usage` and `self runs list` when the tool
+//! mounts them. The queries of the description log their runs to a fresh
+//! state directory, so they stay out of the person's usage log. It
 //! joins their documents into a [`Tool`]: its runnable commands with what
 //! each costs the agents that call it, the goal headings that group them, the documents they print with
 //! their JSON Schemas, and the links that crumbkit's command grammar
@@ -49,7 +51,7 @@ pub(crate) use self::links::ID_COLUMN;
 pub use self::links::Link;
 pub use self::runs::{History, Run};
 use self::wire::CommandRow;
-use crate::spawn::{self, Exit, Program, Query, SpawnError, Stdout};
+use crate::spawn::{self, Exit, FreshState, Program, Query, SpawnError, Stdout};
 
 /// The most document ids that one `schemas show` takes.
 pub(crate) const MOST_IDS: usize = 100;
@@ -294,7 +296,9 @@ impl Heading {
 ///
 /// # Errors
 ///
-/// Returns [`LoadError::NotFound`] when the program does not exist or may
+/// Returns [`LoadError::State`] when the temporary state directory of the
+/// description's queries cannot be made, before any query runs,
+/// [`LoadError::NotFound`] when the program does not exist or may
 /// not be run, and [`LoadError::Load`] when a query cannot be started,
 /// exits with a code other than 0, passes the time limit, or prints
 /// something other than the document it names. A `schemas show` that leaves
@@ -306,20 +310,31 @@ impl Heading {
 pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> {
     let tool = program.name().to_string_lossy();
     let deadline = Instant::now() + time_limit;
-    let ask = |query: Query<'_>| {
+    let ask_as = |program: &Program, query: Query<'_>| {
         let remaining = deadline.saturating_duration_since(Instant::now());
         Answer::of(program, &tool, &query, remaining)
     };
+    // The queries of the tool's description log their runs to a fresh state
+    // directory, which is removed when `load` returns. The figures, the
+    // findings and the runs read the person's usage log, so they run as
+    // `program`.
+    let state = FreshState::new().map_err(|source| LoadError::State {
+        tool: tool.clone().into_owned(),
+        source,
+    })?;
+    let describer = state.keep_out(program);
+    let describe = |query: Query<'_>| ask_as(&describer, query);
+    let ask = |query: Query<'_>| ask_as(program, query);
 
-    let version = ask(Query::Version)?;
+    let version = describe(Query::Version)?;
     let version_line = String::from_utf8_lossy(&version.stdout);
     let version_line = version_line.lines().next().unwrap_or_default();
 
-    let commands_answer = ask(Query::CommandsList)?;
+    let commands_answer = describe(Query::CommandsList)?;
     let commands: CommandsList = commands_answer.parse()?;
     commands_answer.check(commands.schema(), "commands-list", commands.truncated())?;
 
-    let schemas_answer = ask(Query::SchemasList)?;
+    let schemas_answer = describe(Query::SchemasList)?;
     let schemas: SchemasList = schemas_answer.parse()?;
     schemas_answer.check(schemas.schema(), "schemas-list", schemas.truncated())?;
 
@@ -328,7 +343,7 @@ pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> 
     let ids: Vec<String> = schemas.ids().map(str::to_owned).collect();
     let mut in_order = Vec::with_capacity(ids.len());
     for chunk in ids.chunks(MOST_IDS) {
-        let answer = ask(Query::SchemasShow(chunk))?;
+        let answer = describe(Query::SchemasShow(chunk))?;
         let document: SchemasShow = answer.parse()?;
         answer.check(document.schema(), "schemas-show", false)?;
         let mut shown = document.into_data();

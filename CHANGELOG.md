@@ -117,6 +117,16 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Loading a tool asks `--version`, `commands list`, `schemas list` and
+  `schemas show` with `XDG_STATE_HOME` set to a temporary directory that
+  is removed when the load ends, as the help measurement already did, so
+  flightdeck no longer writes those runs to the person's usage log. The
+  person's and agents' own runs of `commands list`, `schemas list` and
+  `schemas show` are now counted, get cost cards, and show in the Figures,
+  Weight and Both tabs. The rows that earlier versions wrote to a usage
+  log for these queries are counted too, until they leave the log's 7-day
+  window. A load that cannot make the directory fails with
+  `flightdeck::tool::load` and says so.
 - The cost card reads a large output in the short form: from 10,000
   tokens in thousands, such as "about 12k tokens", and from a million in
   millions, such as "about 2.5M tokens". A smaller output still reads as

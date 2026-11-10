@@ -630,7 +630,27 @@ fn a_tool_without_self_figures_list_loads_with_no_runs_and_is_never_asked_for_fi
 }
 
 #[test]
-fn opening_shelf_again_counts_none_of_the_loaders_own_queries_as_runs() {
+fn opening_shelf_again_counts_the_persons_runs_of_the_description_queries_and_none_of_the_loaders()
+{
+    let shelf = test_tool("shelf");
+    let (dirs, program) = isolated(&shelf);
+    shelf_directly(&shelf, dirs.path(), &["commands", "list", "--json"]);
+    model::load(&program, TIME_LIMIT).unwrap();
+
+    let opened = model::load(&program, TIME_LIMIT).unwrap();
+
+    let command = |words: &[&str]| opened.command(words).unwrap();
+    let counted = |words: &[&str]| serde_json::to_value(command(words)).unwrap()["counted"] == true;
+    assert_eq!(command(&["commands", "list"]).runs(), 1);
+    assert!(command(&["commands", "list"]).cost().is_some());
+    for words in [["schemas", "list"].as_slice(), &["schemas", "show"]] {
+        assert_eq!(command(words).runs(), 0, "{words:?}");
+        assert!(counted(words), "{words:?}");
+    }
+}
+
+#[test]
+fn opening_shelf_again_counts_none_of_the_loaders_queries_of_the_usage_log() {
     let (_dirs, program) = isolated(test_tool("shelf"));
     model::load(&program, TIME_LIMIT).unwrap();
 
@@ -638,11 +658,9 @@ fn opening_shelf_again_counts_none_of_the_loaders_own_queries_as_runs() {
 
     let runs = |words: &[&str]| shelf.command(words).unwrap().runs();
     for words in [
-        ["commands", "list"].as_slice(),
-        &["schemas", "list"],
-        &["schemas", "show"],
-        &["self", "figures", "list"],
+        ["self", "figures", "list"].as_slice(),
         &["self", "usage"],
+        &["self", "runs", "list"],
     ] {
         assert_eq!(runs(words), 0, "{words:?}");
         assert!(shelf.command(words).unwrap().cost().is_none(), "{words:?}");

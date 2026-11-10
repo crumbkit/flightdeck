@@ -670,8 +670,14 @@ test.describe("shelf after an agent ran books show", () => {
     await expect(rows.nth(2)).toContainText(/^books show22/);
     await expect(rows.nth(3)).toContainText(/^books list10/);
     await expect(rows.nth(4)).toHaveText(/^books remove0(–){7}$/);
-    // flightdeck's own loader queries come last, marked as not counted.
-    await expect(rows.nth(6)).toHaveText("commands listnot counted");
+    // flightdeck asks commands list with a fresh state directory, so it is
+    // counted like any other command. The loader's queries of the usage log
+    // come last, marked as not counted.
+    await expect(table.getByRole("row", { name: /^commands list/ })).toHaveText(
+      /^commands list0(–){7}$/,
+    );
+    await expect(rows.nth(-3)).toHaveText("self figures listnot counted");
+    await expect(rows.nth(-2)).toHaveText("self runs listnot counted");
     await expect(rows.last()).toHaveText("self usagenot counted");
     await expect(
       page.getByText(/^Not counted: flightdeck runs these commands itself/),

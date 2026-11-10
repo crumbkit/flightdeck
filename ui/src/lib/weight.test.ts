@@ -66,8 +66,8 @@ describe("weightPaths", () => {
 
   it("gives a command that never ran, or that the figures do not count, no output weight and says why", () => {
     const [never, uncounted] = pathsOf(
-      [costed("books list", figures(0, 10)), costed("commands list", null)],
-      [...shelfPages, page("commands", 430), page("commands list", 980)],
+      [costed("books list", figures(0, 10)), costed("self usage", null)],
+      [...shelfPages, page("self", 430), page("self usage", 980)],
     );
 
     expect(never?.steps.at(-1)).toMatchObject({ bytes: 0, note: "no runs, so no output weight" });

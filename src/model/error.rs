@@ -33,6 +33,19 @@ pub enum LoadError {
         /// Why the program did not start.
         source: io::Error,
     },
+    /// The temporary state directory of the description's queries cannot
+    /// be made, so no query ran.
+    #[failure(
+        code = TOOL_LOAD,
+        hint = "free space in the system's temporary directory and run flightdeck again",
+        field(tool = tool.as_str()),
+    )]
+    State {
+        /// The name or path as the person gave it.
+        tool: String,
+        /// Why the directory cannot be made.
+        source: io::Error,
+    },
     /// A query of the tool's description failed.
     #[failure(
         code = TOOL_LOAD,
@@ -86,6 +99,12 @@ impl fmt::Display for LoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NotFound { tool, .. } => write!(f, "cannot start {tool}"),
+            Self::State { tool, .. } => {
+                write!(
+                    f,
+                    "cannot make a temporary state directory for {tool}'s queries"
+                )
+            }
             Self::Load {
                 tool,
                 command,
@@ -119,7 +138,7 @@ impl fmt::Display for LoadError {
 impl std::error::Error for LoadError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::NotFound { source, .. } => Some(source),
+            Self::NotFound { source, .. } | Self::State { source, .. } => Some(source),
             Self::Load { problem, .. } => problem.source(),
         }
     }

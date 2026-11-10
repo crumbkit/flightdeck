@@ -248,22 +248,24 @@ fn a_command_that_the_figures_do_not_list_and_the_loaders_own_queries_have_no_co
 }
 
 #[test]
-fn the_loaders_own_queries_are_marked_as_not_counted_and_the_tools_commands_as_counted() {
+fn the_loaders_queries_of_the_usage_log_are_marked_as_not_counted_and_every_other_command_as_counted()
+ {
     let tool = shelf_with_costs(FIGURES, Some(USAGE));
     let counted = |words: &[&str]| {
         serde_json::to_value(tool.command(words).unwrap()).unwrap()["counted"].clone()
     };
 
+    for words in [["self", "figures", "list"].as_slice(), &["self", "usage"]] {
+        assert_eq!(counted(words), serde_json::json!(false), "{words:?}");
+    }
     for words in [
         ["commands", "list"].as_slice(),
         &["schemas", "list"],
         &["schemas", "show"],
-        &["self", "figures", "list"],
-        &["self", "usage"],
+        &["books", "remove"],
     ] {
-        assert_eq!(counted(words), serde_json::json!(false), "{words:?}");
+        assert_eq!(counted(words), serde_json::json!(true), "{words:?}");
     }
-    assert_eq!(counted(&["books", "remove"]), serde_json::json!(true));
 }
 
 #[test]
@@ -735,6 +737,22 @@ fn a_tool_that_is_not_found_offers_a_name_on_path_and_a_path_as_two_repairs() {
     assert_eq!(
         failure.alternatives(),
         [Recovery::hint("give the path of a program")]
+    );
+}
+
+#[test]
+fn a_state_directory_that_cannot_be_made_is_a_load_failure_that_says_so() {
+    use crumbkit::Failure as _;
+
+    let failure = super::LoadError::State {
+        tool: "shelf".to_owned(),
+        source: std::io::Error::from(std::io::ErrorKind::PermissionDenied),
+    };
+
+    assert_eq!(failure.code(), &super::TOOL_LOAD);
+    assert_eq!(
+        failure.to_string(),
+        "cannot make a temporary state directory for shelf's queries"
     );
 }
 

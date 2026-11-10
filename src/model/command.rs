@@ -83,10 +83,11 @@ pub struct Command {
     writes: Option<Writes>,
     #[serde(flatten)]
     cost: Costed,
-    /// Whether the figures count the command's runs. The loader's own
-    /// queries, such as `commands list`, are not counted, because their
-    /// runs are left out of the figures by name (RUST-10 in `figures.rs`),
-    /// so the page says so rather than showing that agents never ran them.
+    /// Whether the figures count the command's runs. The queries that the
+    /// loader runs as the person, such as `self usage`, are not counted,
+    /// because their runs are left out of the figures by name (RUST-10 in
+    /// `figures.rs`), so the page says so rather than showing that agents
+    /// never ran them.
     counted: bool,
     /// Whether crumbkit adds the command to every tool, such as
     /// `self usage`, by the rule and its RUST-10 in `figures.rs`. The both
@@ -236,8 +237,8 @@ impl Command {
 
     /// Returns how often the command ran, from the tool's `self figures
     /// list`, or 0 when the tool keeps no figures or the call failed. The
-    /// commands that the loader runs itself, such as `commands list`, are
-    /// always 0.
+    /// commands that the loader runs as the person, such as `self usage`,
+    /// are always 0.
     #[must_use]
     pub const fn runs(&self) -> u64 {
         match &self.cost.0 {
@@ -248,8 +249,8 @@ impl Command {
 
     /// Returns what the command costs the agents that call it, from the
     /// tool's `self figures list` and `self usage`, or `None` when the
-    /// figures hold no row for it. The commands that the loader runs
-    /// itself have none.
+    /// figures hold no row for it. The commands that the loader runs as
+    /// the person have none.
     #[must_use]
     pub const fn cost(&self) -> Option<&Cost> {
         self.cost.0.as_ref()

@@ -984,7 +984,7 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": false,
+        "counted": true,
         "built_in": true,
         "prints_no_result": false
       },
@@ -1170,7 +1170,7 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": false,
+        "counted": true,
         "built_in": true,
         "prints_no_result": false
       },
@@ -1323,7 +1323,7 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": false,
+        "counted": true,
         "built_in": true,
         "prints_no_result": false
       },
