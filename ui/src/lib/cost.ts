@@ -44,8 +44,9 @@ export type CodeCount = { code: string; count: number };
 
 /**
  * Returns the sessions that ran `command` and its failures by code, most
- * first, from the tool's runs. Help pages and usage errors (exit 2) are
- * left out of the codes, because the card counts them apart.
+ * first, from the tool's runs. Only runs that exited with 1 count, as the
+ * figures' `failed` does, so the codes never add up to more than the Failed
+ * tile's count; usage errors (exit 2) and help pages are counted apart.
  */
 export function commandHistory(
   history: Run[],
@@ -58,7 +59,7 @@ export function commandHistory(
       continue;
     }
     sessions.add(run.session);
-    if (!run.help && run.exit !== 0 && run.exit !== 2 && run.code !== null) {
+    if (!run.help && run.exit === 1 && run.code !== null) {
       codes.set(run.code, (codes.get(run.code) ?? 0) + 1);
     }
   }
@@ -82,7 +83,8 @@ export function usageCommand(history: Run[], preferred: string | null): string {
   if (preferred !== null && counts.has(preferred)) {
     return preferred;
   }
-  const most = [...counts].sort((a, b) => b[1] - a[1])[0];
+  // Ties go to the first name, so the view opens on the same command each time.
+  const most = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
   return most?.[0] ?? preferred ?? "";
 }
 

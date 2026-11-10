@@ -246,7 +246,7 @@ export function flagRows(
     const count = passed(argument.name);
     const row = { name: argument.name, runs: count, global: false };
     if (argument.required) {
-      return { ...row, note: "required", tone: "plain" };
+      return { ...row, note: "required", tone: "muted" };
     }
     if (count === 0) {
       return { ...row, note: "never passed", tone: "bad" };

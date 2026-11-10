@@ -143,9 +143,13 @@ impl RunRow {
         self.command == tool && self.flags.is_empty() && !self.help && self.exit == Some(0)
     }
 
-    /// Returns the run, or `None` when its time is not RFC 3339 or a count
-    /// is too large for the page.
+    /// Returns the run, or `None` when its time is not RFC 3339, its
+    /// session or step is 0, which the page refuses, or a count is too large
+    /// for the page.
     fn checked(self, prefix: &str) -> Option<Run> {
+        if self.session == 0 || self.step == 0 {
+            return None;
+        }
         let counts = [
             Some(self.session),
             Some(self.step),

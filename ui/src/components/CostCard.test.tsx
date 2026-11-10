@@ -81,7 +81,7 @@ describe("CostCard", () => {
     ]);
     expect(strip()).toEqual([
       "slowThe 95th percentile wall time is 65.1 s.",
-      "help loopAgents read 3 or more help pages before up first succeeded, 9 pages in all.",
+      "help loopAgents read 9 help pages in runs of 3 or more before up first succeeded.",
       "retryAfter process::exited, agents ran up again 11 times within 60 s.",
     ]);
     const list = screen.getByRole("list", { name: "Findings" });

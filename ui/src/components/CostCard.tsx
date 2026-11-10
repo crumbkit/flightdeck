@@ -322,11 +322,12 @@ function sentenceOf(finding: Phrased, figures: Figures, command: string): ReactN
       return ms === null ? null : `The 95th percentile wall time is ${elapsedWords(ms)}.`;
     }
     case "help_loop":
-      // crumbkit-usage counts a help loop's pages, not its sessions.
+      // crumbkit-usage counts a help loop's pages, not its sessions, so the
+      // sentence names the pages and keeps the loop's threshold apart.
       return (
         <>
-          Agents read 3 or more help pages before {name} first succeeded,{" "}
-          {counted(finding.runs, "page")} in all.
+          Agents read {counted(finding.runs, "help page")} in runs of 3 or more before {name} first
+          succeeded.
         </>
       );
     case "retry_after_failure":

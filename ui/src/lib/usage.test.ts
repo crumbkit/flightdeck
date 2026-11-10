@@ -199,7 +199,7 @@ describe("flagRows", () => {
     expect(rows).toEqual({
       runs: 4,
       flags: [
-        { name: "--need", runs: 4, note: "required", tone: "plain", global: false },
+        { name: "--need", runs: 4, note: "required", tone: "muted", global: false },
         {
           name: "--lines",
           runs: 2,

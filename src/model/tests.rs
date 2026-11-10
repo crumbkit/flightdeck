@@ -588,13 +588,14 @@ fn a_run_row_that_does_not_read_is_left_out_and_the_others_still_read() {
         document["data"][2]["session"] = serde_json::json!(UNSAFE);
         document["data"][3]["flags"] = serde_json::json!("--json");
         document["data"][4]["exit"] = serde_json::json!(256);
-        document["data"][5]["p99_ms"] = serde_json::json!(4);
+        document["data"][5]["step"] = serde_json::json!(0);
+        document["data"][6]["p99_ms"] = serde_json::json!(4);
     });
 
     let history = History::read(runs.as_bytes(), "shelf").unwrap();
 
     let steps: Vec<u64> = history.runs().iter().map(|run| run.step()).collect();
-    assert_eq!(steps, [6, 7]);
+    assert_eq!(steps, [7]);
 }
 
 #[test]

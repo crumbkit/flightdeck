@@ -70,12 +70,13 @@ describe("commandHistory", () => {
     };
   }
 
-  it("counts the command's sessions and its failures by code, most first, without usage errors or help", () => {
+  it("counts the command's sessions and the codes of its exit-1 failures, most first, as the Failed figure counts them", () => {
     const history = [
       run("up", 1, 1, "process::exited"),
       run("up", 1, 1, "process::not_ready"),
       run("up", 2, 1, "process::exited"),
       run("up", 2, 2, "cli::usage"),
+      run("up", 2, 3, "process::lost"),
       run("up", 3, 0, null),
       { ...run("up", 4, 0, null), help: true },
       run("down", 5, 1, "process::exited"),
@@ -102,6 +103,7 @@ describe("commandHistory", () => {
     expect(usageCommand(history, "new")).toBe("up");
     expect(usageCommand(history, null)).toBe("up");
     expect(usageCommand([], "new")).toBe("new");
+    expect(usageCommand([run("up", 1, 0, null), run("down", 1, 0, null)], null)).toBe("down");
   });
 
   it("folds the codes after the first three into one row", () => {

@@ -51,7 +51,8 @@ const laneLimit = 8;
  */
 export default function Usage({ tool, history, tab, command, today, onTab, onCommand }: Props) {
   const sessions = sessionsOf(history);
-  const first = Math.min(...history.map((run) => run.at));
+  // A reduce, because a busy log can hold more runs than a call takes arguments.
+  const first = history.reduce((least, run) => Math.min(least, run.at), Number.POSITIVE_INFINITY);
   const days =
     history.length === 0 ? "" : `${dayWords(dayOf(new Date(first * 1000)))} to ${dayWords(today)}`;
   const commands = [...new Set(history.filter((run) => !run.help).map((run) => run.command))];
