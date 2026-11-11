@@ -3,9 +3,15 @@ use super::day::Day;
 use super::figures::{FiguresList, FindingKind, Usage, is_built_in};
 use super::runs::History;
 use super::{CommandsList, Document, Effects, Listing, NotDocument, StepCommand, Tool};
+use crate::spawn::OwnRuns;
 
-/// shelf's `commands list` document, with `goals` on its root row.
+/// shelf's `commands list` document, with `goals` on its root row, `built_in`
+/// on every row and `--exclude-program` on its reports of the usage log.
 const WITH_GOALS: &str = include_str!("../../tests/fixtures/shelf/commands-list.json");
+
+/// shelf's `commands list` document from a crumbkit before 0.3.2, without
+/// `built_in` or `--exclude-program`.
+const OLDER: &str = include_str!("../../tests/fixtures/shelf/commands-list-older.json");
 
 /// shelf's `books list --json` document, with a next step that calls a
 /// shelf command and one that runs another program first.
@@ -15,9 +21,15 @@ const WITH_NEXT: &str = include_str!("../../tests/fixtures/shelf/books-list-with
 /// `prints_no_result`.
 const UNRULY: &str = include_str!("../../tests/fixtures/runner/unruly-commands-list.json");
 
-/// crumbkit's `commands list` schema, which declares `prints_no_result`.
+/// crumbkit's `commands list` schema, which declares `prints_no_result` and
+/// `built_in`.
 const COMMANDS_LIST_SCHEMA: &str =
     include_str!("../../tests/fixtures/crumbkit/commands-list-v1.json");
+
+/// crumbkit's `commands list` schema from a crumbkit before 0.3.2, which
+/// declares `prints_no_result` but not `built_in`.
+const OLDER_COMMANDS_LIST_SCHEMA: &str =
+    include_str!("../../tests/fixtures/crumbkit/commands-list-v1-older.json");
 
 #[test]
 fn null_effects_are_unknown() {
@@ -246,10 +258,18 @@ const USAGE: &str = include_str!("../../tests/fixtures/shelf/self-usage.json");
 
 /// Returns shelf's tool with the costs that `figures` and `usage` give it.
 fn shelf_with_costs(figures: &str, usage: Option<&str>) -> Tool {
-    let commands: CommandsList = serde_json::from_str(WITH_GOALS).unwrap();
+    with_costs(WITH_GOALS, figures, usage)
+}
+
+/// Returns the tool of the `commands list` document `commands` with the
+/// costs that `figures` and `usage` give it, read as the loader reads them
+/// for that tool.
+fn with_costs(commands: &str, figures: &str, usage: Option<&str>) -> Tool {
+    let commands: CommandsList = serde_json::from_str(commands).unwrap();
     let mut tool = Tool::assemble("shelf 0.1.1", commands, Vec::new()).unwrap();
-    let figures = FiguresList::read(figures.as_bytes());
-    let usage = usage.and_then(|usage| Usage::read(usage.as_bytes(), "shelf"));
+    let own = tool.own_runs();
+    let figures = FiguresList::read(figures.as_bytes(), own);
+    let usage = usage.and_then(|usage| Usage::read(usage.as_bytes(), "shelf", own));
     if let Some(figures) = figures {
         tool.add_costs(&figures, usage.as_ref());
     }
@@ -318,30 +338,27 @@ fn books_show_reads_every_figure_and_its_findings_in_the_order_shelf_prints_them
 }
 
 #[test]
-fn a_command_that_the_figures_do_not_list_and_the_loaders_own_queries_have_no_cost() {
+fn a_command_that_the_figures_do_not_list_has_no_cost_and_no_runs() {
     let tool = shelf_with_costs(FIGURES, Some(USAGE));
 
-    for words in [
-        ["books", "remove"].as_slice(),
-        &["self", "figures", "list"],
-        &["self", "usage"],
-    ] {
-        let command = tool.command(words).unwrap();
-        assert!(command.cost().is_none(), "{words:?}");
-        assert_eq!(command.runs(), 0, "{words:?}");
-    }
+    let command = tool.command(&["books", "remove"]).unwrap();
+    assert!(command.cost().is_none());
+    assert_eq!(command.runs(), 0);
+}
+
+/// Returns the `counted` field that the model sends for `tool`'s command at
+/// `words`.
+fn counted(tool: &Tool, words: &[&str]) -> serde_json::Value {
+    serde_json::to_value(tool.command(words).unwrap()).unwrap()["counted"].clone()
 }
 
 #[test]
-fn the_loaders_queries_of_the_usage_log_are_marked_as_not_counted_and_every_other_command_as_counted()
- {
-    let tool = shelf_with_costs(FIGURES, Some(USAGE));
-    let counted = |words: &[&str]| {
-        serde_json::to_value(tool.command(words).unwrap()).unwrap()["counted"].clone()
-    };
+fn an_older_tools_loader_queries_of_the_usage_log_are_not_counted_and_every_other_command_is() {
+    let tool = with_costs(OLDER, FIGURES, Some(USAGE));
 
+    assert!(!tool.excludes_programs());
     for words in [["self", "figures", "list"].as_slice(), &["self", "usage"]] {
-        assert_eq!(counted(words), serde_json::json!(false), "{words:?}");
+        assert_eq!(counted(&tool, words), serde_json::json!(false), "{words:?}");
     }
     for words in [
         ["commands", "list"].as_slice(),
@@ -349,33 +366,109 @@ fn the_loaders_queries_of_the_usage_log_are_marked_as_not_counted_and_every_othe
         &["schemas", "show"],
         &["books", "remove"],
     ] {
-        assert_eq!(counted(words), serde_json::json!(true), "{words:?}");
+        assert_eq!(counted(&tool, words), serde_json::json!(true), "{words:?}");
     }
 }
 
 #[test]
-fn crumbkits_own_commands_are_marked_built_in_and_the_tools_commands_are_not() {
+fn every_command_is_counted_when_the_tool_leaves_out_a_named_programs_runs() {
     let tool = shelf_with_costs(FIGURES, Some(USAGE));
-    let built_in = |words: &[&str]| {
+
+    assert!(tool.excludes_programs());
+    for command in tool.commands() {
+        let words: Vec<&str> = command.path().words().iter().map(String::as_str).collect();
+        assert_eq!(counted(&tool, &words), serde_json::json!(true), "{words:?}");
+    }
+}
+
+#[test]
+fn the_built_in_mark_is_the_rows_field_when_the_tools_schema_declares_it_and_the_group_rule_otherwise()
+ {
+    let schema: serde_json::Value = serde_json::from_str(COMMANDS_LIST_SCHEMA).unwrap();
+    let older: serde_json::Value = serde_json::from_str(OLDER_COMMANDS_LIST_SCHEMA).unwrap();
+    let with_update = edited(WITH_GOALS, |document| {
+        let data = document["data"].as_array_mut().unwrap();
+        let mut update = data
+            .iter()
+            .find(|row| row["path"] == "shelf books remove")
+            .unwrap()
+            .clone();
+        update["path"] = serde_json::json!("shelf self update");
+        update["built_in"] = serde_json::json!(false);
+        data.push(update);
+    });
+    let assemble = |documents| {
+        let commands: CommandsList = serde_json::from_str(&with_update).unwrap();
+        Tool::assemble("shelf 0.3.2", commands, documents).unwrap()
+    };
+    let marking = assemble(vec![Document::output("shelf/commands-list/v1", schema)]);
+    let earlier = assemble(vec![Document::output("shelf/commands-list/v1", older)]);
+    let built_in = |tool: &Tool, words: &[&str]| {
         serde_json::to_value(tool.command(words).unwrap()).unwrap()["built_in"].clone()
     };
 
-    for words in [
-        ["commands", "list"].as_slice(),
-        &["schemas", "list"],
-        &["schemas", "show"],
-        &["self", "figures", "list"],
-        &["self", "usage"],
+    assert!(marking.marks_built_in());
+    assert!(!earlier.marks_built_in());
+    for (words, marked, by_group) in [
+        (["self", "update"].as_slice(), false, true),
+        (&["completion", "install"], true, false),
+        (&["self", "usage"], true, true),
+        (&["commands", "list"], true, true),
+        (&["books", "list"], false, false),
     ] {
-        assert_eq!(built_in(words), serde_json::json!(true), "{words:?}");
-    }
-    for words in [["books", "list"].as_slice(), &["books", "remove"]] {
-        assert_eq!(built_in(words), serde_json::json!(false), "{words:?}");
+        assert_eq!(
+            built_in(&marking, words),
+            serde_json::json!(marked),
+            "{words:?}"
+        );
+        assert_eq!(
+            built_in(&earlier, words),
+            serde_json::json!(by_group),
+            "{words:?}"
+        );
     }
     // shelf mounts no aliases, so the rule is checked on the path alone.
     assert!(is_built_in(
         &CommandPath::from_row("shelf aliases list").unwrap()
     ));
+}
+
+#[test]
+fn a_report_that_leaves_out_flightdecks_runs_keeps_every_row_and_one_that_does_not_drops_the_loaders_queries()
+ {
+    let figures = edited(FIGURES, |document| {
+        let mut usage = document["data"][0].clone();
+        usage["command"] = serde_json::json!("self usage");
+        document["data"].as_array_mut().unwrap().push(usage);
+    });
+    let usage = edited(USAGE, |document| {
+        let mut finding = document["data"][0].clone();
+        finding["command"] = serde_json::json!("self usage");
+        document["data"].as_array_mut().unwrap().push(finding);
+    });
+    let path = CommandPath::from_row("shelf self usage").unwrap();
+    let cost = |own| {
+        let figures = FiguresList::read(figures.as_bytes(), own).unwrap();
+        let usage = Usage::read(usage.as_bytes(), "shelf", own).unwrap();
+        figures.cost(&path, Some(&usage))
+    };
+    let commands = |own| -> Vec<String> {
+        History::read(RUNS.as_bytes(), "shelf", own)
+            .unwrap()
+            .runs()
+            .iter()
+            .map(|run| run.command().to_owned())
+            .collect()
+    };
+
+    let excluded = cost(OwnRuns::Excluded).unwrap();
+    assert_eq!(excluded.findings().unwrap().len(), 1);
+    assert!(cost(OwnRuns::Kept).is_none());
+    assert_eq!(
+        commands(OwnRuns::Excluded)[7..],
+        ["self figures list", "self usage"]
+    );
+    assert_eq!(commands(OwnRuns::Kept).len(), 7);
 }
 
 #[test]
@@ -698,8 +791,8 @@ fn runs_of(history: &History) -> Vec<Compared<'_>> {
 }
 
 #[test]
-fn the_runs_list_reads_each_run_in_order_without_the_loaders_queries_or_the_tools_name() {
-    let history = History::read(RUNS.as_bytes(), "shelf").unwrap();
+fn the_runs_list_reads_each_run_in_order_without_an_older_tools_loader_queries_or_the_tools_name() {
+    let history = History::read(RUNS.as_bytes(), "shelf", OwnRuns::Kept).unwrap();
 
     assert_eq!(
         runs_of(&history),
@@ -748,14 +841,14 @@ fn a_run_row_that_does_not_read_is_left_out_and_the_others_still_read() {
         document["data"][6]["p99_ms"] = serde_json::json!(4);
     });
 
-    let history = History::read(runs.as_bytes(), "shelf").unwrap();
+    let history = History::read(runs.as_bytes(), "shelf", OwnRuns::Kept).unwrap();
 
     let steps: Vec<u64> = history.runs().iter().map(|run| run.step()).collect();
     assert_eq!(steps, [7]);
 }
 
 #[test]
-fn the_loaders_version_query_is_left_out_and_the_tools_other_root_runs_stay() {
+fn every_run_of_the_tools_root_command_stays_in_the_history_with_a_version_run_among_them() {
     let root = |help: bool, exit: u8, flags: serde_json::Value| {
         serde_json::json!({
             "session": 2, "step": 1, "at": "2026-11-10T10:14:45Z",
@@ -772,17 +865,25 @@ fn the_loaders_version_query_is_left_out_and_the_tools_other_root_runs_stay() {
         data.push(root(false, 0, serde_json::json!(["--json"])));
     });
 
-    let history = History::read(runs.as_bytes(), "shelf").unwrap();
+    for own in [OwnRuns::Kept, OwnRuns::Excluded] {
+        let history = History::read(runs.as_bytes(), "shelf", own).unwrap();
 
-    let kept: Vec<(bool, Option<u8>, usize)> = history
-        .runs()
-        .iter()
-        .map(|run| (run.help(), run.exit(), run.flags().len()))
-        .collect();
-    assert_eq!(
-        kept,
-        [(true, Some(0), 0), (false, Some(2), 0), (false, Some(0), 1)]
-    );
+        let kept: Vec<(bool, Option<u8>, usize)> = history
+            .runs()
+            .iter()
+            .map(|run| (run.help(), run.exit(), run.flags().len()))
+            .collect();
+        assert_eq!(
+            kept,
+            [
+                (false, Some(0), 0),
+                (true, Some(0), 0),
+                (false, Some(2), 0),
+                (false, Some(0), 1)
+            ],
+            "{own:?}"
+        );
+    }
 }
 
 #[test]
@@ -791,15 +892,15 @@ fn runs_of_another_schema_or_not_json_give_no_history() {
         document["schema"] = serde_json::json!("shelf/self-usage/v1");
     });
 
-    assert!(History::read(other.as_bytes(), "shelf").is_none());
-    assert!(History::read(b"no runs", "shelf").is_none());
+    assert!(History::read(other.as_bytes(), "shelf", OwnRuns::Kept).is_none());
+    assert!(History::read(b"no runs", "shelf", OwnRuns::Kept).is_none());
 }
 
 #[test]
 fn a_tool_sends_its_history_and_null_without_one() {
     let mut tool = shelf_with_costs(FIGURES, Some(USAGE));
     let none = serde_json::to_value(&tool).unwrap();
-    tool.set_history(History::read(RUNS.as_bytes(), "shelf"));
+    tool.set_history(History::read(RUNS.as_bytes(), "shelf", OwnRuns::Kept));
 
     let reply = serde_json::to_value(&tool).unwrap();
 

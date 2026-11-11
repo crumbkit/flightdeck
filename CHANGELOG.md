@@ -129,6 +129,29 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- On a tool built on crumbkit 0.3.2 or later, flightdeck runs
+  `self figures list`, `self usage` and `self runs list` with
+  `<TOOL>_PROGRAM=flightdeck`, such as `SHELF_PROGRAM` for shelf, and with
+  `--exclude-program flightdeck`. The tool records those runs as
+  flightdeck's and leaves them out of what it reports. The three commands
+  are now counted like any other: the person's and agents' runs of them
+  show in the Figures, Weight and Both tabs, get cost cards and findings,
+  and show in the Usage view's history. The rows of these queries that
+  earlier versions wrote to a usage log carry no mark, so they are counted
+  until they leave the log's 7-day window. A tool on an earlier crumbkit
+  keeps the three uncounted, as before.
+- On a tool built on crumbkit 0.3.2 or later, `GET /api/model` marks a
+  command `built_in` when the tool's `commands list` row does. A tool's own
+  command under `self`, such as a `self update`, is no longer built in, and
+  crumbkit's `completion` and `skills` commands are. A tool on an earlier
+  crumbkit keeps the rule by group name.
+- The Usage view's history keeps every run of the tool's root command, such
+  as a person's or agent's `--version`. Earlier versions left out each
+  successful run of the bare root command, because the loader once ran
+  `--version` with the person's state directory. The `--version` rows that
+  those loaders wrote stay in the usage log until they leave its 7-day
+  window.
+
 - flightdeck refuses to load a tool whose `commands list` names a command
   path with a word that is empty or starts with `-`, and says so with
   `flightdeck::tool::load`, quoting the path. The refusal of a name with a

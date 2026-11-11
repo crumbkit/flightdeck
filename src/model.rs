@@ -6,7 +6,10 @@
 //! every document that `schemas list` names, at most 100 ids at a time,
 //! and `self figures list`, `self usage` and `self runs list` when the tool
 //! mounts them. The queries of the description log their runs to a fresh
-//! state directory, so they stay out of the person's usage log. It
+//! state directory, so they stay out of the person's usage log. The
+//! queries of the usage log run with the person's state directory, and a
+//! tool on crumbkit 0.3.2 or later records them as flightdeck's and leaves
+//! them out of what it reports. It
 //! joins their documents into a [`Tool`]: its runnable commands with what
 //! each costs the agents that call it, the goal headings that group them, the documents they print with
 //! their JSON Schemas, and the links that crumbkit's command grammar
@@ -51,7 +54,7 @@ pub(crate) use self::links::ID_COLUMN;
 pub use self::links::Link;
 pub use self::runs::{History, Run};
 use self::wire::{CommandRow, GoalRow};
-use crate::spawn::{self, Exit, FreshState, Program, Query, SpawnError, Stdout};
+use crate::spawn::{self, Exit, FreshState, OwnRuns, Program, Query, SpawnError, Stdout};
 
 /// The most document ids that one `schemas show` takes.
 pub(crate) const MOST_IDS: usize = 100;
@@ -74,6 +77,10 @@ pub struct Tool {
     history: Option<Vec<Run>>,
     #[serde(skip)]
     marks_no_result: bool,
+    #[serde(skip)]
+    marks_built_in: bool,
+    #[serde(skip)]
+    excludes_programs: bool,
 }
 
 impl Tool {
@@ -140,6 +147,31 @@ impl Tool {
         self.marks_no_result
     }
 
+    /// Returns true when the tool's `commands list` marks each of
+    /// crumbkit's own commands with `built_in`, as crumbkit does since
+    /// 0.3.2. The tool's own `<tool>/commands-list/v1` schema then declares
+    /// the field. On a tool on an earlier crumbkit, a command counts as
+    /// built in by its first word.
+    #[must_use]
+    pub const fn marks_built_in(&self) -> bool {
+        self.marks_built_in
+    }
+
+    /// Returns true when the tool's `self figures list` takes
+    /// `--exclude-program`, as crumbkit's does since 0.3.2, so its reports
+    /// of the usage log can leave out the runs that flightdeck makes. The
+    /// same release gave the option to `self usage` and `self runs list`.
+    #[must_use]
+    pub const fn excludes_programs(&self) -> bool {
+        self.excludes_programs
+    }
+
+    /// Returns whether the tool's reports of its usage log keep
+    /// flightdeck's own runs.
+    const fn own_runs(&self) -> OwnRuns {
+        own_runs(self.excludes_programs)
+    }
+
     /// Returns the links between the tool's commands.
     #[must_use]
     pub fn links(&self) -> &[Link] {
@@ -196,9 +228,14 @@ impl Tool {
     ) -> Result<Self, NotDocument> {
         // The tool's own schema of the document that `commands list` printed
         // declares `prints_no_result` when its crumbkit marks such commands.
-        let marks_no_result = documents.iter().any(|document| {
-            document.id() == list.schema() && document.declares_property("prints_no_result")
-        });
+        // It declares `built_in` when its crumbkit marks its own commands.
+        let declares = |field| {
+            documents
+                .iter()
+                .any(|document| document.id() == list.schema() && document.declares_property(field))
+        };
+        let marks_no_result = declares("prints_no_result");
+        let marks_built_in = declares("built_in");
         let rows = list.into_rows();
         let root = rows
             .iter()
@@ -207,7 +244,20 @@ impl Tool {
         let name = root.path.clone();
         let about = root.about.clone();
         let goals = root.goals.clone();
-        let commands = commands_of(rows, &documents)?;
+        let mut commands = commands_of(rows, &documents, marks_built_in)?;
+        let excludes_programs = commands
+            .iter()
+            .find(|command| command.path().is(&figures::FIGURES_COMMAND))
+            .is_some_and(|command| {
+                command
+                    .arguments()
+                    .iter()
+                    .any(|argument| argument.name() == "--exclude-program")
+            });
+        let own = own_runs(excludes_programs);
+        for command in &mut commands {
+            command.set_counted(own);
+        }
         let headings = headings_of(&goals, &commands).unwrap_or_else(|| {
             vec![Heading {
                 title: name.clone(),
@@ -240,7 +290,19 @@ impl Tool {
             figures_since: None,
             history: None,
             marks_no_result,
+            marks_built_in,
+            excludes_programs,
         })
+    }
+}
+
+/// Returns whether the reports of a tool that `excludes_programs` keep
+/// flightdeck's own runs.
+const fn own_runs(excludes_programs: bool) -> OwnRuns {
+    if excludes_programs {
+        OwnRuns::Excluded
+    } else {
+        OwnRuns::Kept
     }
 }
 
@@ -311,7 +373,11 @@ impl Heading {
 /// exits with a code other than 0, passes the time limit, or prints
 /// something other than the document it names. A `schemas show` that leaves
 /// out an id that `schemas list` named is a document of the wrong shape.
-/// `self figures list`, `self usage` and `self runs list` fail no load:
+/// `self figures list`, `self usage` and `self runs list` run as `program`
+/// with the person's state directory. When the tool excludes programs,
+/// they run with `<TOOL>_PROGRAM=flightdeck` and `--exclude-program
+/// flightdeck`, so the tool records them as flightdeck's runs and leaves
+/// flightdeck's runs out of what they report. They fail no load:
 /// when the figures fail, every command's runs stay 0 and it has no cost,
 /// when the findings fail, each cost has no findings, and when the runs
 /// fail, the tool has no history.
@@ -325,14 +391,13 @@ pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> 
     // The queries of the tool's description log their runs to a fresh state
     // directory, which is removed when `load` returns. The figures, the
     // findings and the runs read the person's usage log, so they run as
-    // `program`.
+    // `program`, marked as flightdeck's when the tool excludes programs.
     let state = FreshState::new().map_err(|source| LoadError::State {
         tool: tool.clone().into_owned(),
         source,
     })?;
     let describer = state.keep_out(program);
     let describe = |query: Query<'_>| ask_as(&describer, query);
-    let ask = |query: Query<'_>| ask_as(program, query);
 
     let version = describe(Query::Version)?;
     let version_line = String::from_utf8_lossy(&version.stdout);
@@ -381,12 +446,18 @@ pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> 
     // figures, so they are asked for only beside them, and all three run
     // at once.
     if tool.command(&figures::FIGURES_COMMAND).is_some() {
+        let own = tool.own_runs();
+        let reporter = match own {
+            OwnRuns::Excluded => program.marked(&tool.name),
+            OwnRuns::Kept => program.clone(),
+        };
+        let ask = |query: Query<'_>| ask_as(&reporter, query);
         let asks_usage = tool.command(&figures::USAGE_COMMAND).is_some();
         let asks_runs = tool.command(&runs::RUNS_COMMAND).is_some();
         let (figures, usage, history) = std::thread::scope(|scope| {
-            let usage = asks_usage.then(|| scope.spawn(|| ask(Query::Usage)));
-            let history = asks_runs.then(|| scope.spawn(|| ask(Query::RunsList)));
-            let figures = ask(Query::FiguresList);
+            let usage = asks_usage.then(|| scope.spawn(|| ask(Query::Usage(own))));
+            let history = asks_runs.then(|| scope.spawn(|| ask(Query::RunsList(own))));
+            let figures = ask(Query::FiguresList(own));
             let joined = |handle: std::thread::ScopedJoinHandle<'_, _>| {
                 handle
                     .join()
@@ -397,14 +468,14 @@ pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> 
         tool.set_history(
             history
                 .and_then(Result::ok)
-                .and_then(|answer| History::read(&answer.stdout, &tool.name)),
+                .and_then(|answer| History::read(&answer.stdout, &tool.name, own)),
         );
         let usage = usage
             .and_then(Result::ok)
-            .and_then(|answer| Usage::read(&answer.stdout, &tool.name));
+            .and_then(|answer| Usage::read(&answer.stdout, &tool.name, own));
         if let Some(figures) = figures
             .ok()
-            .and_then(|answer| FiguresList::read(&answer.stdout))
+            .and_then(|answer| FiguresList::read(&answer.stdout, own))
         {
             tool.add_costs(&figures, usage.as_ref());
         }
@@ -538,7 +609,8 @@ fn headings_of(goals: &[GoalRow], commands: &[Command]) -> Option<Vec<Heading>> 
 }
 
 /// Returns the runnable commands of `rows`, each with the global arguments
-/// of the rows above it and the id of the document it prints.
+/// of the rows above it and the id of the document it prints, and with the
+/// row's `built_in` as its mark when `marks_built_in`.
 ///
 /// RUST-10: a command takes only the global arguments of its groups. A
 /// group's required argument that is not global, which the person gives
@@ -551,12 +623,16 @@ fn headings_of(goals: &[GoalRow], commands: &[Command]) -> Option<Vec<Heading>> 
 ///
 /// Returns [`NotDocument::OptionWord`] when a row's path has a word that is
 /// empty or starts with `-`.
-fn commands_of(rows: Vec<CommandRow>, documents: &[Document]) -> Result<Vec<Command>, NotDocument> {
+fn commands_of(
+    rows: Vec<CommandRow>,
+    documents: &[Document],
+    marks_built_in: bool,
+) -> Result<Vec<Command>, NotDocument> {
     let leaves: Vec<bool> = rows.iter().map(|row| is_leaf(row, &rows)).collect();
     let mut groups = Vec::new();
     let mut commands = Vec::new();
     for (row, leaf) in rows.into_iter().zip(leaves) {
-        let command = Command::from_row(row)?;
+        let command = Command::from_row(row, marks_built_in)?;
         if leaf {
             commands.push(command);
         } else {

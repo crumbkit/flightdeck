@@ -23,7 +23,9 @@
 //!   `XDG_STATE_HOME` set to a [`FreshState`], so the tool logs those runs
 //!   to a temporary usage log and not to the person's. The figures, the
 //!   findings and the runs read the person's usage log, so they keep the
-//!   inherited `XDG_STATE_HOME`.
+//!   inherited `XDG_STATE_HOME`. When the tool leaves out a named
+//!   program's runs, they run with `<TOOL>_PROGRAM` set to [`OWN_PROGRAM`]
+//!   by [`Program::marked`], so the tool records them as flightdeck's.
 //! - Streams and deadline: standard input is closed. Standard output is kept
 //!   up to [`STDOUT_LIMIT`] bytes, and standard error keeps its last
 //!   [`STDERR_LIMIT`] bytes. The query has one deadline, which covers the
@@ -85,6 +87,13 @@ pub const STDOUT_LIMIT: usize = 16 * 1024 * 1024;
 
 /// The most bytes at the end of standard error that a query keeps.
 pub const STDERR_LIMIT: usize = 64 * 1024;
+
+/// The name that flightdeck gives itself in `<TOOL>_PROGRAM`, which a
+/// crumbkit tool records in the `program` field of each run's line in its
+/// usage log, and which `--exclude-program` names to leave those runs out of
+/// a report. It matches crumbkit's pattern of a program's name, so the tool
+/// never warns that the name is invalid.
+pub(crate) const OWN_PROGRAM: &str = "flightdeck";
 
 /// A program to start, by name or path, the variables that its runs get
 /// beside flightdeck's own environment, and the directory that its runs
@@ -163,6 +172,19 @@ impl Program {
     pub fn env(mut self, name: impl Into<OsString>, value: impl Into<OsString>) -> Self {
         self.env.push((name.into(), value.into()));
         self
+    }
+
+    /// Returns the program with `<TOOL>_PROGRAM` set to [`OWN_PROGRAM`] in
+    /// every run, where `<TOOL>` is the tool's name `tool` as crumbkit
+    /// spells the start of an environment variable, so `shelf` gives
+    /// `SHELF_PROGRAM` and `my-tool` gives `MY_TOOL_PROGRAM`. The tool then
+    /// records each run as flightdeck's.
+    #[must_use]
+    pub(crate) fn marked(&self, tool: &str) -> Self {
+        self.clone().env(
+            crumbkit::ToolName::new(tool).variable("PROGRAM"),
+            OWN_PROGRAM,
+        )
     }
 
     /// Returns the program with every run starting in `directory`, with
@@ -252,13 +274,24 @@ pub enum Query<'a> {
     SchemasShow(&'a [String]),
     /// `self figures list`, with the figures of each command's runs, such
     /// as how often it ran and failed, from the tool's usage log.
-    FiguresList,
+    FiguresList(OwnRuns),
     /// `self usage`, with the patterns in the tool's usage log where
     /// callers waste effort, each with the code of a retried failure.
-    Usage,
+    Usage(OwnRuns),
     /// `self runs list`, with each run in the tool's usage log in order
     /// within its session.
-    RunsList,
+    RunsList(OwnRuns),
+}
+
+/// Whether a report of the tool's usage log keeps flightdeck's own runs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OwnRuns {
+    /// The report keeps every run, because the tool cannot leave out a
+    /// named program's runs, as on a crumbkit before 0.3.2.
+    Kept,
+    /// The report passes `--exclude-program flightdeck`, so it leaves out
+    /// the runs that the tool recorded as flightdeck's.
+    Excluded,
 }
 
 impl<'a> Query<'a> {
@@ -285,30 +318,37 @@ impl<'a> Query<'a> {
                 words.extend(ids.iter().map(String::as_str));
                 words
             }
-            Self::FiguresList => {
-                vec![
-                    "self",
-                    "figures",
-                    "list",
-                    "--json",
-                    "--full",
-                    "--all",
-                    "--no-input",
-                ]
-            }
-            Self::Usage => vec!["self", "usage", "--json", "--full", "--no-input"],
-            Self::RunsList => {
-                vec![
-                    "self",
-                    "runs",
-                    "list",
-                    "--json",
-                    "--full",
-                    "--all",
-                    "--no-input",
-                ]
-            }
+            Self::FiguresList(own) => own.after(vec![
+                "self",
+                "figures",
+                "list",
+                "--json",
+                "--full",
+                "--all",
+                "--no-input",
+            ]),
+            Self::Usage(own) => own.after(vec!["self", "usage", "--json", "--full", "--no-input"]),
+            Self::RunsList(own) => own.after(vec![
+                "self",
+                "runs",
+                "list",
+                "--json",
+                "--full",
+                "--all",
+                "--no-input",
+            ]),
         }
+    }
+}
+
+impl OwnRuns {
+    /// Returns `words` followed by `--exclude-program flightdeck` when the
+    /// report leaves out flightdeck's own runs.
+    fn after(self, mut words: Vec<&str>) -> Vec<&str> {
+        if self == Self::Excluded {
+            words.extend(["--exclude-program", OWN_PROGRAM]);
+        }
+        words
     }
 }
 

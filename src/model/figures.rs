@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use super::command::CommandPath;
 use super::day::Day;
 use super::documents::{Listing, Summary, is_document};
+use crate::spawn::OwnRuns;
 
 /// The words of the command that prints the figures.
 pub(super) const FIGURES_COMMAND: [&str; 3] = ["self", "figures", "list"];
@@ -29,10 +30,14 @@ pub(super) const FIGURES_COMMAND: [&str; 3] = ["self", "figures", "list"];
 pub(super) const USAGE_COMMAND: [&str; 2] = ["self", "usage"];
 
 /// The commands that the loader runs as the person, by their path below
-/// the tool's name. Their runs are left out of the figures, the findings
-/// and the history.
+/// the tool's name. On a tool that keeps flightdeck's own runs in its
+/// reports, their runs are left out of the figures, the findings and the
+/// history.
 ///
-/// RUST-10: the loader asks `--version`, `commands list`, `schemas list`
+/// RUST-10: this serves only a tool on a crumbkit before 0.3.2. A tool on
+/// 0.3.2 or later records the loader's runs as flightdeck's and leaves them
+/// out of its reports with `--exclude-program`, so every run of these
+/// commands is counted there. The loader asks `--version`, `commands list`, `schemas list`
 /// and `schemas show` with a fresh state directory, so those runs never
 /// reach the person's usage log and the person's and agents' own runs of
 /// them are counted. These three read the person's usage log, so they must
@@ -47,8 +52,8 @@ pub(super) const USAGE_COMMAND: [&str; 2] = ["self", "usage"];
 /// keeps the choices until it reloads. Those counts are kept, because the
 /// source is one of the tool's own commands and leaving it out would drop
 /// the person's runs of it, so the chooser's runs raise its rank among
-/// palette matches of equal text and add to its cost card. A usage log that
-/// can leave out a named program's runs replaces this.
+/// palette matches of equal text and add to its cost card. Dropping the
+/// tools on an earlier crumbkit replaces this.
 const LOADER_QUERIES: [&str; 3] = ["self figures list", "self usage", "self runs list"];
 
 /// The largest count that the page reads exactly, 2^53 - 1, JavaScript's
@@ -356,16 +361,16 @@ pub(super) struct FiguresList {
 
 impl FiguresList {
     /// Reads the standard output of `self figures list`, or returns `None`
-    /// when it is not that document. The loader's own queries are left
-    /// out.
-    pub(super) fn read(stdout: &[u8]) -> Option<Self> {
+    /// when it is not that document. When the report kept flightdeck's own
+    /// runs, the loader's own queries are left out.
+    pub(super) fn read(stdout: &[u8], own: OwnRuns) -> Option<Self> {
         let listing = read_listing::<FigureRow>(stdout, "self-figures-list")?;
         let since = listing.summary().and_then(Summary::since);
         Some(Self {
             by_command: listing
                 .into_data()
                 .into_iter()
-                .filter(|row| !is_loader_query(&row.command))
+                .filter(|row| counts(&row.command, own))
                 .filter_map(|row| Some((row.command, row.figures.checked()?)))
                 .collect(),
             since,
@@ -397,17 +402,17 @@ pub(super) struct Usage {
 
 impl Usage {
     /// Reads the standard output of `self usage` from the tool named
-    /// `tool`, or returns `None` when it is not that document. Findings
-    /// about the loader's own queries are left out, and each code loses the
-    /// tool's name in front, so `shelf::books::not_found` reads
-    /// `books::not_found`.
-    pub(super) fn read(stdout: &[u8], tool: &str) -> Option<Self> {
+    /// `tool`, or returns `None` when it is not that document. When the
+    /// report kept flightdeck's own runs, findings about the loader's own
+    /// queries are left out. Each code loses the tool's name in front, so
+    /// `shelf::books::not_found` reads `books::not_found`.
+    pub(super) fn read(stdout: &[u8], tool: &str, own: OwnRuns) -> Option<Self> {
         let listing = read_listing::<FindingRow>(stdout, "self-usage")?;
         let prefix = tool_prefix(tool);
         let mut by_command: HashMap<String, Vec<Finding>> = HashMap::new();
         for row in listing.into_data() {
             // A finding whose count the page cannot read is left out.
-            let Some(runs) = row.runs.filter(|_| !is_loader_query(&row.command)) else {
+            let Some(runs) = row.runs.filter(|_| counts(&row.command, own)) else {
                 continue;
             };
             let figures = row.figures.unwrap_or_default();
@@ -449,12 +454,16 @@ pub(super) fn without_tool(code: String, prefix: &str) -> String {
 /// The top-level groups under which crumbkit adds its own commands to
 /// every tool, such as `self usage` and `schemas list`.
 ///
-/// RUST-10: `commands list` does not say which commands crumbkit added, so
-/// a command counts as crumbkit's own by its first word. A tool's own
-/// command under `commands`, `schemas`, `self` or `aliases`, such as a
-/// `self update`, counts as built-in too, so the both table leaves it out
-/// of its corners and of the median it judges runs by. A marker for
-/// crumbkit's own commands in `commands list` replaces this.
+/// RUST-10: this serves only a tool on a crumbkit before 0.3.2, whose
+/// `commands list` does not say which commands crumbkit added, so a command
+/// counts as crumbkit's own by its first word. A tool's own command under
+/// `commands`, `schemas`, `self` or `aliases`, such as a `self update`,
+/// counts as built-in too, so the both table leaves it out of its corners
+/// and of the median it judges runs by, and a command of a later crumbkit
+/// group, such as `completion install`, counts as the tool's own. crumbkit
+/// 0.3.2 marks its own commands with `built_in`, which the model reads in
+/// place of this rule. Dropping the tools on an earlier crumbkit replaces
+/// this.
 const BUILT_IN_GROUPS: [&str; 4] = ["commands", "schemas", "self", "aliases"];
 
 /// Returns true when `path` is the path of a command that crumbkit adds to
@@ -468,4 +477,11 @@ pub(super) fn is_built_in(path: &CommandPath) -> bool {
 /// Returns true when `command` is one of the loader's own queries.
 pub(super) fn is_loader_query(command: &str) -> bool {
     LOADER_QUERIES.contains(&command)
+}
+
+/// Returns true when a report that `own` describes counts the runs of
+/// `command`: every command's when the report left out flightdeck's own
+/// runs, and otherwise every command's but the loader's queries.
+pub(super) fn counts(command: &str, own: OwnRuns) -> bool {
+    own == OwnRuns::Excluded || !is_loader_query(command)
 }

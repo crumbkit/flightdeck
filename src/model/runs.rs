@@ -15,7 +15,8 @@ use std::time::UNIX_EPOCH;
 
 use serde::{Deserialize, Serialize};
 
-use super::figures::{is_loader_query, is_safe, read_listing, tool_prefix, without_tool};
+use super::figures::{counts, is_safe, read_listing, tool_prefix, without_tool};
+use crate::spawn::OwnRuns;
 
 /// The words of the command that prints the runs.
 pub(super) const RUNS_COMMAND: [&str; 3] = ["self", "runs", "list"];
@@ -45,8 +46,10 @@ impl Run {
         self.session
     }
 
-    /// Returns the run's place in its session, from 1. The loader's own
-    /// queries are left out, so the steps of a session can skip numbers.
+    /// Returns the run's place in its session, from 1. The steps of a
+    /// session can skip numbers: a tool on crumbkit 0.3.2 or later leaves
+    /// flightdeck's own runs out, and on an earlier tool the loader's own
+    /// queries are left out by name.
     #[must_use]
     pub const fn step(&self) -> u64 {
         self.step
@@ -131,18 +134,6 @@ struct RunRow {
 }
 
 impl RunRow {
-    /// Returns true when the row is the loader's `<tool> --version`: the
-    /// root command, with no flags, no help page and exit 0.
-    ///
-    /// RUST-10: the log records neither `--version` nor which program ran
-    /// the tool, so this matches by the row's shape. It also leaves out any
-    /// other run of the bare root command that succeeds without a flag,
-    /// which a crumbkit tool prints only for `--version`. A log that records
-    /// the calling program replaces this, as it replaces `LOADER_QUERIES`.
-    fn is_version_query(&self, tool: &str) -> bool {
-        self.command == tool && self.flags.is_empty() && !self.help && self.exit == Some(0)
-    }
-
     /// Returns the run, or `None` when its time is not RFC 3339, its
     /// session or step is 0, which the page refuses, or a count is too large
     /// for the page.
@@ -190,16 +181,16 @@ pub struct History {
 impl History {
     /// Reads the standard output of `self runs list` from the tool named
     /// `tool`, or returns `None` when it is not that document. A row that
-    /// does not read is left out alone, and so are the loader's own
-    /// queries.
-    pub(super) fn read(stdout: &[u8], tool: &str) -> Option<Self> {
+    /// does not read is left out alone. When the report kept flightdeck's
+    /// own runs, the loader's own queries are left out too.
+    pub(super) fn read(stdout: &[u8], tool: &str, own: OwnRuns) -> Option<Self> {
         let listing = read_listing::<serde_json::Value>(stdout, "self-runs-list")?;
         let prefix = tool_prefix(tool);
         let runs = listing
             .into_data()
             .into_iter()
             .filter_map(|row| serde_json::from_value::<RunRow>(row).ok())
-            .filter(|row| !is_loader_query(&row.command) && !row.is_version_query(tool))
+            .filter(|row| counts(&row.command, own))
             .filter_map(|row| row.checked(&prefix))
             .collect();
         Some(Self { runs })

@@ -88,8 +88,17 @@ What works today:
   `XDG_STATE_HOME` set to a temporary directory, so those runs stay out of
   the person's usage log and the person's own runs of them are counted.
   `self figures list`, `self usage` and `self runs list` read that log, so
-  the log records flightdeck's runs of them; they keep no count and no
-  cost, and the runs leave them and the tool's `--version` out.
+  the log records flightdeck's runs of them. On a tool built on crumbkit
+  0.3.2 or later, flightdeck runs them with `<TOOL>_PROGRAM=flightdeck`,
+  such as `SHELF_PROGRAM` for shelf, and with
+  `--exclude-program flightdeck`, so the tool marks those runs as
+  flightdeck's and leaves them out of its figures, findings and runs. Every
+  command, these three included, then counts the person's and agents' runs,
+  and the model reads which commands are crumbkit's own from the `built_in`
+  field of `commands list`. On a tool built on an earlier crumbkit, the
+  three keep no count and no cost, the runs leave them out, and a command
+  counts as crumbkit's own when it sits under the `commands`, `schemas`,
+  `self` or `aliases` group.
 - The page in `ui/` is a React application. It lists the tool's commands
   grouped by goal, finds a command with ⌘K, builds a run from a form that
   starts with what the command costs an agent when the tool keeps figures

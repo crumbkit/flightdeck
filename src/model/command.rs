@@ -6,8 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use super::argument::{Argument, CrumbkitFlag};
 use super::error::NotDocument;
-use super::figures::{Cost, is_built_in, is_loader_query};
+use super::figures::{Cost, counts, is_built_in};
 use super::wire::CommandRow;
+use crate::spawn::OwnRuns;
 
 /// The words of a command below the tool's name, such as `books list`. It
 /// serializes as the array of its words.
@@ -114,15 +115,18 @@ pub struct Command {
     writes: Option<Writes>,
     #[serde(flatten)]
     cost: Costed,
-    /// Whether the figures count the command's runs. The queries that the
-    /// loader runs as the person, such as `self usage`, are not counted,
-    /// because their runs are left out of the figures by name (RUST-10 in
-    /// `figures.rs`), so the page says so rather than showing that agents
-    /// never ran them.
+    /// Whether the figures count the command's runs. Every command is
+    /// counted when the tool leaves out flightdeck's own runs. On a tool
+    /// that cannot, the queries that the loader runs as the person, such as
+    /// `self usage`, are not counted, because their runs are left out of the
+    /// figures by name (RUST-10 in `figures.rs`), so the page says so rather
+    /// than showing that agents never ran them.
     counted: bool,
     /// Whether crumbkit adds the command to every tool, such as
-    /// `self usage`, by the rule and its RUST-10 in `figures.rs`. The both
-    /// table leaves these commands out of its corners.
+    /// `self usage`. It is the row's `built_in` when the tool marks
+    /// crumbkit's own commands, and otherwise comes from the rule and its
+    /// RUST-10 in `figures.rs`. The both table leaves these commands out of
+    /// its corners.
     built_in: bool,
     /// Whether `commands list` marks the command as one that prints no
     /// result, so its runs report no output size, which the page reads as
@@ -132,17 +136,24 @@ pub struct Command {
 
 impl Command {
     /// Returns the command of a `commands list` row, with only the row's own
-    /// arguments.
+    /// arguments, counted until [`Command::set_counted`] says otherwise. Its
+    /// built-in mark is the row's `built_in` when `marks_built_in`, because
+    /// the tool's crumbkit marks its own commands, and otherwise comes from
+    /// the command's first word.
     ///
     /// # Errors
     ///
     /// Returns [`NotDocument::OptionWord`] when a word of the row's path is
     /// empty or starts with `-`.
-    pub(super) fn from_row(row: CommandRow) -> Result<Self, NotDocument> {
+    pub(super) fn from_row(row: CommandRow, marks_built_in: bool) -> Result<Self, NotDocument> {
         let path = CommandPath::from_row(&row.path)?;
         Ok(Self {
-            counted: !is_loader_query(&path.to_string()),
-            built_in: is_built_in(&path),
+            counted: true,
+            built_in: if marks_built_in {
+                row.built_in
+            } else {
+                is_built_in(&path)
+            },
             path,
             about: row.about,
             long_about: row.long_about,
@@ -170,6 +181,14 @@ impl Command {
                 self.arguments.push(global.clone());
             }
         }
+    }
+
+    /// Records whether the figures count the command's runs: always when
+    /// the tool's reports leave out flightdeck's own runs, as `own` says,
+    /// and otherwise unless the command is one of the loader's queries of
+    /// the usage log.
+    pub(super) fn set_counted(&mut self, own: OwnRuns) {
+        self.counted = counts(&self.path.to_string(), own);
     }
 
     /// Records what the command costs the agents that call it, and how

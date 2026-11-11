@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Command, Figures, Tool } from "@/api/model";
 import type { Page, WeightReply } from "@/api/weight";
-import { command as commandOf, shelf } from "../../tests/fixtures/shelf";
+import { command as commandOf, olderShelf, shelf } from "../../tests/fixtures/shelf";
 import { bothRows, bothSummary, cornerCounts, heavyBytes, oftenRuns } from "./both";
 
 /** Returns figures with `runs` runs and `p95` bytes of output at the 95th percentile. */
@@ -19,18 +19,22 @@ function figures(runs: number, p95: number | null): Figures {
   };
 }
 
-/** Returns shelf's command at `path`, run `runs` times with `p95` bytes of output. */
-function ran(path: string, runs: number, p95: number | null = null): Command {
+/**
+ * Returns the command at `path` of `tool`, shelf by default, run `runs` times with `p95` bytes of
+ * output.
+ */
+function ran(path: string, runs: number, p95: number | null = null, tool: Tool = shelf): Command {
   return {
-    ...commandOf(shelf, path),
-    runs: commandOf(shelf, path).counted ? runs : 0,
+    ...commandOf(tool, path),
+    runs: commandOf(tool, path).counted ? runs : 0,
     cost: { figures: figures(runs, p95), findings: null },
   };
 }
 
 /**
  * Returns a counted command of the tool's own under `self`, `self update`,
- * run `runs` times, which the server marks built-in by its first word.
+ * run `runs` times, marked built in as the server marks it by its first word
+ * for a tool on a crumbkit before 0.3.2.
  */
 function selfUpdate(runs: number): Command {
   return {
@@ -106,7 +110,7 @@ describe("bothRows", () => {
     ran("books show", 50, 100), // 1,600 B, often: light and often
     ran("books summarize", 10, 3000), // 4,500 B, below the median: no corner
     ran("books remove", 0), // 1,500 B, never: light and never
-    ran("self usage", 900, 9000), // built in and not counted, so no output weight
+    ran("self usage", 900, 9000, olderShelf), // built in and not counted, so no output weight
   ]);
 
   it("multiplies each path's weight by its runs, the most read first, with not counted last", () => {

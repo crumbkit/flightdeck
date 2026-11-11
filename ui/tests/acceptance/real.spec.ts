@@ -52,7 +52,7 @@ test("the opener page signs in and the page drops the launch code from its addre
   await expectNoAccessibilityViolations(page);
 });
 
-test("the rail shows shelf's three goal headings in help order", async ({ page, served }) => {
+test("the rail shows shelf's five goal headings in help order", async ({ page, served }) => {
   await signIn(page, served);
   const rail = page.getByRole("navigation", { name: "Commands" });
 
@@ -60,8 +60,10 @@ test("the rail shows shelf's three goal headings in help order", async ({ page, 
     "Browse the catalogue",
     "Explore the commands",
     "Review how shelf is used",
+    "Install shelf's skill",
+    "Set up shell completion",
   ]);
-  await expect(rail.getByRole("button")).toHaveCount(10);
+  await expect(rail.getByRole("button")).toHaveCount(17);
   await expect(rail.getByRole("button", { name: "books remove destructive" })).toBeVisible();
   await expectNoAccessibilityViolations(page);
 });
@@ -663,25 +665,21 @@ test.describe("shelf after an agent ran books show", () => {
       "aria-current",
       "page",
     );
-    await expect(page.getByText(/^3 runs of 10 commands, \d{1,2} [A-Z][a-z]{2} to/)).toBeVisible();
+    await expect(page.getByText(/^3 runs of 17 commands, \d{1,2} [A-Z][a-z]{2} to/)).toBeVisible();
     const table = page.getByRole("table", { name: "Figures of each command" });
     const rows = table.getByRole("row");
     // books show ran twice and failed twice; books list ran once; the rest never ran.
     await expect(rows.nth(2)).toContainText(/^books show22/);
     await expect(rows.nth(3)).toContainText(/^books list10/);
     await expect(rows.nth(4)).toHaveText(/^books remove0(–){7}$/);
-    // flightdeck asks commands list with a fresh state directory, so it is
-    // counted like any other command. The loader's queries of the usage log
-    // come last, marked as not counted.
-    await expect(table.getByRole("row", { name: /^commands list/ })).toHaveText(
-      /^commands list0(–){7}$/,
-    );
-    await expect(rows.nth(-3)).toHaveText("self figures listnot counted");
-    await expect(rows.nth(-2)).toHaveText("self runs listnot counted");
-    await expect(rows.last()).toHaveText("self usagenot counted");
-    await expect(
-      page.getByText(/^Not counted: flightdeck runs these commands itself/),
-    ).toBeVisible();
+    // flightdeck asks commands list with a fresh state directory, and shelf
+    // leaves flightdeck's own runs of its usage reports out of them, so each
+    // is counted like any other command and none ran.
+    for (const command of ["commands list", "self figures list", "self usage", "self runs list"]) {
+      await expect(table.getByRole("row", { name: new RegExp(`^${command}`) })).toHaveText(
+        new RegExp(`^${command}0(–){7}$`),
+      );
+    }
     await expectNoAccessibilityViolations(page);
 
     await table.getByRole("button", { name: "Command", exact: true }).click();
@@ -757,7 +755,7 @@ test.describe("shelf after an agent read 9,000 bytes from books list", () => {
     const table = page.getByRole("table", { name: "Weight of each command's path" });
     await expect(
       page.getByText(
-        /^10 commands from \d+ help pages measured when this view opened · 1 path over budget$/,
+        /^17 commands from \d+ help pages measured when this view opened · 1 path over budget$/,
       ),
     ).toBeVisible();
     const first = table.getByRole("row").nth(1);
@@ -836,9 +834,9 @@ test.describe("Both, after an agent read 9,000 bytes from books list", () => {
       ),
     ).toBeVisible();
     const chips = page.getByRole("group", { name: "Corners" });
-    // shelf's six built-in commands stay under All and out of every corner.
+    // shelf's thirteen built-in commands stay under All and out of every corner.
     await expect(chips.getByRole("button")).toHaveText([
-      "All 10",
+      "All 17",
       "Heavy and often 1",
       "Light and never 3",
       "Heavy and never 0",
@@ -870,7 +868,7 @@ test.describe("Both, after an agent read 9,000 bytes from books list", () => {
       await openBoth(page, served);
 
       const list = page.getByRole("list", { name: "Path weight and runs of each command" });
-      await expect(list.getByRole("listitem")).toHaveCount(10);
+      await expect(list.getByRole("listitem")).toHaveCount(17);
       await expect(list.getByRole("listitem").first()).toContainText(/^books list.*weight.*runs/);
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
