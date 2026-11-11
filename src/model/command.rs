@@ -136,19 +136,24 @@ pub struct Command {
 
 impl Command {
     /// Returns the command of a `commands list` row, with only the row's own
-    /// arguments, counted until [`Command::set_counted`] says otherwise. Its
-    /// built-in mark is the row's `built_in` when `marks_built_in`, because
-    /// the tool's crumbkit marks its own commands, and otherwise comes from
-    /// the command's first word.
+    /// arguments. Its built-in mark is the row's `built_in` when
+    /// `marks_built_in`, because the tool's crumbkit marks its own commands,
+    /// and otherwise comes from the command's first word. It is counted
+    /// unless `own_runs` says the tool's reports keep flightdeck's own runs
+    /// and the command is one of the loader's queries of the usage log.
     ///
     /// # Errors
     ///
     /// Returns [`NotDocument::OptionWord`] when a word of the row's path is
     /// empty or starts with `-`.
-    pub(super) fn from_row(row: CommandRow, marks_built_in: bool) -> Result<Self, NotDocument> {
+    pub(super) fn from_row(
+        row: CommandRow,
+        marks_built_in: bool,
+        own_runs: OwnRuns,
+    ) -> Result<Self, NotDocument> {
         let path = CommandPath::from_row(&row.path)?;
         Ok(Self {
-            counted: true,
+            counted: counts(&path.to_string(), own_runs),
             built_in: if marks_built_in {
                 row.built_in
             } else {
@@ -181,14 +186,6 @@ impl Command {
                 self.arguments.push(global.clone());
             }
         }
-    }
-
-    /// Records whether the figures count the command's runs: always when
-    /// the tool's reports leave out flightdeck's own runs, as `own` says,
-    /// and otherwise unless the command is one of the loader's queries of
-    /// the usage log.
-    pub(super) fn set_counted(&mut self, own: OwnRuns) {
-        self.counted = counts(&self.path.to_string(), own);
     }
 
     /// Records what the command costs the agents that call it, and how

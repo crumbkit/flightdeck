@@ -34,26 +34,29 @@ pub(super) const USAGE_COMMAND: [&str; 2] = ["self", "usage"];
 /// reports, their runs are left out of the figures, the findings and the
 /// history.
 ///
-/// RUST-10: this serves only a tool on a crumbkit before 0.3.2. A tool on
-/// 0.3.2 or later records the loader's runs as flightdeck's and leaves them
-/// out of its reports with `--exclude-program`, so every run of these
-/// commands is counted there. The loader asks `--version`, `commands list`, `schemas list`
-/// and `schemas show` with a fresh state directory, so those runs never
-/// reach the person's usage log and the person's and agents' own runs of
-/// them are counted. These three read the person's usage log, so they must
-/// run with the person's state directory, and the log counts the loader's
-/// runs of them beside the person's, one each per `flightdeck open`. Their
-/// counts would grow until they outranked the tool's own commands, and
-/// their cost cards would show the loader's runs as an agent's. The figures
-/// cannot tell the two apart, so these commands keep no runs, no figures
-/// and no findings, and the person's own runs of them are missed. The IDs
-/// chooser's runs of a link's source, such as `books list`, are counted
-/// too, at most once per source each time the page loads, because the page
-/// keeps the choices until it reloads. Those counts are kept, because the
-/// source is one of the tool's own commands and leaving it out would drop
-/// the person's runs of it, so the chooser's runs raise its rank among
-/// palette matches of equal text and add to its cost card. Dropping the
-/// tools on an earlier crumbkit replaces this.
+/// The IDs chooser's runs of a link's source, such as `books list`, reach
+/// the person's usage log on every crumbkit, at most once per source each
+/// time the page loads, because the page keeps the choices until it
+/// reloads. They carry no program mark and stay counted, because the source
+/// is one of the tool's own commands and leaving it out would drop the
+/// person's runs of it, so the chooser's runs raise its rank among palette
+/// matches of equal text and add to its cost card.
+///
+/// RUST-10: this list serves only a tool on a crumbkit before 0.3.2. A
+/// tool on 0.3.2 or later records the loader's runs as flightdeck's and
+/// leaves them out of its reports with `--exclude-program`, so every run of
+/// these commands is counted there. The loader asks `--version`,
+/// `commands list`, `schemas list` and `schemas show` with a fresh state
+/// directory, so those runs never reach the person's usage log and the
+/// person's and agents' own runs of them are counted. These three read the
+/// person's usage log, so they must run with the person's state directory,
+/// and on an earlier crumbkit the log counts the loader's runs of them
+/// beside the person's, one each per `flightdeck open`. Their counts would
+/// grow until they outranked the tool's own commands, and their cost cards
+/// would show the loader's runs as an agent's. The figures cannot tell the
+/// two apart, so these commands keep no runs, no figures and no findings,
+/// and the person's own runs of them are missed. Dropping the tools on an
+/// earlier crumbkit replaces this.
 const LOADER_QUERIES: [&str; 3] = ["self figures list", "self usage", "self runs list"];
 
 /// The largest count that the page reads exactly, 2^53 - 1, JavaScript's

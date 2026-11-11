@@ -46,10 +46,11 @@ impl Run {
         self.session
     }
 
-    /// Returns the run's place in its session, from 1. The steps of a
-    /// session can skip numbers: a tool on crumbkit 0.3.2 or later leaves
-    /// flightdeck's own runs out, and on an earlier tool the loader's own
-    /// queries are left out by name.
+    /// Returns the run's place in its session, from 1. A tool on crumbkit
+    /// 0.3.2 or later leaves flightdeck's own runs out before it numbers the
+    /// steps, so its steps run without gaps. On a tool on an earlier
+    /// crumbkit the loader's own queries are left out by name after the
+    /// tool numbered them, so the steps of a session can skip numbers.
     #[must_use]
     pub const fn step(&self) -> u64 {
         self.step

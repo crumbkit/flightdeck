@@ -80,7 +80,7 @@ pub struct Tool {
     #[serde(skip)]
     marks_built_in: bool,
     #[serde(skip)]
-    excludes_programs: bool,
+    own_runs: OwnRuns,
 }
 
 impl Tool {
@@ -163,13 +163,13 @@ impl Tool {
     /// same release gave the option to `self usage` and `self runs list`.
     #[must_use]
     pub const fn excludes_programs(&self) -> bool {
-        self.excludes_programs
+        matches!(self.own_runs, OwnRuns::Excluded)
     }
 
     /// Returns whether the tool's reports of its usage log keep
     /// flightdeck's own runs.
     const fn own_runs(&self) -> OwnRuns {
-        own_runs(self.excludes_programs)
+        self.own_runs
     }
 
     /// Returns the links between the tool's commands.
@@ -237,6 +237,21 @@ impl Tool {
         let marks_no_result = declares("prints_no_result");
         let marks_built_in = declares("built_in");
         let rows = list.into_rows();
+        // crumbkit gave `--exclude-program` to `self figures list`,
+        // `self usage` and `self runs list` in the same release, so the
+        // first of them stands for all three.
+        let excludes_programs = rows.iter().any(|row| {
+            CommandPath::from_row(&row.path).is_ok_and(|path| path.is(&figures::FIGURES_COMMAND))
+                && row
+                    .arguments
+                    .iter()
+                    .any(|argument| argument.name == "--exclude-program")
+        });
+        let own_runs = if excludes_programs {
+            OwnRuns::Excluded
+        } else {
+            OwnRuns::Kept
+        };
         let root = rows
             .iter()
             .find(|row| !row.path.contains(' '))
@@ -244,20 +259,7 @@ impl Tool {
         let name = root.path.clone();
         let about = root.about.clone();
         let goals = root.goals.clone();
-        let mut commands = commands_of(rows, &documents, marks_built_in)?;
-        let excludes_programs = commands
-            .iter()
-            .find(|command| command.path().is(&figures::FIGURES_COMMAND))
-            .is_some_and(|command| {
-                command
-                    .arguments()
-                    .iter()
-                    .any(|argument| argument.name() == "--exclude-program")
-            });
-        let own = own_runs(excludes_programs);
-        for command in &mut commands {
-            command.set_counted(own);
-        }
+        let commands = commands_of(rows, &documents, marks_built_in, own_runs)?;
         let headings = headings_of(&goals, &commands).unwrap_or_else(|| {
             vec![Heading {
                 title: name.clone(),
@@ -291,18 +293,8 @@ impl Tool {
             history: None,
             marks_no_result,
             marks_built_in,
-            excludes_programs,
+            own_runs,
         })
-    }
-}
-
-/// Returns whether the reports of a tool that `excludes_programs` keep
-/// flightdeck's own runs.
-const fn own_runs(excludes_programs: bool) -> OwnRuns {
-    if excludes_programs {
-        OwnRuns::Excluded
-    } else {
-        OwnRuns::Kept
     }
 }
 
@@ -609,8 +601,9 @@ fn headings_of(goals: &[GoalRow], commands: &[Command]) -> Option<Vec<Heading>> 
 }
 
 /// Returns the runnable commands of `rows`, each with the global arguments
-/// of the rows above it and the id of the document it prints, and with the
-/// row's `built_in` as its mark when `marks_built_in`.
+/// of the rows above it and the id of the document it prints, with the
+/// row's `built_in` as its mark when `marks_built_in`, and counted as the
+/// reports that `own_runs` describes count it.
 ///
 /// RUST-10: a command takes only the global arguments of its groups. A
 /// group's required argument that is not global, which the person gives
@@ -627,12 +620,13 @@ fn commands_of(
     rows: Vec<CommandRow>,
     documents: &[Document],
     marks_built_in: bool,
+    own_runs: OwnRuns,
 ) -> Result<Vec<Command>, NotDocument> {
     let leaves: Vec<bool> = rows.iter().map(|row| is_leaf(row, &rows)).collect();
     let mut groups = Vec::new();
     let mut commands = Vec::new();
     for (row, leaf) in rows.into_iter().zip(leaves) {
-        let command = Command::from_row(row, marks_built_in)?;
+        let command = Command::from_row(row, marks_built_in, own_runs)?;
         if leaf {
             commands.push(command);
         } else {

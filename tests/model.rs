@@ -674,6 +674,29 @@ fn a_failing_figures_call_loads_the_tool_with_no_runs() {
 
 #[cfg(unix)]
 #[test]
+fn a_tool_that_declares_exclude_program_but_refuses_it_loads_with_no_runs_and_no_history() {
+    // The fake tool exits 2, a usage error, whenever a command line holds
+    // `--exclude-program`, though its `commands list` declares the option.
+    let (_directory, path) = fake_tool_with_figures(
+        r#"case "$*" in *--exclude-program*) echo 'unexpected argument' >&2; exit 2 ;; esac; echo '{"schema":"fake/self-figures-list/v1","data":[{"command":"things list","runs":7}],"total":1,"truncated":false}'"#,
+    );
+    let declared = r#"{"path":"fake self figures list","about":"Lists the figures","arguments":[{"name":"--exclude-program","short":null,"value_names":["NAME"],"required":false,"many":true,"defaults":[],"possible_values":[],"help":"Leave out the runs of this program","long_help":null,"global":false,"one_of":[]}]}"#;
+    let script = std::fs::read_to_string(&path).unwrap().replace(
+        r#"{"path":"fake self figures list","about":"Lists the figures"}"#,
+        declared,
+    );
+    std::fs::write(&path, script).unwrap();
+    let (_dirs, program) = isolated(path);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    assert!(tool.excludes_programs());
+    assert!(tool.commands().iter().all(|command| command.runs() == 0));
+    assert!(tool.history().is_none());
+}
+
+#[cfg(unix)]
+#[test]
 fn a_tool_without_self_figures_list_loads_with_no_runs_and_is_never_asked_for_figures() {
     // The fake tool fails any query it does not answer with exit 2, and
     // writes a mark when it is asked for figures.
