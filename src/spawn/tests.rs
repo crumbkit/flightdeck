@@ -3,7 +3,7 @@ use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::Path;
 
-use super::{FreshState, Program, Query};
+use super::{FreshState, OwnRuns, Program, Query};
 
 #[test]
 fn a_bare_tool_name_stays_a_name_for_the_path_search() {
@@ -84,9 +84,9 @@ fn each_query_is_a_fixed_argument_vector_and_each_document_query_passes_no_input
         Query::CommandsList,
         Query::SchemasList,
         Query::SchemasShow(&ids),
-        Query::FiguresList,
-        Query::Usage,
-        Query::RunsList,
+        Query::FiguresList(OwnRuns::Kept),
+        Query::Usage(OwnRuns::Kept),
+        Query::RunsList(OwnRuns::Kept),
     ]
     .iter()
     .map(Query::words)
@@ -161,5 +161,49 @@ fn a_fresh_state_replaces_the_programs_state_directory_and_is_gone_once_dropped(
         !directory.exists(),
         "{} is still there",
         directory.display()
+    );
+}
+
+#[test]
+fn the_report_queries_leave_out_flightdecks_own_runs_only_when_asked_to() {
+    let excluded: Vec<Vec<&str>> = [
+        Query::FiguresList(OwnRuns::Excluded),
+        Query::Usage(OwnRuns::Excluded),
+        Query::RunsList(OwnRuns::Excluded),
+    ]
+    .iter()
+    .map(Query::words)
+    .collect();
+    let kept: Vec<Vec<&str>> = [
+        Query::FiguresList(OwnRuns::Kept),
+        Query::Usage(OwnRuns::Kept),
+        Query::RunsList(OwnRuns::Kept),
+    ]
+    .iter()
+    .map(Query::words)
+    .collect();
+
+    for (excluded, kept) in excluded.iter().zip(&kept) {
+        assert!(
+            excluded.ends_with(&["--exclude-program", "flightdeck"]),
+            "{excluded:?}"
+        );
+        assert_eq!(excluded[..excluded.len() - 2], kept[..], "{kept:?}");
+        assert!(!kept.contains(&"--exclude-program"), "{kept:?}");
+    }
+}
+
+#[test]
+fn a_marked_program_names_flightdeck_in_the_variable_that_the_tools_name_gives() {
+    let shelf = Program::new("/tools/shelf").marked("shelf");
+    let my_tool = Program::new("my-tool").marked("my-tool");
+
+    assert_eq!(
+        variable_of(&shelf, "SHELF_PROGRAM"),
+        Some("flightdeck".into())
+    );
+    assert_eq!(
+        variable_of(&my_tool, "MY_TOOL_PROGRAM"),
+        Some("flightdeck".into())
     );
 }

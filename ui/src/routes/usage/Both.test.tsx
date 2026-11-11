@@ -5,12 +5,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Command, Tool } from "@/api/model";
 import type { WeightReply } from "@/api/weight";
 import { makeQueryClient } from "@/queryClient";
-import { command as commandOf, shelf } from "../../../tests/fixtures/shelf";
+import { command as commandOf, olderShelf, shelf } from "../../../tests/fixtures/shelf";
 import Both, { BothSummary } from "./Both";
 import Weight from "./Weight";
 
-/** Returns shelf's command at `path`, run `runs` times with `p95` bytes of output. */
-function ran(path: string, runs: number, p95: number | null = null): Command {
+/**
+ * Returns the command at `path` of `from`, shelf by default, run `runs` times with `p95` bytes of
+ * output.
+ */
+function ran(path: string, runs: number, p95: number | null = null, from: Tool = shelf): Command {
   const figures = {
     runs,
     help_pages: 0,
@@ -22,7 +25,7 @@ function ran(path: string, runs: number, p95: number | null = null): Command {
     p50_out_bytes: 1,
     p95_out_bytes: p95,
   };
-  const command = commandOf(shelf, path);
+  const command = commandOf(from, path);
   return { ...command, runs: command.counted ? runs : 0, cost: { figures, findings: null } };
 }
 
@@ -34,7 +37,7 @@ const tool: Tool = {
     ran("books show", 50, 100), // 1,600 B: light and often
     ran("books summarize", 10, 3000), // 4,500 B: in no corner
     ran("books remove", 0), // 1,500 B: light and never
-    ran("self usage", 900, 9000), // not counted
+    ran("self usage", 900, 9000, olderShelf), // not counted on an earlier crumbkit
   ],
 };
 

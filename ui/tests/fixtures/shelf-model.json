@@ -3,7 +3,7 @@
   "read_only": false,
   "tool": {
     "name": "shelf",
-    "version": "0.2.0+git-644f776e29ca",
+    "version": "0.3.2+git-8ee2eadd29eb",
     "about": "Browse a small catalogue of public-domain books",
     "headings": [
       {
@@ -21,7 +21,20 @@
       },
       {
         "title": "Review how shelf is used",
-        "commands": [["self", "usage"], ["self", "figures", "list"], ["self", "runs", "list"]]
+        "commands": [
+          ["self", "usage"],
+          ["self", "figures", "list"],
+          ["self", "runs", "list"],
+          ["self", "runs", "export"]
+        ]
+      },
+      {
+        "title": "Install shelf's skill",
+        "commands": [["skills", "install"], ["skills", "check"], ["skills", "print"]]
+      },
+      {
+        "title": "Set up shell completion",
+        "commands": [["completion", "install"], ["completion", "check"], ["completion", "print"]]
       }
     ],
     "commands": [
@@ -1371,6 +1384,25 @@
             "crumbkit_flag": null
           },
           {
+            "name": "--exclude-program",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["NAME"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Leave out the runs that a program with this name marked, such as flightdeck",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
             "name": "--json",
             "short": null,
             "kind": "named",
@@ -1509,7 +1541,7 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": false,
+        "counted": true,
         "built_in": true,
         "prints_no_result": false
       },
@@ -1550,6 +1582,25 @@
             "possible_values": [],
             "help": {
               "line": "Read this usage log instead of the tool's own",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--exclude-program",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["NAME"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Leave out the runs that a program with this name marked, such as flightdeck",
               "long": null
             },
             "one_of": [],
@@ -1782,7 +1833,7 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": false,
+        "counted": true,
         "built_in": true,
         "prints_no_result": false
       },
@@ -1823,6 +1874,25 @@
             "possible_values": [],
             "help": {
               "line": "Read this usage log instead of the tool's own",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--exclude-program",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["NAME"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Leave out the runs that a program with this name marked, such as flightdeck",
               "long": null
             },
             "one_of": [],
@@ -2060,7 +2130,1152 @@
         "writes": null,
         "runs": 0,
         "cost": null,
-        "counted": false,
+        "counted": true,
+        "built_in": true,
+        "prints_no_result": false
+      },
+      {
+        "path": ["self", "runs", "export"],
+        "about": "Print the records of shelf's usage log after a run, oldest first",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "--after",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["RUN"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only the records after the run with this span id, the `run` of the last record an earlier export printed",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--log",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["FILE"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Read this usage log instead of the tool's own",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf self runs export --json",
+            "about": "Print every line of the usage log as JSON"
+          },
+          {
+            "command": "shelf self runs export --json --after 00f067aa0ba902b7",
+            "about": "Print the records after the last run that an earlier export printed"
+          }
+        ],
+        "result": {
+          "document": "shelf/self-runs-export/v1",
+          "form": "stream",
+          "columns": [
+            {
+              "name": "gap",
+              "long": false,
+              "description": "Whether records may be missing before this one, because the run that `--after` named is no longer in the log, so the export printed every record the log holds. Only the first line of an export can be true."
+            },
+            {
+              "name": "record",
+              "long": false,
+              "description": "The record with every field and value that the usage log stores, including the run's span id under `run`, which `--after` takes, and the keyed hashes of the run's session and command line."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "class": "read_only",
+        "writes": null,
+        "runs": 0,
+        "cost": null,
+        "counted": true,
+        "built_in": true,
+        "prints_no_result": false
+      },
+      {
+        "path": ["skills", "install"],
+        "about": "Install shelf's skill into each agent skills directory that exists",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "--dir",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["DIR"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Install into this skills directory in place of the agent skills directories",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--force",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Replace a file or a link that install did not write with the skill's own folder",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf skills install",
+            "about": "Install shelf's skill into each agent skills directory that exists"
+          },
+          {
+            "command": "shelf skills install --force",
+            "about": "Install it, replacing a file or a link that install did not write"
+          }
+        ],
+        "result": {
+          "document": "shelf/skills-install/v1",
+          "form": "document",
+          "columns": [
+            {
+              "name": "state",
+              "long": false,
+              "description": "What install did: failed, skipped, written or unchanged."
+            },
+            {
+              "name": "dirs",
+              "long": false,
+              "description": "The skills directories that share this copy, as named. Directories that resolve to one place through a symbolic link share one copy."
+            },
+            {
+              "name": "reason",
+              "long": false,
+              "description": "Why install skipped or failed, or what it replaced under --force, such as `linked to /src/shelf/skill`, or null."
+            },
+            {
+              "name": "path",
+              "long": true,
+              "description": "The SKILL.md file that install wrote or left, at its real path."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": false,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "class": "additive",
+        "writes": {
+          "replaces": false,
+          "expect": false,
+          "items": null
+        },
+        "runs": 0,
+        "cost": null,
+        "counted": true,
+        "built_in": true,
+        "prints_no_result": false
+      },
+      {
+        "path": ["skills", "check"],
+        "about": "Check that each installed copy of shelf's skill matches this shelf",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "--dir",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["DIR"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Check this skills directory in place of the agent skills directories",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf skills check",
+            "about": "Report each agent skills directory whose copy is missing or differs"
+          }
+        ],
+        "result": {
+          "document": "shelf/skills-check/v1",
+          "form": "document",
+          "columns": [
+            {
+              "name": "state",
+              "long": false,
+              "description": "Whether the copy is the binary's: missing, differs, unreadable, linked or current."
+            },
+            {
+              "name": "dirs",
+              "long": false,
+              "description": "The skills directories that share this copy, as named. Directories that resolve to one place through a symbolic link share one copy."
+            },
+            {
+              "name": "reason",
+              "long": false,
+              "description": "Why the copy differs, cannot be read or is linked, such as `written by shelf 0.2.0` or `linked to /src/shelf/skill`, or null."
+            },
+            {
+              "name": "path",
+              "long": true,
+              "description": "The SKILL.md file that was checked, at its real path."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "class": "read_only",
+        "writes": null,
+        "runs": 0,
+        "cost": null,
+        "counted": true,
+        "built_in": true,
+        "prints_no_result": false
+      },
+      {
+        "path": ["skills", "print"],
+        "about": "Print shelf's skill",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf skills print",
+            "about": "Print shelf's skill"
+          }
+        ],
+        "result": {
+          "document": "shelf/skills-print/v1",
+          "form": "document",
+          "columns": []
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "class": "read_only",
+        "writes": null,
+        "runs": 0,
+        "cost": null,
+        "counted": true,
+        "built_in": true,
+        "prints_no_result": false
+      },
+      {
+        "path": ["completion", "install"],
+        "about": "Install shelf's completion where the shell loads it",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "--shell",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["SHELL"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": ["bash", "elvish", "fish", "powershell", "zsh"],
+            "help": {
+              "line": "Install for this shell in place of the one that SHELL names",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--force",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Replace a file or a link that install did not write; a link's target stays as it is",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf completion install --shell fish",
+            "about": "Install shelf's completion for fish"
+          },
+          {
+            "command": "shelf completion install --shell zsh --force",
+            "about": "Install it for zsh, replacing a file or a link that install did not write"
+          }
+        ],
+        "result": {
+          "document": "shelf/completion-install/v1",
+          "form": "document",
+          "columns": [
+            {
+              "name": "state",
+              "long": false,
+              "description": "What install did: failed, skipped, written or unchanged."
+            },
+            {
+              "name": "shell",
+              "long": false,
+              "description": "The shell: bash, elvish, fish, powershell or zsh."
+            },
+            {
+              "name": "path",
+              "long": false,
+              "description": "The completion file that install wrote or left. When the file is a link to a file that install wrote, the path of that file."
+            },
+            {
+              "name": "reason",
+              "long": false,
+              "description": "Why install skipped or failed, or what it replaced under --force, such as `linked to /src/shelf/shelf.fish`, or null."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": false,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "class": "additive",
+        "writes": {
+          "replaces": false,
+          "expect": false,
+          "items": null
+        },
+        "runs": 0,
+        "cost": null,
+        "counted": true,
+        "built_in": true,
+        "prints_no_result": false
+      },
+      {
+        "path": ["completion", "check"],
+        "about": "Check that shelf's installed completion file matches this shelf",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "--shell",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["SHELL"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": ["bash", "elvish", "fish", "powershell", "zsh"],
+            "help": {
+              "line": "Check the file of this shell in place of the one that SHELL names",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf completion check --shell zsh",
+            "about": "Report zsh's completion file when it is missing or differs"
+          }
+        ],
+        "result": {
+          "document": "shelf/completion-check/v1",
+          "form": "document",
+          "columns": [
+            {
+              "name": "state",
+              "long": false,
+              "description": "Whether the file holds the script that install writes: missing, differs, unreadable, linked or current."
+            },
+            {
+              "name": "shell",
+              "long": false,
+              "description": "The shell: bash, elvish, fish, powershell or zsh."
+            },
+            {
+              "name": "path",
+              "long": false,
+              "description": "The completion file that was checked. When the file is a link to a file that install wrote, the path of that file."
+            },
+            {
+              "name": "reason",
+              "long": false,
+              "description": "Why the file differs, cannot be read or is linked, such as `linked to /src/shelf/shelf.fish`, or null."
+            }
+          ]
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "class": "read_only",
+        "writes": null,
+        "runs": 0,
+        "cost": null,
+        "counted": true,
+        "built_in": true,
+        "prints_no_result": false
+      },
+      {
+        "path": ["completion", "print"],
+        "about": "Print shelf's completion registration script for a shell",
+        "long_about": null,
+        "arguments": [
+          {
+            "name": "--shell",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "one",
+              "value_names": ["SHELL"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": ["bash", "elvish", "fish", "powershell", "zsh"],
+            "help": {
+              "line": "Print the script of this shell in place of the one that SHELL names",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--json",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print the result as a JSON document. The default prints text.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--json"
+          },
+          {
+            "name": "--fields",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["FIELD"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Print only these comma-separated fields, in this order. The default prints the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--fields"
+          },
+          {
+            "name": "--long",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Add the long columns after the compact ones. The default prints only the compact columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--long"
+          },
+          {
+            "name": "--full",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "With --json, print every field of every row. The default prints only the fields of the columns.",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--full"
+          },
+          {
+            "name": "--no-input",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "flag"
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Fail instead of asking a question",
+              "long": null
+            },
+            "one_of": [],
+            "global": true,
+            "crumbkit_flag": "--no-input"
+          }
+        ],
+        "examples": [
+          {
+            "command": "shelf completion print --shell fish",
+            "about": "Print the registration script for fish"
+          }
+        ],
+        "result": {
+          "document": "shelf/completion-print/v1",
+          "form": "document",
+          "columns": []
+        },
+        "exits": [],
+        "effects": {
+          "read_only": true,
+          "destructive": false,
+          "idempotent": true,
+          "open_world": false
+        },
+        "class": "read_only",
+        "writes": null,
+        "runs": 0,
+        "cost": null,
+        "counted": true,
         "built_in": true,
         "prints_no_result": false
       }
@@ -3659,6 +4874,10 @@
                   },
                   "type": "array"
                 },
+                "built_in": {
+                  "description": "true for a command that crumbkit or one of its add-on crates provides, because the tool record's leaf for the command declares a document that crumbkit marks as its own, such as `commands list` or `self usage`, and for a group whose visible commands below it number at least one and are all built in. false for every other command, such as the tool's own command under its `self` group.",
+                  "type": "boolean"
+                },
                 "children": {
                   "description": "The field whose items each row prints in text as lines under it, such as `components`, or null when the rows print no such lines or the command declares no document.",
                   "type": ["string", "null"]
@@ -4729,7 +5948,7 @@
                   "type": "string"
                 },
                 "skipped": {
-                  "description": "The records that the report left out, because they named a command,\nflag, code, caller or trace id that the tool does not write.",
+                  "description": "The records that the report left out, because they named a command,\nflag, code, caller, program or trace id that the tool does not write.",
                   "format": "uint64",
                   "minimum": 0,
                   "type": "integer"
@@ -5041,7 +6260,7 @@
                   "type": "string"
                 },
                 "skipped": {
-                  "description": "The records that the report left out, because they named a command,\nflag, code, caller or trace id that the tool does not write.",
+                  "description": "The records that the report left out, because they named a command,\nflag, code, caller, program or trace id that the tool does not write.",
                   "format": "uint64",
                   "minimum": 0,
                   "type": "integer"
@@ -5306,7 +6525,7 @@
                   "type": "string"
                 },
                 "skipped": {
-                  "description": "The records that the report left out, because they named a command,\nflag, code, caller or trace id that the tool does not write.",
+                  "description": "The records that the report left out, because they named a command,\nflag, code, caller, program or trace id that the tool does not write.",
                   "format": "uint64",
                   "minimum": 0,
                   "type": "integer"
@@ -5418,6 +6637,1639 @@
           },
           "required": ["schema", "data", "truncated", "summary"],
           "title": "shelf/self-runs-list/v1",
+          "type": "object"
+        }
+      },
+      {
+        "id": "shelf/self-runs-export/v1",
+        "kind": "output",
+        "form": "stream",
+        "description": "Each record of the usage log after a run, oldest first, as the log stores it.",
+        "commands": [["self", "runs", "export"]],
+        "schema": {
+          "$defs": {
+            "Facts": {
+              "description": "The tool's own facts about a run: counts, labels from the tool's fixed\nvocabulary, and the time the run spent waiting on another system.",
+              "properties": {
+                "counts": {
+                  "additionalProperties": {
+                    "format": "uint64",
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "description": "Counts by name, such as requests or retries. A count of 0 is left\nout.",
+                  "propertyNames": {
+                    "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                  },
+                  "type": "object"
+                },
+                "labels": {
+                  "additionalProperties": {
+                    "items": {
+                      "$ref": "#/$defs/Label"
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "description": "Labels by name, such as the route templates that the run requested,\neach once, in the order the tool wrote them.",
+                  "propertyNames": {
+                    "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                  },
+                  "type": "object"
+                },
+                "waited_ms": {
+                  "description": "The wall-clock milliseconds that the run spent blocked, waiting on\nanother system such as a server, with overlapping waits counted\nonce. It is present only when it is more than 0.",
+                  "format": "uint64",
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "Hash": {
+              "description": "The keyed SipHash-2-4 hash of a list of byte strings, as 16 lowercase hex\ndigits.",
+              "pattern": "^[0-9a-f]{16}$",
+              "type": "string"
+            },
+            "Help": {
+              "description": "Which help page the caller asked for.",
+              "oneOf": [
+                {
+                  "const": "short",
+                  "description": "`-h`.",
+                  "type": "string"
+                },
+                {
+                  "const": "long",
+                  "description": "`--help`, or the help command.",
+                  "type": "string"
+                }
+              ]
+            },
+            "Label": {
+              "description": "One label from the tool's fixed vocabulary, such as a route template.",
+              "pattern": "^[A-Za-z0-9_./:{}-]{1,64}$",
+              "type": "string"
+            },
+            "Name": {
+              "description": "A name from the tool's own vocabulary: a command path, a flag, a version\nor a failure code.\n\ncrumbkit reads every name from the tool's clap command tree or its codes,\nand never from a word that the caller typed: each constructor takes a\n`clap::Command`, a `clap::Arg` or a crumbkit `Code`.",
+              "type": "string"
+            },
+            "Program": {
+              "description": "The name of a program that marked a run, such as `flightdeck`: 1 to 32\nlowercase ASCII letters, digits, `-` and `_`, starting with a letter.\n\nThe program chooses the name for itself, so the name never holds a value\nthat a caller typed as an argument, and the pattern keeps any other text\nout of the usage log and the reports (ADR-0029).",
+              "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+              "type": "string"
+            },
+            "Record": {
+              "description": "One line of a tool's usage log, which records the shape of one run and never the values of its arguments.",
+              "properties": {
+                "alias": {
+                  "description": "Whether a personal alias expanded. It is present only when one did.",
+                  "type": "boolean"
+                },
+                "args": {
+                  "$ref": "#/$defs/Hash",
+                  "description": "The keyed hash of the words after the tool's name, so identical\ncommand lines share a hash."
+                },
+                "at": {
+                  "description": "When the run ended, in RFC 3339 with milliseconds, such as\n2026-10-07T12:01:07.120Z.",
+                  "type": "string"
+                },
+                "caller": {
+                  "description": "The id of the coding agent that ran the tool, such as claude-code;\nperson when no agent is detected and standard input is a terminal;\nand unknown otherwise.",
+                  "type": "string"
+                },
+                "code": {
+                  "$ref": "#/$defs/Name",
+                  "description": "The code of the run's failure or refusal, such as\n`shelf::books::not_found`. A batch gives the code of its first failure."
+                },
+                "command": {
+                  "$ref": "#/$defs/Name",
+                  "description": "The command path below the tool's name, such as books show."
+                },
+                "empty": {
+                  "description": "Whether a listing or a stream had no rows, so its output printed the\nempty note (ADR-0050). It is present only when one had none.",
+                  "type": "boolean"
+                },
+                "exit": {
+                  "description": "The exit code that `parse` or `finish` returned, or that the tool\nreported with `events::ended`.",
+                  "format": "uint8",
+                  "maximum": 255,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "facts": {
+                  "$ref": "#/$defs/Facts",
+                  "description": "The tool's own facts about the run, which its extensions wrote. It is\npresent only when they hold a fact, and it is left out when the line\nwould otherwise pass 1 KiB."
+                },
+                "flags": {
+                  "description": "The flags typed on the command line, each by its long name, or by its\nshort name when it has no long one, sorted.",
+                  "items": {
+                    "$ref": "#/$defs/Name"
+                  },
+                  "type": "array"
+                },
+                "help": {
+                  "$ref": "#/$defs/Help",
+                  "description": "short for -h, and long for --help or the help command."
+                },
+                "ids": {
+                  "description": "How many values the command's positional arguments named ID received.\nIt is present only when the command has such an argument.",
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "interrupted": {
+                  "description": "Whether the line was written when the run ended on SIGINT or SIGTERM.\nIt is present only when that is so.",
+                  "type": "boolean"
+                },
+                "ms": {
+                  "description": "The run's wall time in milliseconds, from `start` to the line.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "nearest": {
+                  "$ref": "#/$defs/Name",
+                  "description": "The real flag that clap suggested for a refused flag."
+                },
+                "out_bytes": {
+                  "description": "The bytes that `finish` wrote to standard output, or that the tool\nreported with `events::ended`.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "parent": {
+                  "$ref": "#/$defs/SpanId",
+                  "description": "The caller's span id from a valid TRACEPARENT. It is left out when the\nrun started a new trace."
+                },
+                "picked": {
+                  "description": "How many missing arguments a picker filled in before the command line\nparsed. It is present only when a picker filled one in.",
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "program": {
+                  "$ref": "#/$defs/Program",
+                  "description": "The name of the program that started the run and marked it with the\ntool's `<TOOL>_PROGRAM` variable, such as flightdeck. It is present\nonly when the variable held 1 to 32 lowercase ASCII letters, digits,\n`-` and `_`, starting with a letter."
+                },
+                "run": {
+                  "$ref": "#/$defs/SpanId",
+                  "description": "The run's own random span id, which its children name as their\nparent."
+                },
+                "schema": {
+                  "description": "The id of this record, `<tool>/usage/v1`, with the tool's name as\nits component, such as shelf/usage/v1.",
+                  "pattern": "^[a-z0-9_-]+(\\.[a-z0-9_-]+)*/usage/v1$",
+                  "type": "string"
+                },
+                "session": {
+                  "$ref": "#/$defs/Hash",
+                  "description": "The keyed hash of the agent's session id, or, when the agent gives no\nsession id, of the parent process id on Unix and of the Windows\nTerminal session or the text `windows` on Windows."
+                },
+                "tolerated": {
+                  "description": "The codes of the failures that the run met and recovered from, which\nthe tool reported with `events::tolerated`.\nEach code appears once, in report order, and the list holds at most\n8 codes. It is present only when the tool reported one.",
+                  "items": {
+                    "$ref": "#/$defs/Name"
+                  },
+                  "type": "array"
+                },
+                "tool": {
+                  "$ref": "#/$defs/Name",
+                  "description": "The name of the tool's root command, such as shelf."
+                },
+                "trace": {
+                  "$ref": "#/$defs/TraceId",
+                  "description": "The id of the trace that the run belongs to: the caller's, from a\nvalid TRACEPARENT, or a new random id."
+                },
+                "truncated": {
+                  "description": "Whether a listing showed fewer rows than its total. It is present only\nwhen one did.",
+                  "type": "boolean"
+                },
+                "unknown_flags": {
+                  "description": "How many flags of a refused command line name no flag of the command.",
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "version": {
+                  "$ref": "#/$defs/Name",
+                  "description": "The tool's version, when its command has one."
+                }
+              },
+              "required": [
+                "schema",
+                "tool",
+                "at",
+                "ms",
+                "caller",
+                "session",
+                "args",
+                "trace",
+                "run"
+              ],
+              "title": "UsageRecord",
+              "type": "object"
+            },
+            "RunLine": {
+              "description": "One record of the usage log as `self runs export` prints it.",
+              "properties": {
+                "gap": {
+                  "description": "Whether records may be missing before this one, because the run that\n`--after` named is no longer in the log, so the export printed every\nrecord the log holds. Only the first line of an export can be true.",
+                  "type": "boolean"
+                },
+                "record": {
+                  "$ref": "#/$defs/Record",
+                  "description": "The record with every field and value that the usage log stores,\nincluding the run's span id under `run`, which `--after` takes, and\nthe keyed hashes of the run's session and command line."
+                }
+              },
+              "required": ["gap", "record"],
+              "type": "object"
+            },
+            "SpanId": {
+              "description": "A W3C span id, as 16 lowercase hex digits.",
+              "pattern": "^[0-9a-f]{16}$",
+              "type": "string"
+            },
+            "TraceId": {
+              "description": "A W3C trace id, as 32 lowercase hex digits.",
+              "pattern": "^[0-9a-f]{32}$",
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "Each record of the usage log after a run, oldest first, as the log stores it.",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/RunLine"
+            },
+            "dry_run": {
+              "const": true,
+              "description": "Present, and true, when the run was a dry run that changed nothing."
+            },
+            "schema": {
+              "const": "shelf/self-runs-export/v1",
+              "description": "The id of this document."
+            }
+          },
+          "required": ["schema", "data"],
+          "title": "shelf/self-runs-export/v1",
+          "type": "object"
+        }
+      },
+      {
+        "id": "shelf/skills-install/v1",
+        "kind": "output",
+        "form": "document",
+        "description": "What install did in each skills directory: written, unchanged, skipped or failed.",
+        "commands": [["skills", "install"]],
+        "schema": {
+          "$defs": {
+            "InstallRow": {
+              "description": "One skills directory, or several that resolve to the same place, and\nwhat install did there.",
+              "properties": {
+                "dirs": {
+                  "description": "The skills directories that share this copy, as named. Directories that resolve to one place through a symbolic link share one copy.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "path": {
+                  "description": "The SKILL.md file that install wrote or left, at its real path.",
+                  "type": "string"
+                },
+                "reason": {
+                  "description": "Why install skipped or failed, or what it replaced under --force, such as `linked to /src/shelf/skill`, or null.",
+                  "type": ["string", "null"]
+                },
+                "state": {
+                  "$ref": "#/$defs/Installed",
+                  "description": "What install did: failed, skipped, written or unchanged."
+                }
+              },
+              "required": ["state", "dirs", "reason"],
+              "type": "object"
+            },
+            "Installed": {
+              "description": "What install did in one skills directory.",
+              "oneOf": [
+                {
+                  "const": "failed",
+                  "description": "Install could not read or write the directory.",
+                  "type": "string"
+                },
+                {
+                  "const": "skipped",
+                  "description": "Install left a file or a link that it did not write.",
+                  "type": "string"
+                },
+                {
+                  "const": "written",
+                  "description": "Install wrote the skill.",
+                  "type": "string"
+                },
+                {
+                  "const": "unchanged",
+                  "description": "The directory already held this version of the skill.",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "What install did in each skills directory: written, unchanged, skipped or failed.",
+          "properties": {
+            "cut": {
+              "additionalProperties": false,
+              "description": "Present when the output budget cut the result short, so data holds only its first rows.",
+              "properties": {
+                "budget": {
+                  "description": "The most bytes that the run printed on standard output.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "code": {
+                  "description": "The over-budget code.",
+                  "type": "string"
+                }
+              },
+              "required": ["code", "budget"],
+              "type": "object"
+            },
+            "data": {
+              "description": "The rows of the page, up to the limit.",
+              "items": {
+                "$ref": "#/$defs/InstallRow"
+              },
+              "type": "array"
+            },
+            "dry_run": {
+              "const": true,
+              "description": "Present, and true, when the run was a dry run that changed nothing."
+            },
+            "next": {
+              "description": "The next steps, in the order the text prints them. It is absent when there are none.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "commands": {
+                    "description": "The commands that carry out the step, in order.",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "call": {
+                              "description": "A command line of this tool.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["call"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "run": {
+                              "description": "A command line of another program.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["run"],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "text": {
+                    "description": "The sentence or phrase that the text prints for the step.",
+                    "type": "string"
+                  }
+                },
+                "required": ["text", "commands"],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "schema": {
+              "const": "shelf/skills-install/v1",
+              "description": "The id of this document."
+            },
+            "total": {
+              "description": "The number of rows that matched, of which data holds one page. It is absent when the tool did not count the rows.",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "truncated": {
+              "description": "True when the document leaves out rows that matched, because of the limit or the output budget, and false when data holds every row.",
+              "type": "boolean"
+            }
+          },
+          "required": ["schema", "data", "truncated"],
+          "title": "shelf/skills-install/v1",
+          "type": "object"
+        }
+      },
+      {
+        "id": "shelf/skills-check/v1",
+        "kind": "output",
+        "form": "document",
+        "description": "Whether each skills directory holds the skill that the binary embeds: current, linked, missing, differs or unreadable.",
+        "commands": [["skills", "check"]],
+        "schema": {
+          "$defs": {
+            "CheckRow": {
+              "description": "One skills directory, or several that resolve to the same place, and\nwhether it holds the binary's skill.",
+              "properties": {
+                "dirs": {
+                  "description": "The skills directories that share this copy, as named. Directories that resolve to one place through a symbolic link share one copy.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "path": {
+                  "description": "The SKILL.md file that was checked, at its real path.",
+                  "type": "string"
+                },
+                "reason": {
+                  "description": "Why the copy differs, cannot be read or is linked, such as `written by shelf 0.2.0` or `linked to /src/shelf/skill`, or null.",
+                  "type": ["string", "null"]
+                },
+                "state": {
+                  "$ref": "#/$defs/Checked",
+                  "description": "Whether the copy is the binary's: missing, differs, unreadable, linked or current."
+                }
+              },
+              "required": ["state", "dirs", "reason"],
+              "type": "object"
+            },
+            "Checked": {
+              "description": "Whether a skills directory holds the binary's skill.",
+              "oneOf": [
+                {
+                  "const": "missing",
+                  "description": "The directory holds no copy of the skill.",
+                  "type": "string"
+                },
+                {
+                  "const": "differs",
+                  "description": "The directory holds a copy that differs from the binary's.",
+                  "type": "string"
+                },
+                {
+                  "const": "unreadable",
+                  "description": "The copy cannot be read.",
+                  "type": "string"
+                },
+                {
+                  "const": "linked",
+                  "description": "The skill's folder is a symbolic link to a folder that install did\nnot write, which install skips.",
+                  "type": "string"
+                },
+                {
+                  "const": "current",
+                  "description": "The copy is the binary's.",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "Whether each skills directory holds the skill that the binary embeds: current, linked, missing, differs or unreadable.",
+          "properties": {
+            "cut": {
+              "additionalProperties": false,
+              "description": "Present when the output budget cut the result short, so data holds only its first rows.",
+              "properties": {
+                "budget": {
+                  "description": "The most bytes that the run printed on standard output.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "code": {
+                  "description": "The over-budget code.",
+                  "type": "string"
+                }
+              },
+              "required": ["code", "budget"],
+              "type": "object"
+            },
+            "data": {
+              "description": "The rows of the page, up to the limit.",
+              "items": {
+                "$ref": "#/$defs/CheckRow"
+              },
+              "type": "array"
+            },
+            "dry_run": {
+              "const": true,
+              "description": "Present, and true, when the run was a dry run that changed nothing."
+            },
+            "next": {
+              "description": "The next steps, in the order the text prints them. It is absent when there are none.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "commands": {
+                    "description": "The commands that carry out the step, in order.",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "call": {
+                              "description": "A command line of this tool.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["call"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "run": {
+                              "description": "A command line of another program.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["run"],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "text": {
+                    "description": "The sentence or phrase that the text prints for the step.",
+                    "type": "string"
+                  }
+                },
+                "required": ["text", "commands"],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "schema": {
+              "const": "shelf/skills-check/v1",
+              "description": "The id of this document."
+            },
+            "total": {
+              "description": "The number of rows that matched, of which data holds one page. It is absent when the tool did not count the rows.",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "truncated": {
+              "description": "True when the document leaves out rows that matched, because of the limit or the output budget, and false when data holds every row.",
+              "type": "boolean"
+            }
+          },
+          "required": ["schema", "data", "truncated"],
+          "title": "shelf/skills-check/v1",
+          "type": "object"
+        }
+      },
+      {
+        "id": "shelf/skills-print/v1",
+        "kind": "output",
+        "form": "document",
+        "description": "The tool's agent skill: its name, its version and the text of its SKILL.md.",
+        "commands": [["skills", "print"]],
+        "schema": {
+          "$defs": {
+            "SkillText": {
+              "description": "A tool's skill as `skills print` prints it. The text output is the\nskill's text, and the JSON document holds the tool's name and version\nbeside it.",
+              "properties": {
+                "text": {
+                  "description": "The text of the tool's SKILL.md, as the tool embeds it, without the metadata lines that install adds.",
+                  "type": "string"
+                },
+                "tool": {
+                  "description": "The tool's name, which names the skill's folder, such as `shelf`.",
+                  "type": "string"
+                },
+                "version": {
+                  "description": "The tool's version, such as `0.3.0`.",
+                  "type": "string"
+                }
+              },
+              "required": ["tool", "version", "text"],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "The tool's agent skill: its name, its version and the text of its SKILL.md.",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/SkillText"
+            },
+            "dry_run": {
+              "const": true,
+              "description": "Present, and true, when the run was a dry run that changed nothing."
+            },
+            "failures": {
+              "description": "The failures that the answer leaves out. It is empty when nothing failed.",
+              "items": {
+                "description": "A failure of some of the ids: the fields of the failure document without schema.",
+                "properties": {
+                  "alternatives": {
+                    "description": "Other repairs the caller can try, in order of preference, each in the shape of recovery. It is present only when the failure offers at least one.",
+                    "items": {
+                      "description": "A repair the caller can try instead, tagged by kind.",
+                      "oneOf": [
+                        {
+                          "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                          "properties": {
+                            "all": {
+                              "type": "string"
+                            },
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "run"
+                            }
+                          },
+                          "required": ["kind", "call"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                          "properties": {
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "terminal"
+                            }
+                          },
+                          "required": ["kind", "call"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Run the same command again later.",
+                          "properties": {
+                            "kind": {
+                              "const": "retry"
+                            }
+                          },
+                          "required": ["kind"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Follow this advice.",
+                          "properties": {
+                            "kind": {
+                              "const": "hint"
+                            },
+                            "text": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "text"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "There is no next step, for this reason.",
+                          "properties": {
+                            "kind": {
+                              "const": "none"
+                            },
+                            "reason": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "reason"],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "cause": {
+                    "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
+                    "type": "string"
+                  },
+                  "code": {
+                    "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
+                    "pattern": "^[!-~]+$",
+                    "type": "string"
+                  },
+                  "fields": {
+                    "additionalProperties": {
+                      "$anchor": "field_value",
+                      "additionalProperties": {
+                        "$ref": "#field_value"
+                      },
+                      "items": {
+                        "$ref": "#field_value"
+                      },
+                      "type": ["string", "integer", "boolean", "null", "array", "object"]
+                    },
+                    "description": "The values at fault, in the order the failure gives them, each under a name of one or more lowercase ASCII letters, digits and underscores. A value is a string, an integer, a boolean, null, or an array or object of such values, and an object holds each key once. It is present only when the failure names at least one.",
+                    "propertyNames": {
+                      "pattern": "^[a-z0-9_]+$"
+                    },
+                    "type": "object"
+                  },
+                  "index": {
+                    "description": "The position of key among the keys that the caller gave, counted from 0, so two failures of the same key differ. It is present only with key.",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "key": {
+                    "description": "The key that the caller gave for the answer that failed, when the failure is one answer of a batch.",
+                    "type": "string"
+                  },
+                  "labels": {
+                    "description": "The places in a source, such as a file, that the failure points at, in the order the failure gives them. It is present only when the failure has at least one label.",
+                    "items": {
+                      "properties": {
+                        "column": {
+                          "description": "The 1-based column of the start of the span, counted in characters of its line. It is present only when the span could be read.",
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "excerpt": {
+                          "description": "The lines of the source that the span covers, with one line before and one after where the source has them. It is present only when the span could be read.",
+                          "properties": {
+                            "line": {
+                              "description": "The 1-based number of the first line of the excerpt.",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "text": {
+                              "description": "The lines, joined by the line breaks of the source, without a line break at the end.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["line", "text"],
+                          "type": "object"
+                        },
+                        "length": {
+                          "description": "The length of the span in bytes.",
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "line": {
+                          "description": "The 1-based line that holds the start of the span. It is present only when the span could be read.",
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "description": "The name of the source, such as a file name. It is present only when the span could be read and the source has a name.",
+                          "type": "string"
+                        },
+                        "offset": {
+                          "description": "The byte offset of the start of the span from the start of the source.",
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "text": {
+                          "description": "What the label says about the span. It is present only when the label has text.",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["offset", "length"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "message": {
+                    "description": "What went wrong.",
+                    "type": "string"
+                  },
+                  "recovery": {
+                    "description": "What the caller can do next, tagged by kind.",
+                    "oneOf": [
+                      {
+                        "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                        "properties": {
+                          "all": {
+                            "type": "string"
+                          },
+                          "call": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "run"
+                          }
+                        },
+                        "required": ["kind", "call"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                        "properties": {
+                          "call": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "terminal"
+                          }
+                        },
+                        "required": ["kind", "call"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Run the same command again later.",
+                        "properties": {
+                          "kind": {
+                            "const": "retry"
+                          }
+                        },
+                        "required": ["kind"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Follow this advice.",
+                        "properties": {
+                          "kind": {
+                            "const": "hint"
+                          },
+                          "text": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "text"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "There is no next step, for this reason.",
+                        "properties": {
+                          "kind": {
+                            "const": "none"
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "reason"],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "related": {
+                    "description": "The diagnostics that the failure's diagnostic relates to it, in the order it gives them. It is present only when there is at least one.",
+                    "items": {
+                      "$anchor": "related",
+                      "properties": {
+                        "cause": {
+                          "description": "The errors below the related diagnostic, joined with \": \". It is present only when there is one.",
+                          "type": "string"
+                        },
+                        "code": {
+                          "description": "The related diagnostic's own code, which is free text. It is present only when the diagnostic has one.",
+                          "type": "string"
+                        },
+                        "help": {
+                          "description": "The related diagnostic's advice. It is present only when it gives some.",
+                          "type": "string"
+                        },
+                        "labels": {
+                          "description": "The places in a source, such as a file, that the failure points at, in the order the failure gives them. It is present only when the failure has at least one label.",
+                          "items": {
+                            "properties": {
+                              "column": {
+                                "description": "The 1-based column of the start of the span, counted in characters of its line. It is present only when the span could be read.",
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "excerpt": {
+                                "description": "The lines of the source that the span covers, with one line before and one after where the source has them. It is present only when the span could be read.",
+                                "properties": {
+                                  "line": {
+                                    "description": "The 1-based number of the first line of the excerpt.",
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  },
+                                  "text": {
+                                    "description": "The lines, joined by the line breaks of the source, without a line break at the end.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["line", "text"],
+                                "type": "object"
+                              },
+                              "length": {
+                                "description": "The length of the span in bytes.",
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "line": {
+                                "description": "The 1-based line that holds the start of the span. It is present only when the span could be read.",
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "name": {
+                                "description": "The name of the source, such as a file name. It is present only when the span could be read and the source has a name.",
+                                "type": "string"
+                              },
+                              "offset": {
+                                "description": "The byte offset of the start of the span from the start of the source.",
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "text": {
+                                "description": "What the label says about the span. It is present only when the label has text.",
+                                "type": "string"
+                              }
+                            },
+                            "required": ["offset", "length"],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "message": {
+                          "description": "What the related diagnostic says.",
+                          "type": "string"
+                        },
+                        "related": {
+                          "description": "The diagnostics related to this one, in the same shape, to at most eight levels below the failure.",
+                          "items": {
+                            "$ref": "#related"
+                          },
+                          "type": "array"
+                        },
+                        "severity": {
+                          "description": "How severe the related diagnostic is. A diagnostic that gives no severity is an error.",
+                          "enum": ["error", "warning", "advice"]
+                        },
+                        "url": {
+                          "description": "A page that explains the related diagnostic. It is present only when it has one.",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["message", "severity"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "url": {
+                    "description": "A page that explains the failure. It is present only when the failure has one.",
+                    "type": "string"
+                  }
+                },
+                "required": ["code", "message", "recovery"],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "schema": {
+              "const": "shelf/skills-print/v1",
+              "description": "The id of this document."
+            }
+          },
+          "required": ["schema", "data", "failures"],
+          "title": "shelf/skills-print/v1",
+          "type": "object"
+        }
+      },
+      {
+        "id": "shelf/completion-install/v1",
+        "kind": "output",
+        "form": "document",
+        "description": "What install did with the shell's completion file: written, unchanged, skipped or failed.",
+        "commands": [["completion", "install"]],
+        "schema": {
+          "$defs": {
+            "InstallRow": {
+              "description": "The completion file of one shell, and what install did with it.",
+              "properties": {
+                "path": {
+                  "description": "The completion file that install wrote or left. When the file is a link to a file that install wrote, the path of that file.",
+                  "type": "string"
+                },
+                "reason": {
+                  "description": "Why install skipped or failed, or what it replaced under --force, such as `linked to /src/shelf/shelf.fish`, or null.",
+                  "type": ["string", "null"]
+                },
+                "shell": {
+                  "description": "The shell: bash, elvish, fish, powershell or zsh.",
+                  "enum": ["bash", "elvish", "fish", "powershell", "zsh"]
+                },
+                "state": {
+                  "description": "What install did: failed, skipped, written or unchanged.",
+                  "enum": ["failed", "skipped", "written", "unchanged"]
+                }
+              },
+              "required": ["state", "shell", "path", "reason"],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "What install did with the shell's completion file: written, unchanged, skipped or failed.",
+          "properties": {
+            "cut": {
+              "additionalProperties": false,
+              "description": "Present when the output budget cut the result short, so data holds only its first rows.",
+              "properties": {
+                "budget": {
+                  "description": "The most bytes that the run printed on standard output.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "code": {
+                  "description": "The over-budget code.",
+                  "type": "string"
+                }
+              },
+              "required": ["code", "budget"],
+              "type": "object"
+            },
+            "data": {
+              "description": "The rows of the page, up to the limit.",
+              "items": {
+                "$ref": "#/$defs/InstallRow"
+              },
+              "type": "array"
+            },
+            "dry_run": {
+              "const": true,
+              "description": "Present, and true, when the run was a dry run that changed nothing."
+            },
+            "next": {
+              "description": "The next steps, in the order the text prints them. It is absent when there are none.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "commands": {
+                    "description": "The commands that carry out the step, in order.",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "call": {
+                              "description": "A command line of this tool.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["call"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "run": {
+                              "description": "A command line of another program.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["run"],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "text": {
+                    "description": "The sentence or phrase that the text prints for the step.",
+                    "type": "string"
+                  }
+                },
+                "required": ["text", "commands"],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "schema": {
+              "const": "shelf/completion-install/v1",
+              "description": "The id of this document."
+            },
+            "total": {
+              "description": "The number of rows that matched, of which data holds one page. It is absent when the tool did not count the rows.",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "truncated": {
+              "description": "True when the document leaves out rows that matched, because of the limit or the output budget, and false when data holds every row.",
+              "type": "boolean"
+            }
+          },
+          "required": ["schema", "data", "truncated"],
+          "title": "shelf/completion-install/v1",
+          "type": "object"
+        }
+      },
+      {
+        "id": "shelf/completion-check/v1",
+        "kind": "output",
+        "form": "document",
+        "description": "Whether the shell's completion file holds the script that install writes: current, linked, missing, differs or unreadable.",
+        "commands": [["completion", "check"]],
+        "schema": {
+          "$defs": {
+            "CheckRow": {
+              "description": "The completion file of one shell, and whether it holds the script that install writes.",
+              "properties": {
+                "path": {
+                  "description": "The completion file that was checked. When the file is a link to a file that install wrote, the path of that file.",
+                  "type": "string"
+                },
+                "reason": {
+                  "description": "Why the file differs, cannot be read or is linked, such as `linked to /src/shelf/shelf.fish`, or null.",
+                  "type": ["string", "null"]
+                },
+                "shell": {
+                  "description": "The shell: bash, elvish, fish, powershell or zsh.",
+                  "enum": ["bash", "elvish", "fish", "powershell", "zsh"]
+                },
+                "state": {
+                  "description": "Whether the file holds the script that install writes: missing, differs, unreadable, linked or current.",
+                  "enum": ["missing", "differs", "unreadable", "linked", "current"]
+                }
+              },
+              "required": ["state", "shell", "path", "reason"],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "Whether the shell's completion file holds the script that install writes: current, linked, missing, differs or unreadable.",
+          "properties": {
+            "cut": {
+              "additionalProperties": false,
+              "description": "Present when the output budget cut the result short, so data holds only its first rows.",
+              "properties": {
+                "budget": {
+                  "description": "The most bytes that the run printed on standard output.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "code": {
+                  "description": "The over-budget code.",
+                  "type": "string"
+                }
+              },
+              "required": ["code", "budget"],
+              "type": "object"
+            },
+            "data": {
+              "description": "The rows of the page, up to the limit.",
+              "items": {
+                "$ref": "#/$defs/CheckRow"
+              },
+              "type": "array"
+            },
+            "dry_run": {
+              "const": true,
+              "description": "Present, and true, when the run was a dry run that changed nothing."
+            },
+            "next": {
+              "description": "The next steps, in the order the text prints them. It is absent when there are none.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "commands": {
+                    "description": "The commands that carry out the step, in order.",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "call": {
+                              "description": "A command line of this tool.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["call"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "run": {
+                              "description": "A command line of another program.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["run"],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "text": {
+                    "description": "The sentence or phrase that the text prints for the step.",
+                    "type": "string"
+                  }
+                },
+                "required": ["text", "commands"],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "schema": {
+              "const": "shelf/completion-check/v1",
+              "description": "The id of this document."
+            },
+            "total": {
+              "description": "The number of rows that matched, of which data holds one page. It is absent when the tool did not count the rows.",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "truncated": {
+              "description": "True when the document leaves out rows that matched, because of the limit or the output budget, and false when data holds every row.",
+              "type": "boolean"
+            }
+          },
+          "required": ["schema", "data", "truncated"],
+          "title": "shelf/completion-check/v1",
+          "type": "object"
+        }
+      },
+      {
+        "id": "shelf/completion-print/v1",
+        "kind": "output",
+        "form": "document",
+        "description": "The shell's registration script for the tool's completion.",
+        "commands": [["completion", "print"]],
+        "schema": {
+          "$defs": {
+            "Script": {
+              "description": "A shell's registration script for the tool's completion.",
+              "properties": {
+                "shell": {
+                  "description": "The shell: bash, elvish, fish, powershell or zsh.",
+                  "enum": ["bash", "elvish", "fish", "powershell", "zsh"]
+                },
+                "text": {
+                  "description": "The registration script, which the shell runs once to register the tool's completion.",
+                  "type": "string"
+                }
+              },
+              "required": ["shell", "text"],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "The shell's registration script for the tool's completion.",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/Script"
+            },
+            "dry_run": {
+              "const": true,
+              "description": "Present, and true, when the run was a dry run that changed nothing."
+            },
+            "failures": {
+              "description": "The failures that the answer leaves out. It is empty when nothing failed.",
+              "items": {
+                "description": "A failure of some of the ids: the fields of the failure document without schema.",
+                "properties": {
+                  "alternatives": {
+                    "description": "Other repairs the caller can try, in order of preference, each in the shape of recovery. It is present only when the failure offers at least one.",
+                    "items": {
+                      "description": "A repair the caller can try instead, tagged by kind.",
+                      "oneOf": [
+                        {
+                          "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                          "properties": {
+                            "all": {
+                              "type": "string"
+                            },
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "run"
+                            }
+                          },
+                          "required": ["kind", "call"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                          "properties": {
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "terminal"
+                            }
+                          },
+                          "required": ["kind", "call"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Run the same command again later.",
+                          "properties": {
+                            "kind": {
+                              "const": "retry"
+                            }
+                          },
+                          "required": ["kind"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Follow this advice.",
+                          "properties": {
+                            "kind": {
+                              "const": "hint"
+                            },
+                            "text": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "text"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "There is no next step, for this reason.",
+                          "properties": {
+                            "kind": {
+                              "const": "none"
+                            },
+                            "reason": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "reason"],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "cause": {
+                    "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
+                    "type": "string"
+                  },
+                  "code": {
+                    "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
+                    "pattern": "^[!-~]+$",
+                    "type": "string"
+                  },
+                  "fields": {
+                    "additionalProperties": {
+                      "$anchor": "field_value",
+                      "additionalProperties": {
+                        "$ref": "#field_value"
+                      },
+                      "items": {
+                        "$ref": "#field_value"
+                      },
+                      "type": ["string", "integer", "boolean", "null", "array", "object"]
+                    },
+                    "description": "The values at fault, in the order the failure gives them, each under a name of one or more lowercase ASCII letters, digits and underscores. A value is a string, an integer, a boolean, null, or an array or object of such values, and an object holds each key once. It is present only when the failure names at least one.",
+                    "propertyNames": {
+                      "pattern": "^[a-z0-9_]+$"
+                    },
+                    "type": "object"
+                  },
+                  "index": {
+                    "description": "The position of key among the keys that the caller gave, counted from 0, so two failures of the same key differ. It is present only with key.",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "key": {
+                    "description": "The key that the caller gave for the answer that failed, when the failure is one answer of a batch.",
+                    "type": "string"
+                  },
+                  "labels": {
+                    "description": "The places in a source, such as a file, that the failure points at, in the order the failure gives them. It is present only when the failure has at least one label.",
+                    "items": {
+                      "properties": {
+                        "column": {
+                          "description": "The 1-based column of the start of the span, counted in characters of its line. It is present only when the span could be read.",
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "excerpt": {
+                          "description": "The lines of the source that the span covers, with one line before and one after where the source has them. It is present only when the span could be read.",
+                          "properties": {
+                            "line": {
+                              "description": "The 1-based number of the first line of the excerpt.",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "text": {
+                              "description": "The lines, joined by the line breaks of the source, without a line break at the end.",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["line", "text"],
+                          "type": "object"
+                        },
+                        "length": {
+                          "description": "The length of the span in bytes.",
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "line": {
+                          "description": "The 1-based line that holds the start of the span. It is present only when the span could be read.",
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "description": "The name of the source, such as a file name. It is present only when the span could be read and the source has a name.",
+                          "type": "string"
+                        },
+                        "offset": {
+                          "description": "The byte offset of the start of the span from the start of the source.",
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "text": {
+                          "description": "What the label says about the span. It is present only when the label has text.",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["offset", "length"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "message": {
+                    "description": "What went wrong.",
+                    "type": "string"
+                  },
+                  "recovery": {
+                    "description": "What the caller can do next, tagged by kind.",
+                    "oneOf": [
+                      {
+                        "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                        "properties": {
+                          "all": {
+                            "type": "string"
+                          },
+                          "call": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "run"
+                          }
+                        },
+                        "required": ["kind", "call"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                        "properties": {
+                          "call": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "terminal"
+                          }
+                        },
+                        "required": ["kind", "call"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Run the same command again later.",
+                        "properties": {
+                          "kind": {
+                            "const": "retry"
+                          }
+                        },
+                        "required": ["kind"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Follow this advice.",
+                        "properties": {
+                          "kind": {
+                            "const": "hint"
+                          },
+                          "text": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "text"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "There is no next step, for this reason.",
+                        "properties": {
+                          "kind": {
+                            "const": "none"
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "reason"],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "related": {
+                    "description": "The diagnostics that the failure's diagnostic relates to it, in the order it gives them. It is present only when there is at least one.",
+                    "items": {
+                      "$anchor": "related",
+                      "properties": {
+                        "cause": {
+                          "description": "The errors below the related diagnostic, joined with \": \". It is present only when there is one.",
+                          "type": "string"
+                        },
+                        "code": {
+                          "description": "The related diagnostic's own code, which is free text. It is present only when the diagnostic has one.",
+                          "type": "string"
+                        },
+                        "help": {
+                          "description": "The related diagnostic's advice. It is present only when it gives some.",
+                          "type": "string"
+                        },
+                        "labels": {
+                          "description": "The places in a source, such as a file, that the failure points at, in the order the failure gives them. It is present only when the failure has at least one label.",
+                          "items": {
+                            "properties": {
+                              "column": {
+                                "description": "The 1-based column of the start of the span, counted in characters of its line. It is present only when the span could be read.",
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "excerpt": {
+                                "description": "The lines of the source that the span covers, with one line before and one after where the source has them. It is present only when the span could be read.",
+                                "properties": {
+                                  "line": {
+                                    "description": "The 1-based number of the first line of the excerpt.",
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  },
+                                  "text": {
+                                    "description": "The lines, joined by the line breaks of the source, without a line break at the end.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["line", "text"],
+                                "type": "object"
+                              },
+                              "length": {
+                                "description": "The length of the span in bytes.",
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "line": {
+                                "description": "The 1-based line that holds the start of the span. It is present only when the span could be read.",
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "name": {
+                                "description": "The name of the source, such as a file name. It is present only when the span could be read and the source has a name.",
+                                "type": "string"
+                              },
+                              "offset": {
+                                "description": "The byte offset of the start of the span from the start of the source.",
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "text": {
+                                "description": "What the label says about the span. It is present only when the label has text.",
+                                "type": "string"
+                              }
+                            },
+                            "required": ["offset", "length"],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "message": {
+                          "description": "What the related diagnostic says.",
+                          "type": "string"
+                        },
+                        "related": {
+                          "description": "The diagnostics related to this one, in the same shape, to at most eight levels below the failure.",
+                          "items": {
+                            "$ref": "#related"
+                          },
+                          "type": "array"
+                        },
+                        "severity": {
+                          "description": "How severe the related diagnostic is. A diagnostic that gives no severity is an error.",
+                          "enum": ["error", "warning", "advice"]
+                        },
+                        "url": {
+                          "description": "A page that explains the related diagnostic. It is present only when it has one.",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["message", "severity"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "url": {
+                    "description": "A page that explains the failure. It is present only when the failure has one.",
+                    "type": "string"
+                  }
+                },
+                "required": ["code", "message", "recovery"],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "schema": {
+              "const": "shelf/completion-print/v1",
+              "description": "The id of this document."
+            }
+          },
+          "required": ["schema", "data", "failures"],
+          "title": "shelf/completion-print/v1",
           "type": "object"
         }
       }

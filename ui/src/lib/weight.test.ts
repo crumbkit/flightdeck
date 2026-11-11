@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Command, Figures } from "@/api/model";
 import type { Page, WeightReply } from "@/api/weight";
-import { command as commandOf, shelf } from "../../tests/fixtures/shelf";
+import { command as commandOf, olderShelf, shelf } from "../../tests/fixtures/shelf";
 import {
   budgets,
   failureWords,
@@ -66,7 +66,10 @@ describe("weightPaths", () => {
 
   it("gives a command that never ran, or that the figures do not count, no output weight and says why", () => {
     const [never, uncounted] = pathsOf(
-      [costed("books list", figures(0, 10)), costed("self usage", null)],
+      [
+        costed("books list", figures(0, 10)),
+        { ...commandOf(olderShelf, "self usage"), cost: null },
+      ],
       [...shelfPages, page("self", 430), page("self usage", 980)],
     );
 

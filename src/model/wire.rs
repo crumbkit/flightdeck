@@ -39,6 +39,11 @@ pub(super) struct CommandRow {
     /// crumbkit/crumbkit#291 marks with `true` and leaves out otherwise.
     #[serde(default)]
     pub(super) prints_no_result: bool,
+    /// Whether crumbkit or one of its add-on crates provides the command,
+    /// such as `self usage`, which crumbkit since 0.3.2 marks on every row.
+    /// A tool on an earlier crumbkit leaves the field out.
+    #[serde(default)]
+    pub(super) built_in: bool,
 }
 
 /// One argument of a `commands list` row.

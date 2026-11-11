@@ -213,6 +213,10 @@
             ]
           }
         },
+        "built_in": {
+          "description": "true for a command that crumbkit or one of its add-on crates provides, because the tool record's leaf for the command declares a document that crumbkit marks as its own, such as `commands list` or `self usage`, and for a group whose visible commands below it number at least one and are all built in. false for every other command, such as the tool's own command under its `self` group.",
+          "type": "boolean"
+        },
         "children": {
           "description": "The field whose items each row prints in text as lines under it, such as `components`, or null when the rows print no such lines or the command declares no document.",
           "type": [

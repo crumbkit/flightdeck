@@ -1,14 +1,15 @@
 #!/bin/sh
 # Installs shelf and reading, crumbkit's example tools, under
 # target/test-tools/bin, where flightdeck's tests find them. The commit is
-# crumbkit/crumbkit#328, the first whose shelf mounts `self runs list` and
-# reports the median figures that flightdeck reads.
+# the crumbkit v0.3.2 release, the first whose shelf records the program
+# that started it, takes `--exclude-program` on its usage reports and marks
+# crumbkit's own commands `built_in` in `commands list`.
 # shelf and reading are not published, so the script builds them from that
 # commit. It moves forward when flightdeck starts to read a document that a
 # later crumbkit prints, and tests/fixtures/crumbkit/ moves with it.
 set -eu
 
-CRUMBKIT_REV=644f776e29ca7332202653830518e7f41b7d319f
+CRUMBKIT_REV=8ee2eadd29eba89a9d65033b38cc861701be21d5
 
 cd "$(dirname "$0")/.."
 cargo install --locked \

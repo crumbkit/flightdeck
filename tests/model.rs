@@ -127,7 +127,7 @@ fn a_tool_that_indents_its_json_loads_the_same_model_and_figures_as_one_that_pri
 }
 
 #[test]
-fn shelf_has_ten_runnable_commands_its_version_and_its_about_line() {
+fn shelf_has_seventeen_runnable_commands_its_version_and_its_about_line() {
     let shelf = load("shelf");
 
     let paths: Vec<String> = shelf
@@ -148,10 +148,17 @@ fn shelf_has_ten_runnable_commands_its_version_and_its_about_line() {
             "self usage",
             "self figures list",
             "self runs list",
+            "self runs export",
+            "skills install",
+            "skills check",
+            "skills print",
+            "completion install",
+            "completion check",
+            "completion print",
         ]
     );
     assert_eq!(shelf.name(), "shelf");
-    assert_eq!(shelf.version(), "0.2.0+git-644f776e29ca");
+    assert_eq!(shelf.version(), "0.3.2+git-8ee2eadd29eb");
     assert_eq!(
         shelf.about(),
         Some("Browse a small catalogue of public-domain books")
@@ -174,10 +181,28 @@ fn shelf_and_reading_declare_prints_no_result_and_mark_none_of_their_commands() 
 }
 
 #[test]
+fn shelf_and_reading_mark_crumbkits_own_commands_and_shelf_leaves_out_a_named_programs_runs() {
+    let shelf = load("shelf");
+    let reading = load("reading");
+
+    assert!(shelf.marks_built_in());
+    assert!(reading.marks_built_in());
+    assert!(shelf.excludes_programs());
+    // reading mounts no `self figures list`, so it has no reports to mark.
+    assert!(!reading.excludes_programs());
+    let built_in = |words: &[&str]| {
+        serde_json::to_value(shelf.command(words).unwrap()).unwrap()["built_in"] == true
+    };
+    assert!(built_in(&["completion", "install"]));
+    assert!(built_in(&["self", "usage"]));
+    assert!(!built_in(&["books", "list"]));
+}
+
+#[test]
 fn every_document_that_shelf_prints_has_its_schema_and_books_list_names_its_own() {
     let shelf = load("shelf");
 
-    assert_eq!(shelf.documents().len(), 11);
+    assert_eq!(shelf.documents().len(), 18);
     let books_list = shelf.command(&["books", "list"]).unwrap();
     let id = books_list.result().document().unwrap();
     assert_eq!(id, "shelf/books-list/v1");
@@ -323,6 +348,23 @@ fn shelfs_goal_headings_hold_its_commands_in_help_order() {
                     "self usage".to_owned(),
                     "self figures list".to_owned(),
                     "self runs list".to_owned(),
+                    "self runs export".to_owned(),
+                ]
+            ),
+            (
+                "Install shelf's skill",
+                vec![
+                    "skills install".to_owned(),
+                    "skills check".to_owned(),
+                    "skills print".to_owned(),
+                ]
+            ),
+            (
+                "Set up shell completion",
+                vec![
+                    "completion install".to_owned(),
+                    "completion check".to_owned(),
+                    "completion print".to_owned(),
                 ]
             ),
         ]
@@ -632,6 +674,29 @@ fn a_failing_figures_call_loads_the_tool_with_no_runs() {
 
 #[cfg(unix)]
 #[test]
+fn a_tool_that_declares_exclude_program_but_refuses_it_loads_with_no_runs_and_no_history() {
+    // The fake tool exits 2, a usage error, whenever a command line holds
+    // `--exclude-program`, though its `commands list` declares the option.
+    let (_directory, path) = fake_tool_with_figures(
+        r#"case "$*" in *--exclude-program*) echo 'unexpected argument' >&2; exit 2 ;; esac; echo '{"schema":"fake/self-figures-list/v1","data":[{"command":"things list","runs":7}],"total":1,"truncated":false}'"#,
+    );
+    let declared = r#"{"path":"fake self figures list","about":"Lists the figures","arguments":[{"name":"--exclude-program","short":null,"value_names":["NAME"],"required":false,"many":true,"defaults":[],"possible_values":[],"help":"Leave out the runs of this program","long_help":null,"global":false,"one_of":[]}]}"#;
+    let script = std::fs::read_to_string(&path).unwrap().replace(
+        r#"{"path":"fake self figures list","about":"Lists the figures"}"#,
+        declared,
+    );
+    std::fs::write(&path, script).unwrap();
+    let (_dirs, program) = isolated(path);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    assert!(tool.excludes_programs());
+    assert!(tool.commands().iter().all(|command| command.runs() == 0));
+    assert!(tool.history().is_none());
+}
+
+#[cfg(unix)]
+#[test]
 fn a_tool_without_self_figures_list_loads_with_no_runs_and_is_never_asked_for_figures() {
     // The fake tool fails any query it does not answer with exit 2, and
     // writes a mark when it is asked for figures.
@@ -681,22 +746,56 @@ fn opening_shelf_again_counts_the_persons_runs_of_the_description_queries_and_no
 }
 
 #[test]
-fn opening_shelf_again_counts_none_of_the_loaders_queries_of_the_usage_log() {
-    let (_dirs, program) = isolated(test_tool("shelf"));
-    model::load(&program, TIME_LIMIT).unwrap();
-
-    let shelf = model::load(&program, TIME_LIMIT).unwrap();
-
-    let runs = |words: &[&str]| shelf.command(words).unwrap().runs();
-    for words in [
+fn opening_shelf_twice_leaves_the_runs_of_its_usage_reports_as_they_were_and_counts_them() {
+    let shelf = test_tool("shelf");
+    let (dirs, program) = isolated(&shelf);
+    shelf_directly(&shelf, dirs.path(), &["self", "usage", "--json"]);
+    let reports = [
         ["self", "figures", "list"].as_slice(),
         &["self", "usage"],
         &["self", "runs", "list"],
-    ] {
-        assert_eq!(runs(words), 0, "{words:?}");
-        assert!(shelf.command(words).unwrap().cost().is_none(), "{words:?}");
+    ];
+    let first = model::load(&program, TIME_LIMIT).unwrap();
+
+    let second = model::load(&program, TIME_LIMIT).unwrap();
+
+    for words in reports {
+        let command = second.command(words).unwrap();
+        assert_eq!(
+            command.runs(),
+            first.command(words).unwrap().runs(),
+            "{words:?}"
+        );
+        assert_eq!(
+            serde_json::to_value(command).unwrap()["counted"],
+            true,
+            "{words:?}"
+        );
     }
-    assert_eq!(runs(&["books", "list"]), 0);
+    let usage = second.command(&["self", "usage"]).unwrap();
+    assert_eq!(usage.runs(), 1);
+    assert!(usage.cost().is_some());
+    assert_eq!(
+        second.command(&["self", "figures", "list"]).unwrap().runs(),
+        0
+    );
+}
+
+#[test]
+fn an_agents_own_version_run_of_shelf_shows_in_the_history() {
+    let shelf = test_tool("shelf");
+    let (dirs, program) = isolated(&shelf);
+    shelf_directly(&shelf, dirs.path(), &["--version"]);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    let commands: Vec<&str> = tool
+        .history()
+        .unwrap()
+        .iter()
+        .map(model::Run::command)
+        .collect();
+    assert_eq!(commands, ["shelf"]);
 }
 
 #[test]

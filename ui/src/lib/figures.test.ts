@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Figures } from "@/api/model";
-import { command as commandOf, shelf } from "../../tests/fixtures/shelf";
+import { command as commandOf, olderShelf, shelf } from "../../tests/fixtures/shelf";
 import { type FigureRow, figureRows, figuresSummary, sortedRows } from "./figures";
 
 /** Returns figures with `runs` runs and the rest as `change` gives them. */
@@ -37,7 +37,7 @@ describe("figureRows", () => {
       costed("books list", figures(3)),
       costed("books summarize", figures(0)),
       commandOf(shelf, "books show"),
-      commandOf(shelf, "self usage"),
+      commandOf(olderShelf, "self usage"),
     ]);
 
     expect(rows).toEqual([
