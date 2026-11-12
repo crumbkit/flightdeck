@@ -10,5 +10,5 @@ Commands:
 Options:
   -h, --help  Print help (see more with '--help')
 
-Global flags: --json, --fields <FIELD>, --long, --full. `flightdeck completion --help` describes them.
+Global flags: --json, --fields <FIELD>, --long, --full, --no-input. `flightdeck completion --help` describes them.
 Next: flightdeck completion <COMMAND> -h

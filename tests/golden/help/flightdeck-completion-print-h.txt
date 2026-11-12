@@ -10,4 +10,4 @@ Examples:
   flightdeck completion print --shell fish
 
 Effects: read-only, closed-world.
-Global flags: --json. `flightdeck completion print --help` describes them.
+Global flags: --json, --no-input. `flightdeck completion print --help` describes them.

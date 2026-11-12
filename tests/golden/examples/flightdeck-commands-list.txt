@@ -3,6 +3,10 @@ flightdeck                     Start a local web page for a crumbkit tool
 flightdeck open                Open a local web page that lists and runs a tool's commands
 flightdeck commands            Explore flightdeck's commands
 flightdeck commands list       List a branch of flightdeck's commands with their arguments, examples and columns
+flightdeck skills              Give coding agents flightdeck's skill
+flightdeck skills install      Install flightdeck's skill into each agent skills directory that exists
+flightdeck skills check        Check that each installed copy of flightdeck's skill matches this flightdeck
+flightdeck skills print        Print flightdeck's skill
 flightdeck completion          Set up flightdeck's completion in a shell
 flightdeck completion install  Install flightdeck's completion where the shell loads it
 flightdeck completion check    Check that flightdeck's installed completion file matches this flightdeck

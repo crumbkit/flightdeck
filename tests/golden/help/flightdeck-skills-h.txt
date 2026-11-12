@@ -1,0 +1,14 @@
+Give coding agents flightdeck's skill
+
+Usage: flightdeck skills [OPTIONS] <COMMAND>
+
+Commands:
+  install  Install flightdeck's skill into each agent skills directory that exists
+  check    Check that each installed copy of flightdeck's skill matches this flightdeck
+  print    Print flightdeck's skill
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Global flags: --json, --fields <FIELD>, --long, --full, --no-input. `flightdeck skills --help` describes them.
+Next: flightdeck skills <COMMAND> -h

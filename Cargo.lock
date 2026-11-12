@@ -147,9 +147,9 @@ checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
 name = "crumbkit"
-version = "0.3.2"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70e23615aceba2c535d15c1cfe5290b4131c5bb28f7b499568203d888d5a804e"
+checksum = "961a6c382ff4a4336fcee990c72280542640d3b6ddb05ab33be52f88120a91ed"
 dependencies = [
  "clap",
  "clap_complete",
@@ -164,9 +164,9 @@ dependencies = [
 
 [[package]]
 name = "crumbkit-derive"
-version = "0.3.2"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4add976cc04a7ee23ffb377bf672fcc65c8ba9903bfa4a520ab531ac141f4935"
+checksum = "b975e59016684358a90e8eaf409b4dd5e60bdb5602fbe608f7e2ea6b252311fe"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -180,6 +180,7 @@ dependencies = [
  "clap",
  "crumbkit",
  "crumbkit-process",
+ "crumbkit-skills",
  "crumbkit-test",
  "getrandom 0.4.3",
  "httparse",
@@ -199,9 +200,9 @@ dependencies = [
 
 [[package]]
 name = "crumbkit-markdown"
-version = "0.3.2"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d060b1d9b56df7e4a00eb30db3ad59462c081f1d8e26a9f87c1845dc7fbb4fe3"
+checksum = "c028406ccbeb0b19218bf870489a2b932309b7bce9867e3939502b400e3ef08a"
 dependencies = [
  "crumbkit",
  "serde",
@@ -210,9 +211,9 @@ dependencies = [
 
 [[package]]
 name = "crumbkit-process"
-version = "0.3.2"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "461db0ea4b1e522ff0e4c9fb22cf094880b87cc9b130f2e7b061a3b40c9b9697"
+checksum = "aefd8e7b94a910000cde6342b6f6959ec81f5788980bc4785eed32358c3ee263"
 dependencies = [
  "process-wrap",
  "rustix",
@@ -220,10 +221,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "crumbkit-test"
-version = "0.3.2"
+name = "crumbkit-skills"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e6d3d052057fa623bcf706131d2d408e799a98ead7c9c2581c27dfce77fd40b"
+checksum = "044d90dc9440591f0a2bdcbdd4e77a191db04cb5044e91c1923f43c005ca9bb9"
+dependencies = [
+ "clap",
+ "crumbkit",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "crumbkit-test"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62b727a857d688e5f083326a13e5fcafffd9e9423a95a4b295a86ea5876ae013"
 dependencies = [
  "clap",
  "crumbkit",
@@ -776,8 +789,21 @@ checksum = "ab508826f74a77ca9d5aba6ff19b522583ee3eaf28a19384ff3d0e5835fadf6e"
 dependencies = [
  "dyn-clone",
  "ref-cast",
+ "schemars_derive",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "schemars_derive"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1c3a92094fa7d61aa124645844facb6b554dfc797136d0f5fd1f890e2bffc69"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_derive_internals",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -820,6 +846,17 @@ name = "serde_derive"
 version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "serde_derive_internals"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f852137cce035d6a4df67ccce505ff6b3e9fd3a10e3e52b24dc71e650bb1a9bd"
 dependencies = [
  "proc-macro2",
  "quote",

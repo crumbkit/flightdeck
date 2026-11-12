@@ -1,0 +1,4 @@
+# Every text file checks out with LF line endings on every platform, so the
+# embedded skill and page assets and the golden files are the same bytes on
+# Windows as elsewhere.
+* text=auto eol=lf

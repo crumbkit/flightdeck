@@ -15,5 +15,5 @@ Examples:
   flightdeck commands list commands list --json --full
 
 Effects: read-only, closed-world.
-Global flags: --json, --fields <FIELD>, --full. `flightdeck commands list --help` describes them.
+Global flags: --json, --fields <FIELD>, --full, --no-input. `flightdeck commands list --help` describes them.
 Next: flightdeck commands list --help explains each column.
