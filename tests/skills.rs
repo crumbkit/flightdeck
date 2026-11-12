@@ -77,7 +77,11 @@ fn check_exits_with_1_and_names_a_missing_copy() {
     assert_eq!(output.status.code(), Some(1));
     let stdout = text(&output);
     assert!(stdout.contains("missing"), "{stdout}");
-    assert!(stdout.contains(".agents/skills"), "{stdout}");
+    let directory = Path::new(".agents").join("skills");
+    assert!(
+        stdout.contains(&directory.display().to_string()),
+        "{stdout}"
+    );
 }
 
 #[test]
