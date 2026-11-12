@@ -1,0 +1,3 @@
+# The agent skill checks out with LF line endings on every platform, because
+# crumbkit-skills reads its frontmatter at compile time and needs `---\n`.
+/skill/** text eol=lf
