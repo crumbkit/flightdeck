@@ -72,15 +72,15 @@ fn install_writes_the_skill_with_metadata_naming_flightdeck() {
 fn check_exits_with_1_and_names_a_missing_copy() {
     let home = home();
 
-    let output = flightdeck(home.path(), &["skills", "check"]);
+    let output = flightdeck(home.path(), &["skills", "check", "--json"]);
 
     assert_eq!(output.status.code(), Some(1));
-    let stdout = text(&output);
-    assert!(stdout.contains("missing"), "{stdout}");
-    let directory = Path::new(".agents").join("skills");
+    let row = &json(&output)["data"][0];
+    assert_eq!(row["state"], "missing");
+    let directory = Path::new(row["dirs"][0].as_str().unwrap());
     assert!(
-        stdout.contains(&directory.display().to_string()),
-        "{stdout}"
+        directory.ends_with(Path::new(".agents").join("skills")),
+        "{row}"
     );
 }
 

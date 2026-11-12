@@ -7,9 +7,7 @@ description: Open a local web page that lists, runs and draws the commands of a 
 
 flightdeck starts a local web page for any command-line tool built on
 crumbkit. The page lists the tool's commands grouped by goal, draws a form
-for each one, runs the command and draws its JSON result. flightdeck reads
-only the JSON documents that the tool prints about itself, so it works with
-any crumbkit tool without being built for it.
+for each one, runs the command and draws its JSON result.
 
 ## When to open a page
 
@@ -33,11 +31,12 @@ until the person presses Ctrl-C, until it receives SIGTERM, or until 30
 minutes pass without a request from the page. Start it in a terminal that
 the person can see and stop, not as a background job of your own session.
 
-When it starts, it prints two lines on standard error: the page's address
-with the tool's name, version and number of commands, and a line that says
-it is opening the browser and that Ctrl-C stops it. It prints no result on
-standard output. When it stops after the idle limit, it prints a line that
-says so.
+It prints on standard error only. The first line is the page's address with
+the tool's name, version and number of commands. The second says that it is
+opening the browser and that Ctrl-C stops it, or with `--no-browser` names
+the opener page to open. When the browser does not open, a third line says
+so and names the opener page. A line also says when it stops at the idle
+limit.
 
 ## A person at another machine: `--no-browser`
 
@@ -49,14 +48,17 @@ flightdeck prints the same path.
 
 A bare `http://127.0.0.1:PORT` address will not sign in, because it carries
 no launch code. The code works once and expires 60 seconds after flightdeck
-starts, so the person opens the page soon after the command prints it. To
-sign in again, stop flightdeck and run `flightdeck open` again.
+starts, so the person opens the page soon after the command prints it. A
+wrong, used or expired code is refused with `flightdeck::session::code_refused`.
+To sign in again, stop flightdeck and run `flightdeck open` again.
 
 The server listens only on 127.0.0.1 and refuses a request whose `Host`
-header is not `127.0.0.1:PORT`. A person at another machine therefore needs
-a port forward that keeps the same port number, such as
+header is not `127.0.0.1:PORT` with `flightdeck::request::host`. A
+`localhost:PORT` address is refused this way, and so is a port forward that
+changes the port number. A person at another machine therefore needs a port
+forward that keeps the same port number, such as
 `ssh -L PORT:127.0.0.1:PORT`, and then opens the address with its fragment
-that the opener page holds.
+that the opener page holds, using 127.0.0.1 rather than localhost.
 
 ## `--read-only`
 
@@ -68,9 +70,11 @@ tool's other commands change things that matter.
 ## Destructive commands
 
 A command that the tool declares destructive, or one that declares no
-effects, has Preview in place of Run. Preview runs the command's dry run and
-shows what it would change. The person then confirms in the same card, and
-the command runs once. A confirmation lasts 10 minutes, and a change to the
+effects, has Preview in place of Run. For a command that takes `--dry-run`,
+Preview runs the dry run and shows what it would change. For a command
+without `--dry-run`, Preview runs nothing and shows nothing of what the
+command would do. It only asks for the confirmation. The person then
+confirms in the same card, and the command runs once. A confirmation lasts 10 minutes, and a change to the
 form after the preview disables it. flightdeck itself refuses such a run
 without a confirmation, so nothing on the page skips this step.
 
@@ -87,11 +91,8 @@ failures or refusals, or one that agents read help for before most runs, is
 one they run badly. A command's cost card shows the tool's findings about it,
 such as a retry after a failure.
 
-The Weight tab shows the bytes of help a reader passes to reach each command,
-and Both sets that weight beside the command's runs, so it picks out heavy
-commands that run often. When the tool lists its runs, the Steps, Sessions
-and Flags tabs show which command followed which, each session's runs, and
-which flags each command's runs passed.
+The Weight tab shows the bytes of help a reader passes to reach each
+command, and Both sets that weight beside the command's runs.
 
 ## When `flightdeck open` fails
 
@@ -120,8 +121,6 @@ Each failure prints a message and a code, and exits with 1.
   that flightdeck may listen on 127.0.0.1 and that the temporary directory
   is writable, then run it again.
 
-A run on the page can fail with a `flightdeck::run::` or
-`flightdeck::choices::` code, which the page shows on the run's card.
-`flightdeck::run::read_only` means the page was opened with `--read-only`,
-and `flightdeck open TOOL` without it runs the command.
+A run on the page shows its failure code on the run's card.
+`flightdeck::run::read_only` means the page was opened with `--read-only`.
 `flightdeck::run::busy` means eight runs are already running.
