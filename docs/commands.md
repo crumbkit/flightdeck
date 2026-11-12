@@ -10,6 +10,7 @@ Start a local web page for a crumbkit tool
 
 - [`flightdeck open`](#flightdeck-open): Open a local web page that lists and runs a tool's commands
 - [`flightdeck commands`](#flightdeck-commands): Explore flightdeck's commands
+- [`flightdeck skills`](#flightdeck-skills): Give coding agents flightdeck's skill
 - [`flightdeck completion`](#flightdeck-completion): Set up flightdeck's completion in a shell
 - [`flightdeck schemas`](#flightdeck-schemas): Explore the JSON documents that flightdeck prints
 
@@ -19,6 +20,7 @@ Start a local web page for a crumbkit tool
 - `--fields <FIELD>`: Print only these comma-separated fields, in this order. The default prints the compact columns. Takes more than one value. Works after every subcommand.
 - `--long`: Add the long columns after the compact ones. The default prints only the compact columns. Works after every subcommand.
 - `--full`: With --json, print every field of every row. The default prints only the fields of the columns. Works after every subcommand.
+- `--no-input`: Fail instead of asking a question. Works after every subcommand.
 
 ## `flightdeck open`
 
@@ -87,6 +89,95 @@ flightdeck commands list commands list --json --full
 
 - `path`: The command line that runs the command, such as `shelf books list`.
 - `about`: The command's one-line description, or its full description when it has no one-line description.
+
+Effects: read-only, closed-world.
+
+## `flightdeck skills`
+
+Give coding agents flightdeck's skill
+
+### Commands
+
+- [`flightdeck skills install`](#flightdeck-skills-install): Install flightdeck's skill into each agent skills directory that exists
+- [`flightdeck skills check`](#flightdeck-skills-check): Check that each installed copy of flightdeck's skill matches this flightdeck
+- [`flightdeck skills print`](#flightdeck-skills-print): Print flightdeck's skill
+
+## `flightdeck skills install`
+
+Install flightdeck's skill into each agent skills directory that exists
+
+### Arguments
+
+- `--dir <DIR>`: Install into this skills directory in place of the agent skills directories
+- `--force`: Replace a file or a link that install did not write with the skill's own folder
+
+### Examples
+
+Install flightdeck's skill into each agent skills directory that exists.
+
+```sh
+flightdeck skills install
+```
+
+Install it, replacing a file or a link that install did not write.
+
+```sh
+flightdeck skills install --force
+```
+
+### Columns
+
+- `state`: What install did: failed, skipped, written or unchanged.
+- `skill`: The skill's name, which names its folder in each skills directory, such as `shelf`.
+- `dirs`: The skills directories that share this copy, as named. Directories that resolve to one place through a symbolic link share one copy.
+- `reason`: Why install skipped or failed, or what it replaced under --force, such as `linked to /src/shelf/skill`, or null.
+
+### Columns that `--long` adds
+
+- `path`: The SKILL.md file that install wrote or left, or the skill's other file whose write failed, at its real path.
+
+Effects: additive, idempotent, closed-world.
+
+## `flightdeck skills check`
+
+Check that each installed copy of flightdeck's skill matches this flightdeck
+
+### Arguments
+
+- `--dir <DIR>`: Check this skills directory in place of the agent skills directories
+
+### Examples
+
+Report each agent skills directory whose copy is missing or differs.
+
+```sh
+flightdeck skills check
+```
+
+### Columns
+
+- `state`: Whether the copy is the binary's: missing, differs, unreadable, linked or current.
+- `skill`: The skill's name, which names its folder in each skills directory, such as `shelf`.
+- `dirs`: The skills directories that share this copy, as named. Directories that resolve to one place through a symbolic link share one copy.
+- `reason`: Why the copy is missing a file, differs, cannot be read or is linked, such as `written by shelf 0.2.0`, `REFERENCE.md is missing` or `linked to /src/shelf/skill`, or null.
+
+### Columns that `--long` adds
+
+- `path`: The SKILL.md file that was checked, at its real path.
+
+Effects: read-only, closed-world.
+
+## `flightdeck skills print`
+
+Print flightdeck's skill
+
+### Examples
+
+Print flightdeck's skill.
+
+```sh
+flightdeck skills print
+```
 
 Effects: read-only, closed-world.
 

@@ -7,6 +7,7 @@ Verbs
 
 Commands
   commands    Explore flightdeck's commands
+  skills      Give coding agents flightdeck's skill
   completion  Set up flightdeck's completion in a shell
   schemas     Explore the JSON documents that flightdeck prints
 
@@ -22,6 +23,9 @@ Options:
 
       --full
           With --json, print every field of every row. The default prints only the fields of the columns.
+
+      --no-input
+          Fail instead of asking a question
 
   -h, --help
           Print help (see a summary with '-h')

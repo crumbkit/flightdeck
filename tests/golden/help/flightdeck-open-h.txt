@@ -16,4 +16,4 @@ Examples:
 
 Effects: read-only, open-world.
 Output: no result on standard output, and --json prints a failure as JSON.
-Global flags: --json. `flightdeck open --help` describes them.
+Global flags: --json, --no-input. `flightdeck open --help` describes them.

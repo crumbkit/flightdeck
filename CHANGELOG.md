@@ -7,7 +7,24 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `flightdeck skills install` writes flightdeck's agent skill into each of
+  `~/.claude/skills`, `~/.agents/skills` and `$CODEX_HOME/skills` that
+  exists, or into the directory that `--dir` names. `flightdeck skills
+  check` exits with 1 when a copy is missing or differs from the one this
+  flightdeck embeds, and `flightdeck skills print` prints it. The skill
+  tells an agent when to open a tool's page, to start `flightdeck open` in
+  a terminal the person can see, how the one-time launch code and
+  `--no-browser` work from another machine, what `--read-only` and the
+  confirmation of destructive commands do, how the Usage view shows the
+  commands that agents run badly, and what each failure code of
+  `flightdeck open` means.
+- The root command takes `--no-input`.
+
 ### Changed
+
+- flightdeck builds on crumbkit, crumbkit-process and crumbkit-test 0.4.1.
 
 - On a tool built on crumbkit 0.3.2 or later, flightdeck runs
   `self figures list`, `self usage` and `self runs list` with

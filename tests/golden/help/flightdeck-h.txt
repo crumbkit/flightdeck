@@ -7,6 +7,7 @@ Verbs
 
 Commands
   commands    Explore flightdeck's commands
+  skills      Give coding agents flightdeck's skill
   completion  Set up flightdeck's completion in a shell
   schemas     Explore the JSON documents that flightdeck prints
 
@@ -14,6 +15,6 @@ Options:
   -h, --help     Print help (see more with '--help')
   -V, --version  Print version
 
-Global flags: --json, --fields <FIELD>, --long, --full. `flightdeck --help` describes them.
+Global flags: --json, --fields <FIELD>, --long, --full, --no-input. `flightdeck --help` describes them.
 Topics: exit-codes. `flightdeck help <TOPIC>` prints one.
 Next: flightdeck <COMMAND> -h

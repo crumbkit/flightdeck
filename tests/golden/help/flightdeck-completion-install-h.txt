@@ -12,5 +12,5 @@ Examples:
   flightdeck completion install --shell zsh --force
 
 Effects: additive, idempotent, closed-world.
-Global flags: --json, --fields <FIELD>, --full. `flightdeck completion install --help` describes them.
+Global flags: --json, --fields <FIELD>, --full, --no-input. `flightdeck completion install --help` describes them.
 Next: flightdeck completion install --help explains each column.

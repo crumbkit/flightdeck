@@ -3,8 +3,6 @@
 use std::ffi::OsString;
 
 use clap::{Args, Parser, Subcommand};
-use crumbkit::Tool;
-use crumbkit::ViewFlags;
 use crumbkit::commands::{COMMANDS_LIST, CommandsList};
 use crumbkit::completion::{
     COMPLETION_CHECK, COMPLETION_INSTALL, COMPLETION_PRINT, CompletionCheck, CompletionInstall,
@@ -13,6 +11,10 @@ use crumbkit::completion::{
 use crumbkit::help::{Effects, Example, Help, Leaf};
 use crumbkit::schemas::{SCHEMAS_LIST, SCHEMAS_SHOW, SchemasList, SchemasShow};
 use crumbkit::tool::Failures;
+use crumbkit::{NoInput, Tool, ViewFlags};
+use crumbkit_skills::{
+    SKILLS_CHECK, SKILLS_INSTALL, SKILLS_PRINT, Skill, SkillsCheck, SkillsInstall,
+};
 
 /// Start a local web page for a crumbkit tool.
 #[derive(Debug, Parser)]
@@ -25,6 +27,10 @@ pub struct Cli {
     /// The flags that choose how the result prints.
     #[command(flatten)]
     pub(crate) view: ViewFlags,
+
+    /// The flag that tells flightdeck that nobody can answer a question.
+    #[command(flatten)]
+    pub(crate) no_input: NoInput,
 }
 
 /// flightdeck's tool record: `open` as a verb of the root, and the examples,
@@ -67,6 +73,30 @@ pub const TOOL: Tool = Tool::new()
                 )])
                 .effects(Effects::read_only())
                 .document(SCHEMAS_LIST),
+            Leaf::new(&["skills", "install"])
+                .examples(&[
+                    Example::new(
+                        &[],
+                        "Install flightdeck's skill into each agent skills directory that exists",
+                    ),
+                    Example::new(
+                        &["--force"],
+                        "Install it, replacing a file or a link that install did not write",
+                    ),
+                ])
+                .effects(Effects::additive().idempotent())
+                .document(SKILLS_INSTALL),
+            Leaf::new(&["skills", "check"])
+                .examples(&[Example::new(
+                    &[],
+                    "Report each agent skills directory whose copy is missing or differs",
+                )])
+                .effects(Effects::read_only())
+                .document(SKILLS_CHECK),
+            Leaf::new(&["skills", "print"])
+                .examples(&[Example::new(&[], "Print flightdeck's skill")])
+                .effects(Effects::read_only())
+                .document(SKILLS_PRINT),
             Leaf::new(&["completion", "install"])
                 .examples(&[
                     Example::new(&["--shell", "fish"], "Install flightdeck's completion for fish"),
@@ -101,6 +131,14 @@ pub const TOOL: Tool = Tool::new()
         ]),
 );
 
+/// flightdeck's agent skill, which `flightdeck skills install` writes into
+/// the agent skills directories.
+pub(crate) const SKILL: Skill = Skill::new(
+    "flightdeck",
+    env!("CARGO_PKG_VERSION"),
+    include_str!("../skill/SKILL.md"),
+);
+
 /// The resources that flightdeck serves, and the verb `open`.
 #[derive(Debug, Subcommand)]
 pub(crate) enum Resource {
@@ -111,6 +149,12 @@ pub(crate) enum Resource {
         /// What to do with the commands.
         #[command(subcommand)]
         command: CommandsCommand,
+    },
+    /// Give coding agents flightdeck's skill.
+    Skills {
+        /// What to do with the skill.
+        #[command(subcommand)]
+        command: SkillsCommand,
     },
     /// Set up flightdeck's completion in a shell.
     Completion {
@@ -131,6 +175,17 @@ pub(crate) enum Resource {
 pub(crate) enum CommandsCommand {
     /// List a branch of flightdeck's commands with their arguments, examples and columns.
     List(CommandsList),
+}
+
+/// The commands for flightdeck's agent skill.
+#[derive(Debug, Subcommand)]
+pub(crate) enum SkillsCommand {
+    /// Install flightdeck's skill into each agent skills directory that exists.
+    Install(SkillsInstall),
+    /// Check that each installed copy of flightdeck's skill matches this flightdeck.
+    Check(SkillsCheck),
+    /// Print flightdeck's skill.
+    Print,
 }
 
 /// The commands for flightdeck's shell completion.

@@ -11,5 +11,5 @@ Examples:
   flightdeck schemas list
 
 Effects: read-only, closed-world.
-Global flags: --json, --fields <FIELD>, --long, --full. `flightdeck schemas list --help` describes them.
+Global flags: --json, --fields <FIELD>, --long, --full, --no-input. `flightdeck schemas list --help` describes them.
 Next: flightdeck schemas list --help explains each column.
