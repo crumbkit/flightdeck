@@ -52,6 +52,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+use crumbkit::queries;
 use crumbkit_process::{Capture, Outcome, OverLimit, RunError, RunOptions, Status};
 
 mod browser;
@@ -300,43 +301,12 @@ impl<'a> Query<'a> {
     pub(crate) fn words(&self) -> Vec<&'a str> {
         match self {
             Self::Version => vec!["--version"],
-            Self::CommandsList => {
-                vec![
-                    "commands",
-                    "list",
-                    "--json",
-                    "--full",
-                    "--all",
-                    "--no-input",
-                ]
-            }
-            Self::SchemasList => {
-                vec!["schemas", "list", "--json", "--full", "--all", "--no-input"]
-            }
-            Self::SchemasShow(ids) => {
-                let mut words = vec!["schemas", "show", "--json", "--no-input", "--"];
-                words.extend(ids.iter().map(String::as_str));
-                words
-            }
-            Self::FiguresList(own) => own.after(vec![
-                "self",
-                "figures",
-                "list",
-                "--json",
-                "--full",
-                "--all",
-                "--no-input",
-            ]),
-            Self::Usage(own) => own.after(vec!["self", "usage", "--json", "--full", "--no-input"]),
-            Self::RunsList(own) => own.after(vec![
-                "self",
-                "runs",
-                "list",
-                "--json",
-                "--full",
-                "--all",
-                "--no-input",
-            ]),
+            Self::CommandsList => queries::COMMANDS_LIST.words(),
+            Self::SchemasList => queries::SCHEMAS_LIST.words(),
+            Self::SchemasShow(ids) => queries::SCHEMAS_SHOW.words_with_ids(ids),
+            Self::FiguresList(own) => own.after(queries::SELF_FIGURES_LIST.words()),
+            Self::Usage(own) => own.after(queries::SELF_USAGE.words()),
+            Self::RunsList(own) => own.after(queries::SELF_RUNS_LIST.words()),
         }
     }
 }
@@ -470,13 +440,8 @@ pub(crate) fn describe(
     time_limit: Duration,
 ) -> Result<Finished, SpawnError> {
     let settings = RunOptions::new()
-        .stdout(Capture::Whole {
-            limit: STDOUT_LIMIT,
-            over: OverLimit::Sink,
-        })
-        .stderr(Capture::Tail {
-            limit: STDERR_LIMIT,
-        })
+        .stdout(Capture::whole(STDOUT_LIMIT).over(OverLimit::Sink))
+        .stderr(Capture::tail(STDERR_LIMIT))
         .deadline(Instant::now() + time_limit);
     let finished = crumbkit_process::run(program.command(&query.words()), &settings)?;
     let exit = match finished.outcome() {

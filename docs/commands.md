@@ -98,13 +98,13 @@ Give coding agents flightdeck's skill
 
 ### Commands
 
-- [`flightdeck skills install`](#flightdeck-skills-install): Install flightdeck's skill into each agent skills directory that exists
-- [`flightdeck skills check`](#flightdeck-skills-check): Check that each installed copy of flightdeck's skill matches this flightdeck
-- [`flightdeck skills print`](#flightdeck-skills-print): Print flightdeck's skill
+- [`flightdeck skills install`](#flightdeck-skills-install): Install this tool's skills into each agent skills directory that exists
+- [`flightdeck skills check`](#flightdeck-skills-check): Check that each installed copy of this tool's skills matches this build
+- [`flightdeck skills print`](#flightdeck-skills-print): Print this tool's skill
 
 ## `flightdeck skills install`
 
-Install flightdeck's skill into each agent skills directory that exists
+Install this tool's skills into each agent skills directory that exists
 
 ### Arguments
 
@@ -113,13 +113,13 @@ Install flightdeck's skill into each agent skills directory that exists
 
 ### Examples
 
-Install flightdeck's skill into each agent skills directory that exists.
+Install the skills into each agent skills directory that exists.
 
 ```sh
 flightdeck skills install
 ```
 
-Install it, replacing a file or a link that install did not write.
+Install them, replacing a file or a link that install did not write.
 
 ```sh
 flightdeck skills install --force
@@ -140,7 +140,7 @@ Effects: additive, idempotent, closed-world.
 
 ## `flightdeck skills check`
 
-Check that each installed copy of flightdeck's skill matches this flightdeck
+Check that each installed copy of this tool's skills matches this build
 
 ### Arguments
 
@@ -169,11 +169,11 @@ Effects: read-only, closed-world.
 
 ## `flightdeck skills print`
 
-Print flightdeck's skill
+Print this tool's skill
 
 ### Examples
 
-Print flightdeck's skill.
+Print the skill.
 
 ```sh
 flightdeck skills print
@@ -219,7 +219,7 @@ flightdeck completion install --shell zsh --force
 - `state`: What install did: failed, skipped, written or unchanged.
 - `shell`: The shell: bash, elvish, fish, powershell or zsh.
 - `path`: The completion file that install wrote or left. When the file is a link to a file that install wrote, the path of that file.
-- `reason`: Why install skipped or failed, or what it replaced under --force, such as `linked to /src/shelf/shelf.fish`, or null.
+- `reason`: Why install skipped or failed, or what it replaced under --force, such as `linked to /path/to/target.fish`, or null.
 
 Effects: additive, idempotent, closed-world.
 
@@ -244,7 +244,7 @@ flightdeck completion check --shell zsh
 - `state`: Whether the file holds the script that install writes: missing, differs, unreadable, linked or current.
 - `shell`: The shell: bash, elvish, fish, powershell or zsh.
 - `path`: The completion file that was checked. When the file is a link to a file that install wrote, the path of that file.
-- `reason`: Why the file differs, cannot be read or is linked, such as `linked to /src/shelf/shelf.fish`, or null.
+- `reason`: Why the file differs, cannot be read or is linked, such as `linked to /path/to/target.fish`, or null.
 
 Effects: read-only, closed-world.
 

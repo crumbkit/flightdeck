@@ -937,7 +937,7 @@ fn a_state_directory_that_cannot_be_made_is_a_load_failure_that_says_so() {
         source: std::io::Error::from(std::io::ErrorKind::PermissionDenied),
     };
 
-    assert_eq!(failure.code(), &super::TOOL_LOAD);
+    assert_eq!(failure.code(), super::TOOL_LOAD);
     assert_eq!(
         failure.to_string(),
         "cannot make a temporary state directory for shelf's queries"

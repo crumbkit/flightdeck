@@ -189,7 +189,7 @@ fn finish(run: impl Iterator<Item = RunEvent>) -> (Vec<String>, Outcome) {
 }
 
 /// Returns the code of a refusal or a failure.
-fn code(failure: &impl crumbkit::Failure) -> &'static crumbkit::Code {
+fn code(failure: &impl crumbkit::Failure) -> crumbkit::Code<'_> {
     failure.code()
 }
 
@@ -239,7 +239,7 @@ fn a_hidden_command_an_alias_and_a_group_are_refused_because_commands_list_omits
     for path in [&["aliases", "list"][..], &["books", "ls"], &["books"]] {
         let failure = shelf.runner.run(&request(path)).unwrap_err();
 
-        assert_eq!(code(&failure), &RUN_REFUSED, "{path:?}");
+        assert_eq!(code(&failure), RUN_REFUSED, "{path:?}");
         assert_eq!(
             field(&failure, "reason"),
             Some(FieldValue::from("unknown_command"))
@@ -256,7 +256,7 @@ fn an_argument_that_the_command_does_not_take_is_refused() {
         .run(&request(&["books", "list"]).value("--from", one("ids.txt")))
         .unwrap_err();
 
-    assert_eq!(code(&failure), &RUN_REFUSED);
+    assert_eq!(code(&failure), RUN_REFUSED);
     assert_eq!(
         field(&failure, "argument"),
         Some(FieldValue::from("--from"))
@@ -277,7 +277,7 @@ fn a_value_outside_the_possible_values_is_refused() {
         .run(&request(&["child", "pick"]).value("--colour", one("blue")))
         .unwrap_err();
 
-    assert_eq!(code(&failure), &RUN_REFUSED);
+    assert_eq!(code(&failure), RUN_REFUSED);
     assert_eq!(
         field(&failure, "reason"),
         Some(FieldValue::from("not_possible"))
@@ -299,7 +299,7 @@ fn crumbkit_flags_that_flightdeck_sets_itself_are_refused_from_the_page() {
             .preview(&remove("2").value(flag, value))
             .unwrap_err();
 
-        assert_eq!(code(&failure), &RUN_REFUSED, "{flag}");
+        assert_eq!(code(&failure), RUN_REFUSED, "{flag}");
         assert_eq!(
             field(&failure, "reason"),
             Some(FieldValue::from("reserved"))
@@ -423,7 +423,7 @@ fn books_remove_without_a_confirmation_is_refused_with_needs_confirmation() {
 
     let failure = shelf.runner.run(&remove("2")).unwrap_err();
 
-    assert_eq!(code(&failure), &RUN_NEEDS_CONFIRMATION);
+    assert_eq!(code(&failure), RUN_NEEDS_CONFIRMATION);
     assert_eq!(book_ids(&shelf.runner), [1, 2, 3, 4, 5, 6]);
 }
 
@@ -458,7 +458,7 @@ fn a_confirmation_removes_the_book_once_and_its_id_is_refused_the_second_time() 
         .runner
         .confirm(&confirmation, &remove("2"))
         .unwrap_err();
-    assert_eq!(code(&failure), &RUN_CONFIRMATION);
+    assert_eq!(code(&failure), RUN_CONFIRMATION);
     assert_eq!(field(&failure, "reason"), Some(FieldValue::from("unknown")));
 }
 
@@ -472,7 +472,7 @@ fn an_id_issued_for_removing_book_2_cannot_remove_book_3() {
         .confirm(&confirmation, &remove("3"))
         .unwrap_err();
 
-    assert_eq!(code(&failure), &RUN_CONFIRMATION);
+    assert_eq!(code(&failure), RUN_CONFIRMATION);
     assert_eq!(
         field(&failure, "reason"),
         Some(FieldValue::from("mismatch"))
@@ -491,7 +491,7 @@ fn an_id_older_than_ten_minutes_is_refused_as_expired() {
         .confirm(&confirmation, &remove("2"))
         .unwrap_err();
 
-    assert_eq!(code(&failure), &RUN_CONFIRMATION);
+    assert_eq!(code(&failure), RUN_CONFIRMATION);
     assert_eq!(field(&failure, "reason"), Some(FieldValue::from("expired")));
     assert_eq!(book_ids(&shelf.runner), [1, 2, 3, 4, 5, 6]);
 }
@@ -508,8 +508,8 @@ fn read_only_mode_refuses_books_remove_at_preview_and_at_confirm() {
         .confirm(&confirmation, &remove("2"))
         .unwrap_err();
 
-    assert_eq!(code(&at_preview), &RUN_READ_ONLY);
-    assert_eq!(code(&at_confirm), &RUN_READ_ONLY);
+    assert_eq!(code(&at_preview), RUN_READ_ONLY);
+    assert_eq!(code(&at_confirm), RUN_READ_ONLY);
     assert_eq!(book_ids(&shelf.runner), [1, 2, 3, 4, 5, 6]);
 }
 
@@ -583,7 +583,7 @@ fn a_child_that_exits_101_without_a_document_is_no_document_with_its_standard_er
         panic!("{outcome:?}");
     };
     assert!(lines.is_empty());
-    assert_eq!(code(&failure), &RUN_NO_DOCUMENT);
+    assert_eq!(code(&failure), RUN_NO_DOCUMENT);
     assert_eq!(field(&failure, "exit"), Some(FieldValue::from(101)));
     assert_eq!(
         field(&failure, "stderr"),
@@ -639,7 +639,7 @@ fn a_program_that_does_not_exist_is_refused_with_spawn() {
 
     let failure = runner.run(&request(&["books", "list"])).unwrap_err();
 
-    assert_eq!(code(&failure), &RUN_SPAWN);
+    assert_eq!(code(&failure), RUN_SPAWN);
 }
 
 #[test]
@@ -655,7 +655,7 @@ fn a_program_named_without_a_path_that_does_not_start_ends_its_run_with_spawn() 
     let Outcome::Failed(failure) = outcome else {
         panic!("{outcome:?}");
     };
-    assert_eq!(code(&failure), &RUN_SPAWN);
+    assert_eq!(code(&failure), RUN_SPAWN);
 }
 
 #[cfg(unix)]
@@ -670,7 +670,7 @@ fn a_line_longer_than_the_line_limit_ends_the_run_with_output_limit() {
         panic!("{outcome:?}");
     };
     assert!(lines.is_empty());
-    assert_eq!(code(&failure), &RUN_OUTPUT_LIMIT);
+    assert_eq!(code(&failure), RUN_OUTPUT_LIMIT);
     assert_eq!(field(&failure, "limit"), Some(FieldValue::from("line")));
 }
 
@@ -681,7 +681,7 @@ fn a_run_past_the_most_runs_at_once_is_refused_until_one_ends() {
     let hang = unruly.runner.run(&request(&["child", "hang"])).unwrap();
 
     let failure = unruly.runner.run(&request(&["child", "pick"])).unwrap_err();
-    assert_eq!(code(&failure), &RUN_BUSY);
+    assert_eq!(code(&failure), RUN_BUSY);
 
     unruly.runner.cancel(hang.id()).unwrap();
     finish(hang);
@@ -699,7 +699,7 @@ fn cancel_of_a_run_that_has_ended_is_refused_with_not_running() {
 
     let failure = unruly.runner.cancel(id).unwrap_err();
 
-    assert_eq!(code(&failure), &RUN_NOT_RUNNING);
+    assert_eq!(code(&failure), RUN_NOT_RUNNING);
 }
 
 #[cfg(unix)]
@@ -740,7 +740,7 @@ fn a_failed_dry_run_issues_no_confirmation_and_its_failure_names_the_dry_run_wit
     let Outcome::Failed(failure) = outcome else {
         panic!("{outcome:?}");
     };
-    assert_eq!(code(&failure), &RUN_NO_DOCUMENT);
+    assert_eq!(code(&failure), RUN_NO_DOCUMENT);
     assert_eq!(
         field(&failure, "line"),
         Some(FieldValue::from("unruly child wipe --dry-run bad"))
@@ -764,7 +764,7 @@ fn a_confirmation_refused_as_busy_keeps_its_id_for_when_a_run_ends() {
     let hang = unruly.runner.run(&request(&["child", "hang"])).unwrap();
 
     let failure = unruly.runner.confirm(&confirmation, &wipe).unwrap_err();
-    assert_eq!(code(&failure), &RUN_BUSY);
+    assert_eq!(code(&failure), RUN_BUSY);
 
     unruly.runner.cancel(hang.id()).unwrap();
     finish(hang);
@@ -779,7 +779,7 @@ fn a_command_that_declares_itself_read_only_and_destructive_needs_a_confirmation
     let both = request(&["child", "both"]);
 
     let failure = unruly.runner.run(&both).unwrap_err();
-    assert_eq!(code(&failure), &RUN_NEEDS_CONFIRMATION);
+    assert_eq!(code(&failure), RUN_NEEDS_CONFIRMATION);
 
     // The command takes no --dry-run, so its preview issues the id at once
     // and runs nothing.
@@ -841,7 +841,7 @@ fn a_run_ends_when_its_child_exits_while_nobody_reads_its_full_queue_and_keeps_i
     let next = loop {
         match unruly.runner.run(&request(&["child", "pick"])) {
             Ok(next) => break next,
-            Err(failure) => assert_eq!(code(&failure), &RUN_BUSY),
+            Err(failure) => assert_eq!(code(&failure), RUN_BUSY),
         }
         assert!(
             started.elapsed() < Duration::from_secs(5),
@@ -894,7 +894,7 @@ fn a_runner_that_has_shut_down_refuses_every_new_run_with_closed() {
 
     let failure = unruly.runner.run(&request(&["child", "pick"])).unwrap_err();
 
-    assert_eq!(code(&failure), &RUN_CLOSED);
+    assert_eq!(code(&failure), RUN_CLOSED);
 }
 
 #[test]
@@ -903,7 +903,7 @@ fn a_run_id_is_read_only_from_decimal_digits() {
     for text in ["+3", "-3", " 3", ""] {
         let failure = text.parse::<RunId>().unwrap_err();
 
-        assert_eq!(code(&failure), &RUN_NOT_RUNNING, "{text:?}");
+        assert_eq!(code(&failure), RUN_NOT_RUNNING, "{text:?}");
     }
 }
 
@@ -915,7 +915,7 @@ fn run_when_free(runner: &Runner, request: &RunRequest) -> crumbkit_flightdeck::
     loop {
         match runner.run(request) {
             Ok(run) => return run,
-            Err(failure) if code(&failure) == &RUN_BUSY => {
+            Err(failure) if code(&failure) == RUN_BUSY => {
                 assert!(
                     started.elapsed() < Duration::from_secs(10),
                     "no place freed"
@@ -1043,7 +1043,7 @@ fn a_run_can_be_cancelled_while_a_shutdown_waits_for_it() {
         // shutdown closes the runner.
         loop {
             let failure = unruly.runner.run(&request(&["child", "pick"])).unwrap_err();
-            if code(&failure) == &RUN_CLOSED {
+            if code(&failure) == RUN_CLOSED {
                 break;
             }
         }

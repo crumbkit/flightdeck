@@ -22,7 +22,7 @@ const EXAMPLES: Examples<'_> =
 
 /// The command line that provokes each code which a short run provokes.
 const STARTS: &[Failing<'_>] = &[Failing::new(
-    &crumbkit_flightdeck::model::TOOL_NOT_FOUND,
+    crumbkit_flightdeck::model::TOOL_NOT_FOUND,
     &["open", "./no-such-tool", "--no-browser"],
 )];
 
@@ -33,31 +33,31 @@ const NO_RUN: &str =
 /// The codes that the recovery check provokes with no command line.
 const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
     Unprovoked::new(
-        &crumbkit_flightdeck::model::TOOL_LOAD,
+        crumbkit_flightdeck::model::TOOL_LOAD,
         "Only a tool that prints something other than its description provokes it; tests/model.rs provokes it with fake tools.",
     ),
     Unprovoked::new(
-        &crumbkit_flightdeck::SERVER_FAILED,
+        crumbkit_flightdeck::SERVER_FAILED,
         "Only a system that refuses a socket, a random read or a temporary file provokes it.",
     ),
     Unprovoked::new(
-        &crumbkit_flightdeck::TOOL_SEARCH_PATH,
+        crumbkit_flightdeck::TOOL_SEARCH_PATH,
         "Only a launch directory whose name holds PATH's separator provokes it; tests/open.rs provokes the code.",
     ),
-    Unprovoked::new(&runner::RUN_REFUSED, NO_RUN),
-    Unprovoked::new(&runner::RUN_NEEDS_CONFIRMATION, NO_RUN),
-    Unprovoked::new(&runner::RUN_READ_ONLY, NO_RUN),
-    Unprovoked::new(&runner::RUN_CONFIRMATION, NO_RUN),
-    Unprovoked::new(&runner::RUN_DIRECTORY, NO_RUN),
-    Unprovoked::new(&runner::RUN_NO_DOCUMENT, NO_RUN),
-    Unprovoked::new(&runner::RUN_SPAWN, NO_RUN),
-    Unprovoked::new(&runner::RUN_OUTPUT_LIMIT, NO_RUN),
-    Unprovoked::new(&runner::RUN_BUSY, NO_RUN),
-    Unprovoked::new(&runner::RUN_NOT_RUNNING, NO_RUN),
-    Unprovoked::new(&runner::RUN_RANDOM, NO_RUN),
-    Unprovoked::new(&runner::RUN_CLOSED, NO_RUN),
-    Unprovoked::new(&runner::CHOICES_NO_LISTING, NO_RUN),
-    Unprovoked::new(&runner::CHOICES_TIME_LIMIT, NO_RUN),
+    Unprovoked::new(runner::RUN_REFUSED, NO_RUN),
+    Unprovoked::new(runner::RUN_NEEDS_CONFIRMATION, NO_RUN),
+    Unprovoked::new(runner::RUN_READ_ONLY, NO_RUN),
+    Unprovoked::new(runner::RUN_CONFIRMATION, NO_RUN),
+    Unprovoked::new(runner::RUN_DIRECTORY, NO_RUN),
+    Unprovoked::new(runner::RUN_NO_DOCUMENT, NO_RUN),
+    Unprovoked::new(runner::RUN_SPAWN, NO_RUN),
+    Unprovoked::new(runner::RUN_OUTPUT_LIMIT, NO_RUN),
+    Unprovoked::new(runner::RUN_BUSY, NO_RUN),
+    Unprovoked::new(runner::RUN_NOT_RUNNING, NO_RUN),
+    Unprovoked::new(runner::RUN_RANDOM, NO_RUN),
+    Unprovoked::new(runner::RUN_CLOSED, NO_RUN),
+    Unprovoked::new(runner::CHOICES_NO_LISTING, NO_RUN),
+    Unprovoked::new(runner::CHOICES_TIME_LIMIT, NO_RUN),
 ];
 
 /// The codes that have no twin: the admitted twin of a refused `open`
@@ -65,35 +65,35 @@ const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
 /// command of flightdeck returns a run's code yet.
 const UNTWINNED: &[Unprovoked<'_>] = &[
     Unprovoked::new(
-        &crumbkit_flightdeck::model::TOOL_NOT_FOUND,
+        crumbkit_flightdeck::model::TOOL_NOT_FOUND,
         "Its admitted twin, flightdeck open shelf, serves until it is stopped; tests/open.rs provokes the code.",
     ),
     Unprovoked::new(
-        &crumbkit_flightdeck::model::TOOL_LOAD,
+        crumbkit_flightdeck::model::TOOL_LOAD,
         "Only a tool that prints something other than its description provokes it; tests/model.rs provokes it with fake tools.",
     ),
     Unprovoked::new(
-        &crumbkit_flightdeck::SERVER_FAILED,
+        crumbkit_flightdeck::SERVER_FAILED,
         "Only a system that refuses a socket, a random read or a temporary file provokes it.",
     ),
     Unprovoked::new(
-        &crumbkit_flightdeck::TOOL_SEARCH_PATH,
+        crumbkit_flightdeck::TOOL_SEARCH_PATH,
         "Only a launch directory whose name holds PATH's separator provokes it; tests/open.rs provokes the code.",
     ),
-    Unprovoked::new(&runner::RUN_REFUSED, NO_RUN),
-    Unprovoked::new(&runner::RUN_NEEDS_CONFIRMATION, NO_RUN),
-    Unprovoked::new(&runner::RUN_READ_ONLY, NO_RUN),
-    Unprovoked::new(&runner::RUN_CONFIRMATION, NO_RUN),
-    Unprovoked::new(&runner::RUN_DIRECTORY, NO_RUN),
-    Unprovoked::new(&runner::RUN_NO_DOCUMENT, NO_RUN),
-    Unprovoked::new(&runner::RUN_SPAWN, NO_RUN),
-    Unprovoked::new(&runner::RUN_OUTPUT_LIMIT, NO_RUN),
-    Unprovoked::new(&runner::RUN_BUSY, NO_RUN),
-    Unprovoked::new(&runner::RUN_NOT_RUNNING, NO_RUN),
-    Unprovoked::new(&runner::RUN_RANDOM, NO_RUN),
-    Unprovoked::new(&runner::RUN_CLOSED, NO_RUN),
-    Unprovoked::new(&runner::CHOICES_NO_LISTING, NO_RUN),
-    Unprovoked::new(&runner::CHOICES_TIME_LIMIT, NO_RUN),
+    Unprovoked::new(runner::RUN_REFUSED, NO_RUN),
+    Unprovoked::new(runner::RUN_NEEDS_CONFIRMATION, NO_RUN),
+    Unprovoked::new(runner::RUN_READ_ONLY, NO_RUN),
+    Unprovoked::new(runner::RUN_CONFIRMATION, NO_RUN),
+    Unprovoked::new(runner::RUN_DIRECTORY, NO_RUN),
+    Unprovoked::new(runner::RUN_NO_DOCUMENT, NO_RUN),
+    Unprovoked::new(runner::RUN_SPAWN, NO_RUN),
+    Unprovoked::new(runner::RUN_OUTPUT_LIMIT, NO_RUN),
+    Unprovoked::new(runner::RUN_BUSY, NO_RUN),
+    Unprovoked::new(runner::RUN_NOT_RUNNING, NO_RUN),
+    Unprovoked::new(runner::RUN_RANDOM, NO_RUN),
+    Unprovoked::new(runner::RUN_CLOSED, NO_RUN),
+    Unprovoked::new(runner::CHOICES_NO_LISTING, NO_RUN),
+    Unprovoked::new(runner::CHOICES_TIME_LIMIT, NO_RUN),
 ];
 
 /// The settings of flightdeck's recovery check.

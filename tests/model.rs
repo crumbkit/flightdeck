@@ -80,7 +80,7 @@ fn fake_tool(body: &str) -> (TempDir, PathBuf) {
 }
 
 /// Returns the code of a load failure.
-fn code(error: &LoadError) -> &'static crumbkit::Code {
+fn code(error: &LoadError) -> crumbkit::Code<'_> {
     error.code()
 }
 
@@ -390,7 +390,7 @@ fn a_program_that_does_not_exist_is_tool_not_found() {
 
     let error = model::load(&program, TIME_LIMIT).unwrap_err();
 
-    assert_eq!(code(&error), &TOOL_NOT_FOUND);
+    assert_eq!(code(&error), TOOL_NOT_FOUND);
 }
 
 #[cfg(unix)]
@@ -401,7 +401,7 @@ fn a_tool_that_prints_text_instead_of_json_is_tool_load_with_its_exit_and_standa
 
     let error = model::load(&program, TIME_LIMIT).unwrap_err();
 
-    assert_eq!(code(&error), &TOOL_LOAD);
+    assert_eq!(code(&error), TOOL_LOAD);
     assert_eq!(
         field(&error, "command"),
         Some(FieldValue::from(
@@ -429,7 +429,7 @@ fn a_tool_that_never_exits_is_stopped_at_the_time_limit() {
 
     let error = model::load(&program, Duration::from_millis(200)).unwrap_err();
 
-    assert_eq!(code(&error), &TOOL_LOAD);
+    assert_eq!(code(&error), TOOL_LOAD);
     assert_eq!(
         field(&error, "problem"),
         Some(FieldValue::from("time_limit"))
@@ -529,7 +529,7 @@ fn a_tool_whose_schemas_show_leaves_out_a_listed_id_is_tool_load() {
 
     let error = model::load(&program, TIME_LIMIT).unwrap_err();
 
-    assert_eq!(code(&error), &TOOL_LOAD);
+    assert_eq!(code(&error), TOOL_LOAD);
     assert_eq!(
         field(&error, "command"),
         Some(FieldValue::from(
@@ -558,7 +558,7 @@ esac"#,
 
     let error = model::load(&program, TIME_LIMIT).unwrap_err();
 
-    assert_eq!(code(&error), &TOOL_LOAD);
+    assert_eq!(code(&error), TOOL_LOAD);
     assert_eq!(
         field(&error, "command"),
         Some(FieldValue::from(
@@ -585,7 +585,7 @@ fn a_file_that_may_not_be_run_is_tool_not_found() {
 
     let error = model::load(&program, TIME_LIMIT).unwrap_err();
 
-    assert_eq!(code(&error), &TOOL_NOT_FOUND);
+    assert_eq!(code(&error), TOOL_NOT_FOUND);
 }
 
 #[test]
@@ -596,7 +596,7 @@ fn a_program_that_cannot_be_started_for_another_reason_is_tool_load_with_no_exit
 
     let error = model::load(&program, TIME_LIMIT).unwrap_err();
 
-    assert_eq!(code(&error), &TOOL_LOAD);
+    assert_eq!(code(&error), TOOL_LOAD);
     assert_eq!(field(&error, "problem"), Some(FieldValue::from("start")));
     assert_eq!(field(&error, "exit"), Some(FieldValue::Null));
 }

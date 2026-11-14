@@ -64,7 +64,7 @@ fn many(texts: &[&str]) -> Value {
 }
 
 fn reason(failure: &RunFailure) -> String {
-    assert_eq!(failure.code(), &RUN_REFUSED);
+    assert_eq!(failure.code(), RUN_REFUSED);
     field(failure, "reason")
 }
 

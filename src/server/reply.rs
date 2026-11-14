@@ -77,33 +77,33 @@ pub(super) enum Refusal {
 
 impl Refusal {
     /// The code of [`Refusal::Host`].
-    const HOST: Code = Code::new("flightdeck", "request", "host");
+    const HOST: Code<'static> = Code::new("flightdeck", "request", "host");
     /// The code of [`Refusal::CrossSite`].
-    const CROSS_SITE: Code = Code::new("flightdeck", "request", "cross_site");
+    const CROSS_SITE: Code<'static> = Code::new("flightdeck", "request", "cross_site");
     /// The code of [`Refusal::Origin`].
-    const ORIGIN: Code = Code::new("flightdeck", "request", "origin");
+    const ORIGIN: Code<'static> = Code::new("flightdeck", "request", "origin");
     /// The code of [`Refusal::Method`].
-    const METHOD: Code = Code::new("flightdeck", "request", "method");
+    const METHOD: Code<'static> = Code::new("flightdeck", "request", "method");
     /// The code of [`Refusal::ContentType`].
-    const CONTENT_TYPE: Code = Code::new("flightdeck", "request", "content_type");
+    const CONTENT_TYPE: Code<'static> = Code::new("flightdeck", "request", "content_type");
     /// The code of [`Refusal::TooLarge`].
-    const TOO_LARGE: Code = Code::new("flightdeck", "request", "too_large");
+    const TOO_LARGE: Code<'static> = Code::new("flightdeck", "request", "too_large");
     /// The code of [`Refusal::HeadTooLarge`].
-    const HEAD_TOO_LARGE: Code = Code::new("flightdeck", "request", "head_too_large");
+    const HEAD_TOO_LARGE: Code<'static> = Code::new("flightdeck", "request", "head_too_large");
     /// The code of [`Refusal::Malformed`].
-    const MALFORMED: Code = Code::new("flightdeck", "request", "malformed");
+    const MALFORMED: Code<'static> = Code::new("flightdeck", "request", "malformed");
     /// The code of [`Refusal::Busy`].
-    const BUSY: Code = Code::new("flightdeck", "request", "busy");
+    const BUSY: Code<'static> = Code::new("flightdeck", "request", "busy");
     /// The code of [`Refusal::Body`].
-    const BODY: Code = Code::new("flightdeck", "request", "body");
+    const BODY: Code<'static> = Code::new("flightdeck", "request", "body");
     /// The code of [`Refusal::Timeout`].
-    const TIMEOUT: Code = Code::new("flightdeck", "request", "timeout");
+    const TIMEOUT: Code<'static> = Code::new("flightdeck", "request", "timeout");
     /// The code of [`Refusal::Unauthorized`].
-    const UNAUTHORIZED: Code = Code::new("flightdeck", "session", "unauthorized");
+    const UNAUTHORIZED: Code<'static> = Code::new("flightdeck", "session", "unauthorized");
     /// The code of [`Refusal::CodeRefused`].
-    const CODE_REFUSED: Code = Code::new("flightdeck", "session", "code_refused");
+    const CODE_REFUSED: Code<'static> = Code::new("flightdeck", "session", "code_refused");
     /// The code of [`Refusal::NotFound`].
-    const NOT_FOUND: Code = Code::new("flightdeck", "request", "not_found");
+    const NOT_FOUND: Code<'static> = Code::new("flightdeck", "request", "not_found");
 
     /// Every refusal, in the order its document lists them.
     pub(super) const ALL: [Self; 14] = [
@@ -141,22 +141,22 @@ impl Refusal {
 
     /// Returns the refusal's stable code, such as
     /// `flightdeck::session::unauthorized` in crumbkit's colon spelling.
-    pub(super) const fn code(self) -> &'static Code {
+    pub(super) const fn code(self) -> Code<'static> {
         match self {
-            Self::Host => &Self::HOST,
-            Self::CrossSite => &Self::CROSS_SITE,
-            Self::Origin => &Self::ORIGIN,
-            Self::Method => &Self::METHOD,
-            Self::ContentType => &Self::CONTENT_TYPE,
-            Self::TooLarge => &Self::TOO_LARGE,
-            Self::HeadTooLarge => &Self::HEAD_TOO_LARGE,
-            Self::Malformed => &Self::MALFORMED,
-            Self::Busy => &Self::BUSY,
-            Self::Body => &Self::BODY,
-            Self::Timeout => &Self::TIMEOUT,
-            Self::Unauthorized => &Self::UNAUTHORIZED,
-            Self::CodeRefused => &Self::CODE_REFUSED,
-            Self::NotFound => &Self::NOT_FOUND,
+            Self::Host => Self::HOST,
+            Self::CrossSite => Self::CROSS_SITE,
+            Self::Origin => Self::ORIGIN,
+            Self::Method => Self::METHOD,
+            Self::ContentType => Self::CONTENT_TYPE,
+            Self::TooLarge => Self::TOO_LARGE,
+            Self::HeadTooLarge => Self::HEAD_TOO_LARGE,
+            Self::Malformed => Self::MALFORMED,
+            Self::Busy => Self::BUSY,
+            Self::Body => Self::BODY,
+            Self::Timeout => Self::TIMEOUT,
+            Self::Unauthorized => Self::UNAUTHORIZED,
+            Self::CodeRefused => Self::CODE_REFUSED,
+            Self::NotFound => Self::NOT_FOUND,
         }
     }
 

@@ -24,7 +24,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- flightdeck builds on crumbkit, crumbkit-process and crumbkit-test 0.4.1.
+- flightdeck builds on crumbkit, crumbkit-skills, crumbkit-process and
+  crumbkit-test 0.5.0, and mounts its `skills` commands from crumbkit-skills.
 - On a tool built on crumbkit 0.3.2 or later, flightdeck runs
   `self figures list`, `self usage` and `self runs list` with
   `<TOOL>_PROGRAM=flightdeck`, such as `SHELF_PROGRAM` for shelf, and with

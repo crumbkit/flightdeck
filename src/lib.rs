@@ -24,14 +24,12 @@ use std::process::ExitCode;
 use clap::CommandFactory as _;
 
 pub use crate::cli::{Cli, TOOL};
-use crate::cli::{
-    CommandsCommand, CompletionCommand, Resource, SKILL, SchemasCommand, SkillsCommand,
-};
+use crate::cli::{CommandsCommand, CompletionCommand, Resource, SKILL, SchemasCommand};
 pub use crate::open::{OpenError, SERVER_FAILED, TOOL_SEARCH_PATH};
 
 /// Every failure code that flightdeck declares, in one list for each error
 /// type, which its convention tests pass to crumbkit-test's checks.
-pub const CODES: &[&[&crumbkit::Code]] = &[
+pub const CODES: &[&[crumbkit::Code<'static>]] = &[
     model::LoadError::CODES,
     OpenError::CODES,
     runner::RunFailure::CODES,
@@ -64,20 +62,7 @@ where
             let result = crumbkit::commands::list(&mut run, &TOOL, &args);
             crumbkit::finish(run, crumbkit::commands::COMMANDS_LIST, result)
         }
-        Resource::Skills { command } => match command {
-            SkillsCommand::Install(args) => {
-                let result = Ok::<_, crumbkit::Error>(crumbkit_skills::install(&[SKILL], &args));
-                crumbkit::finish(run, crumbkit_skills::SKILLS_INSTALL, result)
-            }
-            SkillsCommand::Check(args) => {
-                let result = Ok::<_, crumbkit::Error>(crumbkit_skills::check(&[SKILL], &args));
-                crumbkit::finish(run, crumbkit_skills::SKILLS_CHECK, result)
-            }
-            SkillsCommand::Print => {
-                let result = Ok::<_, crumbkit::Error>(crumbkit_skills::print(&SKILL));
-                crumbkit::finish(run, crumbkit_skills::SKILLS_PRINT, result)
-            }
-        },
+        Resource::Skills { command } => crumbkit_skills::run(run, &[SKILL], &command),
         Resource::Completion { command } => match command {
             CompletionCommand::Install(args) => {
                 let result = crumbkit::completion::install(Cli::command, &args);
