@@ -1,4 +1,4 @@
-Check that each installed copy of flightdeck's skill matches this flightdeck
+Check that each installed copy of this tool's skills matches this build
 
 Usage: flightdeck skills check [OPTIONS]
 

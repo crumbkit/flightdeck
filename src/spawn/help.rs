@@ -33,7 +33,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use crumbkit_process::{Cancel, Capture, Outcome, OverLimit, RunOptions, StopReason};
+use crumbkit_process::{Cancel, Capture, Outcome, RunOptions, StopReason};
 
 use super::{Exit, FreshState, Program};
 use crate::lock::lock;
@@ -166,10 +166,7 @@ fn run_help(program: &Program, words: &[String], time_limit: Duration, stop: &Ca
     let mut command = program.cleared_command(words);
     command.arg("-h");
     let settings = RunOptions::new()
-        .stdout(Capture::Whole {
-            limit: HELP_LIMIT,
-            over: OverLimit::Stop,
-        })
+        .stdout(Capture::whole(HELP_LIMIT))
         .deadline(Instant::now() + time_limit)
         .cancel(stop);
     let Ok(finished) = crumbkit_process::run(command, &settings) else {

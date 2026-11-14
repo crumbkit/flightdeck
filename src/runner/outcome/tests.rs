@@ -27,7 +27,7 @@ fn field(outcome: &Outcome, name: &str) -> Option<FieldValue<'static>> {
     let Outcome::Failed(failure) = outcome else {
         panic!("{outcome:?}");
     };
-    assert_eq!(failure.code(), &RUN_NO_DOCUMENT);
+    assert_eq!(failure.code(), RUN_NO_DOCUMENT);
     failure
         .fields()
         .into_iter()

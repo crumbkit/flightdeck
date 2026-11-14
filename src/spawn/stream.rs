@@ -40,9 +40,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use crumbkit_process::{
-    Cancel, Capture, Lines, LongLine, Outcome, OverLimit, RunOptions, Signal, StopReason,
-};
+use crumbkit_process::{Cancel, Capture, Lines, Outcome, RunOptions, Signal, StopReason};
 
 use std::ffi::OsStr;
 
@@ -431,18 +429,8 @@ pub(crate) fn stream(
     let cancel = Cancel::new();
     let slot = Arc::new(Slot::default());
     let settings = RunOptions::new()
-        .stdout(Capture::Lines {
-            queue,
-            line: limits.line,
-            total: limits.total,
-            over: OverLimit::Stop,
-            // A line over its limit ends the run, as it did in 0.2.
-            long: LongLine::Over,
-            end: b'\n',
-        })
-        .stderr(Capture::Tail {
-            limit: STDERR_LIMIT,
-        })
+        .stdout(Capture::lines(queue, limits.total).line(limits.line))
+        .stderr(Capture::tail(STDERR_LIMIT))
         .cancel(&cancel)
         .escalation(
             crumbkit_process::Escalation::default()
