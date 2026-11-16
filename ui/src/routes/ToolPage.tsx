@@ -341,6 +341,15 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     }
   };
 
+  /** Previews what the composer holds, which the Preview beside Run asks for. */
+  const previewComposed = (next: Composing) => {
+    setComposing({ ...next, editing: null });
+    const { command, draft } = next;
+    if (whyNotRunnable(command, reply.read_only) === null && missing(command, draft).length === 0) {
+      preview(inShownDirectory(requestOf(command, draft)), longOf(draft), draft);
+    }
+  };
+
   const edit = (number: number) => {
     const run = runs.find((each) => each.number === number);
     const command = run === undefined ? undefined : commandAt(run.request);
@@ -515,6 +524,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
                 directory={directory}
                 onChange={(draft) => setComposing({ ...composing, draft })}
                 onRun={() => run(composing)}
+                onPreview={() => previewComposed(composing)}
                 onStopEditing={() => setComposing({ ...composing, editing: null })}
                 onShowRun={showRun}
                 onUsage={history === null ? null : openUsage}

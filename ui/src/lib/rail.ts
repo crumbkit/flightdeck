@@ -63,6 +63,11 @@ export function needsConfirmation(command: Command): boolean {
   return command.class === "destructive";
 }
 
+/** Returns true when the command takes crumbkit's `--dry-run`, so the page can preview it. */
+export function takesDryRun(command: Command): boolean {
+  return command.arguments.some((each) => each.crumbkit_flag === "--dry-run");
+}
+
 /**
  * Returns why the page cannot run `command`, or null when it can. Under
  * `--read-only` the server runs only read-only commands.

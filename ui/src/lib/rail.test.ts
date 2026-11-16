@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { command, shelf, shelfWithoutGoals } from "../../tests/fixtures/shelf";
-import { effectOf, needsConfirmation, railGroups, whyNotRunnable } from "./rail";
+import { effectOf, needsConfirmation, railGroups, takesDryRun, whyNotRunnable } from "./rail";
 
 function titles(groups: ReturnType<typeof railGroups>) {
   return groups.map((group) => [group.title, group.commands.map((each) => each.path.join(" "))]);
@@ -72,6 +72,13 @@ describe("a command that declares itself read-only and destructive", () => {
     expect(whyNotRunnable(both, true)).toBe(
       "Turned off by --read-only. Start flightdeck without it to run this command.",
     );
+  });
+});
+
+describe("takesDryRun", () => {
+  it("is true for a command with crumbkit's --dry-run and false for one without", () => {
+    expect(takesDryRun(command(shelf, "books remove"))).toBe(true);
+    expect(takesDryRun(command(shelf, "books list"))).toBe(false);
   });
 });
 
