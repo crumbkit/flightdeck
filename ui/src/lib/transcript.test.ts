@@ -142,6 +142,7 @@ describe("a preview card", () => {
       line: "shelf books remove 2",
       long: false,
       basis: null,
+      asks: true,
     });
   }
 
@@ -157,7 +158,12 @@ describe("a preview card", () => {
     } as const;
     runs = transcript(runs, { type: "events", number: 1, events: [ended] });
 
-    expect(runs[0]?.ask).toEqual({ basis: null, confirmation: "c1", answer: "open" });
+    expect(runs[0]?.ask).toEqual({
+      basis: null,
+      confirmation: "c1",
+      answer: "open",
+      asks: true,
+    });
     expect(runs[0]?.state.kind).toBe("ended");
   });
 

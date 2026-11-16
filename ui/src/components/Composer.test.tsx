@@ -165,6 +165,66 @@ describe("Composer", () => {
   });
 });
 
+describe("Composer's Preview button", () => {
+  const dryRun = command(shelf, "books remove").arguments.find(
+    (argument) => argument.crumbkit_flag === "--dry-run",
+  );
+  if (dryRun === undefined) {
+    throw new Error("books remove has no --dry-run");
+  }
+  const install = command(shelf, "skills install");
+  const additiveWithDryRun = { ...install, arguments: [...install.arguments, dryRun] };
+
+  function shown(shownCommand: Command, onRun: () => void, onPreview: () => void) {
+    render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <Composer
+          tool={shelf}
+          command={shownCommand}
+          draft={emptyDraft(shownCommand)}
+          editing={null}
+          focus={null}
+          readOnly={false}
+          fieldError={null}
+          lineRefused={false}
+          directory={null}
+          onChange={noop}
+          onRun={onRun}
+          onPreview={onPreview}
+          onStopEditing={noop}
+          onShowRun={noop}
+        />
+      </QueryClientProvider>,
+    );
+  }
+
+  it("sits beside Run for a command that is not destructive and takes --dry-run", async () => {
+    const onRun = vi.fn();
+    const onPreview = vi.fn();
+    shown(additiveWithDryRun, onRun, onPreview);
+
+    await userEvent.click(screen.getByRole("button", { name: "Preview" }));
+
+    expect(onPreview).toHaveBeenCalledTimes(1);
+    expect(onRun).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /^Run/ })).toBeEnabled();
+  });
+
+  it("is the only button of a destructive command, in place of Run", () => {
+    shown(command(shelf, "books remove"), noop, noop);
+
+    expect(screen.getAllByRole("button", { name: /Preview/ })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /^Run/ })).toBeNull();
+  });
+
+  it("is absent from a command without --dry-run", () => {
+    shown(install, noop, noop);
+
+    expect(screen.queryByRole("button", { name: /Preview/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Run/ })).toBeInTheDocument();
+  });
+});
+
 describe("Composer's IDs chooser", () => {
   it("asks for the choices of books show from books list and labels each by its other columns", async () => {
     const sent = stubChoices(Response.json(twoBooks));

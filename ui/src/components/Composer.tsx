@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { dayOf, type UsageTab } from "@/lib/cost";
 import { chosenOf, type Draft, type FieldGroup, formOf, missing, setValue } from "@/lib/form";
 import { chooserLinkOf } from "@/lib/links";
-import { needsConfirmation, whyNotRunnable } from "@/lib/rail";
+import { needsConfirmation, takesDryRun, whyNotRunnable } from "@/lib/rail";
 import { ChipsInput } from "./ChipsInput";
 import { CostCard } from "./CostCard";
 import { IdChooser } from "./IdChooser";
@@ -34,6 +34,8 @@ type Props = {
   directory: string | null;
   onChange: (draft: Draft) => void;
   onRun: () => void;
+  /** Previews a command that is not destructive and takes `--dry-run`. */
+  onPreview?: () => void;
   onStopEditing: () => void;
   onShowRun: (number: number) => void;
   /** Opens a usage view on the command, or null when the tool lists no runs. */
@@ -45,7 +47,9 @@ type Props = {
  * agent, when the tool keeps figures for it, the command's required
  * fields, then its other options under "More options", and Run, which ⌘↩
  * or Ctrl-↩ presses from anywhere in the form. A command that needs a
- * confirmation has Preview in place of Run, and `onRun` previews it. Under
+ * confirmation has Preview in place of Run, and `onRun` previews it. A
+ * command that is not destructive and takes `--dry-run` has Preview beside
+ * Run, and `onPreview` previews it. Under
  * `--read-only` a command that is not read-only shows why in place of the
  * button. It sends structured values.
  */
@@ -160,20 +164,36 @@ export function Composer(props: Props) {
       </div>
       <div className="mt-3 flex shrink-0 flex-wrap items-center gap-3">
         {blocked === null ? (
-          <Button type="submit" size="sm" disabled={!runnable}>
-            {needsConfirmation(command) ? (
-              <>
-                <Eye aria-hidden="true" />
-                Preview
-              </>
-            ) : (
-              <>
-                <Play aria-hidden="true" />
-                Run
-              </>
-            )}
-            <kbd className="font-mono text-xs opacity-80">⌘↩</kbd>
-          </Button>
+          <>
+            <Button type="submit" size="sm" disabled={!runnable}>
+              {needsConfirmation(command) ? (
+                <>
+                  <Eye aria-hidden="true" />
+                  Preview
+                </>
+              ) : (
+                <>
+                  <Play aria-hidden="true" />
+                  Run
+                </>
+              )}
+              <kbd className="font-mono text-xs opacity-80">⌘↩</kbd>
+            </Button>
+            {!needsConfirmation(command) &&
+              takesDryRun(command) &&
+              props.onPreview !== undefined && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!runnable}
+                  onClick={props.onPreview}
+                >
+                  <Eye aria-hidden="true" />
+                  Preview
+                </Button>
+              )}
+          </>
         ) : (
           <p className="text-muted-foreground m-0">{blocked}</p>
         )}

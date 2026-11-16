@@ -143,6 +143,49 @@ describe("ToolPage", () => {
     expect(sent.filter((path) => path.startsWith("/api/confirmations/"))).toHaveLength(1);
   });
 
+  it("previews a command that is not destructive from the Preview beside Run, asks nothing, and previews again from the card", async () => {
+    const dryRun = {
+      lines: [
+        { ...started, preview: true, confirmation: null },
+        { event: "line", text: removed },
+        {
+          event: "ended",
+          outcome: { kind: "result" },
+          exit: 0,
+          duration_ms: 3,
+          confirmation: "c1",
+        },
+      ],
+    };
+    const sent = stubServer({ "/api/previews": dryRun });
+    const reply = withRemove((command) => ({
+      ...command,
+      class: "additive",
+      effects: { read_only: false, destructive: false, idempotent: true },
+    }));
+    const user = userEvent.setup();
+    renderPage(reply);
+
+    const rail = screen.getByRole("navigation", { name: "Commands" });
+    await user.click(within(rail).getByRole("button", { name: /books remove/ }));
+    await user.type(screen.getByLabelText(/The ids of the books to remove/), "2 ");
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+
+    const card = await screen.findByRole("region", { name: /^Run 1: / });
+    expect(await within(card).findByText("Frankenstein")).toBeVisible();
+    expect(card).toHaveAccessibleName(/exit 0/);
+    expect(card).not.toHaveAccessibleName(/awaiting confirmation/);
+    expect(within(card).queryByRole("group")).toBeNull();
+    expect(within(card).queryByRole("button", { name: "Cancel" })).toBeNull();
+    const posted = () => sent.filter((path) => path !== "/api/choices");
+    expect(posted()).toEqual(["/api/previews"]);
+
+    await user.click(within(card).getByRole("button", { name: "Preview again" }));
+
+    await screen.findByRole("region", { name: /^Run 2: / });
+    expect(posted()).toEqual(["/api/previews", "/api/previews"]);
+  });
+
   it("opens the preview card for a run that fails because it needs --yes", async () => {
     stubServer({
       "/api/runs": {
