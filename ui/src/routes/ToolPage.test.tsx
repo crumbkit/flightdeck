@@ -173,6 +173,8 @@ describe("ToolPage", () => {
 
     const card = await screen.findByRole("region", { name: /^Run 1: / });
     expect(await within(card).findByText("Frankenstein")).toBeVisible();
+    expect(card).toHaveAccessibleName(/exit 0/);
+    expect(card).not.toHaveAccessibleName(/awaiting confirmation/);
     expect(within(card).queryByRole("group")).toBeNull();
     expect(within(card).queryByRole("button", { name: "Cancel" })).toBeNull();
     const posted = () => sent.filter((path) => path !== "/api/choices");

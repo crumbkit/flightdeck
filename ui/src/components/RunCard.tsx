@@ -53,7 +53,7 @@ function statusOf(run: Run, rows: number | null): { words: string; failed: boole
   if (ask?.answer === "declined") {
     return { words: "not confirmed", failed: false };
   }
-  if (ask?.answer === "open" && ask.confirmation !== null) {
+  if (ask?.answer === "open" && ask.asks && ask.confirmation !== null) {
     return { words: "awaiting confirmation", failed: false };
   }
   const rowCount = rows === null ? "" : ` · ${counted(rows, "row")}`;
