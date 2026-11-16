@@ -54,13 +54,13 @@ export function Rail({ tool, selected, readOnly, onChoose }: Props) {
                     aria-current={selected === command ? "true" : undefined}
                     onClick={() => onChoose(command)}
                     className={cn(
-                      "transition-tint active:bg-muted flex min-h-8 w-full items-center gap-2 rounded-md border-l-2 py-1 pr-2 pl-2 text-left",
-                      // The selected row has the accent's fill and edge, which
-                      // stand out more than the hover's quiet fill in both
+                      "transition-tint active:bg-muted flex min-h-8 w-full items-center gap-2 rounded-md py-1 pr-2 pl-2.5 text-left",
+                      // The selected row has the accent's fill, which stands
+                      // out more than the hover's quiet fill in both
                       // appearances.
                       selected === command
-                        ? "bg-accent border-l-primary font-semibold"
-                        : "hover:bg-card/60 dark:hover:bg-muted border-l-transparent",
+                        ? "bg-accent font-semibold"
+                        : "hover:bg-card/60 dark:hover:bg-muted",
                       locked && "text-faint-foreground",
                     )}
                   >

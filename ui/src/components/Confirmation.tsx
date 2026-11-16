@@ -72,7 +72,7 @@ function Question({ command, count, line, stale, onConfirm, onDecline }: Questio
   };
 
   return (
-    <fieldset className="border-l-destructive mt-3 mb-0 flex min-w-0 flex-col gap-2 rounded-md border border-l-4 px-3 py-2.5">
+    <fieldset className="mt-3 mb-0 flex min-w-0 flex-col gap-2 rounded-md border px-3 py-2.5">
       <legend className="float-left p-0 font-semibold">{question(command, count, line)}</legend>
       <p className="m-0 flex flex-wrap items-center gap-2">
         <EffectBadge effect={effectOf(command)} />
