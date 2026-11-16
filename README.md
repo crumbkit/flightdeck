@@ -146,7 +146,11 @@ What works today:
   confirms. When the composer changes after the preview, the card marks
   itself stale and disables its confirm button. Confirm runs the command
   once in the same card, which then shows its result. A run that fails
-  because the tool asks for `--yes` opens the same card. Under
+  because the tool asks for `--yes` opens the same card. A command that
+  is not destructive and takes `--dry-run` keeps Run and has Preview
+  beside it. Its card shows the dry run and asks nothing, and its
+  "Preview again" previews again. Preview has no keyboard shortcut, and
+  ⌘↩ runs. Under
   `--read-only`, the topbar shows a lock, the commands that are not
   read-only stay in the rail dimmed with a lock, and their composer says
   why in place of its button.

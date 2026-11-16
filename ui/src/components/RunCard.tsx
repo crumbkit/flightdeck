@@ -212,7 +212,9 @@ export function RunCard(props: Props) {
             className="text-primary active:text-foreground -my-1.5 min-h-8 hover:underline"
             onClick={onRunAgain}
           >
-            {command !== undefined && needsConfirmation(command) ? "Preview again" : "Run again"}
+            {run.ask !== undefined || (command !== undefined && needsConfirmation(command))
+              ? "Preview again"
+              : "Run again"}
           </button>
           <CopyButton text={line} label="Copy line" />
           <label className="inline-flex items-center gap-1">

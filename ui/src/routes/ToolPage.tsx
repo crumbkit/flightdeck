@@ -240,16 +240,17 @@ export function ToolPage({ reply, onSignedOut }: Props) {
   /**
    * Previews `request` in a new card, which asks its question once the
    * server issues a confirmation id. `basis` is the composer's draft it was
-   * made from, or null.
+   * made from, or null. `asks` is false for a command that is not
+   * destructive, whose card asks nothing.
    */
-  const preview = (request: RunRequest, long: boolean, basis: Draft | null) => {
+  const preview = (request: RunRequest, long: boolean, basis: Draft | null, asks = true) => {
     const command = commandAt(request);
     if (command === undefined) {
       return;
     }
     const number = nextNumber();
     const line = lineOf(tool.name, command, request);
-    apply({ type: "preview", number, request, line, long, basis });
+    apply({ type: "preview", number, request, line, long, basis, asks });
     void follow(number, (call) => streamPreview({ ...call, request }));
   };
 
@@ -263,6 +264,18 @@ export function ToolPage({ reply, onSignedOut }: Props) {
       preview(request, long, basis);
     } else {
       start(request, long);
+    }
+  };
+
+  /**
+   * Starts `request` again from `run`'s card: a card that came from a
+   * preview previews it again, and any other card runs it.
+   */
+  const again = (run: Run, request: RunRequest) => {
+    if (run.ask === undefined) {
+      begin(request, run.long, null);
+    } else {
+      preview(request, run.long, null, run.ask.asks);
     }
   };
 
@@ -346,7 +359,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     setComposing({ ...next, editing: null });
     const { command, draft } = next;
     if (whyNotRunnable(command, reply.read_only) === null && missing(command, draft).length === 0) {
-      preview(inShownDirectory(requestOf(command, draft)), longOf(draft), draft);
+      preview(inShownDirectory(requestOf(command, draft)), longOf(draft), draft, false);
     }
   };
 
@@ -467,15 +480,13 @@ export function ToolPage({ reply, onSignedOut }: Props) {
                       : null
                   }
                   onEdit={() => edit(run.number)}
-                  onRunAgain={() => begin(run.request, run.long, null)}
+                  onRunAgain={() => again(run, run.request)}
                   onCancel={cancelById}
-                  onPageSize={(pageSize) =>
-                    begin(withPageSize(run.request, pageSize), run.long, null)
-                  }
+                  onPageSize={(pageSize) => again(run, withPageSize(run.request, pageSize))}
                   onCompose={compose}
                   onOpenLink={(value) => link !== null && openLink(link, value)}
                 >
-                  {command !== undefined && (
+                  {command !== undefined && run.ask?.asks !== false && (
                     <Confirmation
                       run={run}
                       command={command}
