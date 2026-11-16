@@ -160,27 +160,32 @@ function quote(word: string): string {
 /**
  * Returns the command line of `request` as a person would type it: the
  * tool, the path, the positional values, then each option in the order the
- * command declares it. The server's own line replaces it once a run starts.
+ * command declares it. When a positional value starts with a dash, or the
+ * argument's help says its value comes after `--`, the options come first
+ * and then `--` and the values, as the server's line has them. The
+ * server's own line replaces it once a run starts.
  */
 export function lineOf(tool: string, command: Command, request: RunRequest): string {
-  const words = [tool, ...command.path];
-  const positionals = command.arguments.filter((each) => each.kind === "positional");
-  const named = command.arguments.filter((each) => each.kind === "named");
-  for (const argument of [...positionals, ...named]) {
+  const wordsOf = (argument: Command["arguments"][number]): string[] => {
     const value = request.values[argument.name];
-    if (value === undefined) {
-      continue;
-    }
     const flag = argument.kind === "named" ? [argument.name] : [];
-    if (value === true) {
-      words.push(...flag);
-    } else if (typeof value === "string") {
-      words.push(...flag, quote(value));
-    } else {
-      for (const item of value) {
-        words.push(...flag, quote(item));
-      }
+    if (value === undefined) {
+      return [];
     }
-  }
-  return words.join(" ");
+    if (value === true) {
+      return flag;
+    }
+    return (typeof value === "string" ? [value] : value).flatMap((item) => [...flag, quote(item)]);
+  };
+  const positionals = command.arguments.filter((each) => each.kind === "positional");
+  const positional = positionals.flatMap(wordsOf);
+  const named = command.arguments.filter((each) => each.kind === "named").flatMap(wordsOf);
+  const separated =
+    positional.some((word) => word.startsWith("-")) ||
+    positionals.some(
+      (each) =>
+        wordsOf(each).length > 0 && (each.help.line?.trimEnd().endsWith("after --") ?? false),
+    );
+  const words = separated ? [...named, "--", ...positional] : [...positional, ...named];
+  return [tool, ...command.path, ...words].join(" ");
 }

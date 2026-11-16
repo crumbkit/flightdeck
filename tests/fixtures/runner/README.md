@@ -23,6 +23,8 @@ and one command for each way a real tool can misbehave or a test needs:
   name `bad` fails without a document, and its preview of the name `slow`
   prints a document and exits with 0 on SIGINT.
 - `child both` declares itself read-only and destructive at once.
+- `child launch` is additive and open-world, as a command that starts a
+  program the caller names is, and takes `--dry-run`.
 - `child pair` takes two optional positional values.
 - `child linger` prints its process id, then ignores SIGINT and SIGTERM
   for the number of seconds that its one value gives, and then prints a

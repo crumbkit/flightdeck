@@ -159,6 +159,8 @@ pub(super) fn build<'tool>(
     let mut line = Line::new(tool.name(), path);
     let mut options = Vec::new();
     let mut positionals = Vec::new();
+    // True when a positional argument's help says its value follows `--`.
+    let mut separated = false;
     // The first positional argument without a value. A value of a later
     // positional argument would reach the tool as this one's.
     let mut empty: Option<&str> = None;
@@ -213,10 +215,13 @@ pub(super) fn build<'tool>(
             (Kind::Positional, true) => {
                 return Err(refuse(argument.name(), Reason::UnknownArgument));
             }
-            (Kind::Positional, false) => positionals.extend(given.values),
+            (Kind::Positional, false) => {
+                separated |= argument.follows_separator();
+                positionals.extend(given.values);
+            }
         }
     }
-    line.positionals(&positionals);
+    line.positionals(&positionals, separated);
 
     let takes = |flag: CrumbkitFlag| command.crumbkit_flags().any(|(own, _)| own == flag);
     // crumbkit lists a global `--full` on every command below the one that
@@ -357,9 +362,9 @@ impl Line {
     }
 
     /// Adds the positional values, after `--` when one of them starts with
-    /// `-`.
-    fn positionals(&mut self, values: &[String]) {
-        if values.iter().any(|value| value.starts_with('-')) {
+    /// `-` or `separated` says an argument's help puts its value there.
+    fn positionals(&mut self, values: &[String], separated: bool) {
+        if separated || values.iter().any(|value| value.starts_with('-')) {
             push(&mut self.tail, "--");
         }
         for value in values {

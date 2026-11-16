@@ -49,9 +49,17 @@ const Column = z.object({
 });
 export type Column = z.infer<typeof Column>;
 
-/** What a command changes, or null for a command that declares nothing. */
+/**
+ * What a command changes, or null for a command that declares nothing.
+ * `open_world` marks a command that starts a program the caller names.
+ */
 const Effects = z
-  .object({ read_only: z.boolean(), destructive: z.boolean(), idempotent: z.boolean() })
+  .object({
+    read_only: z.boolean(),
+    destructive: z.boolean(),
+    idempotent: z.boolean(),
+    open_world: z.boolean(),
+  })
   .nullable();
 export type Effects = z.infer<typeof Effects>;
 

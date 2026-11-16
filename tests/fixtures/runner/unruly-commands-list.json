@@ -325,6 +325,52 @@
       "writes": null
     },
     {
+      "path": "unruly child launch",
+      "about": "Start a program that the caller names; it takes --dry-run, which would run nothing of it",
+      "long_about": null,
+      "arguments": [
+        {
+          "name": "<PROGRAM>",
+          "short": null,
+          "value_names": [
+            "PROGRAM"
+          ],
+          "required": false,
+          "many": true,
+          "defaults": [],
+          "possible_values": [],
+          "help": "The program to run and its arguments, after --",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        },
+        {
+          "name": "--dry-run",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Report what the command would change, and change nothing",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": false,
+        "destructive": false,
+        "idempotent": false,
+        "open_world": true
+      },
+      "writes": null
+    },
+    {
       "path": "unruly child pair",
       "about": "Take two optional positional values",
       "long_about": null,

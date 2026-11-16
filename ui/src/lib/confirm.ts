@@ -50,6 +50,15 @@ function verbOf(command: Command): string {
 }
 
 /**
+ * Returns the program that a line starts: the words after its `--`, such
+ * as "cargo run", or the whole line when it has no separator.
+ */
+export function programOf(line: string): string {
+  const at = line.indexOf(" -- ");
+  return at === -1 ? line : line.slice(at + 4);
+}
+
+/**
  * Returns the confirm button's words: the verb and the count, such as
  * "Remove 1 book", or the verb alone when the preview counted nothing.
  */
@@ -82,7 +91,12 @@ export function effectsInWords(command: Command): string {
  */
 export function confirmedLine(command: Command, line: string): string {
   const takesYes = command.arguments.some((each) => each.crumbkit_flag === "--yes");
-  return takesYes ? `${line} --yes` : line;
+  if (!takesYes) {
+    return line;
+  }
+  // The server puts --yes before the separator, where the tool reads it.
+  const at = line.indexOf(" -- ");
+  return at === -1 ? `${line} --yes` : `${line.slice(0, at)} --yes${line.slice(at)}`;
 }
 
 /**

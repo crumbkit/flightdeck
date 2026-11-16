@@ -386,6 +386,36 @@ fn a_preview_of_a_command_without_dry_run_is_one_started_line_with_the_id() {
 }
 
 #[test]
+fn an_open_world_command_runs_only_with_a_confirmation_id_for_the_same_vector() {
+    serving(Setup::of(unruly()), |running| {
+        let page = Page::of(running);
+        let launch = json!({"path": ["child", "launch"], "values": {"<PROGRAM>": ["echo", "hi"]}});
+        let dry = json!({"path": ["child", "launch"], "values": {"<PROGRAM>": ["echo", "ho"]}});
+
+        let bare = page.send("/api/runs", &launch);
+        let preview = page.stream("/api/previews", &launch).rest();
+        let id = preview[0]["confirmation"].as_str().unwrap();
+        let other = page.send(&format!("/api/confirmations/{id}"), &dry);
+        let id = page.stream("/api/previews", &launch).rest()[0]["confirmation"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let confirmed = page
+            .stream(&format!("/api/confirmations/{id}"), &launch)
+            .rest();
+
+        refused(&bare, 422, "flightdeck::run::needs_confirmation");
+        assert_eq!(preview.len(), 1, "a preview runs nothing: {preview:?}");
+        assert_eq!(preview[0]["preview"], false);
+        assert_eq!(preview[0]["run"], Value::Null);
+        assert_eq!(preview[0]["line"], "unruly child launch -- echo hi");
+        refused(&other, 422, "flightdeck::run::confirmation");
+        assert_eq!(confirmed.last().unwrap()["outcome"]["kind"], "result");
+        Then::Stop
+    });
+}
+
+#[test]
 fn a_stream_from_reading_sends_started_then_each_entry_as_its_own_line_then_ended() {
     let lists = tempfile::tempdir().unwrap();
     std::fs::write(lists.path().join("to-read.txt"), "Book 1\nBook 2\nBook 3\n").unwrap();

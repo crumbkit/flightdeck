@@ -36,7 +36,7 @@ describe("cellLinkOf", () => {
         ? {
             ...each,
             class: "destructive" as const,
-            effects: { read_only: true, destructive: true, idempotent: false },
+            effects: { read_only: true, destructive: true, idempotent: false, open_world: false },
           }
         : each,
     );

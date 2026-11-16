@@ -167,6 +167,16 @@ case "$1 $2" in
     ;;
   esac
   ;;
+"child launch")
+  case " $* " in
+  *" --dry-run "*)
+    echo '{"schema":"unruly/child-launch/v1","dry_run":true,"data":{}}'
+    ;;
+  *)
+    echo '{"schema":"unruly/child-launch/v1","data":{}}'
+    ;;
+  esac
+  ;;
 "child both" | "child pair" | "child visit")
   echo '{"schema":"unruly/child-both/v1","data":{}}'
   ;;

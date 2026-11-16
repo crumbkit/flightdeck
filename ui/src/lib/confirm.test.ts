@@ -7,6 +7,7 @@ import {
   confirmLabel,
   countOf,
   effectsInWords,
+  programOf,
   question,
 } from "./confirm";
 
@@ -42,6 +43,16 @@ describe("question", () => {
   });
 });
 
+describe("programOf", () => {
+  it("names the words after the separator of the line", () => {
+    expect(programOf("starmap run --spec a.toml -- cargo run")).toBe("cargo run");
+  });
+
+  it("names the whole line when it has no separator", () => {
+    expect(programOf("shelf books remove 2")).toBe("shelf books remove 2");
+  });
+});
+
 describe("effectsInWords", () => {
   it("words each effect the command declares", () => {
     expect(effectsInWords(remove)).toBe("Destructive. Idempotent.");
@@ -49,7 +60,7 @@ describe("effectsInWords", () => {
       effectsInWords({
         ...remove,
         class: "additive",
-        effects: { read_only: false, destructive: false, idempotent: false },
+        effects: { read_only: false, destructive: false, idempotent: false, open_world: false },
       }),
     ).toBe("Additive. Not idempotent.");
   });
@@ -64,6 +75,12 @@ describe("effectsInWords", () => {
 describe("confirmedLine", () => {
   it("adds --yes for a command that takes it", () => {
     expect(confirmedLine(remove, "shelf books remove 2")).toBe("shelf books remove 2 --yes");
+  });
+
+  it("puts --yes before the separator, where the tool reads it", () => {
+    expect(confirmedLine(remove, "shelf books remove -- cargo run")).toBe(
+      "shelf books remove --yes -- cargo run",
+    );
   });
 
   it("leaves the line as it is for a command without --yes", () => {

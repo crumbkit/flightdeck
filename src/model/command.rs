@@ -271,6 +271,21 @@ impl Command {
         self.class
     }
 
+    /// Returns true when the command declares itself open-world, which is
+    /// how crumbkit marks a command that starts a program the caller names.
+    /// flightdeck cannot preview what such a program changes, so the runner
+    /// starts the command only after a confirmation.
+    #[must_use]
+    pub const fn starts_program(&self) -> bool {
+        matches!(
+            self.effects,
+            Effects::Known {
+                open_world: true,
+                ..
+            }
+        )
+    }
+
     /// Returns how the command guards its writes, or `None` for a command
     /// without guards.
     #[must_use]

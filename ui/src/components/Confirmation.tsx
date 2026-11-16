@@ -1,8 +1,15 @@
-import { type KeyboardEvent, useEffect, useRef } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
 import type { Command } from "@/api/model";
 import { Button } from "@/components/ui/button";
-import { confirmedLine, confirmLabel, countOf, effectsInWords, question } from "@/lib/confirm";
-import { effectOf } from "@/lib/rail";
+import {
+  confirmedLine,
+  confirmLabel,
+  countOf,
+  effectsInWords,
+  programOf,
+  question,
+} from "@/lib/confirm";
+import { type Effect, effectOf, startsProgram } from "@/lib/rail";
 import type { Run } from "@/lib/transcript";
 import { EffectBadge } from "./EffectBadge";
 
@@ -34,12 +41,36 @@ export function Confirmation({ run, command, stale, onConfirm, onDecline }: Prop
   if (ask.confirmation === null) {
     return null;
   }
+  const line = confirmedLine(command, run.line);
+  if (startsProgram(command)) {
+    // flightdeck runs no preview of such a command, so there is no count.
+    const program = programOf(run.line);
+    return (
+      <Question
+        title={`Start ${program}?`}
+        label={`Start ${program}`}
+        effect="starts a program"
+        explanation={
+          <>
+            This command starts <code className="font-mono">{program}</code> on this computer.
+            flightdeck cannot preview what that program changes.
+          </>
+        }
+        line={line}
+        stale={stale}
+        onConfirm={onConfirm}
+        onDecline={onDecline}
+      />
+    );
+  }
   const count = state.kind === "ended" ? countOf(state.lines) : null;
   return (
     <Question
-      command={command}
-      count={count}
-      line={confirmedLine(command, run.line)}
+      title={question(command, count, line)}
+      label={confirmLabel(command, count)}
+      effect={effectOf(command)}
+      explanation={effectsInWords(command)}
+      line={line}
       stale={stale}
       onConfirm={onConfirm}
       onDecline={onDecline}
@@ -48,15 +79,26 @@ export function Confirmation({ run, command, stale, onConfirm, onDecline }: Prop
 }
 
 type QuestionProps = {
-  command: Command;
-  count: number | null;
+  title: string;
+  label: string;
+  effect: Effect;
+  explanation: ReactNode;
   line: string;
   stale: boolean;
   onConfirm: () => void;
   onDecline: () => void;
 };
 
-function Question({ command, count, line, stale, onConfirm, onDecline }: QuestionProps) {
+function Question({
+  title,
+  label,
+  effect,
+  explanation,
+  line,
+  stale,
+  onConfirm,
+  onDecline,
+}: QuestionProps) {
   const cancel = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -73,10 +115,10 @@ function Question({ command, count, line, stale, onConfirm, onDecline }: Questio
 
   return (
     <fieldset className="mt-3 mb-0 flex min-w-0 flex-col gap-2 rounded-md border px-3 py-2.5">
-      <legend className="float-left p-0 font-semibold">{question(command, count, line)}</legend>
+      <legend className="float-left p-0 font-semibold">{title}</legend>
       <p className="m-0 flex flex-wrap items-center gap-2">
-        <EffectBadge effect={effectOf(command)} />
-        {effectsInWords(command)}
+        <EffectBadge effect={effect} />
+        <span>{explanation}</span>
       </p>
       <code className="bg-code w-max max-w-full overflow-x-auto rounded px-1.5 py-0.5 font-mono text-xs">
         {line}
@@ -98,7 +140,7 @@ function Question({ command, count, line, stale, onConfirm, onDecline }: Questio
           onKeyDown={onKeyDown}
           onClick={onConfirm}
         >
-          {confirmLabel(command, count)}
+          {label}
         </Button>
       </div>
     </fieldset>

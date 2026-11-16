@@ -107,6 +107,21 @@ impl Argument {
         &self.help
     }
 
+    /// Returns true when the argument's help says its value comes after
+    /// `--`, as the program of `starmap run` does, so the display line
+    /// writes the `--` before it.
+    ///
+    /// RUST-10: it reads the help line's last words, `after --`. It handles
+    /// a tool whose help names the separator that way, and it misses one
+    /// that words it differently. A declared flag in crumbkit's `commands
+    /// list` replaces it.
+    #[must_use]
+    pub fn follows_separator(&self) -> bool {
+        self.help
+            .line()
+            .is_some_and(|line| line.trim_end().ends_with("after --"))
+    }
+
     /// Returns the arguments that can stand in for this one, such as
     /// `--from` for the ids of `books show`.
     #[must_use]
