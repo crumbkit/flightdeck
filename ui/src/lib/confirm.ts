@@ -1,6 +1,7 @@
 import type { Command } from "@/api/model";
 import { resultOf, rowsOf } from "@/api/result";
-import type { RunEvent } from "@/api/runs";
+import type { RunEvent, RunRequest } from "@/api/runs";
+import { tailOf } from "./form";
 
 /**
  * Returns the number of rows that a preview's lines would change: the rows
@@ -50,15 +51,6 @@ function verbOf(command: Command): string {
 }
 
 /**
- * Returns the program that a line starts: the words after its `--`, such
- * as "cargo run", or the whole line when it has no separator.
- */
-export function programOf(line: string): string {
-  const at = line.indexOf(" -- ");
-  return at === -1 ? line : line.slice(at + 4);
-}
-
-/**
  * Returns the confirm button's words: the verb and the count, such as
  * "Remove 1 book", or the verb alone when the preview counted nothing.
  */
@@ -89,14 +81,19 @@ export function effectsInWords(command: Command): string {
  * Returns the line that the confirm button runs: the preview's line with
  * `--yes` when the command takes it, which the server adds.
  */
-export function confirmedLine(command: Command, line: string): string {
+export function confirmedLine(command: Command, line: string, request: RunRequest): string {
   const takesYes = command.arguments.some((each) => each.crumbkit_flag === "--yes");
   if (!takesYes) {
     return line;
   }
-  // The server puts --yes before the separator, where the tool reads it.
-  const at = line.indexOf(" -- ");
-  return at === -1 ? `${line} --yes` : `${line.slice(0, at)} --yes${line.slice(at)}`;
+  // The server puts --yes before the separator, where the tool reads it. The
+  // request's own values say where the separator is, so a quoted option
+  // value that holds " -- " cannot move it.
+  const { words, separated } = tailOf(command, request);
+  const tail = ` -- ${words.join(" ")}`;
+  return separated && line.endsWith(tail)
+    ? `${line.slice(0, -tail.length)} --yes${tail}`
+    : `${line} --yes`;
 }
 
 /**

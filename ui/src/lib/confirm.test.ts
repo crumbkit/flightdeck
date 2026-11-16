@@ -43,13 +43,23 @@ describe("question", () => {
   });
 });
 
+/** A command whose positional argument takes its values after `--`. */
+const launch = {
+  ...remove,
+  path: ["run"],
+  arguments: remove.arguments.map((each) =>
+    each.kind === "positional" ? { ...each, name: "<PROGRAM>", after_double_dash: true } : each,
+  ),
+};
+const launched = (words: string[]) => ({ path: ["run"], values: { "<PROGRAM>": words } });
+
 describe("programOf", () => {
-  it("names the words after the separator of the line", () => {
-    expect(programOf("starmap run --spec a.toml -- cargo run")).toBe("cargo run");
+  it("names the values of the argument that comes after the separator", () => {
+    expect(programOf(launch, launched(["cargo", "run"]))).toBe("cargo run");
   });
 
-  it("names the whole line when it has no separator", () => {
-    expect(programOf("shelf books remove 2")).toBe("shelf books remove 2");
+  it("names the command's own words when it has no such values", () => {
+    expect(programOf(launch, { path: ["run"], values: {} })).toBe("run");
   });
 });
 
@@ -60,7 +70,13 @@ describe("effectsInWords", () => {
       effectsInWords({
         ...remove,
         class: "additive",
-        effects: { read_only: false, destructive: false, idempotent: false, open_world: false },
+        effects: {
+          read_only: false,
+          destructive: false,
+          idempotent: false,
+          open_world: false,
+          runs_program: false,
+        },
       }),
     ).toBe("Additive. Not idempotent.");
   });
@@ -74,12 +90,24 @@ describe("effectsInWords", () => {
 
 describe("confirmedLine", () => {
   it("adds --yes for a command that takes it", () => {
-    expect(confirmedLine(remove, "shelf books remove 2")).toBe("shelf books remove 2 --yes");
+    const request = { path: ["books", "remove"], values: {} };
+
+    expect(confirmedLine(remove, "shelf books remove 2", request)).toBe(
+      "shelf books remove 2 --yes",
+    );
   });
 
   it("puts --yes before the separator, where the tool reads it", () => {
-    expect(confirmedLine(remove, "shelf books remove -- cargo run")).toBe(
-      "shelf books remove --yes -- cargo run",
+    expect(
+      confirmedLine(launch, "shelf run -- cargo run", launched(["cargo", "run"])),
+    ).toBe("shelf run --yes -- cargo run");
+  });
+
+  it("finds the separator from the request, not from a value that holds ' -- '", () => {
+    const request = { path: ["books", "remove"], values: { "--limit": "a -- b" } };
+
+    expect(confirmedLine(remove, "shelf books remove 2 --limit 'a -- b'", request)).toBe(
+      "shelf books remove 2 --limit 'a -- b' --yes",
     );
   });
 
@@ -89,7 +117,9 @@ describe("confirmedLine", () => {
       arguments: remove.arguments.filter((each) => each.crumbkit_flag !== "--yes"),
     };
 
-    expect(confirmedLine(withoutYes, "shelf books remove 2")).toBe("shelf books remove 2");
+    expect(
+      confirmedLine(withoutYes, "shelf books remove 2", { path: ["books", "remove"], values: {} }),
+    ).toBe("shelf books remove 2");
   });
 });
 

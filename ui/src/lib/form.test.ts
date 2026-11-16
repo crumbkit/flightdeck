@@ -116,13 +116,11 @@ describe("lineOf", () => {
     ).toBe("shelf books show 2 'it'\\''s'");
   });
 
-  it("writes -- before the values of an argument whose help says they come after --", () => {
+  it("writes -- before the values of an argument that takes them after --", () => {
     const program = {
       ...show,
       arguments: show.arguments.map((each) =>
-        each.name === "<ID>"
-          ? { ...each, help: { line: "The program to run, after --", long: null } }
-          : each,
+        each.name === "<ID>" ? { ...each, after_double_dash: true } : each,
       ),
     };
 

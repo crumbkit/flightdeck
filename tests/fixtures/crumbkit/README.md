@@ -2,8 +2,8 @@
 
 These files are copies of `crates/crumbkit/schemas/commands-list-v1.json`,
 `schemas-list-v1.json`, `schemas-show-v1.json` and `failure-v1.json` from
-crumbkit at commit `8ee2eadd29eba89a9d65033b38cc861701be21d5`, the v0.3.2
-release, which `scripts/install-test-tools.sh` installs shelf and reading
+crumbkit at commit `cb73bd8ea968033c2119ec91534311234018584e`
+(crumbkit/crumbkit#393), which `scripts/install-test-tools.sh` installs shelf and reading
 from. They move with that commit.
 
 `commands-list-v1-older.json` is `commands-list-v1.json` from crumbkit at

@@ -339,11 +339,57 @@
           "many": true,
           "defaults": [],
           "possible_values": [],
-          "help": "The program to run and its arguments, after --",
+          "help": "The program to run and its arguments",
+          "long_help": null,
+          "global": false,
+          "after_double_dash": true,
+          "one_of": []
+        },
+        {
+          "name": "--dry-run",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Report what the command would change, and change nothing",
           "long_help": null,
           "global": false,
           "one_of": []
         },
+        {
+          "name": "--yes",
+          "short": null,
+          "value_names": [],
+          "required": false,
+          "many": false,
+          "defaults": [],
+          "possible_values": [],
+          "help": "Proceed without asking for confirmation",
+          "long_help": null,
+          "global": false,
+          "one_of": []
+        }
+      ],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": false,
+        "destructive": false,
+        "idempotent": false,
+        "open_world": true,
+        "runs_program": true
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child sweep",
+      "about": "Destroy data by running a program that the caller names; it takes --dry-run",
+      "long_about": null,
+      "arguments": [
         {
           "name": "--dry-run",
           "short": null,
@@ -364,9 +410,28 @@
       "exits": [],
       "effects": {
         "read_only": false,
-        "destructive": false,
+        "destructive": true,
         "idempotent": false,
-        "open_world": true
+        "open_world": true,
+        "runs_program": true
+      },
+      "writes": null
+    },
+    {
+      "path": "unruly child fetch",
+      "about": "Read from outside the tool, as a command that reaches a web service does, and start no program",
+      "long_about": null,
+      "arguments": [],
+      "examples": [],
+      "columns": [],
+      "form": "document",
+      "exits": [],
+      "effects": {
+        "read_only": true,
+        "destructive": false,
+        "idempotent": true,
+        "open_world": true,
+        "runs_program": false
       },
       "writes": null
     },

@@ -125,14 +125,16 @@ describe("ToolPage", () => {
     const reply = withRemove((command) => ({
       ...command,
       class: "additive",
-      effects: { read_only: false, destructive: false, idempotent: false, open_world: true },
+      effects: {
+        read_only: false,
+        destructive: false,
+        idempotent: false,
+        open_world: true,
+        runs_program: true,
+      },
       arguments: command.arguments
         .filter((each) => each.crumbkit_flag !== "--dry-run")
-        .map((each) =>
-          each.name === "<ID>"
-            ? { ...each, help: { line: "The program to run, after --", long: null } }
-            : each,
-        ),
+        .map((each) => (each.name === "<ID>" ? { ...each, after_double_dash: true } : each)),
     }));
     const user = userEvent.setup();
     renderPage(reply);
@@ -215,7 +217,13 @@ describe("ToolPage", () => {
     const reply = withRemove((command) => ({
       ...command,
       class: "additive",
-      effects: { read_only: false, destructive: false, idempotent: true, open_world: false },
+      effects: {
+        read_only: false,
+        destructive: false,
+        idempotent: true,
+        open_world: false,
+        runs_program: false,
+      },
     }));
     const user = userEvent.setup();
     renderPage(reply);
@@ -273,7 +281,13 @@ describe("ToolPage", () => {
     const reply = withRemove((command) => ({
       ...command,
       class: "additive",
-      effects: { read_only: false, destructive: false, idempotent: true, open_world: false },
+      effects: {
+        read_only: false,
+        destructive: false,
+        idempotent: true,
+        open_world: false,
+        runs_program: false,
+      },
     }));
     const user = userEvent.setup();
     renderPage(reply);

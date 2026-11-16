@@ -57,7 +57,13 @@ describe("effectOf", () => {
       effectOf({
         ...command(shelf, "books list"),
         class: "additive",
-        effects: { read_only: false, destructive: false, idempotent: false, open_world: false },
+        effects: {
+          read_only: false,
+          destructive: false,
+          idempotent: false,
+          open_world: false,
+          runs_program: false,
+        },
       }),
     ).toBe("additive");
   });
@@ -67,16 +73,25 @@ describe("a command that starts a program", () => {
   const run = {
     ...command(shelf, "books list"),
     class: "additive" as const,
-    effects: { read_only: false, destructive: false, idempotent: false, open_world: true },
+    effects: {
+      read_only: false,
+      destructive: false,
+      idempotent: false,
+      open_world: true,
+      runs_program: true,
+    },
   };
 
-  it("needs a confirmation because it declares itself open-world, whatever its name", () => {
+  it("needs a confirmation because it declares runs_program, whatever its name", () => {
     expect(startsProgram(run)).toBe(true);
     expect(needsConfirmation(run)).toBe(true);
-    expect(startsProgram({ ...run, effects: { ...run.effects, open_world: false } })).toBe(false);
-    expect(needsConfirmation({ ...run, effects: { ...run.effects, open_world: false } })).toBe(
-      false,
-    );
+  });
+
+  it("needs none when it only reaches outside the tool", () => {
+    const fetch = { ...run, effects: { ...run.effects, runs_program: false } };
+
+    expect(startsProgram(fetch)).toBe(false);
+    expect(needsConfirmation(fetch)).toBe(false);
   });
 
   it("leaves a destructive command to the destructive card", () => {
@@ -91,7 +106,13 @@ describe("a command that declares itself read-only and destructive", () => {
   const both = {
     ...command(shelf, "books list"),
     class: "destructive" as const,
-    effects: { read_only: true, destructive: true, idempotent: false, open_world: false },
+    effects: {
+      read_only: true,
+      destructive: true,
+      idempotent: false,
+      open_world: false,
+      runs_program: false,
+    },
   };
 
   it("takes the class that the server gave it", () => {
@@ -123,7 +144,13 @@ describe("whyNotRunnable", () => {
     const additive = {
       ...command(shelf, "books list"),
       class: "additive" as const,
-      effects: { read_only: false, destructive: false, idempotent: true, open_world: false },
+      effects: {
+        read_only: false,
+        destructive: false,
+        idempotent: true,
+        open_world: false,
+        runs_program: false,
+      },
     };
 
     expect(whyNotRunnable(additive, true)).toBe(

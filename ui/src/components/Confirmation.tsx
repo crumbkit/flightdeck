@@ -1,14 +1,8 @@
 import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
 import type { Command } from "@/api/model";
 import { Button } from "@/components/ui/button";
-import {
-  confirmedLine,
-  confirmLabel,
-  countOf,
-  effectsInWords,
-  programOf,
-  question,
-} from "@/lib/confirm";
+import { confirmedLine, confirmLabel, countOf, effectsInWords, question } from "@/lib/confirm";
+import { programOf } from "@/lib/form";
 import { type Effect, effectOf, startsProgram } from "@/lib/rail";
 import type { Run } from "@/lib/transcript";
 import { EffectBadge } from "./EffectBadge";
@@ -41,10 +35,10 @@ export function Confirmation({ run, command, stale, onConfirm, onDecline }: Prop
   if (ask.confirmation === null) {
     return null;
   }
-  const line = confirmedLine(command, run.line);
+  const line = confirmedLine(command, run.line, run.request);
   if (startsProgram(command)) {
     // flightdeck runs no preview of such a command, so there is no count.
-    const program = programOf(run.line);
+    const program = programOf(command, run.request);
     return (
       <Question
         title={`Start ${program}?`}

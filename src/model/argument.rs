@@ -17,6 +17,7 @@ pub struct Argument {
     help: Help,
     one_of: Vec<String>,
     global: bool,
+    after_double_dash: bool,
     crumbkit_flag: Option<CrumbkitFlag>,
 }
 
@@ -53,6 +54,7 @@ impl Argument {
             },
             one_of: row.one_of,
             global: row.global,
+            after_double_dash: row.after_double_dash,
         }
     }
 
@@ -107,19 +109,13 @@ impl Argument {
         &self.help
     }
 
-    /// Returns true when the argument's help says its value comes after
-    /// `--`, as the program of `starmap run` does, so the display line
-    /// writes the `--` before it.
-    ///
-    /// RUST-10: it reads the help line's last words, `after --`. It handles
-    /// a tool whose help names the separator that way, and it misses one
-    /// that words it differently. A declared flag in crumbkit's `commands
-    /// list` replaces it.
+    /// Returns true when the argument takes the values written after `--`,
+    /// as the program of `starmap run` does, so a line that gives it values
+    /// writes the `--` before them. `commands list` declares it; a tool on
+    /// an older crumbkit leaves it out, which reads as false.
     #[must_use]
-    pub fn follows_separator(&self) -> bool {
-        self.help
-            .line()
-            .is_some_and(|line| line.trim_end().ends_with("after --"))
+    pub const fn after_double_dash(&self) -> bool {
+        self.after_double_dash
     }
 
     /// Returns the arguments that can stand in for this one, such as

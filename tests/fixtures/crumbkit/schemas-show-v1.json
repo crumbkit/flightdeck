@@ -409,6 +409,10 @@
               ]
             }
           },
+          "sentence": {
+            "description": "A fixed sentence that a person reviewed, safe to show to anyone. It is present only when the failure has one.",
+            "type": "string"
+          },
           "url": {
             "description": "A page that explains the failure. It is present only when the failure has one.",
             "type": "string"

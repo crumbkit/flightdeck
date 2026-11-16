@@ -8,12 +8,12 @@
 //! decide how it starts:
 //!
 //! - [`Runner::run`] starts a read-only or additive command at once, and
-//!   refuses a destructive command, one whose effects are unknown, or an
-//!   open-world one that starts a program the caller names, with
-//!   [`RUN_NEEDS_CONFIRMATION`].
+//!   refuses a destructive command, one whose effects are unknown, or one
+//!   whose effects declare `runs_program`, with [`RUN_NEEDS_CONFIRMATION`].
 //! - [`Runner::preview`] runs the command with `--dry-run` when it takes
-//!   that flag, except an open-world command, whose preview runs nothing
-//!   because nothing can show what its program changes. When the dry run ends with [`Outcome::Result`], or at once
+//!   that flag, except a non-destructive `runs_program` command, whose
+//!   preview runs nothing because nothing can show what its program changes.
+//!   When the dry run ends with [`Outcome::Result`], or at once
 //!   for a command without `--dry-run`, the [`Preview`] holds a
 //!   [`ConfirmationId`] bound to the exact vector and directory.
 //! - [`Runner::confirm`] runs the vector that the id was issued for, with
@@ -339,7 +339,10 @@ impl Runner {
     pub fn preview(&self, request: &RunRequest) -> Result<Preview, RunFailure> {
         let (command, vector) = self.check(request)?;
         let line = vector.line(Extra::None);
-        if vector.takes_dry_run() && !command.starts_program() {
+        // A command that starts a program and is not destructive has no dry
+        // run to show: nothing can say what its program changes.
+        let runs_no_dry_run = command.starts_program() && command.class() != Class::Destructive;
+        if vector.takes_dry_run() && !runs_no_dry_run {
             let run = self.start(
                 command,
                 &vector,

@@ -159,7 +159,7 @@ pub(super) fn build<'tool>(
     let mut line = Line::new(tool.name(), path);
     let mut options = Vec::new();
     let mut positionals = Vec::new();
-    // True when a positional argument's help says its value follows `--`.
+    // True when a positional argument that has values takes them after `--`.
     let mut separated = false;
     // The first positional argument without a value. A value of a later
     // positional argument would reach the tool as this one's.
@@ -216,7 +216,7 @@ pub(super) fn build<'tool>(
                 return Err(refuse(argument.name(), Reason::UnknownArgument));
             }
             (Kind::Positional, false) => {
-                separated |= argument.follows_separator();
+                separated |= argument.after_double_dash();
                 positionals.extend(given.values);
             }
         }
@@ -362,7 +362,8 @@ impl Line {
     }
 
     /// Adds the positional values, after `--` when one of them starts with
-    /// `-` or `separated` says an argument's help puts its value there.
+    /// `-` or `separated` says an argument that takes its values after `--`
+    /// has some.
     fn positionals(&mut self, values: &[String], separated: bool) {
         if separated || values.iter().any(|value| value.starts_with('-')) {
             push(&mut self.tail, "--");

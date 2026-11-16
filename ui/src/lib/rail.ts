@@ -61,11 +61,12 @@ export function effectOf(command: Command): Effect {
 
 /**
  * Returns true when the command starts a program that the caller names: it
- * declares itself open-world and is not destructive, whose card comes first.
- * flightdeck cannot preview what such a program changes.
+ * declares `runs_program` and is not destructive, whose card comes first.
+ * flightdeck cannot preview what such a program changes. A command that only
+ * reaches outside the tool (`open_world`) runs with no card.
  */
 export function startsProgram(command: Command): boolean {
-  return command.class !== "destructive" && command.effects?.open_world === true;
+  return command.class !== "destructive" && command.effects?.runs_program === true;
 }
 
 /**
