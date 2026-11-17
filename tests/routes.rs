@@ -437,11 +437,11 @@ fn the_preview_of_a_program_with_an_assignment_gives_the_confirmed_line_with_yes
 
         assert_eq!(
             preview[0]["confirmed_line"],
-            "unruly child launch --yes -- env RUST_LOG=debug cargo run"
+            "unruly child launch --yes -- env 'RUST_LOG=debug' cargo run"
         );
         assert_eq!(
             preview[0]["line"],
-            "unruly child launch -- env RUST_LOG=debug cargo run"
+            "unruly child launch -- env 'RUST_LOG=debug' cargo run"
         );
         Then::Stop
     });
