@@ -8,7 +8,7 @@
 #![cfg(test)]
 
 use clap::CommandFactory as _;
-use crumbkit_flightdeck::{CODES, Cli, TOOL, runner};
+use crumbkit_flightdeck::{CODES, Cli, TOOL};
 use crumbkit_test::{Examples, Failing, PathBudgets, Recoveries, Suite, Twins, Unprovoked};
 
 /// The budgets of the paths through flightdeck's help, which are crumbkit's
@@ -26,7 +26,8 @@ const STARTS: &[Failing<'_>] = &[Failing::new(
     &["open", "./no-such-tool", "--no-browser"],
 )];
 
-/// The reason that no command of flightdeck provokes a run's code.
+/// The reason that no command of flightdeck provokes a code of the `run` or
+/// `choices` area.
 const NO_RUN: &str =
     "No flightdeck command runs a tool's commands yet; the runner returns the code.";
 
@@ -44,20 +45,8 @@ const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
         crumbkit_flightdeck::TOOL_SEARCH_PATH,
         "Only a launch directory whose name holds PATH's separator provokes it; tests/open.rs provokes the code.",
     ),
-    Unprovoked::new(runner::RUN_REFUSED, NO_RUN),
-    Unprovoked::new(runner::RUN_NEEDS_CONFIRMATION, NO_RUN),
-    Unprovoked::new(runner::RUN_READ_ONLY, NO_RUN),
-    Unprovoked::new(runner::RUN_CONFIRMATION, NO_RUN),
-    Unprovoked::new(runner::RUN_DIRECTORY, NO_RUN),
-    Unprovoked::new(runner::RUN_NO_DOCUMENT, NO_RUN),
-    Unprovoked::new(runner::RUN_SPAWN, NO_RUN),
-    Unprovoked::new(runner::RUN_OUTPUT_LIMIT, NO_RUN),
-    Unprovoked::new(runner::RUN_BUSY, NO_RUN),
-    Unprovoked::new(runner::RUN_NOT_RUNNING, NO_RUN),
-    Unprovoked::new(runner::RUN_RANDOM, NO_RUN),
-    Unprovoked::new(runner::RUN_CLOSED, NO_RUN),
-    Unprovoked::new(runner::CHOICES_NO_LISTING, NO_RUN),
-    Unprovoked::new(runner::CHOICES_TIME_LIMIT, NO_RUN),
+    Unprovoked::area("flightdeck", "run", NO_RUN),
+    Unprovoked::area("flightdeck", "choices", NO_RUN),
 ];
 
 /// The codes that have no twin: the admitted twin of a refused `open`
@@ -80,20 +69,8 @@ const UNTWINNED: &[Unprovoked<'_>] = &[
         crumbkit_flightdeck::TOOL_SEARCH_PATH,
         "Only a launch directory whose name holds PATH's separator provokes it; tests/open.rs provokes the code.",
     ),
-    Unprovoked::new(runner::RUN_REFUSED, NO_RUN),
-    Unprovoked::new(runner::RUN_NEEDS_CONFIRMATION, NO_RUN),
-    Unprovoked::new(runner::RUN_READ_ONLY, NO_RUN),
-    Unprovoked::new(runner::RUN_CONFIRMATION, NO_RUN),
-    Unprovoked::new(runner::RUN_DIRECTORY, NO_RUN),
-    Unprovoked::new(runner::RUN_NO_DOCUMENT, NO_RUN),
-    Unprovoked::new(runner::RUN_SPAWN, NO_RUN),
-    Unprovoked::new(runner::RUN_OUTPUT_LIMIT, NO_RUN),
-    Unprovoked::new(runner::RUN_BUSY, NO_RUN),
-    Unprovoked::new(runner::RUN_NOT_RUNNING, NO_RUN),
-    Unprovoked::new(runner::RUN_RANDOM, NO_RUN),
-    Unprovoked::new(runner::RUN_CLOSED, NO_RUN),
-    Unprovoked::new(runner::CHOICES_NO_LISTING, NO_RUN),
-    Unprovoked::new(runner::CHOICES_TIME_LIMIT, NO_RUN),
+    Unprovoked::area("flightdeck", "run", NO_RUN),
+    Unprovoked::area("flightdeck", "choices", NO_RUN),
 ];
 
 /// The settings of flightdeck's recovery check.
