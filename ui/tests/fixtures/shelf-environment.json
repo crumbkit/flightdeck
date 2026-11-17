@@ -1,0 +1,502 @@
+[
+  {
+    "name": "SHELF_PORT",
+    "type": "port",
+    "type_name": "port",
+    "unset": "default 8080",
+    "unset_rule": {
+      "local": {
+        "rule": "default",
+        "default": "8080"
+      },
+      "production": null
+    },
+    "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
+    "value": {
+      "state": "default",
+      "text": "8080"
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "The port the catalogue listens on.",
+    "effect": "The catalogue listens on 8080.",
+    "values": null,
+    "check": "The port must be above 1024.",
+    "group": null,
+    "owner": null
+  },
+  {
+    "name": "SHELF_DEBUG",
+    "type": "boolean",
+    "type_name": "boolean",
+    "unset": "default false",
+    "unset_rule": {
+      "local": {
+        "rule": "default",
+        "default": "false"
+      },
+      "production": null
+    },
+    "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
+    "value": {
+      "state": "set",
+      "text": "true"
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "Logs each catalogue query.",
+    "effect": null,
+    "values": null,
+    "check": null,
+    "group": null,
+    "owner": null
+  },
+  {
+    "name": "SHELF_CATALOGUE_URL",
+    "type": "url",
+    "type_name": "url",
+    "unset": "required",
+    "unset_rule": {
+      "local": {
+        "rule": "required"
+      },
+      "production": null
+    },
+    "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
+    "value": {
+      "state": "unset",
+      "text": null
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "The base URL of the catalogue that shelf reads.",
+    "effect": "Every books command fails, because shelf has no catalogue to read.",
+    "values": null,
+    "check": null,
+    "group": null,
+    "owner": null
+  },
+  {
+    "name": "SHELF_MIRROR_ACCOUNT",
+    "type": "string",
+    "type_name": "string",
+    "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
+    "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
+    "value": {
+      "state": "unset",
+      "text": null
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "The account shelf uses at the catalogue mirror.",
+    "effect": null,
+    "values": null,
+    "check": null,
+    "group": "mirror",
+    "owner": null
+  },
+  {
+    "name": "SHELF_MIRROR_TOKEN",
+    "type": "string",
+    "type_name": "string",
+    "unset": "optional; production required",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": {
+        "rule": "required"
+      }
+    },
+    "source": "secret, 1Password",
+    "source_kind": {
+      "kind": "secret",
+      "bind": "1Password"
+    },
+    "value": {
+      "state": "set",
+      "text": null
+    },
+    "show": "withheld",
+    "bind": "op://Personal/shelf mirror/token",
+    "purpose": "The token that shelf sends to the catalogue's mirror.",
+    "effect": "shelf reads the catalogue without its mirror.",
+    "values": null,
+    "check": null,
+    "group": "mirror",
+    "owner": null
+  },
+  {
+    "name": "SHELF_LOG_LEVEL",
+    "type": "log-level: one of error, warn, info, debug",
+    "type_name": "enumeration",
+    "unset": "default info",
+    "unset_rule": {
+      "local": {
+        "rule": "default",
+        "default": "info"
+      },
+      "production": null
+    },
+    "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
+    "value": {
+      "state": "default",
+      "text": "info"
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "The least severe message that shelf writes to its log.",
+    "effect": "shelf logs at info.",
+    "values": [
+      {
+        "value": "error",
+        "description": "Only failures."
+      },
+      {
+        "value": "warn",
+        "description": "Failures, and anything that may become one."
+      },
+      {
+        "value": "info",
+        "description": "Each command that runs, and what it changed."
+      },
+      {
+        "value": "debug",
+        "description": "Every step, for finding a fault."
+      }
+    ],
+    "check": null,
+    "group": null,
+    "owner": null
+  },
+  {
+    "name": "SHELF_REGION",
+    "type": "region: one of eu, us, ap",
+    "type_name": "enumeration",
+    "unset": "default eu",
+    "unset_rule": {
+      "local": {
+        "rule": "default",
+        "default": "eu"
+      },
+      "production": null
+    },
+    "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
+    "value": {
+      "state": "invalid",
+      "text": "moon"
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "The region whose catalogue mirror shelf prefers.",
+    "effect": "shelf prefers the eu mirror.",
+    "values": [
+      {
+        "value": "eu",
+        "description": "The mirror in Europe."
+      },
+      {
+        "value": "us",
+        "description": "The mirror in North America."
+      },
+      {
+        "value": "ap",
+        "description": "The mirror in Asia Pacific."
+      }
+    ],
+    "check": "The region must have a mirror that answers.",
+    "group": null,
+    "owner": null
+  },
+  {
+    "name": "SHELF_OUTPUT_BUDGET",
+    "type": "integer 1..=4294967295",
+    "type_name": "integer",
+    "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
+    "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
+    "value": {
+      "state": "unset",
+      "text": null
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "The most bytes that one run prints, which lowers the tool's own limit and never raises it.",
+    "effect": "A value that is not a whole number of bytes from 1 up to the tool's limit leaves the limit as it is.",
+    "values": null,
+    "check": null,
+    "group": null,
+    "owner": "crumbkit"
+  },
+  {
+    "name": "NO_COLOR",
+    "type": "string",
+    "type_name": "string",
+    "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
+    "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
+    "value": {
+      "state": "unset",
+      "text": null
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "Turns colour off in the tool's output when it holds any value.",
+    "effect": "Colour follows CLICOLOR_FORCE, CLICOLOR, TERM and whether the stream is a terminal.",
+    "values": null,
+    "check": null,
+    "group": null,
+    "owner": "crumbkit"
+  },
+  {
+    "name": "CLICOLOR",
+    "type": "string",
+    "type_name": "string",
+    "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
+    "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
+    "value": {
+      "state": "unset",
+      "text": null
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "Turns colour off in the tool's output when it is 0.",
+    "effect": "Colour follows the terminal.",
+    "values": null,
+    "check": null,
+    "group": null,
+    "owner": "crumbkit"
+  },
+  {
+    "name": "CLICOLOR_FORCE",
+    "type": "string",
+    "type_name": "string",
+    "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
+    "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
+    "value": {
+      "state": "unset",
+      "text": null
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "Turns colour on in the tool's output, whatever the stream is, when it holds a value other than 0.",
+    "effect": "Colour follows the terminal.",
+    "values": null,
+    "check": null,
+    "group": null,
+    "owner": "crumbkit"
+  },
+  {
+    "name": "TERM",
+    "type": "string",
+    "type_name": "string",
+    "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
+    "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
+    "value": {
+      "state": "set",
+      "text": "xterm-256color"
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "The kind of terminal the tool prints to; dumb turns colour off in the tool's output.",
+    "effect": "Colour follows the other colour variables and the terminal.",
+    "values": null,
+    "check": null,
+    "group": null,
+    "owner": "crumbkit"
+  },
+  {
+    "name": "SHELF_PROGRAM",
+    "type": "string matching ^[a-z][a-z0-9_-]{0,31}$",
+    "type_name": "string",
+    "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
+    "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
+    "value": {
+      "state": "set",
+      "text": "flightdeck"
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "The name of the program that runs the tool, such as flightdeck, which the tool records in its usage log.",
+    "effect": "The usage log records no program name.",
+    "values": null,
+    "check": null,
+    "group": null,
+    "owner": "crumbkit"
+  },
+  {
+    "name": "XDG_STATE_HOME",
+    "type": "absolute path",
+    "type_name": "path",
+    "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
+    "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
+    "value": {
+      "state": "set",
+      "text": "/Users/person/.local/state"
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "The directory that holds the tool's state, such as its usage log, under a directory named after the tool.",
+    "effect": "The state directory is .local/state under the home directory.",
+    "values": null,
+    "check": null,
+    "group": null,
+    "owner": "crumbkit"
+  },
+  {
+    "name": "TRACEPARENT",
+    "type": "string",
+    "type_name": "string",
+    "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
+    "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
+    "value": {
+      "state": "unset",
+      "text": null
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "The W3C trace context of the caller, which the tool's usage log joins.",
+    "effect": "The run starts a new trace.",
+    "values": null,
+    "check": null,
+    "group": null,
+    "owner": "crumbkit"
+  },
+  {
+    "name": "TRACESTATE",
+    "type": "string",
+    "type_name": "string",
+    "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
+    "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
+    "value": {
+      "state": "unset",
+      "text": null
+    },
+    "show": "shown",
+    "bind": null,
+    "purpose": "The W3C trace state of the caller, which goes with TRACEPARENT.",
+    "effect": "The run records no trace state.",
+    "values": null,
+    "check": null,
+    "group": null,
+    "owner": "crumbkit"
+  }
+]

@@ -10,7 +10,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crumbkit_flightdeck::model::{CommandsList, Recovery, SchemasList, SchemasShow, ToolFailure};
+use crumbkit_flightdeck::model::{
+    CommandsList, Recovery, SchemasList, SchemasShow, ToolFailure, Variable,
+};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -194,5 +196,108 @@ fn shelfs_usage_fixture_matches_its_own_schema_which_declares_every_field_flight
     let figures = row_properties(&schema, &["figures"]);
     for field in FIGURE_FIELDS {
         assert!(figures.contains_key(field), "{field}");
+    }
+}
+
+/// The fields of a variable of `self environment list` that flightdeck
+/// reads.
+const VARIABLE_FIELDS: [&str; 16] = [
+    "name",
+    "type",
+    "type_name",
+    "unset",
+    "unset_rule",
+    "source",
+    "source_kind",
+    "value",
+    "show",
+    "bind",
+    "purpose",
+    "effect",
+    "values",
+    "check",
+    "group",
+    "owner",
+];
+
+#[test]
+fn the_environment_fixture_matches_crumbkit_starmaps_schema_which_declares_every_field_flightdeck_reads()
+ {
+    let schema = environment_schema();
+    let mut fixture: Value =
+        serde_json::from_str(include_str!("fixtures/starmap/self-environment-list.json")).unwrap();
+    // The tool prints its own name in the id, and the schema names crumbkit.
+    fixture["schema"] = Value::String("crumbkit/self-environment-list/v1".to_owned());
+
+    let validator = jsonschema::validator_for(&schema).unwrap();
+    let problems: Vec<String> = validator
+        .iter_errors(&fixture)
+        .map(|error| format!("{error} at {}", error.instance_path()))
+        .collect();
+    assert!(problems.is_empty(), "{problems:#?}");
+    let properties = row_properties(&schema, &[]);
+    for field in VARIABLE_FIELDS {
+        assert!(properties.contains_key(field), "{field}");
+    }
+    let variables: Vec<Variable> = serde_json::from_value(fixture["data"].clone()).unwrap();
+    assert_eq!(variables.len(), 16);
+}
+
+/// Returns crumbkit-starmap's schema of `self environment list`.
+fn environment_schema() -> Value {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/starmap/self-environment-list-v1.json");
+    serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+}
+
+/// Returns the words of the closed list `name` in the schema's `$defs`,
+/// such as `TypeName`, from each `const` of its `oneOf`.
+fn closed_list(schema: &Value, name: &str, key: Option<&str>) -> Vec<String> {
+    schema["$defs"][name]["oneOf"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|each| {
+            let word = key.map_or(each, |key| &each["properties"][key]);
+            word["const"].as_str().unwrap().to_owned()
+        })
+        .collect()
+}
+
+/// Returns the fixture's first variable with `edit` applied, read into
+/// flightdeck's `Variable` and sent back as the page receives it.
+fn read_back(edit: impl FnOnce(&mut Value)) -> Value {
+    let fixture: Value =
+        serde_json::from_str(include_str!("fixtures/starmap/self-environment-list.json")).unwrap();
+    let mut row = fixture["data"][0].clone();
+    edit(&mut row);
+    let variable: Variable = serde_json::from_value(row).unwrap();
+    serde_json::to_value(variable).unwrap()
+}
+
+#[test]
+fn flightdeck_reads_every_word_of_the_closed_lists_that_crumbkit_starmaps_schema_declares() {
+    let schema = environment_schema();
+
+    let types = closed_list(&schema, "TypeName", None);
+    assert!(types.contains(&"socket_address".to_owned()), "{types:?}");
+    for word in &types {
+        let sent = read_back(|row| row["type_name"] = Value::String(word.clone()));
+        assert_eq!(sent["type_name"], *word);
+    }
+
+    for word in closed_list(&schema, "SourceWord", None) {
+        let sent = read_back(|row| row["source_kind"] = serde_json::json!({ "kind": word }));
+        assert_eq!(sent["source_kind"]["kind"], *word);
+    }
+
+    for word in closed_list(&schema, "Rule", Some("rule")) {
+        let rule = if word == "default" {
+            serde_json::json!({ "rule": word, "default": "8080" })
+        } else {
+            serde_json::json!({ "rule": word })
+        };
+        let sent = read_back(|row| row["unset_rule"] = serde_json::json!({ "local": rule }));
+        assert_eq!(sent["unset_rule"]["local"]["rule"], *word);
     }
 }

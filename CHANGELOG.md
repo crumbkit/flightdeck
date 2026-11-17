@@ -21,6 +21,16 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   commands that agents run badly, and what each failure code of
   `flightdeck open` means.
 - The root command takes `--no-input`.
+- When a tool mounts crumbkit-starmap's `self environment list`, the page
+  has an Environment view beside Usage. It lists each environment variable
+  that the tool declares, and those crumbkit reads under their own
+  heading, with its type, its rule when unset, its source, its value as
+  flightdeck started the tool and its state. A withheld value shows as
+  eight dots and never reaches the page. A row opens to the variable's
+  purpose, effect, values, check, group and bind. A failure that names a
+  declared variable links it to its row. A tool without the command has no
+  Environment button, and when the command fails the rest of the model
+  still loads.
 
 ### Changed
 

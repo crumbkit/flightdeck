@@ -1,4 +1,5 @@
 import { type Command, ModelReply, type Tool } from "@/api/model";
+import environment from "./shelf-environment.json" with { type: "json" };
 import model from "./shelf-model.json" with { type: "json" };
 
 /**
@@ -34,6 +35,29 @@ export const shelfWithoutGoals: Tool = {
   ...shelf,
   headings: [{ title: shelf.name, commands: shelf.commands.map((each) => each.path) }],
 };
+
+/**
+ * The shelf of tests/fixtures/environment, which mounts crumbkit-starmap's
+ * `self environment list`, as the server sends its model: shelf's model with
+ * that command and the server's reading of the command's document, which
+ * the journey "environment shelf" checks against the real server.
+ */
+export const environmentShelf: Tool = ModelReply.shape.tool.parse({
+  ...shelf,
+  commands: [
+    ...shelf.commands,
+    {
+      ...command(shelf, "self usage"),
+      path: ["self", "environment", "list"],
+      about: "List the environment variables that shelf declares and their values",
+      arguments: command(shelf, "self usage").arguments.filter((each) => each.global),
+      examples: [],
+      cost: null,
+      runs: 0,
+    },
+  ],
+  environment,
+});
 
 /** Returns the tool's command at `path`, such as "books list", or throws. */
 export function command(tool: Tool, path: string): Command {

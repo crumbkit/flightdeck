@@ -304,6 +304,13 @@ impl Command {
         self.prints_no_result
     }
 
+    /// Returns true when crumbkit, or a crate built on it such as
+    /// crumbkit-starmap, adds the command to the tool, such as `self usage`.
+    #[must_use]
+    pub const fn built_in(&self) -> bool {
+        self.built_in
+    }
+
     /// Returns how often the command ran, from the tool's `self figures
     /// list`, or 0 when the tool keeps no figures or the call failed. The
     /// commands that the loader runs as the person, such as `self usage`,

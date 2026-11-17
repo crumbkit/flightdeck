@@ -4,8 +4,8 @@
 //! [`load`] runs its queries through [`crate::spawn`], all within one time
 //! limit: `--version`, `commands list`, `schemas list`, `schemas show` of
 //! every document that `schemas list` names, at most 100 ids at a time,
-//! and `self figures list`, `self usage` and `self runs list` when the tool
-//! mounts them. The queries of the description log their runs to a fresh
+//! and `self figures list`, `self usage`, `self runs list` and
+//! `self environment list` when the tool mounts them. The queries of the description log their runs to a fresh
 //! state directory, so they stay out of the person's usage log. The
 //! queries of the usage log run with the person's state directory, and a
 //! tool on crumbkit 0.3.2 or later records them as flightdeck's and leaves
@@ -19,6 +19,7 @@ mod argument;
 mod command;
 mod day;
 mod documents;
+mod environment;
 mod error;
 mod figures;
 mod links;
@@ -46,6 +47,7 @@ pub use self::documents::{
     CommandsList, Document, DocumentForm, DocumentKind, Listing, NextStep, Recovery, SchemasList,
     SchemasShow, StepCommand, ToolFailure,
 };
+pub use self::environment::{Described, Value, ValueState, Variable};
 pub use self::error::{LoadError, NotDocument, Problem, TOOL_LOAD, TOOL_NOT_FOUND};
 pub(crate) use self::error::{exit_code, last_lines};
 pub use self::figures::{Cost, Figures, Finding, FindingKind};
@@ -75,6 +77,10 @@ pub struct Tool {
     /// Each run in the tool's usage log, in order within its session, or
     /// `None` when the tool does not mount `self runs list` or it failed.
     history: Option<Vec<Run>>,
+    /// Each environment variable that the tool declares and each that
+    /// crumbkit reads, with its value in the run, or `None` when the tool
+    /// does not mount `self environment list` or it failed.
+    environment: Option<Vec<Variable>>,
     #[serde(skip)]
     marks_no_result: bool,
     #[serde(skip)]
@@ -192,6 +198,14 @@ impl Tool {
         self.history.as_deref()
     }
 
+    /// Returns each environment variable that the tool declares and each
+    /// that crumbkit reads, in the order the tool printed them, or `None`
+    /// when the tool reported none.
+    #[must_use]
+    pub fn environment(&self) -> Option<&[Variable]> {
+        self.environment.as_deref()
+    }
+
     /// Records the runs of `history`, or none.
     fn set_history(&mut self, history: Option<History>) {
         self.history = history.map(|history| history.runs().to_vec());
@@ -291,6 +305,7 @@ impl Tool {
             links,
             figures_since: None,
             history: None,
+            environment: None,
             marks_no_result,
             marks_built_in,
             own_runs,
@@ -369,10 +384,13 @@ impl Heading {
 /// with the person's state directory. When the tool excludes programs,
 /// they run with `<TOOL>_PROGRAM=flightdeck` and `--exclude-program
 /// flightdeck`, so the tool records them as flightdeck's runs and leaves
-/// flightdeck's runs out of what they report. They fail no load:
+/// flightdeck's runs out of what they report. `self environment list`,
+/// when the tool mounts crumbkit-starmap's, runs as they do, so it reports
+/// the environment that flightdeck gives the tool. They fail no load:
 /// when the figures fail, every command's runs stay 0 and it has no cost,
-/// when the findings fail, each cost has no findings, and when the runs
-/// fail, the tool has no history.
+/// when the findings fail, each cost has no findings, when the runs
+/// fail, the tool has no history, and when the environment fails, the tool
+/// has no environment.
 pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> {
     let tool = program.name().to_string_lossy();
     let deadline = Instant::now() + time_limit;
@@ -435,42 +453,54 @@ pub fn load(program: &Program, time_limit: Duration) -> Result<Tool, LoadError> 
     // The figures only order the page's palette and fill its cost cards, so
     // a tool that does not mount them is never asked, and a failed call
     // leaves every count at 0. The findings and the runs only add to the
-    // figures, so they are asked for only beside them, and all three run
-    // at once.
-    if tool.command(&figures::FIGURES_COMMAND).is_some() {
-        let own = tool.own_runs();
-        let reporter = match own {
-            OwnRuns::Excluded => program.marked(&tool.name),
-            OwnRuns::Kept => program.clone(),
+    // figures, so they are asked for only beside them. The environment only
+    // fills the environment view, so a failed call leaves the tool without
+    // one. Every query here runs at once.
+    let own = tool.own_runs();
+    let reporter = match own {
+        OwnRuns::Excluded => program.marked(&tool.name),
+        OwnRuns::Kept => program.clone(),
+    };
+    let ask = |query: Query<'_>| ask_as(&reporter, query);
+    let asks_figures = tool.command(&figures::FIGURES_COMMAND).is_some();
+    let asks_usage = asks_figures && tool.command(&figures::USAGE_COMMAND).is_some();
+    let asks_runs = asks_figures && tool.command(&runs::RUNS_COMMAND).is_some();
+    let asks_environment = tool
+        .command(&environment::ENVIRONMENT_COMMAND)
+        .is_some_and(Command::built_in);
+    let (figures, usage, history, variables) = std::thread::scope(|scope| {
+        let usage = asks_usage.then(|| scope.spawn(|| ask(Query::Usage(own))));
+        let history = asks_runs.then(|| scope.spawn(|| ask(Query::RunsList(own))));
+        let variables = asks_environment.then(|| scope.spawn(|| ask(Query::EnvironmentList)));
+        let figures = asks_figures.then(|| ask(Query::FiguresList(own)));
+        let joined = |handle: std::thread::ScopedJoinHandle<'_, _>| {
+            handle
+                .join()
+                .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
         };
-        let ask = |query: Query<'_>| ask_as(&reporter, query);
-        let asks_usage = tool.command(&figures::USAGE_COMMAND).is_some();
-        let asks_runs = tool.command(&runs::RUNS_COMMAND).is_some();
-        let (figures, usage, history) = std::thread::scope(|scope| {
-            let usage = asks_usage.then(|| scope.spawn(|| ask(Query::Usage(own))));
-            let history = asks_runs.then(|| scope.spawn(|| ask(Query::RunsList(own))));
-            let figures = ask(Query::FiguresList(own));
-            let joined = |handle: std::thread::ScopedJoinHandle<'_, _>| {
-                handle
-                    .join()
-                    .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
-            };
-            (figures, usage.map(joined), history.map(joined))
-        });
-        tool.set_history(
-            history
-                .and_then(Result::ok)
-                .and_then(|answer| History::read(&answer.stdout, &tool.name, own)),
-        );
-        let usage = usage
+        (
+            figures,
+            usage.map(joined),
+            history.map(joined),
+            variables.map(joined),
+        )
+    });
+    tool.environment = variables
+        .and_then(Result::ok)
+        .and_then(|answer| environment::read(&answer.stdout));
+    tool.set_history(
+        history
             .and_then(Result::ok)
-            .and_then(|answer| Usage::read(&answer.stdout, &tool.name, own));
-        if let Some(figures) = figures
-            .ok()
-            .and_then(|answer| FiguresList::read(&answer.stdout, own))
-        {
-            tool.add_costs(&figures, usage.as_ref());
-        }
+            .and_then(|answer| History::read(&answer.stdout, &tool.name, own)),
+    );
+    let usage = usage
+        .and_then(Result::ok)
+        .and_then(|answer| Usage::read(&answer.stdout, &tool.name, own));
+    if let Some(figures) = figures
+        .and_then(Result::ok)
+        .and_then(|answer| FiguresList::read(&answer.stdout, own))
+    {
+        tool.add_costs(&figures, usage.as_ref());
     }
     Ok(tool)
 }

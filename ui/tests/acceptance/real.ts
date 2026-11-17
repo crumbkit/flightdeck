@@ -69,7 +69,9 @@ async function openerOf(child: ChildProcess): Promise<string> {
  * scripts/install-test-tools.sh installs them. "slow reading" is reading
  * whose `entries stream` prints each line only when the test calls
  * `release`. "pretty shelf" is tests/fixtures/pretty/shelf, which indents
- * shelf's JSON as a crumbkit tool that sets `JsonLayout::Pretty` does. Each test starts its own flightdeck, because a launch code
+ * shelf's JSON as a crumbkit tool that sets `JsonLayout::Pretty` does.
+ * "environment shelf" is tests/fixtures/environment/shelf, which mounts
+ * `self environment list` as crumbkit-starmap does. Each test starts its own flightdeck, because a launch code
  * works once, and stops it when the test ends. The Rust lane builds both
  * before this lane runs. `test.use({ readOnly: true })` starts it with
  * `--read-only`. `test.use({ ranBefore: { runs: [["books", "list"]] } })`
@@ -81,7 +83,7 @@ async function openerOf(child: ChildProcess): Promise<string> {
  * whose output is 9,000 bytes, so its command's path passes the budget.
  */
 export const test = checked.extend<{
-  tool: "shelf" | "reading" | "slow reading" | "pretty shelf";
+  tool: "shelf" | "reading" | "slow reading" | "pretty shelf" | "environment shelf";
   readOnly: boolean;
   ranBefore: { runs: string[][]; huge?: boolean; heavy?: boolean };
   served: Served;
@@ -94,8 +96,11 @@ export const test = checked.extend<{
     const data = path.join(home, "data");
     const installed = (name: string) => path.join(root, "target/test-tools/bin", name);
     const slow = tool === "slow reading" ? await slowReading(home, installed("reading")) : null;
-    const pretty = path.join(root, "tests/fixtures/pretty/shelf");
-    const program = slow?.program ?? (tool === "pretty shelf" ? pretty : installed(tool));
+    const wrappers: Record<string, string> = {
+      "pretty shelf": path.join(root, "tests/fixtures/pretty/shelf"),
+      "environment shelf": path.join(root, "tests/fixtures/environment/shelf"),
+    };
+    const program = slow?.program ?? wrappers[tool] ?? installed(tool);
     const env = {
       ...process.env,
       XDG_CONFIG_HOME: path.join(home, "config"),

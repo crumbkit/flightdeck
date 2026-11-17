@@ -91,6 +91,9 @@ failures or refusals, or one that agents read help for before most runs, is
 one they run badly. A command's cost card shows the tool's findings about it,
 such as a retry after a failure.
 
+A tool that mounts `self environment list` also has an Environment view of
+its variables and their values.
+
 The Weight tab shows the bytes of help a reader passes to reach each
 command, and Both sets that weight beside the command's runs.
 

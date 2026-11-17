@@ -59,7 +59,7 @@
         "dist/assets/index.css",
         "dist/fonts/*.woff2"
       ],
-      "limit": "245 kB"
+      "limit": "246 kB"
     },
     {
       "name": "every file",

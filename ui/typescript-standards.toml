@@ -33,8 +33,8 @@ realizations = ["../.github/workflows/ci.yml"]
 
 [[decision]]
 id = "budgets"
-requirement = "The first load, index.html with assets/app.js, assets/index.css and the font files in fonts/, stays under 245 kB with Brotli. Every built file together stays under 250 kB."
-reason = "The first load holds React, TanStack Query, zod, the page and its four font files, which the page draws its first screen with. The page has one screen and loads nothing lazily, so the two budgets cover the same files today. The limit of 245 kB sits a few kB above the first load of 237.9 kB, so a change that adds to it is a choice. The fonts are about 111 kB of that, and leave about 12 kB under the every-file budget, so one more font file would break it."
+requirement = "The first load, index.html with assets/app.js, assets/shared.js, assets/rolldown-runtime.js, assets/index.css and the font files in fonts/, stays under 246 kB with Brotli. Every built file together stays under 260 kB."
+reason = "The first load holds React, TanStack Query, zod, the commands view and its four font files, which the page draws its first screen with. The Usage view, its Weight and Both tabs, the help measurement they share, and the Environment view each load in a file of their own the first time they open, so they count only toward the every-file budget. On 17 November 2026 the first load was 245.5 kB, after the Environment view's failure-card link and the model's schema of a variable raised the limit from 245 kB to 246 kB, which the maintainer approved on 2026-11-17 (board decision /projects/flightdeck/decisions/20261117T1620Z-pr-b-labels-and-budget), and every built file together was 259.99 kB of the 260 kB, after the Environment view began to read crumbkit-starmap 0.4.2's type, unset rule and source fields, so the every-file budget is effectively full. The fonts are about 111 kB of both. A change that adds to either budget is a choice: the next lazy file, such as another view, needs the every-file limit raised or something removed, and the pull request that does it says which."
 realizations = ["package.json"]
 
 [[decision]]
