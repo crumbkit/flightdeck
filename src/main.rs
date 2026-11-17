@@ -11,5 +11,10 @@ fn main() -> ExitCode {
     {
         return code;
     }
-    crumbkit_flightdeck::run_from(std::env::args_os())
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "BASE-6: main reads the environment once, and flightdeck reads the variables that starmap.toml declares from this snapshot"
+    )]
+    let vars: Vec<_> = std::env::vars_os().collect();
+    crumbkit_flightdeck::run_from(std::env::args_os(), &vars)
 }

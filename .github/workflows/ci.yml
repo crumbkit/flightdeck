@@ -60,6 +60,19 @@ jobs:
         run: cargo fmt --check
       - name: workflows
         run: zizmor .
+      # starmap check fails when src reads a variable that starmap.toml does
+      # not declare, or when clippy.toml lacks the disallowed readers
+      # (BASE-28). The release archive is pinned by its SHA-256.
+      - name: environment
+        env:
+          ARCHIVE: starmap-0.4.2-x86_64-unknown-linux-musl
+          SHA256: ac31b39af8b294c7c87308b52e4ab7be27b14fc24b982a526682f26bb65b0ba9
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSfL -o "$RUNNER_TEMP/starmap.tar.gz" \
+            "https://github.com/crumbkit/starmap/releases/download/v0.4.2/$ARCHIVE.tar.gz"
+          echo "$SHA256  $RUNNER_TEMP/starmap.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/starmap.tar.gz" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/$ARCHIVE/starmap" check
       # Only a run on main saves the cache.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:

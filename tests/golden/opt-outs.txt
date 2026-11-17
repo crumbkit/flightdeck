@@ -1,4 +1,9 @@
-flightdeck has no opt-outs from the conventions.
+flightdeck has 1 opt-out from the conventions.
+
+listings/list-pages: flightdeck self environment list
+  Reason: crumbkit-starmap's built-in prints every declared variable at once and takes no arguments.
+  Cost: An agent cannot bound the rows that the command prints, so one run can fill its context.
+  Cost: An agent that passes `--limit` or `--all`, as other listings take them, gets a refusal.
 
 flightdeck has 3 declarations.
 

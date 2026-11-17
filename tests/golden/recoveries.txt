@@ -7,6 +7,7 @@ codes that no start provokes:
   flightdeck::tool::load: Only a tool that prints something other than its description provokes it; tests/model.rs provokes it with fake tools.
   flightdeck::server::failed: Only a system that refuses a socket, a random read or a temporary file provokes it.
   flightdeck::tool::search_path: Only a launch directory whose name holds PATH's separator provokes it; tests/open.rs provokes the code.
+  flightdeck::environment::invalid: starmap.toml refuses no value of PATH, the one variable that flightdeck reads.
   flightdeck::run::*: No flightdeck command runs a tool's commands yet; the runner returns the code.
     flightdeck::run::refused
     flightdeck::run::needs_confirmation

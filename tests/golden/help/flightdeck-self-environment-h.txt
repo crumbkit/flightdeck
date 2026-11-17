@@ -1,0 +1,12 @@
+Explore the environment variables that flightdeck reads
+
+Usage: flightdeck self environment [OPTIONS] <COMMAND>
+
+Commands:
+  list  List the variables that flightdeck and crumbkit read, with their rules and values
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Global flags: --json, --fields <FIELD>, --long, --full, --no-input. `flightdeck self environment --help` describes them.
+Next: flightdeck self environment <COMMAND> -h

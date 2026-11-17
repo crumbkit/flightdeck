@@ -31,6 +31,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   declared variable links it to its row. A tool without the command has no
   Environment button, and when the command fails the rest of the model
   still loads.
+- `flightdeck self environment list` prints the environment variables that
+  flightdeck reads, as its `starmap.toml` declares them, and the ones that
+  crumbkit reads in every tool. `flightdeck open flightdeck` therefore has
+  an Environment view. The one variable flightdeck reads itself is `PATH`.
 
 ### Changed
 

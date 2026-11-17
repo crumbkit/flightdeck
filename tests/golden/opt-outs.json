@@ -1,6 +1,17 @@
 {
   "schema": "flightdeck/opt-outs/v2",
-  "data": [],
+  "data": [
+    {
+      "rule": "listings/list-pages",
+      "applies_to": "flightdeck self environment list",
+      "reason": "crumbkit-starmap's built-in prints every declared variable at once and takes no arguments.",
+      "costs": [
+        "An agent cannot bound the rows that the command prints, so one run can fill its context.",
+        "An agent that passes `--limit` or `--all`, as other listings take them, gets a refusal."
+      ],
+      "budget": null
+    }
+  ],
   "declarations": [
     {
       "declaration": "root-verbs",

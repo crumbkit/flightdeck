@@ -13,6 +13,7 @@ Start a local web page for a crumbkit tool
 - [`flightdeck skills`](#flightdeck-skills): Give coding agents flightdeck's skill
 - [`flightdeck completion`](#flightdeck-completion): Set up flightdeck's completion in a shell
 - [`flightdeck schemas`](#flightdeck-schemas): Explore the JSON documents that flightdeck prints
+- [`flightdeck self`](#flightdeck-self): Review flightdeck itself
 
 ### Arguments
 
@@ -325,5 +326,62 @@ flightdeck schemas show flightdeck/schemas-list/v1
 
 - `id`: The document's id, such as `shelf/books-list/v1`.
 - `schema`: The document's 2020-12 JSON Schema.
+
+Effects: read-only, closed-world.
+
+## `flightdeck self`
+
+Review flightdeck itself
+
+### Commands
+
+- [`flightdeck self environment`](#flightdeck-self-environment): Explore the environment variables that flightdeck reads
+
+## `flightdeck self environment`
+
+Explore the environment variables that flightdeck reads
+
+### Commands
+
+- [`flightdeck self environment list`](#flightdeck-self-environment-list): List the variables that flightdeck and crumbkit read, with their rules and values
+
+## `flightdeck self environment list`
+
+List the variables that flightdeck and crumbkit read, with their rules and values
+
+### Examples
+
+List the variables the tool declares and their values.
+
+```sh
+flightdeck self environment list
+```
+
+Print each variable as JSON, where a withheld value has no text.
+
+```sh
+flightdeck self environment list --json
+```
+
+### Columns
+
+- `name`: The variable's name.
+- `type`: The type of the variable's value, such as port or integer 1..=100.
+- `unset`: What happens when the variable has no value, in local mode and, when it differs, in production.
+- `source`: Where the variable's value comes from, with the kind of its bind.
+- `value`: The variable's value in this shell, or its default; a withheld value prints as eight dots and has no text in JSON.
+- `owner`: The library that reads the variable in every tool, such as `crumbkit`; empty, and left out of `--json`, for a variable that the tool's own declaration holds.
+
+### Columns that `--long` adds
+
+- `show`: Whether the value may be shown or is withheld.
+- `bind`: The variable's bind, such as a 1Password reference, when it has one.
+- `cache`: `never` when the bind keeps the value out of any cache of resolved values; empty, and left out of `--json`, when a cache may keep it.
+- `purpose`: The sentence that says what the variable is for.
+- `effect`: The sentence that says what the application does when the variable is unset; empty, and left out of `--json`, when the spec states none.
+- `values`: Each value of a named enumeration with its description; empty, and left out of `--json`, for any other type.
+- `check`: The sentence that states the check the application's own code makes of the value, which starmap never runs; empty, and left out of `--json`, when the spec states none.
+- `group`: The name of the group of variables that are set together or not at all, which the variable belongs to; empty, and left out of `--json`, when it belongs to none.
+- `state`: Where the value comes from: `set` when this shell sets the variable, `default` when it leaves the variable unset and the default applies, `unset` when the variable has no value, and `invalid` when this shell sets a value that does not fit the type. The same state as `value.state`, at the top level.
 
 Effects: read-only, closed-world.

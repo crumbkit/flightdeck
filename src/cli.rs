@@ -98,6 +98,7 @@ pub const TOOL: Tool = Tool::new()
                 )])
                 .effects(Effects::read_only())
                 .document(COMPLETION_PRINT),
+            crumbkit_starmap::list_leaf(&["self", "environment", "list"]),
             Leaf::new(&["schemas", "show"])
                 .examples(&[Example::new(
                     &["flightdeck/schemas-list/v1"],
@@ -151,6 +152,31 @@ pub(crate) enum Resource {
         #[command(subcommand)]
         command: SchemasCommand,
     },
+    /// Review flightdeck itself.
+    #[command(name = "self")]
+    SelfCommand {
+        /// What to review.
+        #[command(subcommand)]
+        command: SelfCommand,
+    },
+}
+
+/// The commands that review flightdeck itself.
+#[derive(Debug, Subcommand)]
+pub(crate) enum SelfCommand {
+    /// Explore the environment variables that flightdeck reads.
+    Environment {
+        /// What to do with them.
+        #[command(subcommand)]
+        verb: EnvironmentVerb,
+    },
+}
+
+/// What to do with flightdeck's environment variables.
+#[derive(Debug, Subcommand)]
+pub(crate) enum EnvironmentVerb {
+    /// List the variables that flightdeck and crumbkit read, with their rules and values.
+    List,
 }
 
 /// The commands for flightdeck's own commands.
