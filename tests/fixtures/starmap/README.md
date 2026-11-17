@@ -4,8 +4,8 @@ The crate crumbkit-starmap, in the starmap repository, provides the
 built-in `self environment list`. A crumbkit tool that declares its
 environment with starmap mounts it. These files come from crumbkit-starmap at
 starmap commit `a1cd58660cd89261b430e7ec9decbf122a95ae08` (crumbkit/starmap#71),
-on crumbkit 0.6.0. flightdeck builds on crumbkit 0.5.0 and does not depend on
-crumbkit-starmap, so the files stand in for a tool that mounts the command.
+on crumbkit 0.6.0. flightdeck does not depend on crumbkit-starmap, so the
+files stand in for a tool that mounts the command.
 
 - `self-environment-list-v1.json` is the document's JSON Schema, as
   `crumbkit::schemas::document_schema(crumbkit_starmap::SELF_ENVIRONMENT_LIST)`
