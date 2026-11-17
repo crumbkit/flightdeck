@@ -52,6 +52,14 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   those loaders wrote stay in the usage log until they leave its 7-day
   window.
 
+### Fixed
+
+- A run whose tool prints a failure with a `terminal`, `program` or `after`
+  step, as tools on crumbkit 0.6.0 can, ends as the tool's failure with its
+  code and message. Earlier versions could not read such a failure and
+  ended the run with `flightdeck::run::no_document`. The page does not show
+  those steps.
+
 ## [0.2.0] - 2026-11-11
 
 ### Added
