@@ -77,33 +77,34 @@ pub(super) enum Refusal {
 
 impl Refusal {
     /// The code of [`Refusal::Host`].
-    const HOST: Code<'static> = Code::new("flightdeck", "request", "host");
+    const HOST: Code<'static> = Code::from_spelling("flightdeck::request::host");
     /// The code of [`Refusal::CrossSite`].
-    const CROSS_SITE: Code<'static> = Code::new("flightdeck", "request", "cross_site");
+    const CROSS_SITE: Code<'static> = Code::from_spelling("flightdeck::request::cross_site");
     /// The code of [`Refusal::Origin`].
-    const ORIGIN: Code<'static> = Code::new("flightdeck", "request", "origin");
+    const ORIGIN: Code<'static> = Code::from_spelling("flightdeck::request::origin");
     /// The code of [`Refusal::Method`].
-    const METHOD: Code<'static> = Code::new("flightdeck", "request", "method");
+    const METHOD: Code<'static> = Code::from_spelling("flightdeck::request::method");
     /// The code of [`Refusal::ContentType`].
-    const CONTENT_TYPE: Code<'static> = Code::new("flightdeck", "request", "content_type");
+    const CONTENT_TYPE: Code<'static> = Code::from_spelling("flightdeck::request::content_type");
     /// The code of [`Refusal::TooLarge`].
-    const TOO_LARGE: Code<'static> = Code::new("flightdeck", "request", "too_large");
+    const TOO_LARGE: Code<'static> = Code::from_spelling("flightdeck::request::too_large");
     /// The code of [`Refusal::HeadTooLarge`].
-    const HEAD_TOO_LARGE: Code<'static> = Code::new("flightdeck", "request", "head_too_large");
+    const HEAD_TOO_LARGE: Code<'static> =
+        Code::from_spelling("flightdeck::request::head_too_large");
     /// The code of [`Refusal::Malformed`].
-    const MALFORMED: Code<'static> = Code::new("flightdeck", "request", "malformed");
+    const MALFORMED: Code<'static> = Code::from_spelling("flightdeck::request::malformed");
     /// The code of [`Refusal::Busy`].
-    const BUSY: Code<'static> = Code::new("flightdeck", "request", "busy");
+    const BUSY: Code<'static> = Code::from_spelling("flightdeck::request::busy");
     /// The code of [`Refusal::Body`].
-    const BODY: Code<'static> = Code::new("flightdeck", "request", "body");
+    const BODY: Code<'static> = Code::from_spelling("flightdeck::request::body");
     /// The code of [`Refusal::Timeout`].
-    const TIMEOUT: Code<'static> = Code::new("flightdeck", "request", "timeout");
+    const TIMEOUT: Code<'static> = Code::from_spelling("flightdeck::request::timeout");
     /// The code of [`Refusal::Unauthorized`].
-    const UNAUTHORIZED: Code<'static> = Code::new("flightdeck", "session", "unauthorized");
+    const UNAUTHORIZED: Code<'static> = Code::from_spelling("flightdeck::session::unauthorized");
     /// The code of [`Refusal::CodeRefused`].
-    const CODE_REFUSED: Code<'static> = Code::new("flightdeck", "session", "code_refused");
+    const CODE_REFUSED: Code<'static> = Code::from_spelling("flightdeck::session::code_refused");
     /// The code of [`Refusal::NotFound`].
-    const NOT_FOUND: Code<'static> = Code::new("flightdeck", "request", "not_found");
+    const NOT_FOUND: Code<'static> = Code::from_spelling("flightdeck::request::not_found");
 
     /// Every refusal, in the order its document lists them.
     pub(super) const ALL: [Self; 14] = [

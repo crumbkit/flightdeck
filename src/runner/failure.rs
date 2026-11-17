@@ -10,50 +10,50 @@ use crate::spawn::SpawnError;
 
 /// The code of a request that the tool's model does not allow: an unknown
 /// path, argument or value.
-pub const RUN_REFUSED: Code = Code::new("flightdeck", "run", "refused");
+pub const RUN_REFUSED: Code = Code::from_spelling("flightdeck::run::refused");
 
 /// The code of a destructive command, or one with unknown effects, that
 /// was run without a confirmation.
-pub const RUN_NEEDS_CONFIRMATION: Code = Code::new("flightdeck", "run", "needs_confirmation");
+pub const RUN_NEEDS_CONFIRMATION: Code = Code::from_spelling("flightdeck::run::needs_confirmation");
 
 /// The code of a command that is not read-only, in read-only mode.
-pub const RUN_READ_ONLY: Code = Code::new("flightdeck", "run", "read_only");
+pub const RUN_READ_ONLY: Code = Code::from_spelling("flightdeck::run::read_only");
 
 /// The code of a confirmation id that is unknown, used, expired or issued
 /// for another vector.
-pub const RUN_CONFIRMATION: Code = Code::new("flightdeck", "run", "confirmation");
+pub const RUN_CONFIRMATION: Code = Code::from_spelling("flightdeck::run::confirmation");
 
 /// The code of a run asked to start in a directory that cannot be used.
-pub const RUN_DIRECTORY: Code = Code::new("flightdeck", "run", "directory");
+pub const RUN_DIRECTORY: Code = Code::from_spelling("flightdeck::run::directory");
 
 /// The code of a run that ended without a document that explains its exit.
-pub const RUN_NO_DOCUMENT: Code = Code::new("flightdeck", "run", "no_document");
+pub const RUN_NO_DOCUMENT: Code = Code::from_spelling("flightdeck::run::no_document");
 
 /// The code of a program that would not start, or that flightdeck could
 /// not follow to its end.
-pub const RUN_SPAWN: Code = Code::new("flightdeck", "run", "spawn");
+pub const RUN_SPAWN: Code = Code::from_spelling("flightdeck::run::spawn");
 
 /// The code of a run whose output passed one of flightdeck's limits.
-pub const RUN_OUTPUT_LIMIT: Code = Code::new("flightdeck", "run", "output_limit");
+pub const RUN_OUTPUT_LIMIT: Code = Code::from_spelling("flightdeck::run::output_limit");
 
 /// The code of a run refused because the most runs are running.
-pub const RUN_BUSY: Code = Code::new("flightdeck", "run", "busy");
+pub const RUN_BUSY: Code = Code::from_spelling("flightdeck::run::busy");
 
 /// The code of a cancel of a run that is not running.
-pub const RUN_NOT_RUNNING: Code = Code::new("flightdeck", "run", "not_running");
+pub const RUN_NOT_RUNNING: Code = Code::from_spelling("flightdeck::run::not_running");
 
 /// The code of a run refused because the runner has shut down.
-pub const RUN_CLOSED: Code = Code::new("flightdeck", "run", "closed");
+pub const RUN_CLOSED: Code = Code::from_spelling("flightdeck::run::closed");
 
 /// The code of a system that gives no random bytes.
-pub const RUN_RANDOM: Code = Code::new("flightdeck", "run", "random");
+pub const RUN_RANDOM: Code = Code::from_spelling("flightdeck::run::random");
 
 /// The code of a choices source that ended without a listing to read.
-pub const CHOICES_NO_LISTING: Code = Code::new("flightdeck", "choices", "no_listing");
+pub const CHOICES_NO_LISTING: Code = Code::from_spelling("flightdeck::choices::no_listing");
 
 /// The code of a choices source that had not ended within the choices
 /// time.
-pub const CHOICES_TIME_LIMIT: Code = Code::new("flightdeck", "choices", "time_limit");
+pub const CHOICES_TIME_LIMIT: Code = Code::from_spelling("flightdeck::choices::time_limit");
 
 /// A run that the runner refused, or that could not start, and a choices
 /// run that gave no choices. How a started run fails is an
