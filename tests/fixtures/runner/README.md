@@ -23,6 +23,14 @@ and one command for each way a real tool can misbehave or a test needs:
   name `bad` fails without a document, and its preview of the name `slow`
   prints a document and exits with 0 on SIGINT.
 - `child both` declares itself read-only and destructive at once.
+- `child launch` is additive and declares `runs_program`, as a command that
+  starts a program the caller names does. Its `<PROGRAM>` values come after
+  `--` (`after_double_dash`), it takes `--dry-run` and `--yes`, and it prints
+  the words it was started with.
+- `child sweep` is destructive and declares `runs_program`, and takes
+  `--dry-run`.
+- `child fetch` is read-only and open-world and starts no program, as a
+  command that reads from a web service does.
 - `child pair` takes two optional positional values.
 - `child linger` prints its process id, then ignores SIGINT and SIGTERM
   for the number of seconds that its one value gives, and then prints a

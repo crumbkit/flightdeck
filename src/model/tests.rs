@@ -69,6 +69,44 @@ fn the_model_gives_each_command_the_class_that_its_effects_decide() {
 }
 
 #[test]
+fn only_the_runs_program_effect_makes_a_command_start_a_program_and_a_missing_one_reads_as_false() {
+    let starts = |effects: serde_json::Value| {
+        let mut document: serde_json::Value = serde_json::from_str(WITH_GOALS).unwrap();
+        for row in document["data"].as_array_mut().unwrap() {
+            if row["path"] == "shelf books list" {
+                row["effects"] = effects.clone();
+            }
+        }
+        let commands: CommandsList = serde_json::from_value(document).unwrap();
+        let tool = Tool::assemble("shelf 0.1.1", commands, Vec::new()).unwrap();
+        let command = tool.command(&["books", "list"]).unwrap();
+        (
+            command.starts_program(),
+            serde_json::to_value(command).unwrap()["class"].clone(),
+        )
+    };
+    let hints = |open_world, runs_program: Option<bool>| {
+        let mut hints = serde_json::json!({
+            "read_only": false,
+            "destructive": false,
+            "idempotent": false,
+            "open_world": open_world,
+        });
+        if let Some(runs_program) = runs_program {
+            hints["runs_program"] = runs_program.into();
+        }
+        hints
+    };
+
+    assert_eq!(starts(hints(true, Some(true))), (true, "additive".into()));
+    assert_eq!(starts(hints(true, Some(false))), (false, "additive".into()));
+    assert_eq!(starts(hints(true, None)), (false, "additive".into()));
+    let mut read_only = hints(true, Some(true));
+    read_only["read_only"] = true.into();
+    assert_eq!(starts(read_only), (true, "additive".into()));
+}
+
+#[test]
 fn a_listing_reads_its_next_steps_with_calls_and_runs() {
     let listing: Listing<serde_json::Value> = serde_json::from_str(WITH_NEXT).unwrap();
 

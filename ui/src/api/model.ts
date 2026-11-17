@@ -32,6 +32,8 @@ const Argument = z.object({
   crumbkit_flag: z.string().nullable(),
   /** Whether every command takes the flag, as `--json` and `--no-input` are. */
   global: z.boolean(),
+  /** Whether the argument takes its values after `--`, as clap's `last` does. */
+  after_double_dash: z.boolean(),
 });
 export type Argument = z.infer<typeof Argument>;
 
@@ -49,9 +51,19 @@ const Column = z.object({
 });
 export type Column = z.infer<typeof Column>;
 
-/** What a command changes, or null for a command that declares nothing. */
+/**
+ * What a command changes, or null for a command that declares nothing.
+ * `open_world` marks a command that reaches systems outside the tool, and
+ * `runs_program` one that starts a program the caller names.
+ */
 const Effects = z
-  .object({ read_only: z.boolean(), destructive: z.boolean(), idempotent: z.boolean() })
+  .object({
+    read_only: z.boolean(),
+    destructive: z.boolean(),
+    idempotent: z.boolean(),
+    open_world: z.boolean(),
+    runs_program: z.boolean(),
+  })
   .nullable();
 export type Effects = z.infer<typeof Effects>;
 

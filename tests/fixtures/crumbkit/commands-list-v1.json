@@ -124,6 +124,10 @@
           "items": {
             "type": "object",
             "properties": {
+              "after_double_dash": {
+                "description": "Whether the argument takes the values written after `--`, which is clap's `last` setting. A command line that gives the argument values writes `--` before them.",
+                "type": "boolean"
+              },
               "defaults": {
                 "description": "The values that the argument takes when the caller leaves it out, as help shows them.",
                 "type": "array",
@@ -209,6 +213,7 @@
               "help",
               "long_help",
               "global",
+              "after_double_dash",
               "one_of"
             ]
           }
@@ -282,13 +287,18 @@
             "read_only": {
               "description": "Whether the command changes nothing.",
               "type": "boolean"
+            },
+            "runs_program": {
+              "description": "Whether the command runs a program that the caller names, such as the program after `--`. It is true only when open_world is true.",
+              "type": "boolean"
             }
           },
           "required": [
             "read_only",
             "destructive",
             "idempotent",
-            "open_world"
+            "open_world",
+            "runs_program"
           ]
         },
         "examples": {

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { dayOf, type UsageTab } from "@/lib/cost";
 import { chosenOf, type Draft, type FieldGroup, formOf, missing, setValue } from "@/lib/form";
 import { chooserLinkOf } from "@/lib/links";
-import { needsConfirmation, takesDryRun, whyNotRunnable } from "@/lib/rail";
+import { needsConfirmation, startsProgram, takesDryRun, whyNotRunnable } from "@/lib/rail";
 import { ChipsInput } from "./ChipsInput";
 import { CostCard } from "./CostCard";
 import { IdChooser } from "./IdChooser";
@@ -166,7 +166,7 @@ export function Composer(props: Props) {
         {blocked === null ? (
           <>
             <Button type="submit" size="sm" disabled={!runnable}>
-              {needsConfirmation(command) ? (
+              {needsConfirmation(command) && !startsProgram(command) ? (
                 <>
                   <Eye aria-hidden="true" />
                   Preview

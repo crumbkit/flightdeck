@@ -36,6 +36,8 @@ export type Answer = "open" | "declined" | "confirmed";
 export type Ask = {
   basis: Draft | null;
   confirmation: string | null;
+  /** The line the confirmation runs, as the server wrote it, once its first event arrived. */
+  confirmedLine: string | null;
   answer: Answer;
   asks: boolean;
 };
@@ -84,7 +86,7 @@ export function transcript(runs: Run[], action: Action): Run[] {
     }
     case "preview": {
       const { number, request, line, long, basis, asks } = action;
-      const ask: Ask = { basis, confirmation: null, answer: "open", asks };
+      const ask: Ask = { basis, confirmation: null, confirmedLine: null, answer: "open", asks };
       return [...runs, { number, request, line, long, state: { kind: "starting" }, ask }];
     }
     case "answer":
@@ -140,13 +142,28 @@ function answered(run: Run, answer: Exclude<Answer, "open">): Run {
   return answer === "confirmed" ? { ...run, ask, state: { kind: "starting" } } : { ...run, ask };
 }
 
-/** Keeps the confirmation id that a preview's event carries, while its question is open. */
+/**
+ * Keeps the confirmation id and the confirmed line that a preview's events
+ * carry, while its question is open.
+ */
 function withConfirmation(run: Run, event: RunEvent): Run {
-  const id = event.event === "started" || event.event === "ended" ? event.confirmation : undefined;
-  if (run.ask?.answer !== "open" || id === undefined || id === null) {
+  const { ask } = run;
+  if (ask?.answer !== "open") {
     return run;
   }
-  return { ...run, ask: { ...run.ask, confirmation: id } };
+  const id = event.event === "started" || event.event === "ended" ? event.confirmation : undefined;
+  const line = event.event === "started" ? event.confirmed_line : undefined;
+  if ((id === undefined || id === null) && line === undefined) {
+    return run;
+  }
+  return {
+    ...run,
+    ask: {
+      ...ask,
+      confirmation: id ?? ask.confirmation,
+      confirmedLine: line ?? ask.confirmedLine,
+    },
+  };
 }
 
 function applyEvent(run: Run, event: RunEvent): Run {

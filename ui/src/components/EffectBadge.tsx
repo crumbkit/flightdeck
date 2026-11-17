@@ -7,6 +7,7 @@ const inks: Record<Effect, string> = {
   additive: "text-additive",
   destructive: "text-destructive",
   "effects unknown": "text-destructive",
+  "starts a program": "text-destructive",
 };
 
 /** The soft fill behind each effect's pill. */
@@ -15,6 +16,7 @@ const fills: Record<Effect, string> = {
   additive: "bg-additive-soft",
   destructive: "bg-destructive-soft",
   "effects unknown": "bg-destructive-soft",
+  "starts a program": "bg-destructive-soft",
 };
 
 type Props = {

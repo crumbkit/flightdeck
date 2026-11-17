@@ -385,6 +385,122 @@ fn a_preview_of_a_command_without_dry_run_is_one_started_line_with_the_id() {
     });
 }
 
+#[cfg(unix)]
+#[test]
+fn a_command_that_runs_a_program_runs_only_with_a_confirmation_id_for_the_same_vector() {
+    serving(Setup::of(unruly()), |running| {
+        let page = Page::of(running);
+        let launch = json!({"path": ["child", "launch"], "values": {"<PROGRAM>": ["echo", "hi"]}});
+        let dry = json!({"path": ["child", "launch"], "values": {"<PROGRAM>": ["echo", "ho"]}});
+
+        let bare = page.send("/api/runs", &launch);
+        let preview = page.stream("/api/previews", &launch).rest();
+        let id = preview[0]["confirmation"].as_str().unwrap();
+        let other = page.send(&format!("/api/confirmations/{id}"), &dry);
+        let id = page.stream("/api/previews", &launch).rest()[0]["confirmation"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let confirmed = page
+            .stream(&format!("/api/confirmations/{id}"), &launch)
+            .rest();
+
+        refused(&bare, 422, "flightdeck::run::needs_confirmation");
+        assert_eq!(preview.len(), 1, "a preview runs nothing: {preview:?}");
+        assert_eq!(preview[0]["preview"], false);
+        assert_eq!(preview[0]["run"], Value::Null);
+        assert_eq!(preview[0]["line"], "unruly child launch -- echo hi");
+        refused(&other, 422, "flightdeck::run::confirmation");
+        assert_eq!(confirmed.last().unwrap()["outcome"]["kind"], "result");
+        let words = confirmed
+            .iter()
+            .find(|line| line["event"] == "line")
+            .and_then(|line| line["text"].as_str())
+            .unwrap();
+        assert!(words.contains(" --yes -- echo hi"), "{words}");
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn the_preview_of_a_program_with_an_assignment_gives_the_confirmed_line_with_yes_before_the_separator()
+ {
+    serving(Setup::of(unruly()), |running| {
+        let page = Page::of(running);
+        let launch = json!({
+            "path": ["child", "launch"],
+            "values": {"<PROGRAM>": ["env", "RUST_LOG=debug", "cargo", "run"]}
+        });
+
+        let preview = page.stream("/api/previews", &launch).rest();
+
+        assert_eq!(
+            preview[0]["confirmed_line"],
+            "unruly child launch --yes -- env 'RUST_LOG=debug' cargo run"
+        );
+        assert_eq!(
+            preview[0]["line"],
+            "unruly child launch -- env 'RUST_LOG=debug' cargo run"
+        );
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn read_only_refuses_a_command_that_runs_a_program_at_preview_and_with_an_id() {
+    serving(Setup::of(unruly()).read_only(), |running| {
+        let page = Page::of(running);
+        let launch = json!({"path": ["child", "launch"], "values": {"<PROGRAM>": ["echo"]}});
+        let id = "0".repeat(32);
+
+        let preview = page.send("/api/previews", &launch);
+        let confirm = page.send(&format!("/api/confirmations/{id}"), &launch);
+
+        refused(&preview, 422, "flightdeck::run::read_only");
+        refused(&confirm, 422, "flightdeck::run::read_only");
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn a_read_only_command_that_reaches_outside_the_tool_runs_without_a_confirmation() {
+    serving(Setup::of(unruly()), |running| {
+        let page = Page::of(running);
+        let fetch = json!({"path": ["child", "fetch"]});
+
+        let lines = page.stream("/api/runs", &fetch).rest();
+
+        assert_eq!(lines.last().unwrap()["outcome"]["kind"], "result");
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn a_destructive_command_that_runs_a_program_still_previews_with_its_dry_run() {
+    serving(Setup::of(unruly()), |running| {
+        let page = Page::of(running);
+        let sweep = json!({"path": ["child", "sweep"]});
+
+        let bare = page.send("/api/runs", &sweep);
+        let lines = page.stream("/api/previews", &sweep).rest();
+
+        refused(&bare, 422, "flightdeck::run::needs_confirmation");
+        assert_eq!(lines[0]["preview"], true);
+        assert_eq!(
+            lines.last().unwrap()["confirmation"]
+                .as_str()
+                .unwrap()
+                .len(),
+            32
+        );
+        Then::Stop
+    });
+}
+
 #[test]
 fn a_stream_from_reading_sends_started_then_each_entry_as_its_own_line_then_ended() {
     let lists = tempfile::tempdir().unwrap();

@@ -40,8 +40,13 @@ function guideOrder(tool: Tool, paths: string[][]): Command[] {
   });
 }
 
-/** The word for what a command changes. */
-export type Effect = "read-only" | "additive" | "destructive" | "effects unknown";
+/** The word for what a command changes, or for a command that starts a program. */
+export type Effect =
+  | "read-only"
+  | "additive"
+  | "destructive"
+  | "effects unknown"
+  | "starts a program";
 
 /**
  * Returns the word for what the command changes, from the class that the
@@ -55,12 +60,22 @@ export function effectOf(command: Command): Effect {
 }
 
 /**
- * Returns true when the command runs only after a preview and a
- * confirmation, which the server requires of a destructive command and of
- * one whose effects are unknown.
+ * Returns true when the command starts a program that the caller names: it
+ * declares `runs_program` and is not destructive, whose card comes first.
+ * flightdeck cannot preview what such a program changes. A command that only
+ * reaches outside the tool (`open_world`) runs with no card.
+ */
+export function startsProgram(command: Command): boolean {
+  return command.class !== "destructive" && command.effects?.runs_program === true;
+}
+
+/**
+ * Returns true when the command runs only after a confirmation, which the
+ * server requires of a destructive command, one whose effects are unknown,
+ * and one that starts a program.
  */
 export function needsConfirmation(command: Command): boolean {
-  return command.class === "destructive";
+  return command.class === "destructive" || startsProgram(command);
 }
 
 /** Returns true when the command takes crumbkit's `--dry-run`, so the page can preview it. */

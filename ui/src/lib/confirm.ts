@@ -77,15 +77,6 @@ export function effectsInWords(command: Command): string {
 }
 
 /**
- * Returns the line that the confirm button runs: the preview's line with
- * `--yes` when the command takes it, which the server adds.
- */
-export function confirmedLine(command: Command, line: string): string {
-  const takesYes = command.arguments.some((each) => each.crumbkit_flag === "--yes");
-  return takesYes ? `${line} --yes` : line;
-}
-
-/**
  * Returns true when a run ended with crumbkit's failure for a command that
  * asked for confirmation, such as `shelf::confirmation::needs_yes`.
  */

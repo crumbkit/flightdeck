@@ -84,7 +84,17 @@ async function previewRemove2() {
 describe("ToolPage", () => {
   it("says a command without a dry run has no preview, and confirms its request once", async () => {
     const sent = stubServer({
-      "/api/previews": { lines: [{ ...started, run: null, preview: false, confirmation: "c1" }] },
+      "/api/previews": {
+        lines: [
+          {
+            ...started,
+            run: null,
+            preview: false,
+            confirmed_line: "shelf books remove --yes 2",
+            confirmation: "c1",
+          },
+        ],
+      },
       "/api/confirmations/c1": confirmedRun,
     });
     const reply = withRemove((command) => ({
@@ -97,13 +107,78 @@ describe("ToolPage", () => {
     const card = await screen.findByRole("region", { name: /^Run 1: .*awaiting confirmation/ });
     expect(within(card).getByText("This command has no preview.")).toBeInTheDocument();
     expect(
-      within(card).getByRole("group", { name: "Run shelf books remove 2 --yes?" }),
+      within(card).getByRole("group", { name: "Run shelf books remove --yes 2?" }),
     ).toBeVisible();
     await user.click(within(card).getByRole("button", { name: "Remove" }));
 
     expect(
       await screen.findByRole("region", { name: /^Run 1: shelf books remove 2, exit 0/ }),
     ).toBeInTheDocument();
+    expect(sent.filter((path) => path === "/api/confirmations/c1")).toHaveLength(1);
+  });
+
+  it("asks before it starts the program that a runs_program command names, and never says it has no preview", async () => {
+    const sent = stubServer({
+      "/api/previews": {
+        lines: [
+          {
+            ...started,
+            line: "shelf books remove -- cargo run",
+            confirmed_line: "shelf books remove --yes -- cargo run",
+            run: null,
+            preview: false,
+            confirmation: "c1",
+          },
+        ],
+      },
+      "/api/confirmations/c1": confirmedRun,
+    });
+    const reply = withRemove((command) => ({
+      ...command,
+      class: "additive",
+      effects: {
+        read_only: false,
+        destructive: false,
+        idempotent: false,
+        open_world: true,
+        runs_program: true,
+      },
+      arguments: command.arguments
+        .filter((each) => each.crumbkit_flag !== "--dry-run")
+        .map((each) =>
+          each.name === "<ID>"
+            ? {
+                ...each,
+                after_double_dash: true,
+                help: { line: "The program to run, after --", long: null },
+              }
+            : each,
+        ),
+    }));
+    const user = userEvent.setup();
+    renderPage(reply);
+
+    const rail = screen.getByRole("navigation", { name: "Commands" });
+    await user.click(within(rail).getByRole("button", { name: /books remove/ }));
+    await user.type(screen.getByLabelText(/The program to run/), "cargo run ");
+    expect(screen.getByRole("button", { name: /^Run/ })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: /^Run/ }));
+
+    const card = await screen.findByRole("region", { name: /^Run 1: .*awaiting confirmation/ });
+    const question = within(card).getByRole("group", { name: "Start cargo run?" });
+    expect(within(question).getByText("starts a program")).toBeVisible();
+    expect(question).toHaveTextContent(
+      "This command starts cargo run on this computer. flightdeck cannot preview what that program changes.",
+    );
+    expect(within(question).getByText("shelf books remove --yes -- cargo run")).toBeVisible();
+    expect(within(card).queryByText("This command has no preview.")).toBeNull();
+    expect(within(card).getByRole("button", { name: "Cancel" })).toHaveFocus();
+    expect(sent.filter((path) => path.startsWith("/api/confirmations/"))).toEqual([]);
+
+    await user.click(within(card).getByRole("button", { name: "Start cargo run" }));
+
+    expect(await screen.findByRole("region", { name: /^Run 1: .*exit 0/ })).toBeInTheDocument();
+    expect(sent.filter((path) => path === "/api/runs")).toEqual([]);
     expect(sent.filter((path) => path === "/api/confirmations/c1")).toHaveLength(1);
   });
 
@@ -161,7 +236,13 @@ describe("ToolPage", () => {
     const reply = withRemove((command) => ({
       ...command,
       class: "additive",
-      effects: { read_only: false, destructive: false, idempotent: true },
+      effects: {
+        read_only: false,
+        destructive: false,
+        idempotent: true,
+        open_world: false,
+        runs_program: false,
+      },
     }));
     const user = userEvent.setup();
     renderPage(reply);
@@ -219,7 +300,13 @@ describe("ToolPage", () => {
     const reply = withRemove((command) => ({
       ...command,
       class: "additive",
-      effects: { read_only: false, destructive: false, idempotent: true },
+      effects: {
+        read_only: false,
+        destructive: false,
+        idempotent: true,
+        open_world: false,
+        runs_program: false,
+      },
     }));
     const user = userEvent.setup();
     renderPage(reply);

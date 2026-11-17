@@ -53,6 +53,7 @@ function flag(name: string, fields: Partial<Argument> = {}): Argument {
     one_of: [],
     crumbkit_flag: null,
     global: false,
+    after_double_dash: false,
     ...fields,
   };
 }
