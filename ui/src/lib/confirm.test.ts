@@ -7,9 +7,9 @@ import {
   confirmLabel,
   countOf,
   effectsInWords,
-  programOf,
   question,
 } from "./confirm";
+import { programOf } from "./form";
 
 const remove = command(shelf, "books remove");
 
@@ -98,9 +98,9 @@ describe("confirmedLine", () => {
   });
 
   it("puts --yes before the separator, where the tool reads it", () => {
-    expect(
-      confirmedLine(launch, "shelf run -- cargo run", launched(["cargo", "run"])),
-    ).toBe("shelf run --yes -- cargo run");
+    expect(confirmedLine(launch, "shelf run -- cargo run", launched(["cargo", "run"]))).toBe(
+      "shelf run --yes -- cargo run",
+    );
   });
 
   it("finds the separator from the request, not from a value that holds ' -- '", () => {

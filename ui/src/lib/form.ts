@@ -215,7 +215,9 @@ export function lineOf(tool: string, command: Command, request: RunRequest): str
       if (value === undefined) {
         return [];
       }
-      return value === true ? [each.name] : valuesOf(each, request).flatMap((item) => [each.name, quote(item)]);
+      return value === true
+        ? [each.name]
+        : valuesOf(each, request).flatMap((item) => [each.name, quote(item)]);
     });
   const words = separated ? [...named, "--", ...positional] : [...positional, ...named];
   return [tool, ...command.path, ...words].join(" ");
