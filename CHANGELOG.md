@@ -35,7 +35,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - flightdeck builds on crumbkit, crumbkit-skills, crumbkit-process and
-  crumbkit-test 0.5.0, and mounts its `skills` commands from crumbkit-skills.
+  crumbkit-test 0.6.0, and mounts its `skills` commands from crumbkit-skills.
+  The help of `flightdeck skills` names flightdeck, and the `Rows:` line of
+  `skills check` and `completion check` says that the default text also
+  lists the rows that report a warning.
 - On a tool built on crumbkit 0.3.2 or later, flightdeck runs
   `self figures list`, `self usage` and `self runs list` with
   `<TOOL>_PROGRAM=flightdeck`, such as `SHELF_PROGRAM` for shelf, and with
@@ -58,6 +61,14 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `--version` with the person's state directory. The `--version` rows that
   those loaders wrote stay in the usage log until they leave its 7-day
   window.
+
+### Fixed
+
+- A run whose tool prints a failure with a `terminal`, `program` or `after`
+  step, as tools on crumbkit 0.6.0 can, ends as the tool's failure with its
+  code and message. Earlier versions could not read such a failure and
+  ended the run with `flightdeck::run::no_document`. The page does not show
+  those steps.
 
 ## [0.2.0] - 2026-11-11
 

@@ -346,8 +346,9 @@ pub enum DocumentForm {
 }
 
 /// The failure document that a crumbkit tool prints with `--json`, and each
-/// failure of a batch. It serializes as it was read, without its `schema`,
-/// for the page.
+/// failure of a batch. It serializes as it was read, without its `schema`
+/// and with each step of a kind the page does not show as
+/// [`Recovery::Other`], for the page.
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ToolFailure {
     code: String,
@@ -449,6 +450,12 @@ pub enum Recovery {
         /// Why no step repairs it.
         reason: String,
     },
+    /// A step of a kind that the page does not show, such as `terminal`,
+    /// `program` or `after`. It keeps none of the step's content and
+    /// serializes as kind `other`, which the page drops, so the failure's
+    /// code and message still reach the page.
+    #[serde(other)]
+    Other,
 }
 
 /// Returns true when `schema`, or a schema inside it, lists `name` among its

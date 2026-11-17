@@ -3,9 +3,9 @@ Give coding agents flightdeck's skill
 Usage: flightdeck skills [OPTIONS] <COMMAND>
 
 Commands:
-  install  Install this tool's skills into each agent skills directory that exists
-  check    Check that each installed copy of this tool's skills matches this build
-  print    Print this tool's skill
+  install  Install flightdeck's skills into each agent skills directory that exists
+  check    Check that each installed copy of flightdeck's skills matches this flightdeck
+  print    Print flightdeck's skill
 
 Options:
       --json

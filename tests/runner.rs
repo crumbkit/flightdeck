@@ -345,6 +345,42 @@ fn a_positional_value_after_the_separator_is_never_read_as_a_flag() {
 }
 
 #[test]
+fn a_failure_whose_recovery_is_an_after_step_ends_the_run_as_the_tools_failure() {
+    let shelf = session("shelf", Mode::Full);
+    let ids = shelf._dirs.path().join("ids.txt");
+    std::fs::write(&ids, "2\nnot an id\n").unwrap();
+
+    let run = shelf
+        .runner
+        .run(&request(&["books", "show"]).value("--from", one(ids.to_str().unwrap())))
+        .unwrap();
+    let (_, outcome) = finish(run);
+
+    let Outcome::ToolFailure(failure) = outcome else {
+        panic!("{outcome:?}");
+    };
+    assert_eq!(failure.code(), "shelf::books::bad_ids_file");
+    assert_eq!(failure.recovery(), &model::Recovery::Other);
+}
+
+#[test]
+fn a_failure_whose_alternative_is_a_program_step_ends_the_run_as_the_tools_failure() {
+    let shelf = session("shelf", Mode::Full);
+    let removed = shelf._dirs.path().join("state/shelf/removed.txt");
+    std::fs::create_dir_all(removed.parent().unwrap()).unwrap();
+    std::fs::write(&removed, "not an id\n").unwrap();
+
+    let run = shelf.runner.run(&request(&["books", "list"])).unwrap();
+    let (_, outcome) = finish(run);
+
+    let Outcome::ToolFailure(failure) = outcome else {
+        panic!("{outcome:?}");
+    };
+    assert_eq!(failure.code(), "shelf::books::removed_file");
+    assert_eq!(failure.alternatives(), [model::Recovery::Other]);
+}
+
+#[test]
 fn books_list_runs_at_once_and_its_one_line_is_shelfs_listing_document() {
     let shelf = session("shelf", Mode::Full);
 

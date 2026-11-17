@@ -62,7 +62,7 @@ where
             let result = crumbkit::commands::list(&mut run, &TOOL, &args);
             crumbkit::finish(run, crumbkit::commands::COMMANDS_LIST, result)
         }
-        Resource::Skills { command } => crumbkit_skills::run(run, &[SKILL], &command),
+        Resource::Skills { command } => crumbkit_skills::run(run, &[SKILL], command),
         Resource::Completion { command } => match command {
             CompletionCommand::Install(args) => {
                 let result = crumbkit::completion::install(Cli::command, &args);

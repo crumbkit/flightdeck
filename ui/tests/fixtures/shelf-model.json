@@ -3,7 +3,7 @@
   "read_only": false,
   "tool": {
     "name": "shelf",
-    "version": "0.5.0+git-cb73bd8ea968",
+    "version": "0.6.0+git-de1bc6b8aa94",
     "about": "Browse a small catalogue of public-domain books",
     "headings": [
       {
@@ -3524,6 +3524,28 @@
                     "type": "object"
                   },
                   {
+                    "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                    "properties": {
+                      "args": {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "kind": {
+                        "const": "program"
+                      },
+                      "program": {
+                        "type": "string"
+                      },
+                      "run": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["kind", "program", "args", "run"],
+                    "type": "object"
+                  },
+                  {
                     "description": "Run the same command again later.",
                     "properties": {
                       "kind": {
@@ -3531,6 +3553,63 @@
                       }
                     },
                     "required": ["kind"],
+                    "type": "object"
+                  },
+                  {
+                    "description": "Make this repair, then take the step `then`.",
+                    "properties": {
+                      "kind": {
+                        "const": "after"
+                      },
+                      "repair": {
+                        "type": "string"
+                      },
+                      "then": {
+                        "description": "The step that follows the repair.",
+                        "oneOf": [
+                          {
+                            "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                            "properties": {
+                              "all": {
+                                "type": "string"
+                              },
+                              "call": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "const": "run"
+                              }
+                            },
+                            "required": ["kind", "call"],
+                            "type": "object"
+                          },
+                          {
+                            "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                            "properties": {
+                              "call": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "const": "terminal"
+                              }
+                            },
+                            "required": ["kind", "call"],
+                            "type": "object"
+                          },
+                          {
+                            "description": "Run the same command again later.",
+                            "properties": {
+                              "kind": {
+                                "const": "retry"
+                              }
+                            },
+                            "required": ["kind"],
+                            "type": "object"
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["kind", "repair", "then"],
                     "type": "object"
                   },
                   {
@@ -3566,6 +3645,13 @@
             "cause": {
               "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
               "type": "string"
+            },
+            "causes": {
+              "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             },
             "code": {
               "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
@@ -3689,6 +3775,28 @@
                   "type": "object"
                 },
                 {
+                  "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                  "properties": {
+                    "args": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "kind": {
+                      "const": "program"
+                    },
+                    "program": {
+                      "type": "string"
+                    },
+                    "run": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["kind", "program", "args", "run"],
+                  "type": "object"
+                },
+                {
                   "description": "Run the same command again later.",
                   "properties": {
                     "kind": {
@@ -3696,6 +3804,63 @@
                     }
                   },
                   "required": ["kind"],
+                  "type": "object"
+                },
+                {
+                  "description": "Make this repair, then take the step `then`.",
+                  "properties": {
+                    "kind": {
+                      "const": "after"
+                    },
+                    "repair": {
+                      "type": "string"
+                    },
+                    "then": {
+                      "description": "The step that follows the repair.",
+                      "oneOf": [
+                        {
+                          "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                          "properties": {
+                            "all": {
+                              "type": "string"
+                            },
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "run"
+                            }
+                          },
+                          "required": ["kind", "call"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                          "properties": {
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "terminal"
+                            }
+                          },
+                          "required": ["kind", "call"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Run the same command again later.",
+                          "properties": {
+                            "kind": {
+                              "const": "retry"
+                            }
+                          },
+                          "required": ["kind"],
+                          "type": "object"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["kind", "repair", "then"],
                   "type": "object"
                 },
                 {
@@ -4123,6 +4288,28 @@
                           "type": "object"
                         },
                         {
+                          "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                          "properties": {
+                            "args": {
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "kind": {
+                              "const": "program"
+                            },
+                            "program": {
+                              "type": "string"
+                            },
+                            "run": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "program", "args", "run"],
+                          "type": "object"
+                        },
+                        {
                           "description": "Run the same command again later.",
                           "properties": {
                             "kind": {
@@ -4130,6 +4317,63 @@
                             }
                           },
                           "required": ["kind"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Make this repair, then take the step `then`.",
+                          "properties": {
+                            "kind": {
+                              "const": "after"
+                            },
+                            "repair": {
+                              "type": "string"
+                            },
+                            "then": {
+                              "description": "The step that follows the repair.",
+                              "oneOf": [
+                                {
+                                  "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                  "properties": {
+                                    "all": {
+                                      "type": "string"
+                                    },
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "run"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                  "properties": {
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "terminal"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "Run the same command again later.",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "retry"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["kind", "repair", "then"],
                           "type": "object"
                         },
                         {
@@ -4165,6 +4409,13 @@
                   "cause": {
                     "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
                     "type": "string"
+                  },
+                  "causes": {
+                    "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
                   },
                   "code": {
                     "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
@@ -4288,6 +4539,28 @@
                         "type": "object"
                       },
                       {
+                        "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                        "properties": {
+                          "args": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "kind": {
+                            "const": "program"
+                          },
+                          "program": {
+                            "type": "string"
+                          },
+                          "run": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "program", "args", "run"],
+                        "type": "object"
+                      },
+                      {
                         "description": "Run the same command again later.",
                         "properties": {
                           "kind": {
@@ -4295,6 +4568,63 @@
                           }
                         },
                         "required": ["kind"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Make this repair, then take the step `then`.",
+                        "properties": {
+                          "kind": {
+                            "const": "after"
+                          },
+                          "repair": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "description": "The step that follows the repair.",
+                            "oneOf": [
+                              {
+                                "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                "properties": {
+                                  "all": {
+                                    "type": "string"
+                                  },
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "run"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                "properties": {
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "terminal"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "Run the same command again later.",
+                                "properties": {
+                                  "kind": {
+                                    "const": "retry"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["kind", "repair", "then"],
                         "type": "object"
                       },
                       {
@@ -4556,6 +4886,28 @@
                           "type": "object"
                         },
                         {
+                          "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                          "properties": {
+                            "args": {
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "kind": {
+                              "const": "program"
+                            },
+                            "program": {
+                              "type": "string"
+                            },
+                            "run": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "program", "args", "run"],
+                          "type": "object"
+                        },
+                        {
                           "description": "Run the same command again later.",
                           "properties": {
                             "kind": {
@@ -4563,6 +4915,63 @@
                             }
                           },
                           "required": ["kind"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Make this repair, then take the step `then`.",
+                          "properties": {
+                            "kind": {
+                              "const": "after"
+                            },
+                            "repair": {
+                              "type": "string"
+                            },
+                            "then": {
+                              "description": "The step that follows the repair.",
+                              "oneOf": [
+                                {
+                                  "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                  "properties": {
+                                    "all": {
+                                      "type": "string"
+                                    },
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "run"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                  "properties": {
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "terminal"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "Run the same command again later.",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "retry"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["kind", "repair", "then"],
                           "type": "object"
                         },
                         {
@@ -4598,6 +5007,13 @@
                   "cause": {
                     "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
                     "type": "string"
+                  },
+                  "causes": {
+                    "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
                   },
                   "code": {
                     "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
@@ -4721,6 +5137,28 @@
                         "type": "object"
                       },
                       {
+                        "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                        "properties": {
+                          "args": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "kind": {
+                            "const": "program"
+                          },
+                          "program": {
+                            "type": "string"
+                          },
+                          "run": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "program", "args", "run"],
+                        "type": "object"
+                      },
+                      {
                         "description": "Run the same command again later.",
                         "properties": {
                           "kind": {
@@ -4728,6 +5166,63 @@
                           }
                         },
                         "required": ["kind"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Make this repair, then take the step `then`.",
+                        "properties": {
+                          "kind": {
+                            "const": "after"
+                          },
+                          "repair": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "description": "The step that follows the repair.",
+                            "oneOf": [
+                              {
+                                "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                "properties": {
+                                  "all": {
+                                    "type": "string"
+                                  },
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "run"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                "properties": {
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "terminal"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "Run the same command again later.",
+                                "properties": {
+                                  "kind": {
+                                    "const": "retry"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["kind", "repair", "then"],
                         "type": "object"
                       },
                       {
@@ -5102,7 +5597,7 @@
                   "type": ["string", "null"]
                 },
                 "columns": {
-                  "description": "The columns of the result that the command prints, from the document of the tool record's leaf for the command. A headed command's text has no columns, so it lists the JSON fields that `--fields` selects, ending with `text` and `base64`.",
+                  "description": "The columns of the result that the command prints, from the document of the tool record's leaf for the command. A headed command's text has no columns, so it lists the JSON fields that `--fields` selects, ending with `text` and `base64` when the row type has them.",
                   "items": {
                     "properties": {
                       "description": {
@@ -5572,6 +6067,28 @@
                           "type": "object"
                         },
                         {
+                          "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                          "properties": {
+                            "args": {
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "kind": {
+                              "const": "program"
+                            },
+                            "program": {
+                              "type": "string"
+                            },
+                            "run": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "program", "args", "run"],
+                          "type": "object"
+                        },
+                        {
                           "description": "Run the same command again later.",
                           "properties": {
                             "kind": {
@@ -5579,6 +6096,63 @@
                             }
                           },
                           "required": ["kind"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Make this repair, then take the step `then`.",
+                          "properties": {
+                            "kind": {
+                              "const": "after"
+                            },
+                            "repair": {
+                              "type": "string"
+                            },
+                            "then": {
+                              "description": "The step that follows the repair.",
+                              "oneOf": [
+                                {
+                                  "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                  "properties": {
+                                    "all": {
+                                      "type": "string"
+                                    },
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "run"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                  "properties": {
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "terminal"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "Run the same command again later.",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "retry"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["kind", "repair", "then"],
                           "type": "object"
                         },
                         {
@@ -5614,6 +6188,13 @@
                   "cause": {
                     "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
                     "type": "string"
+                  },
+                  "causes": {
+                    "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
                   },
                   "code": {
                     "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
@@ -5737,6 +6318,28 @@
                         "type": "object"
                       },
                       {
+                        "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                        "properties": {
+                          "args": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "kind": {
+                            "const": "program"
+                          },
+                          "program": {
+                            "type": "string"
+                          },
+                          "run": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "program", "args", "run"],
+                        "type": "object"
+                      },
+                      {
                         "description": "Run the same command again later.",
                         "properties": {
                           "kind": {
@@ -5744,6 +6347,63 @@
                           }
                         },
                         "required": ["kind"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Make this repair, then take the step `then`.",
+                        "properties": {
+                          "kind": {
+                            "const": "after"
+                          },
+                          "repair": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "description": "The step that follows the repair.",
+                            "oneOf": [
+                              {
+                                "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                "properties": {
+                                  "all": {
+                                    "type": "string"
+                                  },
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "run"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                "properties": {
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "terminal"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "Run the same command again later.",
+                                "properties": {
+                                  "kind": {
+                                    "const": "retry"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["kind", "repair", "then"],
                         "type": "object"
                       },
                       {
@@ -7577,6 +8237,28 @@
                           "type": "object"
                         },
                         {
+                          "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                          "properties": {
+                            "args": {
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "kind": {
+                              "const": "program"
+                            },
+                            "program": {
+                              "type": "string"
+                            },
+                            "run": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "program", "args", "run"],
+                          "type": "object"
+                        },
+                        {
                           "description": "Run the same command again later.",
                           "properties": {
                             "kind": {
@@ -7584,6 +8266,63 @@
                             }
                           },
                           "required": ["kind"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Make this repair, then take the step `then`.",
+                          "properties": {
+                            "kind": {
+                              "const": "after"
+                            },
+                            "repair": {
+                              "type": "string"
+                            },
+                            "then": {
+                              "description": "The step that follows the repair.",
+                              "oneOf": [
+                                {
+                                  "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                  "properties": {
+                                    "all": {
+                                      "type": "string"
+                                    },
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "run"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                  "properties": {
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "terminal"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "Run the same command again later.",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "retry"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["kind", "repair", "then"],
                           "type": "object"
                         },
                         {
@@ -7619,6 +8358,13 @@
                   "cause": {
                     "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
                     "type": "string"
+                  },
+                  "causes": {
+                    "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
                   },
                   "code": {
                     "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
@@ -7742,6 +8488,28 @@
                         "type": "object"
                       },
                       {
+                        "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                        "properties": {
+                          "args": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "kind": {
+                            "const": "program"
+                          },
+                          "program": {
+                            "type": "string"
+                          },
+                          "run": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "program", "args", "run"],
+                        "type": "object"
+                      },
+                      {
                         "description": "Run the same command again later.",
                         "properties": {
                           "kind": {
@@ -7749,6 +8517,63 @@
                           }
                         },
                         "required": ["kind"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Make this repair, then take the step `then`.",
+                        "properties": {
+                          "kind": {
+                            "const": "after"
+                          },
+                          "repair": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "description": "The step that follows the repair.",
+                            "oneOf": [
+                              {
+                                "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                "properties": {
+                                  "all": {
+                                    "type": "string"
+                                  },
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "run"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                "properties": {
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "terminal"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "Run the same command again later.",
+                                "properties": {
+                                  "kind": {
+                                    "const": "retry"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["kind", "repair", "then"],
                         "type": "object"
                       },
                       {
@@ -8227,6 +9052,28 @@
                           "type": "object"
                         },
                         {
+                          "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                          "properties": {
+                            "args": {
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "kind": {
+                              "const": "program"
+                            },
+                            "program": {
+                              "type": "string"
+                            },
+                            "run": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "program", "args", "run"],
+                          "type": "object"
+                        },
+                        {
                           "description": "Run the same command again later.",
                           "properties": {
                             "kind": {
@@ -8234,6 +9081,63 @@
                             }
                           },
                           "required": ["kind"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Make this repair, then take the step `then`.",
+                          "properties": {
+                            "kind": {
+                              "const": "after"
+                            },
+                            "repair": {
+                              "type": "string"
+                            },
+                            "then": {
+                              "description": "The step that follows the repair.",
+                              "oneOf": [
+                                {
+                                  "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                  "properties": {
+                                    "all": {
+                                      "type": "string"
+                                    },
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "run"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                  "properties": {
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "terminal"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "Run the same command again later.",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "retry"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["kind", "repair", "then"],
                           "type": "object"
                         },
                         {
@@ -8269,6 +9173,13 @@
                   "cause": {
                     "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
                     "type": "string"
+                  },
+                  "causes": {
+                    "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
                   },
                   "code": {
                     "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
@@ -8392,6 +9303,28 @@
                         "type": "object"
                       },
                       {
+                        "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                        "properties": {
+                          "args": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "kind": {
+                            "const": "program"
+                          },
+                          "program": {
+                            "type": "string"
+                          },
+                          "run": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "program", "args", "run"],
+                        "type": "object"
+                      },
+                      {
                         "description": "Run the same command again later.",
                         "properties": {
                           "kind": {
@@ -8399,6 +9332,63 @@
                           }
                         },
                         "required": ["kind"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Make this repair, then take the step `then`.",
+                        "properties": {
+                          "kind": {
+                            "const": "after"
+                          },
+                          "repair": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "description": "The step that follows the repair.",
+                            "oneOf": [
+                              {
+                                "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                "properties": {
+                                  "all": {
+                                    "type": "string"
+                                  },
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "run"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                "properties": {
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "terminal"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "Run the same command again later.",
+                                "properties": {
+                                  "kind": {
+                                    "const": "retry"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["kind", "repair", "then"],
                         "type": "object"
                       },
                       {
