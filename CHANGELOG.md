@@ -24,6 +24,14 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- flightdeck no longer depends on the unmaintained humantime crate
+  (RUSTSEC-2026-0542); it reads and writes times with jiff. It now reads a
+  run's `at` in any RFC 3339 form jiff accepts, such as an offset like
+  `+01:00`, a lowercase `t` or `z`, or a space for the `T`, where it used to
+  drop a run whose `at` was not `Z` time. It refuses an `at` with a fraction
+  of 10 or more digits, which it used to truncate, and still drops a run
+  from before 1970. The stream's `started_at` keeps its format, and a clock
+  before 1970 now writes as the epoch instead of panicking.
 - flightdeck builds on crumbkit, crumbkit-skills, crumbkit-process and
   crumbkit-test 0.6.0, and mounts its `skills` commands from crumbkit-skills.
   The help of `flightdeck skills` names flightdeck, and the `Rows:` line of
