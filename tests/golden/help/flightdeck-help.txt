@@ -10,6 +10,7 @@ Commands
   skills      Give coding agents flightdeck's skill
   completion  Set up flightdeck's completion in a shell
   schemas     Explore the JSON documents that flightdeck prints
+  self        Review flightdeck itself
 
 Options:
       --json

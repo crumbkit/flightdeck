@@ -10,6 +10,7 @@
 
 mod cli;
 pub mod clock;
+mod environment;
 mod lock;
 pub mod model;
 mod open;
@@ -24,8 +25,12 @@ use std::process::ExitCode;
 use clap::CommandFactory as _;
 
 pub use crate::cli::{Cli, TOOL};
-use crate::cli::{CommandsCommand, CompletionCommand, Resource, SKILL, SchemasCommand};
-pub use crate::open::{OpenError, SERVER_FAILED, TOOL_SEARCH_PATH};
+use crate::cli::{
+    CommandsCommand, CompletionCommand, EnvironmentVerb, Resource, SKILL, SchemasCommand,
+    SelfCommand,
+};
+use crate::environment::Environment;
+pub use crate::open::{ENVIRONMENT_INVALID, OpenError, SERVER_FAILED, TOOL_SEARCH_PATH};
 
 /// Every failure code that flightdeck declares, in one list for each error
 /// type, which its convention tests pass to crumbkit-test's checks.
@@ -36,14 +41,16 @@ pub const CODES: &[&[crumbkit::Code<'static>]] = &[
     runner::EndFailure::CODES,
 ];
 
-/// Runs flightdeck on `args`, whose first item is the program's name, and
-/// returns the process's exit code.
+/// Runs flightdeck on `args`, whose first item is the program's name, with
+/// `vars` as its process environment, and returns the process's exit code.
+/// `main` reads the environment once (BASE-6), and flightdeck reads the
+/// variables that starmap.toml declares from `vars`.
 ///
 /// `crumbkit::parse_from` prints help, the version or a refused command
 /// line and returns its exit code. `crumbkit::finish` prints the result or
 /// the failure in the format that the output flags choose.
 #[must_use]
-pub fn run_from<I, T>(args: I) -> ExitCode
+pub fn run_from<I, T>(args: I, vars: &[(OsString, OsString)]) -> ExitCode
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString>,
@@ -55,7 +62,7 @@ where
     // Each command reads the command tree through `&mut run`, so it runs
     // before `finish` takes `run`.
     match cli.resource {
-        Resource::Open(args) => open::run(&mut run, &args),
+        Resource::Open(args) => open::run(&mut run, &args, vars),
         Resource::Commands {
             command: CommandsCommand::List(args),
         } => {
@@ -87,5 +94,15 @@ where
                 crumbkit::finish(run, crumbkit::schemas::SCHEMAS_SHOW, result)
             }
         },
+        Resource::SelfCommand {
+            command:
+                SelfCommand::Environment {
+                    verb: EnvironmentVerb::List,
+                },
+        } => {
+            let result =
+                crumbkit_starmap::environment(&mut run, <Environment as starmap::Env>::SPEC, vars);
+            crumbkit::finish(run, crumbkit_starmap::SELF_ENVIRONMENT_LIST, result)
+        }
     }
 }

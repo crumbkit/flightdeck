@@ -16,6 +16,7 @@ include = [
     "/src/**",
     "/skill/**",
     "/ui/dist/**",
+    "/starmap.toml",
     "/Cargo.toml",
     "/Cargo.lock",
     "/README.md",
@@ -49,6 +50,12 @@ crumbkit = { version = "0.6.0", default-features = false, features = ["derive", 
 # `skill/SKILL.md`, with `flightdeck skills install`, and gives `check` and
 # `print`.
 crumbkit-skills = { version = "0.6.0", default-features = false }
+# starmap's `derive` feature reads the variables that starmap.toml declares
+# into the struct in src/environment.rs, which embeds the file.
+starmap = { version = "0.4.2", default-features = false, features = ["derive"] }
+# crumbkit-starmap gives `flightdeck self environment list`, which prints
+# those variables and the ones that crumbkit reads in every tool.
+crumbkit-starmap = { version = "0.4.2", default-features = false }
 # serde reads the JSON documents that a crumbkit tool prints into the model's
 # own types.
 serde = { version = "1.0.229", default-features = false, features = ["std", "derive"] }
@@ -106,6 +113,9 @@ wait-timeout = { version = "0.2.1", default-features = false }
 # The convention tests check flightdeck's command tree, tool record and codes with
 # crumbkit-test.
 crumbkit-test = { version = "0.6.0", default-features = false }
+# starmap-test checks that the struct in src/environment.rs reads exactly
+# the variables that starmap.toml declares.
+starmap-test = { version = "0.4.2", default-features = false }
 # The schema tests validate real documents against crumbkit's checked-in
 # JSON Schemas, which use draft 2020-12.
 jsonschema = { version = "0.60.2", default-features = false }

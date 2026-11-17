@@ -119,9 +119,9 @@ realizations = ["Cargo.toml"]
 
 [[decision]]
 id = "environment"
-requirement = "flightdeck reads no environment variable of its own, so its BASE-28 catalog is empty and clippy.toml forbids every reader. crumbkit reads its own variables, such as FLIGHTDECK_OUTPUT_BUDGET, and its documentation catalogs them. A child process inherits flightdeck's environment, plus the variables that spawn::Program::env adds. The server keeps its token out of that environment, so the runner removes no variable before a run."
-reason = "BASE-28's catalog test compares the catalog with the environment snapshot of BASE-6. With no variable read, there is no snapshot to compare, and the disallowed methods keep it that way until a variable is added with its catalog."
-realizations = ["clippy.toml", "src/spawn.rs"]
+requirement = "starmap.toml is flightdeck's BASE-28 catalog. It declares PATH, the one variable that flightdeck reads itself. src/main.rs reads the process environment once (BASE-6), and the struct that derives starmap::Env in src/environment.rs reads the declared variables from that snapshot. clippy.toml forbids every other reader, and `flightdeck self environment list` prints the catalog. crumbkit reads its own variables, such as FLIGHTDECK_OUTPUT_BUDGET, and crumbkit-starmap lists them after flightdeck's. A child process inherits flightdeck's environment, plus the variables that spawn::Program::env adds. The server keeps its token out of that environment, so the runner removes no variable before a run."
+reason = "BASE-28's catalog test compares the catalog with what the code reads. starmap_test::check in src/environment/tests.rs compares the struct with starmap.toml, and `starmap check` in CI fails when src reads a variable that starmap.toml does not declare or when clippy.toml lacks the disallowed readers."
+realizations = ["starmap.toml", "src/environment.rs", "src/main.rs", "clippy.toml", "src/spawn.rs"]
 
 [[exception]]
 rule = "CLI-7"

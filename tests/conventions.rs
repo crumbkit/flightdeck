@@ -9,7 +9,9 @@
 
 use clap::CommandFactory as _;
 use crumbkit_flightdeck::{CODES, Cli, TOOL};
-use crumbkit_test::{Examples, Failing, PathBudgets, Recoveries, Suite, Twins, Unprovoked};
+use crumbkit_test::{
+    Allow, Examples, Failing, PathBudgets, Recoveries, Rule, Suite, Twins, Unprovoked,
+};
 
 /// The budgets of the paths through flightdeck's help, which are crumbkit's
 /// defaults.
@@ -45,6 +47,10 @@ const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
         crumbkit_flightdeck::TOOL_SEARCH_PATH,
         "Only a launch directory whose name holds PATH's separator provokes it; tests/open.rs provokes the code.",
     ),
+    Unprovoked::new(
+        crumbkit_flightdeck::ENVIRONMENT_INVALID,
+        "starmap.toml refuses no value of PATH, the one variable that flightdeck reads.",
+    ),
     Unprovoked::area("flightdeck", "run", NO_RUN),
     Unprovoked::area("flightdeck", "choices", NO_RUN),
 ];
@@ -69,9 +75,20 @@ const UNTWINNED: &[Unprovoked<'_>] = &[
         crumbkit_flightdeck::TOOL_SEARCH_PATH,
         "Only a launch directory whose name holds PATH's separator provokes it; tests/open.rs provokes the code.",
     ),
+    Unprovoked::new(
+        crumbkit_flightdeck::ENVIRONMENT_INVALID,
+        "starmap.toml refuses no value of PATH, the one variable that flightdeck reads.",
+    ),
     Unprovoked::area("flightdeck", "run", NO_RUN),
     Unprovoked::area("flightdeck", "choices", NO_RUN),
 ];
+
+/// The rules that flightdeck skips for one command, each with its reason.
+const ALLOW: &[Allow] = &[Allow::new(
+    Rule::ListPages,
+    "self environment list",
+    "crumbkit-starmap's built-in prints every declared variable at once and takes no arguments.",
+)];
 
 /// The settings of flightdeck's recovery check.
 const RECOVERIES: Recoveries<'_> = Recoveries::lists(EXAMPLES, CODES)
@@ -86,6 +103,7 @@ const TWINS: Twins<'_> = Twins::lists(EXAMPLES, CODES).unprovoked(UNTWINNED);
 /// because `open` is a root verb of the tool record, and it accepts the
 /// verbs of the `completion` commands.
 const SUITE: Suite<'_> = Suite::new(|| (Cli::command(), TOOL))
+    .allow(ALLOW)
     .verbs(&["install", "check", "print"])
     .path_budgets(PATH_BUDGETS)
     .examples(EXAMPLES)

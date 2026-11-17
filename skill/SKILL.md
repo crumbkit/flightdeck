@@ -43,8 +43,7 @@ limit.
 With `--no-browser`, flightdeck opens no browser. It prints the path of an
 opener page, a local file that sends the browser to the page's address with
 a one-time launch code in the URL's fragment, the part after `#`. The person
-opens that file in a browser. If the browser does not open without the flag,
-flightdeck prints the same path.
+opens that file in a browser.
 
 A bare `http://127.0.0.1:PORT` address will not sign in, because it carries
 no launch code. The code works once and expires 60 seconds after flightdeck

@@ -1,0 +1,14 @@
+# The environment variables that flightdeck reads itself. The struct that
+# derives starmap::Env in src/environment.rs reads them, and
+# `flightdeck self environment list` prints them beside the variables that
+# the crumbkit crate reads in every tool, which crumbkit-starmap declares.
+
+[variables.PATH]
+purpose = "The search path that finds the tool `flightdeck open` names by a bare name. flightdeck makes each entry absolute against the directory it started in, and gives the result to every run of the tool."
+type = "path"
+unset = "optional"
+# An empty PATH still searches the directory flightdeck started in, as an
+# unset one does not, so the empty text is a value.
+empty = "value"
+show = "shown"
+source = "inherited"

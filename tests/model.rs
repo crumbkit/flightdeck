@@ -1077,3 +1077,24 @@ fn measuring_shelfs_help_pages_leaves_the_persons_usage_figures_unchanged() {
     shelf_directly(&shelf, dirs.path(), &["books", "list", "-h"]);
     assert_ne!(figures_of(&program), before);
 }
+
+#[test]
+fn flightdeck_loads_itself_with_the_environment_its_starmap_toml_declares() {
+    let (_dirs, program) = isolated(env!("CARGO_BIN_EXE_flightdeck"));
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    assert!(
+        tool.command(&["self", "environment", "list"])
+            .unwrap()
+            .built_in()
+    );
+    let own: Vec<&str> = tool
+        .environment()
+        .unwrap()
+        .iter()
+        .filter(|variable| variable.owner().is_none())
+        .map(|variable| variable.name())
+        .collect();
+    assert_eq!(own, ["PATH"]);
+}

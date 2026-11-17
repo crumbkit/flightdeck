@@ -8,6 +8,7 @@
 //! with 0 when the server stops. A failure before the server starts prints
 //! through crumbkit and exits with 1.
 
+use std::ffi::OsString;
 use std::fmt;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -18,9 +19,11 @@ use std::sync::atomic::AtomicBool;
 use crumbkit::{Code, Failure, Recovery, Run, Sink};
 use crumbkit_process::Status;
 use signal_hook::consts::{SIGINT, SIGTERM};
+use starmap::Env as _;
 
 use crate::cli::OpenArgs;
 use crate::clock::{Clock as _, SystemClock};
+use crate::environment::Environment;
 use crate::model::{self, LoadError};
 use crate::opener::Opener;
 use crate::runner::{self, Mode, Runner};
@@ -32,6 +35,10 @@ mod tests;
 
 /// The code of a page's server that could not start or stopped answering.
 pub const SERVER_FAILED: Code = Code::from_spelling("flightdeck::server::failed");
+
+/// The code of a variable that flightdeck reads whose value starmap.toml
+/// refuses.
+pub const ENVIRONMENT_INVALID: Code = Code::from_spelling("flightdeck::environment::invalid");
 
 /// The code of a bare tool name that flightdeck cannot look up the same way
 /// from every directory, because an entry of `PATH` cannot be made absolute.
@@ -64,6 +71,14 @@ pub enum OpenError {
         alternative = Recovery::hint("run flightdeck open from another directory"),
     )]
     SearchPath,
+    /// A variable that flightdeck reads has a value that starmap.toml
+    /// refuses. starmap.toml refuses no value of `PATH`, the one variable
+    /// today: it is optional, any path, and its empty text is a value.
+    #[failure(
+        code = ENVIRONMENT_INVALID,
+        hint = "run `flightdeck self environment list` to see each variable's rule",
+    )]
+    Environment(starmap::ReadError),
     /// The tool's model could not be loaded.
     #[failure(forward)]
     Load(LoadError),
@@ -96,6 +111,7 @@ impl fmt::Display for OpenError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SearchPath => f.write_str("a relative PATH entry cannot be made absolute"),
+            Self::Environment(error) => error.fmt(f),
             Self::Load(error) => error.fmt(f),
             Self::Signals(_) => f.write_str("cannot watch for Ctrl-C"),
             Self::Start(_) => f.write_str("cannot start the page's server"),
@@ -113,20 +129,21 @@ impl std::error::Error for OpenError {
             Self::Load(error) => error.source(),
             Self::Signals(error) | Self::Opener(error) | Self::Serve(error) => Some(error),
             Self::Start(error) => Some(error),
+            Self::Environment(error) => Some(error),
             Self::Random(error) => Some(error),
         }
     }
 }
 
-/// Runs `flightdeck open` with `args`, and prints a failure through
-/// `run`.
-pub(crate) fn run(run: &mut Run, args: &OpenArgs) -> ExitCode {
+/// Runs `flightdeck open` with `args` and the process environment `vars`,
+/// and prints a failure through `run`.
+pub(crate) fn run(run: &mut Run, args: &OpenArgs, vars: &[(OsString, OsString)]) -> ExitCode {
     #[expect(
         clippy::disallowed_methods,
         reason = "crumbkit's Run prints only documents and failures, so open writes its two lines to standard error here (CLI-1)"
     )]
     let mut lines = io::stderr();
-    match open(args, &mut lines) {
+    match open(args, vars, &mut lines) {
         Ok(()) => crumbkit::events::ended(0, Some(0)),
         Err(failure) => run.fail(&mut Sink::standard(), &failure),
     }
@@ -134,15 +151,17 @@ pub(crate) fn run(run: &mut Run, args: &OpenArgs) -> ExitCode {
 
 /// Loads the tool, serves its page until it stops, and writes the lines
 /// that a person reads to `lines`. A line that cannot be written, as when
-/// standard error is closed, is skipped.
-fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
+/// standard error is closed, is skipped. The `PATH` of `vars` finds a tool
+/// given by a bare name, and a run in another directory finds the same tool.
+fn open(
+    args: &OpenArgs,
+    vars: &[(OsString, OsString)],
+    lines: &mut dyn Write,
+) -> Result<(), OpenError> {
     let launch = launch_directory();
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "a run in another directory must find the tool that this PATH found at launch"
-    )]
-    let search = std::env::var_os("PATH");
-    let program = Program::at_launch(&args.tool, launch.as_deref(), search.as_deref())
+    let environment =
+        Environment::from_vars(vars.iter().cloned()).map_err(OpenError::Environment)?;
+    let program = Program::at_launch(&args.tool, launch.as_deref(), environment.path())
         .ok_or(OpenError::SearchPath)?;
     let tool = model::load(&program, spawn::TIME_LIMIT).map_err(OpenError::Load)?;
     let stop = Arc::new(AtomicBool::new(false));

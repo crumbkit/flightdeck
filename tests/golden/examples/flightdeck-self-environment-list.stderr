@@ -1,0 +1,1 @@
+Values come from this process's environment, and nothing is resolved. Each variable owned by crumbkit is read by the crumbkit crate in every tool, or by crumbkit-usage in a tool that mounts its commands.
