@@ -200,6 +200,10 @@ describe("sourceWords", () => {
     expect(sourceWords(variable("TERM"))).toBe("inherited");
   });
 
+  it("joins the bind's kind with the joiner it is given", () => {
+    expect(sourceWords(variable("SHELF_MIRROR_TOKEN"), ", ")).toBe("secret, 1Password");
+  });
+
   it("falls back to the source's text for a kind a later starmap adds and for an older tool", () => {
     const later = {
       ...variable("SHELF_PORT"),

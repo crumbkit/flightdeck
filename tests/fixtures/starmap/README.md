@@ -3,10 +3,11 @@
 The crate crumbkit-starmap, in the starmap repository, provides the
 built-in `self environment list`. A crumbkit tool that declares its
 environment with starmap mounts it. These files come from crumbkit-starmap
-0.4.2 on crates.io, released from starmap commit
-`c71a0aa` (crumbkit/starmap#73), on crumbkit 0.6.0. That release adds the
-JSON-only fields `type_name`, `unset_rule` and `source_kind` to each row. flightdeck does not depend on crumbkit-starmap, so the
-files stand in for a tool that mounts the command.
+0.4.2 on crates.io, released from starmap commit `c71a0aa`
+(crumbkit/starmap#73), on crumbkit 0.6.0. That release adds the JSON-only
+fields `type_name`, `unset_rule` and `source_kind` to each row. flightdeck
+does not depend on crumbkit-starmap, so the files stand in for a tool that
+mounts the command.
 
 - `self-environment-list-v1.json` is the document's JSON Schema, as
   `crumbkit::schemas::document_schema(crumbkit_starmap::SELF_ENVIRONMENT_LIST)`

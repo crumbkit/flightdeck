@@ -93,12 +93,20 @@ function Item({
   );
 }
 
-/** What a row shows when it is open: the variable's purpose, effect, values, check, group and bind. */
+/**
+ * What a row shows when it is open: the variable's purpose, its type's full
+ * text when that says more than the one word, such as a range or a
+ * pattern, and its effect, values, check, group and bind. The bind shows
+ * as its kind, such as 1Password, and as the bind itself only from a tool
+ * that names no kind.
+ */
 function Detail({ variable }: { variable: Variable }) {
   const wrong = wrongOf(variable);
+  const kind = variable.source_kind?.bind;
   return (
     <dl className="m-0 flex flex-col gap-2 text-xs md:gap-1.5">
       {variable.purpose !== null && <Item label="Purpose">{variable.purpose}</Item>}
+      {variable.type !== typeWords(variable) && <Item label="Type">{variable.type}</Item>}
       {variable.effect !== null && (
         <Item label="When unset" red={wrong === "unset"}>
           {variable.effect}
@@ -122,10 +130,14 @@ function Detail({ variable }: { variable: Variable }) {
         </Item>
       )}
       {variable.group !== null && <Item label="Group">{variable.group}</Item>}
-      {variable.bind !== null && (
-        <Item label="Bind">
-          <span className="font-mono wrap-anywhere">{variable.bind}</span>
-        </Item>
+      {kind != null ? (
+        <Item label="Bind">{kind}</Item>
+      ) : (
+        variable.bind !== null && (
+          <Item label="Bind">
+            <span className="font-mono wrap-anywhere">{variable.bind}</span>
+          </Item>
+        )
       )}
     </dl>
   );
@@ -327,7 +339,7 @@ export default function Environment({ name, variables, open }: Props) {
                           <div className="mt-0.5 pl-3.5">
                             <p className="text-muted-foreground m-0">
                               {typeWords(variable)} · <Unset variable={variable} /> ·{" "}
-                              {sourceWords(variable)}
+                              {sourceWords(variable, ", ")}
                             </p>
                             <p className="m-0 mt-0.5 font-mono">
                               <Value variable={variable} />

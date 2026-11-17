@@ -74,6 +74,10 @@ test.describe("a shelf that mounts self environment list", () => {
     const catalogue = table.getByRole("row", { name: /^SHELF_CATALOGUE_URL\b/ });
     await expect(catalogue.getByRole("cell").nth(1)).toHaveText("required");
 
+    await table.getByRole("button", { name: "SHELF_MIRROR_TOKEN" }).click();
+    await expect(table.getByText("1Password", { exact: true })).toBeVisible();
+    await expect(table.getByText("op://Personal/shelf mirror/token")).toHaveCount(0);
+
     await table.getByRole("button", { name: "SHELF_LOG_LEVEL" }).click();
 
     await expect(table.getByText("Every step, for finding a fault.")).toBeVisible();
@@ -121,9 +125,7 @@ test.describe("a shelf that mounts self environment list", () => {
       const declared = page.getByRole("list", { name: "Variables that shelf declares" });
       await expect(declared.getByText("port · default 8080 · setting")).toBeVisible();
       await expect(
-        declared.getByText(
-          "string · optional locally, required in production · secret · 1Password",
-        ),
+        declared.getByText("string · optional locally, required in production · secret, 1Password"),
       ).toBeVisible();
       await expectNoAccessibilityViolations(page);
     });

@@ -6,10 +6,11 @@
 //! unset, where its value comes from, the value it had in the run and its
 //! state. crumbkit-starmap 0.4.2 and later print the type, the unset rule
 //! and the source as data too, in `type_name`, `unset_rule` and
-//! `source_kind`; a row from an earlier one has only their text. The variables that crumbkit reads in every tool follow the tool's
-//! own, marked with their `owner`. A tool without the command, or a call that
-//! fails or prints another document, leaves the tool with no environment and
-//! is no error.
+//! `source_kind`; a row from an earlier one has only their text. The
+//! variables that crumbkit reads in every tool follow the tool's own,
+//! marked with their `owner`. A tool without the command, or a call that
+//! fails or prints another document, leaves the tool with no environment
+//! and is no error.
 //!
 //! This module is the one reader of the document, so a change to its fields
 //! changes only this file and the page's schema of a variable.

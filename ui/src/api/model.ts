@@ -216,12 +216,6 @@ const Link = z.object({
 });
 export type Link = z.infer<typeof Link>;
 
-/**
- * One environment variable from the tool's `self environment list`, with
- * the field names of that document. A withheld value never reaches the
- * page: the server drops the text of any value whose `show` is not
- * "shown", and crumbkit-starmap prints none.
- */
 /** What happens when a variable has no value in one mode. */
 const Rule = z.discriminatedUnion("rule", [
   z.object({ rule: z.literal("required") }),
@@ -230,28 +224,45 @@ const Rule = z.discriminatedUnion("rule", [
 ]);
 export type Rule = z.infer<typeof Rule>;
 
+/**
+ * The words of crumbkit-starmap's closed list of types. A word that a later
+ * crumbkit-starmap adds reads as "other", as it does on the server.
+ */
+export const typeNames = [
+  "path",
+  "port",
+  "url",
+  "socket_address",
+  "boolean",
+  "integer",
+  "enumeration",
+  "string",
+  "bytes",
+  "other",
+] as const;
+
+/** The words of crumbkit-starmap's closed list of sources, read as the type names are. */
+export const sourceKinds = [
+  "setting",
+  "secret",
+  "generated",
+  "inherited",
+  "provided",
+  "other",
+] as const;
+
+/**
+ * One environment variable from the tool's `self environment list`, with
+ * the field names of that document. A withheld value never reaches the
+ * page: the server drops the text of any value whose `show` is not
+ * "shown", and crumbkit-starmap prints none.
+ */
 const Variable = z.object({
   name: z.string().min(1),
   /** The value's type, such as "port" or "log-level: one of error, warn, info, debug". */
   type: z.string(),
-  /**
-   * The one word that names the type, "other" for a word a later starmap
-   * adds, or null from a tool before crumbkit-starmap 0.4.2.
-   */
-  type_name: z
-    .enum([
-      "path",
-      "port",
-      "url",
-      "socket_address",
-      "boolean",
-      "integer",
-      "enumeration",
-      "string",
-      "bytes",
-      "other",
-    ])
-    .nullable(),
+  /** The one word that names the type, or null from a tool before crumbkit-starmap 0.4.2. */
+  type_name: z.enum(typeNames).catch("other").nullable(),
   /** What happens when the variable is unset, such as "default 8080" or "optional; production required". */
   unset: z.string(),
   /**
@@ -267,7 +278,7 @@ const Variable = z.object({
    */
   source_kind: z
     .object({
-      kind: z.enum(["setting", "secret", "generated", "inherited", "provided", "other"]),
+      kind: z.enum(sourceKinds).catch("other"),
       bind: z.string().nullable(),
     })
     .nullable(),

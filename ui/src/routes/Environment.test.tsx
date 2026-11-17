@@ -75,10 +75,54 @@ describe("Environment", () => {
       "shelf logs at info.",
       "Each command that runs, and what it changed.",
       "mirror",
-      "op://Personal/shelf mirror/token",
+      "1Password",
     ]) {
       expect(within(table).getAllByText(text).length).toBeGreaterThan(0);
     }
+  });
+
+  it("names the bind by its kind, and shows the bind itself only from a tool without the kind", async () => {
+    const user = userEvent.setup();
+    const token = variables.find((each) => each.name === "SHELF_MIRROR_TOKEN");
+    const older = token === undefined ? [] : [{ ...token, source_kind: null }];
+    const { unmount } = render(<Environment name="shelf" variables={variables} open={null} />);
+
+    await user.click(within(row("SHELF_MIRROR_TOKEN")).getByRole("button", { hidden: true }));
+    const bind = screen
+      .getAllByText("Bind", { selector: "dt" })
+      .map((each) => each.nextElementSibling?.textContent);
+    expect(bind).toContain("1Password");
+    expect(screen.queryByText("op://Personal/shelf mirror/token")).toBeNull();
+    unmount();
+
+    render(<Environment name="shelf" variables={older} open="SHELF_MIRROR_TOKEN" />);
+    expect(screen.getAllByText("op://Personal/shelf mirror/token").length).toBeGreaterThan(0);
+  });
+
+  it("shows the type's full text in an open row when it says more than the one word", () => {
+    render(<Environment name="shelf" variables={variables} open="SHELF_OUTPUT_BUDGET" />);
+    const table = screen.getByRole("table", { name: "Environment variables", hidden: true });
+
+    expect(within(table).getByText("integer 1..=4294967295")).toBeInTheDocument();
+  });
+
+  it("leaves the Type item out of an open row whose type text is the one word", () => {
+    render(<Environment name="shelf" variables={variables} open="SHELF_PORT" />);
+    const table = screen.getByRole("table", { name: "Environment variables", hidden: true });
+
+    expect(within(table).queryByText("Type", { selector: "dt" })).toBeNull();
+  });
+
+  it("joins the bind's kind with a comma on a phone, so the line keeps three parts", () => {
+    render(<Environment name="shelf" variables={variables} open={null} />);
+    const list = screen.getByRole("list", { name: "Variables that shelf declares", hidden: true });
+
+    expect(
+      within(list).getByText(
+        "string · optional locally, required in production · secret, 1Password",
+        { exact: true, ignore: false, selector: "p" },
+      ),
+    ).toBeInTheDocument();
   });
 
   it("opens on the row of the variable it names", () => {

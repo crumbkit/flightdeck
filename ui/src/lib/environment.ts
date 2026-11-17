@@ -133,13 +133,13 @@ export function unsetPhrase(variable: Variable): PhrasePart[] {
 
 /**
  * Returns where the value comes from, such as "setting" or "secret ·
- * 1Password". A kind that a later starmap adds, "other", and a row from a
+ * 1Password", with `joiner` between the kind and the bind's kind. A kind that a later starmap adds, "other", and a row from a
  * tool before crumbkit-starmap 0.4.2 show the source's text instead.
  */
-export function sourceWords(variable: Variable): string {
+export function sourceWords(variable: Variable, joiner = " · "): string {
   const source = variable.source_kind;
   if (source === null || source.kind === "other") {
     return variable.source;
   }
-  return source.bind === null ? source.kind : `${source.kind} · ${source.bind}`;
+  return source.bind === null ? source.kind : source.kind + joiner + source.bind;
 }
