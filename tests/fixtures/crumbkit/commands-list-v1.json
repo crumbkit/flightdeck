@@ -237,7 +237,7 @@
           ]
         },
         "columns": {
-          "description": "The columns of the result that the command prints, from the document of the tool record's leaf for the command. A headed command's text has no columns, so it lists the JSON fields that `--fields` selects, ending with `text` and `base64`.",
+          "description": "The columns of the result that the command prints, from the document of the tool record's leaf for the command. A headed command's text has no columns, so it lists the JSON fields that `--fields` selects, ending with `text` and `base64` when the row type has them.",
           "type": "array",
           "items": {
             "type": "object",
