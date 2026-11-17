@@ -11,8 +11,6 @@
 //! This module is the one reader of the document, so a change to its
 //! fields changes only this file and the page's schema of a run.
 
-use std::time::UNIX_EPOCH;
-
 use serde::{Deserialize, Serialize};
 
 use super::figures::{counts, is_safe, read_listing, tool_prefix, without_tool};
@@ -151,11 +149,8 @@ impl RunRow {
         if !counts.into_iter().flatten().all(is_safe) {
             return None;
         }
-        let at = humantime::parse_rfc3339(&self.at)
-            .ok()?
-            .duration_since(UNIX_EPOCH)
-            .ok()?
-            .as_secs();
+        let at = self.at.parse::<jiff::Timestamp>().ok()?;
+        let at = u64::try_from(at.as_second()).ok()?;
         Some(Run {
             session: self.session,
             step: self.step,

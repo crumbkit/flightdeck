@@ -5,7 +5,7 @@
 use std::io;
 use std::net::TcpStream;
 use std::sync::OnceLock;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
@@ -16,6 +16,18 @@ use crate::clock::Clock;
 use crate::model::ToolFailure;
 use crate::runner::{Outcome, Preview, Run, RunEvent, Waited};
 use crate::spawn::Exit;
+
+#[cfg(test)]
+mod tests;
+
+/// Returns `time` in RFC 3339 with whole seconds in UTC, such as
+/// `2026-11-10T10:14:45Z`. A time before 1970 writes as the epoch and a
+/// time after jiff's last timestamp writes as 9999-12-30T22:00:00Z, so that
+/// a wrong clock still has a form.
+fn utc_seconds(time: SystemTime) -> String {
+    let clamped = jiff::Timestamp::try_from(time.max(UNIX_EPOCH)).unwrap_or(jiff::Timestamp::MAX);
+    format!("{clamped:.0}")
+}
 
 /// The content type of a stream: one JSON object on each line.
 const NDJSON: &str = "application/x-ndjson";
@@ -231,7 +243,7 @@ pub(super) fn write(
     pacing: &Pacing<'_>,
 ) -> io::Result<()> {
     let started = clock.now();
-    let started_at = humantime::format_rfc3339_seconds(started.wall()).to_string();
+    let started_at = utc_seconds(started.wall());
     let mut body = reply::start(connection, 200, NDJSON, None, pacing.write_time)?;
     pacing.send(&mut body, &line(&stream.started(started_at))?)?;
     loop {

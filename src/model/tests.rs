@@ -885,6 +885,44 @@ fn a_run_row_that_does_not_read_is_left_out_and_the_others_still_read() {
     assert_eq!(steps, [7]);
 }
 
+/// Returns the whole seconds that the first run of shelf's runs list reads
+/// to when its `at` is `at`, or `None` when the run does not read.
+fn first_run_at(at: &str) -> Option<u64> {
+    let runs = edited(RUNS, |document| {
+        document["data"][0]["at"] = serde_json::json!(at);
+    });
+    let history = History::read(runs.as_bytes(), "shelf", OwnRuns::Kept).unwrap();
+
+    history
+        .runs()
+        .iter()
+        .find(|run| run.step() == 1)
+        .map(|run| run.at())
+}
+
+#[test]
+fn a_runs_time_reads_to_whole_seconds_with_or_without_a_fraction_or_an_offset() {
+    assert_eq!(first_run_at("2026-11-10T10:14:45Z"), Some(1_794_305_685));
+    assert_eq!(
+        first_run_at("2026-11-10T10:14:45.987Z"),
+        Some(1_794_305_685)
+    );
+    assert_eq!(
+        first_run_at("2026-11-10T11:14:45+01:00"),
+        Some(1_794_305_685)
+    );
+}
+
+#[test]
+fn a_run_before_1970_is_left_out() {
+    assert_eq!(first_run_at("1969-12-31T23:59:59Z"), None);
+}
+
+#[test]
+fn a_runs_time_with_a_ten_digit_fraction_is_left_out() {
+    assert_eq!(first_run_at("2026-11-10T10:14:45.1234567890Z"), None);
+}
+
 #[test]
 fn every_run_of_the_tools_root_command_stays_in_the_history_with_a_version_run_among_them() {
     let root = |help: bool, exit: u8, flags: serde_json::Value| {
