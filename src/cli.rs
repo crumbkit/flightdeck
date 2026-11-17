@@ -12,7 +12,7 @@ use crumbkit::help::{Effects, Example, Help, Leaf};
 use crumbkit::schemas::{SCHEMAS_LIST, SCHEMAS_SHOW, SchemasList, SchemasShow};
 use crumbkit::tool::Failures;
 use crumbkit::{NoInput, Tool, ViewFlags};
-use crumbkit_skills::Skill;
+use crumbkit_skills::{Skill, skills_command};
 
 /// Start a local web page for a crumbkit tool.
 #[derive(Debug, Parser)]
@@ -71,9 +71,9 @@ pub const TOOL: Tool = Tool::new()
                 )])
                 .effects(Effects::read_only())
                 .document(SCHEMAS_LIST),
-            crumbkit_skills::install_leaf(&["skills", "install"]),
-            crumbkit_skills::check_leaf(&["skills", "check"]),
-            crumbkit_skills::print_leaf(&["skills", "print"]),
+            FlightdeckSkills::install_leaf(&["skills", "install"]),
+            FlightdeckSkills::check_leaf(&["skills", "check"]),
+            FlightdeckSkills::print_leaf(&["skills", "print"]),
             Leaf::new(&["completion", "install"])
                 .examples(&[
                     Example::new(&["--shell", "fish"], "Install flightdeck's completion for fish"),
@@ -108,6 +108,12 @@ pub const TOOL: Tool = Tool::new()
         ]),
 );
 
+skills_command!(
+    /// The commands for flightdeck's skill.
+    pub(crate) FlightdeckSkills,
+    "flightdeck"
+);
+
 /// flightdeck's agent skill, which `flightdeck skills install` writes into
 /// the agent skills directories.
 pub(crate) const SKILL: Skill = Skill::new(
@@ -131,7 +137,7 @@ pub(crate) enum Resource {
     Skills {
         /// What to do with the skill.
         #[command(subcommand)]
-        command: crumbkit_skills::SkillsCommand,
+        command: FlightdeckSkills,
     },
     /// Set up flightdeck's completion in a shell.
     Completion {

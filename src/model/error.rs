@@ -8,10 +8,10 @@ use crumbkit::{Code, Failure, FieldValue, Recovery};
 use crate::spawn::Exit;
 
 /// The code of a tool that does not exist or will not start.
-pub const TOOL_NOT_FOUND: Code = Code::new("flightdeck", "tool", "not_found");
+pub const TOOL_NOT_FOUND: Code = Code::from_spelling("flightdeck::tool::not_found");
 
 /// The code of a tool whose description flightdeck cannot read.
-pub const TOOL_LOAD: Code = Code::new("flightdeck", "tool", "load");
+pub const TOOL_LOAD: Code = Code::from_spelling("flightdeck::tool::load");
 
 /// The most lines at the end of standard error that a failure names.
 const STDERR_LINES: usize = 40;

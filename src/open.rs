@@ -31,11 +31,11 @@ use crate::spawn::{self, Exit, Program};
 mod tests;
 
 /// The code of a page's server that could not start or stopped answering.
-pub const SERVER_FAILED: Code = Code::new("flightdeck", "server", "failed");
+pub const SERVER_FAILED: Code = Code::from_spelling("flightdeck::server::failed");
 
 /// The code of a bare tool name that flightdeck cannot look up the same way
 /// from every directory, because an entry of `PATH` cannot be made absolute.
-pub const TOOL_SEARCH_PATH: Code = Code::new("flightdeck", "tool", "search_path");
+pub const TOOL_SEARCH_PATH: Code = Code::from_spelling("flightdeck::tool::search_path");
 
 /// The exit codes of a second Ctrl-C or SIGTERM while `flightdeck open`
 /// stops, which ends the process at once. The tool record declares them,

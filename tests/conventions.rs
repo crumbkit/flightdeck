@@ -97,12 +97,12 @@ const UNTWINNED: &[Unprovoked<'_>] = &[
 ];
 
 /// The settings of flightdeck's recovery check.
-const RECOVERIES: Recoveries<'_> = Recoveries::new(EXAMPLES, CODES)
+const RECOVERIES: Recoveries<'_> = Recoveries::lists(EXAMPLES, CODES)
     .starts(STARTS)
     .unprovoked(UNPROVOKED_RECOVERIES);
 
 /// The settings of flightdeck's twin check.
-const TWINS: Twins<'_> = Twins::new(EXAMPLES, CODES).unprovoked(UNTWINNED);
+const TWINS: Twins<'_> = Twins::lists(EXAMPLES, CODES).unprovoked(UNTWINNED);
 
 /// Everything the checks read, which `conventions!` expands to one test for
 /// each check. The grammar check needs no verb besides crumbkit's own,

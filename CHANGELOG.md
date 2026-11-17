@@ -25,7 +25,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - flightdeck builds on crumbkit, crumbkit-skills, crumbkit-process and
-  crumbkit-test 0.5.0, and mounts its `skills` commands from crumbkit-skills.
+  crumbkit-test 0.6.0, and mounts its `skills` commands from crumbkit-skills.
+  The help of `flightdeck skills` names flightdeck, and the `Rows:` line of
+  `skills check` and `completion check` says that the default text also
+  lists the rows that report a warning.
 - On a tool built on crumbkit 0.3.2 or later, flightdeck runs
   `self figures list`, `self usage` and `self runs list` with
   `<TOOL>_PROGRAM=flightdeck`, such as `SHELF_PROGRAM` for shelf, and with
