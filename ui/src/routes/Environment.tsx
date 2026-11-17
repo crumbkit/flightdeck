@@ -3,10 +3,12 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 import type { Variable } from "@/api/model";
 import {
-  defaultOf,
   environmentSummary,
   isWithheld,
   reasonOf,
+  sourceWords,
+  typeWords,
+  unsetPhrase,
   variablesCount,
   wrongOf,
 } from "@/lib/environment";
@@ -19,15 +21,19 @@ type Props = {
   open: string | null;
 };
 
-/** What happens when the variable is unset, with a plain default in code type. */
+/**
+ * What happens when the variable is unset, with each default in code type.
+ * Two defaults in one phrase always differ, so each is its own key.
+ */
 function Unset({ variable }: { variable: Variable }) {
-  const value = defaultOf(variable.unset);
-  return value === null ? (
-    variable.unset
-  ) : (
-    <>
-      default <span className="font-mono">{value}</span>
-    </>
+  return unsetPhrase(variable).map((part) =>
+    typeof part === "string" ? (
+      part
+    ) : (
+      <span key={part.code} className="font-mono">
+        {part.code}
+      </span>
+    ),
   );
 }
 
@@ -254,11 +260,11 @@ export default function Environment({ name, variables, open }: Props) {
                                 onToggle={() => toggle(variable.name)}
                               />
                             </th>
-                            <td className={cn(cell, "wrap-anywhere")}>{variable.type}</td>
+                            <td className={cn(cell, "wrap-anywhere")}>{typeWords(variable)}</td>
                             <td className={cell}>
                               <Unset variable={variable} />
                             </td>
-                            <td className={cell}>{variable.source}</td>
+                            <td className={cell}>{sourceWords(variable)}</td>
                             <td className={cn(cell, "font-mono")}>
                               <Value variable={variable} />
                             </td>
@@ -320,7 +326,8 @@ export default function Environment({ name, variables, open }: Props) {
                           </div>
                           <div className="mt-0.5 pl-3.5">
                             <p className="text-muted-foreground m-0">
-                              {variable.type} · <Unset variable={variable} /> · {variable.source}
+                              {typeWords(variable)} · <Unset variable={variable} /> ·{" "}
+                              {sourceWords(variable)}
                             </p>
                             <p className="m-0 mt-0.5 font-mono">
                               <Value variable={variable} />

@@ -1,17 +1,27 @@
-import type { Variable } from "@/api/model";
+import type { Rule, Variable } from "@/api/model";
 import { counted } from "@/lib/words";
 
 /** What stops the tool about a variable: it is required and unset, or its value is invalid. */
 export type Wrong = "unset" | "invalid" | null;
 
 /**
- * Returns true when the variable is required and has no value. Its `unset`
- * text starts with the rule of local mode, such as "required" or
- * "required; production optional", and only a variable without a default
- * has the state "unset".
+ * Returns true when the variable is required in local mode, the mode
+ * flightdeck runs the tool in. A row from a tool before crumbkit-starmap
+ * 0.4.2 has only the `unset` text, which starts with the local rule, such
+ * as "required" or "required; production optional".
+ */
+function requiredLocally(variable: Variable): boolean {
+  return variable.unset_rule === null
+    ? /^required\b/.test(variable.unset)
+    : variable.unset_rule.local.rule === "required";
+}
+
+/**
+ * Returns true when the variable is required and has no value. Only a
+ * variable without a default has the state "unset".
  */
 function requiredUnset(variable: Variable): boolean {
-  return variable.value.state === "unset" && /^required\b/.test(variable.unset);
+  return variable.value.state === "unset" && requiredLocally(variable);
 }
 
 /** Returns what stops the tool about the variable, or null when nothing does. */
@@ -88,11 +98,48 @@ export function reasonOf(variable: Variable, open: boolean): string | null {
 }
 
 /**
- * Returns the default of an `unset` text such as "default 8080", for the
- * page to set in code type, or null for any other rule, such as
- * "optional" or one that differs in production.
+ * Returns the type in a word, such as "port" or "socket address". A word
+ * that a later starmap adds, "other", and a row from a tool before
+ * crumbkit-starmap 0.4.2 show the type's text instead.
  */
-export function defaultOf(unset: string): string | null {
-  const match = /^default (.+)$/.exec(unset);
-  return match === null || match[1] === undefined || match[1].includes(";") ? null : match[1];
+export function typeWords(variable: Variable): string {
+  const word = variable.type_name;
+  return word === null || word === "other" ? variable.type : word.replace("_", " ");
+}
+
+/** A part of a phrase: plain text, or a value that the page sets in code type. */
+export type PhrasePart = string | { code: string };
+
+/** Returns one mode's rule, such as "default `8080`", "required" or "optional". */
+function rulePhrase(rule: Rule): PhrasePart[] {
+  return rule.rule === "default" ? ["default ", { code: rule.default }] : [rule.rule];
+}
+
+/**
+ * Returns what happens when the variable is unset, such as "default 8080"
+ * with the default in code type. When production's rule differs, it gives
+ * both, such as "optional locally, required in production". A row from a
+ * tool before crumbkit-starmap 0.4.2 shows its `unset` text as it is.
+ */
+export function unsetPhrase(variable: Variable): PhrasePart[] {
+  const rule = variable.unset_rule;
+  if (rule === null) {
+    return [variable.unset];
+  }
+  return rule.production === null
+    ? rulePhrase(rule.local)
+    : [...rulePhrase(rule.local), " locally, ", ...rulePhrase(rule.production), " in production"];
+}
+
+/**
+ * Returns where the value comes from, such as "setting" or "secret ·
+ * 1Password". A kind that a later starmap adds, "other", and a row from a
+ * tool before crumbkit-starmap 0.4.2 show the source's text instead.
+ */
+export function sourceWords(variable: Variable): string {
+  const source = variable.source_kind;
+  if (source === null || source.kind === "other") {
+    return variable.source;
+  }
+  return source.bind === null ? source.kind : `${source.kind} · ${source.bind}`;
 }

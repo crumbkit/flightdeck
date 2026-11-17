@@ -61,6 +61,19 @@ test.describe("a shelf that mounts self environment list", () => {
     await expect(page.getByText("shelf self environment list --full")).toBeVisible();
     await expectNoAccessibilityViolations(page);
 
+    const port = table.getByRole("row", { name: /^SHELF_PORT\b/ });
+    await expect(port.getByRole("cell").nth(0)).toHaveText("port");
+    await expect(port.getByRole("cell").nth(1)).toHaveText("default 8080");
+    const level = table.getByRole("row", { name: /^SHELF_LOG_LEVEL\b/ });
+    await expect(level.getByRole("cell").nth(0)).toHaveText("enumeration");
+    const token = table.getByRole("row", { name: /^SHELF_MIRROR_TOKEN\b/ });
+    await expect(token.getByRole("cell").nth(1)).toHaveText(
+      "optional locally, required in production",
+    );
+    await expect(token.getByRole("cell").nth(2)).toHaveText("secret · 1Password");
+    const catalogue = table.getByRole("row", { name: /^SHELF_CATALOGUE_URL\b/ });
+    await expect(catalogue.getByRole("cell").nth(1)).toHaveText("required");
+
     await table.getByRole("button", { name: "SHELF_LOG_LEVEL" }).click();
 
     await expect(table.getByText("Every step, for finding a fault.")).toBeVisible();
@@ -105,6 +118,13 @@ test.describe("a shelf that mounts self environment list", () => {
       await expect(page.getByRole("table", { name: "Environment variables" })).toBeHidden();
       const crumbkits = page.getByRole("list", { name: "Read by crumbkit in every tool" });
       await expect(crumbkits.getByRole("button", { name: "TERM" })).toBeVisible();
+      const declared = page.getByRole("list", { name: "Variables that shelf declares" });
+      await expect(declared.getByText("port · default 8080 · setting")).toBeVisible();
+      await expect(
+        declared.getByText(
+          "string · optional locally, required in production · secret · 1Password",
+        ),
+      ).toBeVisible();
       await expectNoAccessibilityViolations(page);
     });
   });

@@ -2,16 +2,30 @@ import { describe, expect, it } from "vitest";
 import type { Variable } from "@/api/model";
 import { environmentShelf } from "../../tests/fixtures/shelf";
 import {
-  defaultOf,
   environmentSummary,
   isWithheld,
   reasonOf,
+  sourceWords,
+  typeWords,
+  unsetPhrase,
   wrongOf,
   wrongWords,
 } from "./environment";
 import { partsOf } from "./variableParts";
 
 const variables = environmentShelf.environment ?? [];
+
+/** Returns `variable` as a tool before crumbkit-starmap 0.4.2 prints it, with only the text fields. */
+function textOnly(variable: Variable): Variable {
+  return { ...variable, type_name: null, unset_rule: null, source_kind: null };
+}
+
+/** Returns the plain text of an unset phrase. */
+function plain(variable: Variable): string {
+  return unsetPhrase(variable)
+    .map((part) => (typeof part === "string" ? part : part.code))
+    .join("");
+}
 
 /** Returns the fixture's variable named `name`, or throws. */
 function variable(name: string): Variable {
@@ -34,9 +48,24 @@ describe("wrongOf", () => {
     expect(wrongOf(variable("SHELF_DEBUG"))).toBeNull();
   });
 
-  it("reads the local rule first when production differs", () => {
+  it("reads the local rule of the unset rule, whatever production's is", () => {
+    const token = variable("SHELF_MIRROR_TOKEN");
+    const unset = { ...token, value: { state: "unset" as const, text: null } };
+    const requiredLocally = {
+      ...unset,
+      unset_rule: {
+        local: { rule: "required" as const },
+        production: { rule: "optional" as const },
+      },
+    };
+
+    expect(wrongOf(unset)).toBeNull();
+    expect(wrongOf(requiredLocally)).toBe("unset");
+  });
+
+  it("reads the local rule first from the text of a tool without the unset rule", () => {
     const localOnly = {
-      ...variable("SHELF_MIRROR_ACCOUNT"),
+      ...textOnly(variable("SHELF_MIRROR_ACCOUNT")),
       unset: "required; production optional",
     };
     const productionOnly = { ...localOnly, unset: "optional; production required" };
@@ -112,11 +141,76 @@ describe("reasonOf", () => {
   });
 });
 
-describe("defaultOf", () => {
-  it("gives the default of a plain default rule only", () => {
-    expect(defaultOf("default 8080")).toBe("8080");
-    expect(defaultOf("optional")).toBeNull();
-    expect(defaultOf("default dev; production required")).toBeNull();
+describe("typeWords", () => {
+  it("gives the one word that names the type", () => {
+    expect(typeWords(variable("SHELF_PORT"))).toBe("port");
+    expect(typeWords(variable("SHELF_LOG_LEVEL"))).toBe("enumeration");
+    expect(typeWords({ ...variable("SHELF_PORT"), type_name: "socket_address" })).toBe(
+      "socket address",
+    );
+  });
+
+  it("falls back to the type's text for a word a later starmap adds and for an older tool", () => {
+    expect(typeWords({ ...variable("SHELF_PORT"), type_name: "other", type: "another type" })).toBe(
+      "another type",
+    );
+    expect(typeWords(textOnly(variable("SHELF_LOG_LEVEL")))).toBe(
+      "log-level: one of error, warn, info, debug",
+    );
+  });
+});
+
+describe("unsetPhrase", () => {
+  it("gives a default with its value in code type, required and optional", () => {
+    expect(unsetPhrase(variable("SHELF_PORT"))).toEqual(["default ", { code: "8080" }]);
+    expect(plain(variable("SHELF_CATALOGUE_URL"))).toBe("required");
+    expect(plain(variable("SHELF_MIRROR_ACCOUNT"))).toBe("optional");
+  });
+
+  it("gives both rules when production's differs", () => {
+    expect(plain(variable("SHELF_MIRROR_TOKEN"))).toBe("optional locally, required in production");
+    const port = {
+      ...variable("SHELF_PORT"),
+      unset_rule: {
+        local: { rule: "default" as const, default: "8080" },
+        production: { rule: "required" as const },
+      },
+    };
+    expect(unsetPhrase(port)).toEqual([
+      "default ",
+      { code: "8080" },
+      " locally, ",
+      "required",
+      " in production",
+    ]);
+  });
+
+  it("falls back to the text of a tool without the unset rule", () => {
+    expect(unsetPhrase(textOnly(variable("SHELF_PORT")))).toEqual(["default 8080"]);
+    expect(plain(textOnly(variable("SHELF_MIRROR_TOKEN")))).toBe(
+      textOnly(variable("SHELF_MIRROR_TOKEN")).unset,
+    );
+  });
+});
+
+describe("sourceWords", () => {
+  it("gives the source's kind and the kind of its bind", () => {
+    expect(sourceWords(variable("SHELF_PORT"))).toBe("setting");
+    expect(sourceWords(variable("SHELF_MIRROR_TOKEN"))).toBe("secret · 1Password");
+    expect(sourceWords(variable("TERM"))).toBe("inherited");
+  });
+
+  it("falls back to the source's text for a kind a later starmap adds and for an older tool", () => {
+    const later = {
+      ...variable("SHELF_PORT"),
+      source: "derived",
+      source_kind: { kind: "other" as const, bind: null },
+    };
+
+    expect(sourceWords(later)).toBe("derived");
+    expect(sourceWords(textOnly(variable("SHELF_MIRROR_TOKEN")))).toBe(
+      variable("SHELF_MIRROR_TOKEN").source,
+    );
   });
 });
 

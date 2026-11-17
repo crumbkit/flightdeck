@@ -39,8 +39,11 @@ fn each_variable_sends_the_documents_field_names_and_null_for_a_field_the_tool_l
         serde_json::json!({
             "name": "SHELF_LOG_LEVEL",
             "type": "log-level: one of error, warn, info, debug",
+            "type_name": "enumeration",
             "unset": "default info",
+            "unset_rule": { "local": { "rule": "default", "default": "info" }, "production": null },
             "source": "setting",
+            "source_kind": { "kind": "setting", "bind": null },
             "value": { "state": "default", "text": "info" },
             "show": "shown",
             "bind": null,
@@ -119,4 +122,83 @@ fn another_document_or_text_gives_no_environment() {
 
     assert!(read(&other).is_none());
     assert!(read(b"SHELF_PORT=8080").is_none());
+}
+
+/// Returns the fixture's variable `name` from `stdout`, read as the page
+/// receives it.
+fn sent(stdout: &[u8], name: &str) -> serde_json::Value {
+    let variables = read(stdout).unwrap();
+    let variable = variables
+        .iter()
+        .find(|variable| variable.name() == name)
+        .unwrap();
+    serde_json::to_value(variable).unwrap()
+}
+
+#[test]
+fn a_rule_that_differs_in_production_and_a_bind_kind_are_sent_as_data() {
+    let token = sent(LISTED.as_bytes(), "SHELF_MIRROR_TOKEN");
+
+    assert_eq!(token["type_name"], "string");
+    assert_eq!(
+        token["unset_rule"],
+        serde_json::json!({
+            "local": { "rule": "optional" },
+            "production": { "rule": "required" },
+        })
+    );
+    assert_eq!(
+        token["source_kind"],
+        serde_json::json!({ "kind": "secret", "bind": "1Password" })
+    );
+}
+
+#[test]
+fn a_row_from_a_tool_without_the_structured_fields_reads_with_its_text_alone() {
+    let stdout = edited(|document| {
+        for row in document["data"].as_array_mut().unwrap() {
+            let row = row.as_object_mut().unwrap();
+            row.remove("type_name");
+            row.remove("unset_rule");
+            row.remove("source_kind");
+        }
+    });
+
+    let port = sent(&stdout, "SHELF_PORT");
+
+    assert_eq!(port["type"], "port");
+    assert_eq!(port["unset"], "default 8080");
+    assert_eq!(port["source"], "setting");
+    assert_eq!(port["type_name"], serde_json::Value::Null);
+    assert_eq!(port["unset_rule"], serde_json::Value::Null);
+    assert_eq!(port["source_kind"], serde_json::Value::Null);
+}
+
+#[test]
+fn a_type_or_source_word_that_a_later_starmap_adds_reads_as_other() {
+    let stdout = edited(|document| {
+        let row = &mut document["data"][0];
+        row["type_name"] = "duration".into();
+        row["source_kind"] = serde_json::json!({ "kind": "derived" });
+    });
+
+    let port = sent(&stdout, "SHELF_PORT");
+
+    assert_eq!(port["type_name"], "other");
+    assert_eq!(
+        port["source_kind"],
+        serde_json::json!({ "kind": "other", "bind": null })
+    );
+}
+
+#[test]
+fn an_unset_rule_that_does_not_read_is_left_out_and_the_row_still_reads() {
+    let stdout = edited(|document| {
+        document["data"][0]["unset_rule"] = serde_json::json!({ "local": { "rule": "later" } });
+    });
+
+    let port = sent(&stdout, "SHELF_PORT");
+
+    assert_eq!(port["unset"], "default 8080");
+    assert_eq!(port["unset_rule"], serde_json::Value::Null);
 }

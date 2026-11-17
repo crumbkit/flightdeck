@@ -222,14 +222,55 @@ export type Link = z.infer<typeof Link>;
  * page: the server drops the text of any value whose `show` is not
  * "shown", and crumbkit-starmap prints none.
  */
+/** What happens when a variable has no value in one mode. */
+const Rule = z.discriminatedUnion("rule", [
+  z.object({ rule: z.literal("required") }),
+  z.object({ rule: z.literal("optional") }),
+  z.object({ rule: z.literal("default"), default: z.string() }),
+]);
+export type Rule = z.infer<typeof Rule>;
+
 const Variable = z.object({
   name: z.string().min(1),
   /** The value's type, such as "port" or "log-level: one of error, warn, info, debug". */
   type: z.string(),
+  /**
+   * The one word that names the type, "other" for a word a later starmap
+   * adds, or null from a tool before crumbkit-starmap 0.4.2.
+   */
+  type_name: z
+    .enum([
+      "path",
+      "port",
+      "url",
+      "socket_address",
+      "boolean",
+      "integer",
+      "enumeration",
+      "string",
+      "bytes",
+      "other",
+    ])
+    .nullable(),
   /** What happens when the variable is unset, such as "default 8080" or "optional; production required". */
   unset: z.string(),
+  /**
+   * The unset rule in local mode and, only when it differs, in production,
+   * or null from a tool before crumbkit-starmap 0.4.2.
+   */
+  unset_rule: z.object({ local: Rule, production: Rule.nullable() }).nullable(),
   /** Where the value comes from, such as "setting" or "secret, 1Password". */
   source: z.string(),
+  /**
+   * The source's kind and the kind of its bind, such as "1Password", or
+   * null from a tool before crumbkit-starmap 0.4.2.
+   */
+  source_kind: z
+    .object({
+      kind: z.enum(["setting", "secret", "generated", "inherited", "provided", "other"]),
+      bind: z.string().nullable(),
+    })
+    .nullable(),
   /** The value as flightdeck started the tool: its state, and its text unless it is unset or withheld. */
   value: z.object({
     state: z.enum(["set", "default", "unset", "invalid"]),

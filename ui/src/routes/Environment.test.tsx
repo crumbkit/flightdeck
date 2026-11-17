@@ -93,6 +93,49 @@ describe("Environment", () => {
     ).toBeInTheDocument();
   });
 
+  it("names each type in a word, the unset rule and the source as the mockups do", () => {
+    render(<Environment name="shelf" variables={variables} open={null} />);
+    const cells = (name: string) =>
+      within(row(name))
+        .getAllByRole("cell", { hidden: true })
+        .map((each) => each.textContent);
+
+    expect(cells("SHELF_PORT").slice(0, 3)).toEqual(["port", "default 8080", "setting"]);
+    expect(cells("SHELF_CATALOGUE_URL").slice(0, 3)).toEqual(["url", "required", "setting"]);
+    expect(cells("SHELF_LOG_LEVEL").slice(0, 3)).toEqual([
+      "enumeration",
+      "default info",
+      "setting",
+    ]);
+    expect(cells("SHELF_MIRROR_TOKEN").slice(0, 3)).toEqual([
+      "string",
+      "optional locally, required in production",
+      "secret · 1Password",
+    ]);
+    expect(
+      within(row("SHELF_PORT")).getByText("8080", { selector: ".font-mono" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the text of a row from a tool that prints no structured fields", () => {
+    const older = variables.map((each) => ({
+      ...each,
+      type_name: null,
+      unset_rule: null,
+      source_kind: null,
+    }));
+    render(<Environment name="shelf" variables={older} open={null} />);
+    const cells = within(row("SHELF_LOG_LEVEL"))
+      .getAllByRole("cell", { hidden: true })
+      .map((each) => each.textContent);
+
+    expect(cells.slice(0, 3)).toEqual([
+      "log-level: one of error, warn, info, debug",
+      "default info",
+      "setting",
+    ]);
+  });
+
   it("says a tool that declares nothing declares no variables", () => {
     render(<Environment name="shelf" variables={[]} open={null} />);
 

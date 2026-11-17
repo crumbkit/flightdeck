@@ -2,8 +2,20 @@
   {
     "name": "SHELF_PORT",
     "type": "port",
+    "type_name": "port",
     "unset": "default 8080",
+    "unset_rule": {
+      "local": {
+        "rule": "default",
+        "default": "8080"
+      },
+      "production": null
+    },
     "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
     "value": {
       "state": "default",
       "text": "8080"
@@ -20,8 +32,20 @@
   {
     "name": "SHELF_DEBUG",
     "type": "boolean",
+    "type_name": "boolean",
     "unset": "default false",
+    "unset_rule": {
+      "local": {
+        "rule": "default",
+        "default": "false"
+      },
+      "production": null
+    },
     "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
     "value": {
       "state": "set",
       "text": "true"
@@ -38,8 +62,19 @@
   {
     "name": "SHELF_CATALOGUE_URL",
     "type": "url",
+    "type_name": "url",
     "unset": "required",
+    "unset_rule": {
+      "local": {
+        "rule": "required"
+      },
+      "production": null
+    },
     "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
     "value": {
       "state": "unset",
       "text": null
@@ -56,8 +91,19 @@
   {
     "name": "SHELF_MIRROR_ACCOUNT",
     "type": "string",
+    "type_name": "string",
     "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
     "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
     "value": {
       "state": "unset",
       "text": null
@@ -74,8 +120,21 @@
   {
     "name": "SHELF_MIRROR_TOKEN",
     "type": "string",
+    "type_name": "string",
     "unset": "optional; production required",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": {
+        "rule": "required"
+      }
+    },
     "source": "secret, 1Password",
+    "source_kind": {
+      "kind": "secret",
+      "bind": "1Password"
+    },
     "value": {
       "state": "set",
       "text": null
@@ -92,8 +151,20 @@
   {
     "name": "SHELF_LOG_LEVEL",
     "type": "log-level: one of error, warn, info, debug",
+    "type_name": "enumeration",
     "unset": "default info",
+    "unset_rule": {
+      "local": {
+        "rule": "default",
+        "default": "info"
+      },
+      "production": null
+    },
     "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
     "value": {
       "state": "default",
       "text": "info"
@@ -127,8 +198,20 @@
   {
     "name": "SHELF_REGION",
     "type": "region: one of eu, us, ap",
+    "type_name": "enumeration",
     "unset": "default eu",
+    "unset_rule": {
+      "local": {
+        "rule": "default",
+        "default": "eu"
+      },
+      "production": null
+    },
     "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
     "value": {
       "state": "invalid",
       "text": "moon"
@@ -158,8 +241,19 @@
   {
     "name": "SHELF_OUTPUT_BUDGET",
     "type": "integer 1..=4294967295",
+    "type_name": "integer",
     "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
     "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
     "value": {
       "state": "unset",
       "text": null
@@ -176,8 +270,19 @@
   {
     "name": "NO_COLOR",
     "type": "string",
+    "type_name": "string",
     "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
     "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
     "value": {
       "state": "unset",
       "text": null
@@ -194,8 +299,19 @@
   {
     "name": "CLICOLOR",
     "type": "string",
+    "type_name": "string",
     "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
     "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
     "value": {
       "state": "unset",
       "text": null
@@ -212,8 +328,19 @@
   {
     "name": "CLICOLOR_FORCE",
     "type": "string",
+    "type_name": "string",
     "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
     "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
     "value": {
       "state": "unset",
       "text": null
@@ -230,8 +357,19 @@
   {
     "name": "TERM",
     "type": "string",
+    "type_name": "string",
     "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
     "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
     "value": {
       "state": "set",
       "text": "xterm-256color"
@@ -248,8 +386,19 @@
   {
     "name": "SHELF_PROGRAM",
     "type": "string matching ^[a-z][a-z0-9_-]{0,31}$",
+    "type_name": "string",
     "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
     "source": "setting",
+    "source_kind": {
+      "kind": "setting",
+      "bind": null
+    },
     "value": {
       "state": "set",
       "text": "flightdeck"
@@ -266,8 +415,19 @@
   {
     "name": "XDG_STATE_HOME",
     "type": "absolute path",
+    "type_name": "path",
     "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
     "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
     "value": {
       "state": "set",
       "text": "/Users/person/.local/state"
@@ -284,8 +444,19 @@
   {
     "name": "TRACEPARENT",
     "type": "string",
+    "type_name": "string",
     "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
     "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
     "value": {
       "state": "unset",
       "text": null
@@ -302,8 +473,19 @@
   {
     "name": "TRACESTATE",
     "type": "string",
+    "type_name": "string",
     "unset": "optional",
+    "unset_rule": {
+      "local": {
+        "rule": "optional"
+      },
+      "production": null
+    },
     "source": "inherited",
+    "source_kind": {
+      "kind": "inherited",
+      "bind": null
+    },
     "value": {
       "state": "unset",
       "text": null

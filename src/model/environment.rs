@@ -4,7 +4,9 @@
 //!
 //! Each row describes one variable: its type, what happens when it is
 //! unset, where its value comes from, the value it had in the run and its
-//! state. The variables that crumbkit reads in every tool follow the tool's
+//! state. crumbkit-starmap 0.4.2 and later print the type, the unset rule
+//! and the source as data too, in `type_name`, `unset_rule` and
+//! `source_kind`; a row from an earlier one has only their text. The variables that crumbkit reads in every tool follow the tool's
 //! own, marked with their `owner`. A tool without the command, or a call that
 //! fails or prints another document, leaves the tool with no environment and
 //! is no error.
@@ -54,6 +56,80 @@ pub struct Described {
     description: String,
 }
 
+/// The one word that names a variable's type, from crumbkit-starmap's
+/// closed list. A word that a later crumbkit-starmap adds reads as `Other`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum TypeName {
+    Path,
+    Port,
+    Url,
+    SocketAddress,
+    Boolean,
+    Integer,
+    Enumeration,
+    String,
+    Bytes,
+    #[serde(other)]
+    Other,
+}
+
+/// What happens when a variable has no value in one mode.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "rule", rename_all = "lowercase")]
+pub(super) enum Rule {
+    /// The tool refuses to start.
+    Required,
+    /// The tool runs without the value.
+    Optional,
+    /// The default applies, whose text is `default`.
+    Default { default: String },
+}
+
+/// A variable's unset rule: the rule in local mode and, only when it
+/// differs, the rule in production.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(super) struct UnsetRule {
+    local: Rule,
+    #[serde(default)]
+    production: Option<Rule>,
+}
+
+/// The one word that names where a variable's value comes from. A word
+/// that a later crumbkit-starmap adds reads as `Other`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub(super) enum SourceWord {
+    Setting,
+    Secret,
+    Generated,
+    Inherited,
+    Provided,
+    #[serde(other)]
+    Other,
+}
+
+/// A variable's source: its kind and the kind of its bind, such as
+/// `1Password`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(super) struct SourceKind {
+    kind: SourceWord,
+    #[serde(default)]
+    bind: Option<String>,
+}
+
+/// Reads an optional field that a later crumbkit-starmap may shape
+/// differently: a value that does not read is `None`, so the page falls
+/// back to the field's text and the row still reads.
+fn lenient<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::de::DeserializeOwned,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(serde_json::from_value(value).ok())
+}
+
 /// One variable as the page reads it, with the field names of the
 /// built-in's document. Each optional field is `None` when the tool leaves
 /// it out, as it does for a sentence that the declaration does not state.
@@ -63,11 +139,22 @@ pub struct Variable {
     /// The type of the value, such as `port` or `integer 1..=100`.
     #[serde(rename = "type")]
     kind: String,
+    /// The one word that names the type, or `None` from a tool whose
+    /// crumbkit-starmap prints no such field.
+    #[serde(default, deserialize_with = "lenient")]
+    type_name: Option<TypeName>,
     /// What happens when the variable has no value, such as `default 8080`
     /// or `optional; production required`.
     unset: String,
+    /// The unset rule as data, or `None` from a tool that prints only the
+    /// text.
+    #[serde(default, deserialize_with = "lenient")]
+    unset_rule: Option<UnsetRule>,
     /// Where the value comes from, such as `setting` or `secret, 1Password`.
     source: String,
+    /// The source as data, or `None` from a tool that prints only the text.
+    #[serde(default, deserialize_with = "lenient")]
+    source_kind: Option<SourceKind>,
     value: Value,
     /// `shown` or `withheld`.
     #[serde(default)]
