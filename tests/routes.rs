@@ -385,6 +385,7 @@ fn a_preview_of_a_command_without_dry_run_is_one_started_line_with_the_id() {
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn a_command_that_runs_a_program_runs_only_with_a_confirmation_id_for_the_same_vector() {
     serving(Setup::of(unruly()), |running| {
@@ -421,6 +422,7 @@ fn a_command_that_runs_a_program_runs_only_with_a_confirmation_id_for_the_same_v
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn read_only_refuses_a_command_that_runs_a_program_at_preview_and_with_an_id() {
     serving(Setup::of(unruly()).read_only(), |running| {
@@ -437,6 +439,7 @@ fn read_only_refuses_a_command_that_runs_a_program_at_preview_and_with_an_id() {
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn a_read_only_command_that_reaches_outside_the_tool_runs_without_a_confirmation() {
     serving(Setup::of(unruly()), |running| {
@@ -450,6 +453,7 @@ fn a_read_only_command_that_reaches_outside_the_tool_runs_without_a_confirmation
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn a_destructive_command_that_runs_a_program_still_previews_with_its_dry_run() {
     serving(Setup::of(unruly()), |running| {

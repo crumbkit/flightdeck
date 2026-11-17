@@ -107,7 +107,7 @@ describe("ToolPage", () => {
     expect(sent.filter((path) => path === "/api/confirmations/c1")).toHaveLength(1);
   });
 
-  it("asks before it starts the program that an open-world command names, and never says it has no preview", async () => {
+  it("asks before it starts the program that a runs_program command names, and never says it has no preview", async () => {
     const sent = stubServer({
       "/api/previews": {
         lines: [
@@ -134,7 +134,15 @@ describe("ToolPage", () => {
       },
       arguments: command.arguments
         .filter((each) => each.crumbkit_flag !== "--dry-run")
-        .map((each) => (each.name === "<ID>" ? { ...each, after_double_dash: true } : each)),
+        .map((each) =>
+          each.name === "<ID>"
+            ? {
+                ...each,
+                after_double_dash: true,
+                help: { line: "The program to run, after --", long: null },
+              }
+            : each,
+        ),
     }));
     const user = userEvent.setup();
     renderPage(reply);
