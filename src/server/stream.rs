@@ -77,6 +77,7 @@ impl Stream {
                 started_at,
                 preview: Some(PreviewStart {
                     preview: preview.run_id().is_some(),
+                    confirmed_line: preview.confirmed_line(),
                     confirmation: preview.confirmation().map(|id| id.to_string()),
                 }),
             },
@@ -111,7 +112,7 @@ enum Record<'a> {
         started_at: String,
         /// What a preview adds.
         #[serde(flatten)]
-        preview: Option<PreviewStart>,
+        preview: Option<PreviewStart<'a>>,
     },
     /// One line of the tool's standard output, as it arrived.
     Line {
@@ -135,9 +136,12 @@ enum Record<'a> {
 
 /// What a preview's `started` record adds.
 #[derive(Serialize)]
-struct PreviewStart {
+struct PreviewStart<'a> {
     /// True when the preview runs the command with `--dry-run`.
     preview: bool,
+    /// The command line as the confirmation runs it, with `--yes` before
+    /// any `--` when the command takes it.
+    confirmed_line: &'a str,
     /// The confirmation id, which a preview that runs nothing issues at
     /// once, and a dry run issues when it ends with a result.
     confirmation: Option<String>,

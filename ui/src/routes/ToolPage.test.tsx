@@ -84,7 +84,17 @@ async function previewRemove2() {
 describe("ToolPage", () => {
   it("says a command without a dry run has no preview, and confirms its request once", async () => {
     const sent = stubServer({
-      "/api/previews": { lines: [{ ...started, run: null, preview: false, confirmation: "c1" }] },
+      "/api/previews": {
+        lines: [
+          {
+            ...started,
+            run: null,
+            preview: false,
+            confirmed_line: "shelf books remove --yes 2",
+            confirmation: "c1",
+          },
+        ],
+      },
       "/api/confirmations/c1": confirmedRun,
     });
     const reply = withRemove((command) => ({
@@ -97,7 +107,7 @@ describe("ToolPage", () => {
     const card = await screen.findByRole("region", { name: /^Run 1: .*awaiting confirmation/ });
     expect(within(card).getByText("This command has no preview.")).toBeInTheDocument();
     expect(
-      within(card).getByRole("group", { name: "Run shelf books remove 2 --yes?" }),
+      within(card).getByRole("group", { name: "Run shelf books remove --yes 2?" }),
     ).toBeVisible();
     await user.click(within(card).getByRole("button", { name: "Remove" }));
 
@@ -114,6 +124,7 @@ describe("ToolPage", () => {
           {
             ...started,
             line: "shelf books remove -- cargo run",
+            confirmed_line: "shelf books remove --yes -- cargo run",
             run: null,
             preview: false,
             confirmation: "c1",

@@ -92,11 +92,13 @@ impl Vector {
     /// Returns the command line as a person would type it, POSIX-quoted and
     /// without the flags that flightdeck adds, such as
     /// `shelf books remove 2`. With [`Extra::DryRun`] it holds `--dry-run`
-    /// before the positional values, as the dry run ran. It never holds
-    /// `--yes`, which stands for the answer a person gives in a terminal.
+    /// before the positional values, as the dry run ran. With
+    /// [`Extra::Yes`] it holds `--yes` there when the command takes it, as
+    /// the confirmation ran, before any `--`.
     pub(super) fn line(&self, extra: Extra) -> String {
         let flag = match extra {
             Extra::DryRun => format!(" {}", CrumbkitFlag::DryRun.name()),
+            Extra::Yes if self.yes => format!(" {}", CrumbkitFlag::Yes.name()),
             Extra::None | Extra::Yes => String::new(),
         };
         format!("{}{flag}{}", self.line.head, self.line.tail)

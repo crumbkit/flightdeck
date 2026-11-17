@@ -173,10 +173,7 @@ function valuesOf(argument: CommandArgument, request: RunRequest): string[] {
  * writes `--` before them: when a value starts with a dash, or an argument
  * that takes its values after `--` has some, as the server's line has them.
  */
-export function tailOf(
-  command: Command,
-  request: RunRequest,
-): { words: string[]; separated: boolean } {
+function tailOf(command: Command, request: RunRequest): { words: string[]; separated: boolean } {
   const given = command.arguments
     .filter((each) => each.kind === "positional")
     .map((each) => ({ each, values: valuesOf(each, request) }));
@@ -189,14 +186,14 @@ export function tailOf(
 
 /**
  * Returns the program that `request` starts for a command that runs one:
- * the values of the argument that takes them after `--`, such as "cargo
- * run", or the command's own words when it has none.
+ * the values of the argument that takes them after `--`, quoted as the
+ * line quotes them, such as "cargo run" or "sh -c 'rm -rf build'", or the command's own words when it has none.
  */
 export function programOf(command: Command, request: RunRequest): string {
   const words = command.arguments
     .filter((each) => each.after_double_dash)
     .flatMap((each) => valuesOf(each, request));
-  return (words.length > 0 ? words : command.path).join(" ");
+  return (words.length > 0 ? words.map(quote) : command.path).join(" ");
 }
 
 /**

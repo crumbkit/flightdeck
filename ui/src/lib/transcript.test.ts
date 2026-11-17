@@ -131,6 +131,7 @@ describe("a preview card", () => {
     line: "shelf books remove 2",
     started_at: "2026-11-02T09:00:00Z",
     preview: true,
+    confirmed_line: "shelf books remove --yes 2",
     confirmation: null,
   } as const;
 
@@ -161,6 +162,7 @@ describe("a preview card", () => {
     expect(runs[0]?.ask).toEqual({
       basis: null,
       confirmation: "c1",
+      confirmedLine: "shelf books remove --yes 2",
       answer: "open",
       asks: true,
     });

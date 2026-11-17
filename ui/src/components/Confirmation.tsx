@@ -1,7 +1,7 @@
 import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
 import type { Command } from "@/api/model";
 import { Button } from "@/components/ui/button";
-import { confirmedLine, confirmLabel, countOf, effectsInWords, question } from "@/lib/confirm";
+import { confirmLabel, countOf, effectsInWords, question } from "@/lib/confirm";
 import { programOf } from "@/lib/form";
 import { type Effect, effectOf, startsProgram } from "@/lib/rail";
 import type { Run } from "@/lib/transcript";
@@ -35,7 +35,8 @@ export function Confirmation({ run, command, stale, onConfirm, onDecline }: Prop
   if (ask.confirmation === null) {
     return null;
   }
-  const line = confirmedLine(command, run.line, run.request);
+  // The server writes the line that the confirmation runs, with --yes before any --.
+  const line = ask.confirmedLine ?? run.line;
   if (startsProgram(command)) {
     // flightdeck runs no preview of such a command, so there is no count.
     const program = programOf(command, run.request);

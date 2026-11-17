@@ -1,7 +1,6 @@
 import type { Command } from "@/api/model";
 import { resultOf, rowsOf } from "@/api/result";
-import type { RunEvent, RunRequest } from "@/api/runs";
-import { tailOf } from "./form";
+import type { RunEvent } from "@/api/runs";
 
 /**
  * Returns the number of rows that a preview's lines would change: the rows
@@ -75,25 +74,6 @@ export function effectsInWords(command: Command): string {
   }
   const kind = effects.destructive ? "Destructive." : "Additive.";
   return `${kind} ${effects.idempotent ? "Idempotent." : "Not idempotent."}`;
-}
-
-/**
- * Returns the line that the confirm button runs: the preview's line with
- * `--yes` when the command takes it, which the server adds.
- */
-export function confirmedLine(command: Command, line: string, request: RunRequest): string {
-  const takesYes = command.arguments.some((each) => each.crumbkit_flag === "--yes");
-  if (!takesYes) {
-    return line;
-  }
-  // The server puts --yes before the separator, where the tool reads it. The
-  // request's own values say where the separator is, so a quoted option
-  // value that holds " -- " cannot move it.
-  const { words, separated } = tailOf(command, request);
-  const tail = ` -- ${words.join(" ")}`;
-  return separated && line.endsWith(tail)
-    ? `${line.slice(0, -tail.length)} --yes${tail}`
-    : `${line} --yes`;
 }
 
 /**

@@ -339,6 +339,7 @@ impl Runner {
     pub fn preview(&self, request: &RunRequest) -> Result<Preview, RunFailure> {
         let (command, vector) = self.check(request)?;
         let line = vector.line(Extra::None);
+        let confirmed_line = vector.line(Extra::Yes);
         // A command that starts a program and is not destructive has no dry
         // run to show: nothing can say what its program changes.
         let runs_no_dry_run = command.starts_program() && command.class() != Class::Destructive;
@@ -352,6 +353,7 @@ impl Runner {
             )?;
             return Ok(Preview {
                 line,
+                confirmed_line,
                 confirmation: None,
                 dry_run: Some(DryRun {
                     run,
@@ -367,6 +369,7 @@ impl Runner {
             .map_err(|source| RunFailure::Random { source })?;
         Ok(Preview {
             line,
+            confirmed_line,
             confirmation: Some(confirmation),
             dry_run: None,
         })
@@ -699,6 +702,7 @@ impl Iterator for Run {
 #[derive(Debug)]
 pub struct Preview {
     line: String,
+    confirmed_line: String,
     confirmation: Option<ConfirmationId>,
     dry_run: Option<DryRun>,
 }
@@ -726,6 +730,13 @@ impl Preview {
     #[must_use]
     pub fn line(&self) -> &str {
         &self.line
+    }
+
+    /// Returns the command line as the confirmation runs it: with `--yes`
+    /// before any `--` when the command takes it.
+    #[must_use]
+    pub fn confirmed_line(&self) -> &str {
+        &self.confirmed_line
     }
 
     /// Returns the id of the dry run, which [`Runner::cancel`] takes, or

@@ -424,6 +424,31 @@ fn a_command_that_runs_a_program_runs_only_with_a_confirmation_id_for_the_same_v
 
 #[cfg(unix)]
 #[test]
+fn the_preview_of_a_program_with_an_assignment_gives_the_confirmed_line_with_yes_before_the_separator()
+ {
+    serving(Setup::of(unruly()), |running| {
+        let page = Page::of(running);
+        let launch = json!({
+            "path": ["child", "launch"],
+            "values": {"<PROGRAM>": ["env", "RUST_LOG=debug", "cargo", "run"]}
+        });
+
+        let preview = page.stream("/api/previews", &launch).rest();
+
+        assert_eq!(
+            preview[0]["confirmed_line"],
+            "unruly child launch --yes -- env RUST_LOG=debug cargo run"
+        );
+        assert_eq!(
+            preview[0]["line"],
+            "unruly child launch -- env RUST_LOG=debug cargo run"
+        );
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
 fn read_only_refuses_a_command_that_runs_a_program_at_preview_and_with_an_id() {
     serving(Setup::of(unruly()).read_only(), |running| {
         let page = Page::of(running);

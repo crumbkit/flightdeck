@@ -43,6 +43,8 @@ export const RunEvent = z.discriminatedUnion("event", [
     line: z.string(),
     started_at: z.string(),
     preview: z.boolean().optional(),
+    /** The line as the confirmation runs it, which only a preview's line carries. */
+    confirmed_line: z.string().optional(),
     confirmation: z.string().nullable().optional(),
   }),
   z.object({ event: z.literal("line"), text: z.string() }),
