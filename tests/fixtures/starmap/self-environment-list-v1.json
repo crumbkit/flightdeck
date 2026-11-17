@@ -1,0 +1,274 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "crumbkit/self-environment-list/v1",
+  "description": "The environment variables that the tool declares and the library reads, each with its rules and the value it has in this process.",
+  "type": "object",
+  "properties": {
+    "cut": {
+      "description": "Present when the output budget cut the result short, so data holds only its first rows.",
+      "type": "object",
+      "properties": {
+        "budget": {
+          "description": "The most bytes that the run printed on standard output.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "code": {
+          "description": "The over-budget code.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "budget"
+      ]
+    },
+    "data": {
+      "description": "The rows of the page, up to the limit.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Listed"
+      }
+    },
+    "dry_run": {
+      "description": "Present, and true, when the run was a dry run that changed nothing.",
+      "const": true
+    },
+    "next": {
+      "description": "The next steps, in the order the text prints them. It is absent when there are none.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "commands": {
+            "description": "The commands that carry out the step, in order.",
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "call": {
+                      "description": "A command line of this tool.",
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "call"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "run": {
+                      "description": "A command line of another program.",
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "run"
+                  ]
+                }
+              ]
+            }
+          },
+          "text": {
+            "description": "The sentence or phrase that the text prints for the step.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "text",
+          "commands"
+        ]
+      }
+    },
+    "schema": {
+      "description": "The id of this document.",
+      "const": "crumbkit/self-environment-list/v1"
+    },
+    "total": {
+      "description": "The number of rows that matched, of which data holds one page. It is absent when the tool did not count the rows.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "truncated": {
+      "description": "True when the document leaves out rows that matched, because of the limit or the output budget, and false when data holds every row.",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema",
+    "data",
+    "truncated"
+  ],
+  "$defs": {
+    "Described": {
+      "description": "One value of a named enumeration with its description.",
+      "type": "object",
+      "properties": {
+        "description": {
+          "description": "The sentence that says what choosing the value means.",
+          "type": "string"
+        },
+        "value": {
+          "description": "The value.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "description"
+      ]
+    },
+    "Listed": {
+      "description": "One variable of `self environment list`: the fields of\n[`Explained`] and the library that owns the variable.",
+      "type": "object",
+      "properties": {
+        "bind": {
+          "description": "The variable's bind, such as a 1Password reference, when it has one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cache": {
+          "description": "`never` when the bind keeps the value out of any cache of resolved values; empty, and left out of `--json`, when a cache may keep it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "check": {
+          "description": "The sentence that states the check the application's own code makes of the value, which starmap never runs; empty, and left out of `--json`, when the spec states none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "effect": {
+          "description": "The sentence that says what the application does when the variable is unset; empty, and left out of `--json`, when the spec states none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enumeration": {
+          "description": "The name of the named enumeration that the variable's type is; left out of `--json` for any other type.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "group": {
+          "description": "The name of the group of variables that are set together or not at all, which the variable belongs to; empty, and left out of `--json`, when it belongs to none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The variable's name.",
+          "type": "string"
+        },
+        "owner": {
+          "description": "The library that reads the variable in every tool, such as `crumbkit`; empty, and left out of `--json`, for a variable that the tool's own declaration holds.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "purpose": {
+          "description": "The sentence that says what the variable is for.",
+          "type": "string"
+        },
+        "show": {
+          "description": "Whether the value may be shown or is withheld.",
+          "type": "string"
+        },
+        "source": {
+          "description": "Where the variable's value comes from, with the kind of its bind.",
+          "type": "string"
+        },
+        "state": {
+          "description": "Where the value comes from: `set` when this shell sets the variable, `default` when it leaves the variable unset and the default applies, `unset` when the variable has no value, and `invalid` when this shell sets a value that does not fit the type. The same state as `value.state`, at the top level.",
+          "$ref": "#/$defs/State"
+        },
+        "type": {
+          "description": "The type of the variable's value, such as port or integer 1..=100.",
+          "type": "string"
+        },
+        "unset": {
+          "description": "What happens when the variable has no value, in local mode and, when it differs, in production.",
+          "type": "string"
+        },
+        "value": {
+          "description": "The variable's value in this shell, or its default; a withheld value prints as eight dots and has no text in JSON.",
+          "type": "object",
+          "properties": {
+            "state": {
+              "description": "Whether the value comes from this shell, is the default, is unset,\nor comes from this shell and does not fit the variable's type.",
+              "$ref": "#/$defs/State"
+            },
+            "text": {
+              "description": "The value's text. A withheld value never has one.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "state"
+          ]
+        },
+        "values": {
+          "description": "Each value of a named enumeration with its description; empty, and left out of `--json`, for any other type.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/Described"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "unset",
+        "source",
+        "value"
+      ]
+    },
+    "State": {
+      "description": "Where a variable's value comes from in this shell.",
+      "oneOf": [
+        {
+          "description": "This shell sets the variable.",
+          "type": "string",
+          "const": "set"
+        },
+        {
+          "description": "This shell leaves the variable unset, and its default applies.",
+          "type": "string",
+          "const": "default"
+        },
+        {
+          "description": "The variable has no value.",
+          "type": "string",
+          "const": "unset"
+        },
+        {
+          "description": "This shell sets the variable to a value that does not fit its type.",
+          "type": "string",
+          "const": "invalid"
+        }
+      ]
+    }
+  }
+}

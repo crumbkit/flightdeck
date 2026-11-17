@@ -22,7 +22,7 @@ import { LineEditor, shownLine, type Typed } from "@/components/LineEditor";
 import { Palette } from "@/components/Palette";
 import { Rail } from "@/components/Rail";
 import { RunCard } from "@/components/RunCard";
-import { Topbar } from "@/components/Topbar";
+import { type PageView, Topbar } from "@/components/Topbar";
 import { Transcript } from "@/components/Transcript";
 import { Welcome } from "@/components/Welcome";
 import { asksForYes } from "@/lib/confirm";
@@ -40,6 +40,7 @@ import {
 } from "@/lib/form";
 import { textOf } from "@/lib/line";
 import { cellLinkOf, filled } from "@/lib/links";
+import { OpenVariable } from "@/lib/openVariable";
 import { needsConfirmation, whyNotRunnable } from "@/lib/rail";
 import { withPageSize } from "@/lib/table";
 import { drawnKey, type Run, transcript } from "@/lib/transcript";
@@ -56,6 +57,8 @@ type Viewing = { tab: UsageTab; command: string };
 // The usage view loads in its own file the first time it opens, so the
 // page's first load stays within its size budget.
 const Usage = lazy(() => import("./Usage"));
+// The environment view loads in its own file too.
+const Environment = lazy(() => import("./Environment"));
 
 /** Returns the page's words for a failed cancel, or null when the run had already ended. */
 function cancelFailure(error: unknown): string | null {
@@ -85,6 +88,8 @@ export function ToolPage({ reply, onSignedOut }: Props) {
   const [finding, setFinding] = useState(false);
   const [directory, setDirectory] = useState(reply.directory);
   const [viewing, setViewing] = useState<Viewing | null>(null);
+  // The environment view on screen, with the variable it opened on, or null.
+  const [environment, setEnvironment] = useState<{ open: string | null } | null>(null);
   const { history } = tool;
   // The usage view shows when the tool reports figures or lists its runs.
   const usage = history !== null || hasFigures(tool);
@@ -388,6 +393,29 @@ export function ToolPage({ reply, onSignedOut }: Props) {
   const openUsage = (tab: UsageTab) => {
     const preferred = composing === null ? null : composing.command.path.join(" ");
     setViewing({ tab, command: usageCommand(history ?? [], preferred) });
+    setEnvironment(null);
+  };
+
+  // A variable's name in a failure opens the environment view on its row.
+  const openVariable = (name: string) => {
+    setViewing(null);
+    setEnvironment({ open: name });
+  };
+
+  let current: PageView = "commands";
+  if (environment !== null) {
+    current = "environment";
+  } else if (viewing !== null) {
+    current = "usage";
+  }
+  const showView = (view: PageView) => {
+    if (view === "usage") {
+      // The top bar opens the usage view on Figures, and keeps the tab on screen.
+      openUsage(viewing?.tab ?? "figures");
+      return;
+    }
+    setViewing(null);
+    setEnvironment(view === "environment" ? { open: null } : null);
   };
 
   // A command's name in the usage view opens its form in the commands view.
@@ -413,148 +441,164 @@ export function ToolPage({ reply, onSignedOut }: Props) {
   );
 
   return (
-    <div className="flex h-full flex-col">
-      <Topbar
-        name={tool.name}
-        version={tool.version}
-        readOnly={reply.read_only}
-        onFind={() => setFinding(true)}
-        views={
-          usage
-            ? {
-                usage: viewing !== null,
-                // The top bar opens the view on Figures, and keeps the tab on screen.
-                onView: (on) => (on ? openUsage(viewing?.tab ?? "figures") : setViewing(null)),
-              }
-            : null
-        }
-      >
-        <DirectoryControl directory={directory} onChange={setDirectory} />
-      </Topbar>
-      {usage && viewing !== null && (
-        <Suspense
-          fallback={<p className="text-muted-foreground m-0 px-4 py-3 text-sm">Loading…</p>}
-        >
-          <Usage
-            tool={tool}
-            history={history}
-            tab={viewing.tab}
-            command={viewing.command}
-            today={dayOf(new Date(now))}
-            onTab={(tab) => setViewing({ ...viewing, tab })}
-            onCommand={(command) => setViewing({ ...viewing, command })}
-            onOpen={openForm}
-          />
-        </Suspense>
-      )}
-      {/* The commands view stays mounted under the usage view, so its runs,
-          form and scroll are as they were when the person comes back. */}
-      <div hidden={viewing !== null} className="flex min-h-0 flex-1">
-        <Rail
-          tool={tool}
-          selected={composing?.command ?? null}
+    <OpenVariable value={tool.environment === null ? null : openVariable}>
+      <div className="flex h-full flex-col">
+        <Topbar
+          name={tool.name}
+          version={tool.version}
           readOnly={reply.read_only}
-          onChoose={(command) => choose(command)}
-        />
-        <main className="flex min-w-0 flex-1 flex-col">
-          <Transcript
-            content={drawnKey(runs)}
-            latest={runs.length === 0 ? null : `run-${runs[runs.length - 1]?.number}`}
+          onFind={() => setFinding(true)}
+          views={
+            usage || tool.environment !== null
+              ? {
+                  current,
+                  usage,
+                  environment: tool.environment !== null,
+                  onView: showView,
+                }
+              : null
+          }
+        >
+          <DirectoryControl directory={directory} onChange={setDirectory} />
+        </Topbar>
+        {usage && viewing !== null && (
+          <Suspense
+            fallback={<p className="text-muted-foreground m-0 px-4 py-3 text-sm">Loading…</p>}
           >
-            <Welcome tool={tool} onExample={runExample} />
-            {runs.map((run) => {
-              const command = commandAt(run.request);
-              const link = command === undefined ? null : cellLinkOf(tool, command);
-              return (
-                <RunCard
-                  key={run.number}
-                  run={run}
-                  tool={tool}
-                  command={command}
-                  link={link}
-                  cancelWords={
-                    cancel.isError &&
-                    run.state.kind === "running" &&
-                    cancel.variables === run.state.id
-                      ? cancelFailure(cancel.error)
-                      : null
-                  }
-                  onEdit={() => edit(run.number)}
-                  onRunAgain={() => again(run, run.request)}
-                  onCancel={cancelById}
-                  onPageSize={(pageSize) => again(run, withPageSize(run.request, pageSize))}
-                  onCompose={compose}
-                  onOpenLink={(value) => link !== null && openLink(link, value)}
-                >
-                  {command !== undefined && run.ask?.asks !== false && (
-                    <Confirmation
-                      run={run}
-                      command={command}
-                      stale={
-                        run.ask !== undefined &&
-                        run.ask.basis !== null &&
-                        run.ask.basis !== composing?.draft
-                      }
-                      onConfirm={() => confirm(run)}
-                      onDecline={() =>
-                        apply({ type: "answer", number: run.number, answer: "declined" })
-                      }
-                    />
-                  )}
-                </RunCard>
-              );
-            })}
-          </Transcript>
-          {/* The line stays in one place in the page, so it keeps its focus
+            <Usage
+              tool={tool}
+              history={history}
+              tab={viewing.tab}
+              command={viewing.command}
+              today={dayOf(new Date(now))}
+              onTab={(tab) => setViewing({ ...viewing, tab })}
+              onCommand={(command) => setViewing({ ...viewing, command })}
+              onOpen={openForm}
+            />
+          </Suspense>
+        )}
+        {tool.environment !== null && environment !== null && (
+          <Suspense
+            fallback={<p className="text-muted-foreground m-0 px-4 py-3 text-sm">Loading…</p>}
+          >
+            <Environment
+              key={environment.open ?? ""}
+              name={tool.name}
+              variables={tool.environment}
+              open={environment.open}
+            />
+          </Suspense>
+        )}
+        {/* The commands view stays mounted under the other views, so its runs,
+          form and scroll are as they were when the person comes back. */}
+        <div hidden={current !== "commands"} className="flex min-h-0 flex-1">
+          <Rail
+            tool={tool}
+            selected={composing?.command ?? null}
+            readOnly={reply.read_only}
+            onChoose={(command) => choose(command)}
+          />
+          <main className="flex min-w-0 flex-1 flex-col">
+            <Transcript
+              content={drawnKey(runs)}
+              latest={runs.length === 0 ? null : `run-${runs[runs.length - 1]?.number}`}
+            >
+              <Welcome tool={tool} onExample={runExample} />
+              {runs.map((run) => {
+                const command = commandAt(run.request);
+                const link = command === undefined ? null : cellLinkOf(tool, command);
+                return (
+                  <RunCard
+                    key={run.number}
+                    run={run}
+                    tool={tool}
+                    command={command}
+                    link={link}
+                    cancelWords={
+                      cancel.isError &&
+                      run.state.kind === "running" &&
+                      cancel.variables === run.state.id
+                        ? cancelFailure(cancel.error)
+                        : null
+                    }
+                    onEdit={() => edit(run.number)}
+                    onRunAgain={() => again(run, run.request)}
+                    onCancel={cancelById}
+                    onPageSize={(pageSize) => again(run, withPageSize(run.request, pageSize))}
+                    onCompose={compose}
+                    onOpenLink={(value) => link !== null && openLink(link, value)}
+                  >
+                    {command !== undefined && run.ask?.asks !== false && (
+                      <Confirmation
+                        run={run}
+                        command={command}
+                        stale={
+                          run.ask !== undefined &&
+                          run.ask.basis !== null &&
+                          run.ask.basis !== composing?.draft
+                        }
+                        onConfirm={() => confirm(run)}
+                        onDecline={() =>
+                          apply({ type: "answer", number: run.number, answer: "declined" })
+                        }
+                      />
+                    )}
+                  </RunCard>
+                );
+              })}
+            </Transcript>
+            {/* The line stays in one place in the page, so it keeps its focus
               when the first command it names opens the form. */}
-          <div
-            className={cn(
-              "bg-card sticky bottom-0 flex shrink-0 flex-col border-t px-4 py-3",
-              composing === null || composing.command.cost === null
-                ? "max-h-dock"
-                : "max-h-dock-costed",
-            )}
-          >
-            {line}
-            {composing === null ? (
-              <p className="text-muted-foreground m-0 text-xs">
-                Type a line, <span className="hidden md:inline">pick a command in the rail, </span>
-                or <span className="md:hidden">tap Find a command</span>
-                <span className="hidden md:inline">press ⌘K</span>.
-              </p>
-            ) : (
-              <Composer
-                tool={tool}
-                command={composing.command}
-                draft={composing.draft}
-                editing={composing.editing}
-                focus={composing.focus}
-                readOnly={reply.read_only}
-                fieldError={fieldError}
-                lineRefused={lineRefused}
-                directory={directory}
-                onChange={(draft) => setComposing({ ...composing, draft })}
-                onRun={() => run(composing)}
-                onPreview={() => previewComposed(composing)}
-                onStopEditing={() => setComposing({ ...composing, editing: null })}
-                onShowRun={showRun}
-                onUsage={history === null ? null : openUsage}
-              />
-            )}
-          </div>
-        </main>
+            <div
+              className={cn(
+                "bg-card sticky bottom-0 flex shrink-0 flex-col border-t px-4 py-3",
+                composing === null || composing.command.cost === null
+                  ? "max-h-dock"
+                  : "max-h-dock-costed",
+              )}
+            >
+              {line}
+              {composing === null ? (
+                <p className="text-muted-foreground m-0 text-xs">
+                  Type a line,{" "}
+                  <span className="hidden md:inline">pick a command in the rail, </span>
+                  or <span className="md:hidden">tap Find a command</span>
+                  <span className="hidden md:inline">press ⌘K</span>.
+                </p>
+              ) : (
+                <Composer
+                  tool={tool}
+                  command={composing.command}
+                  draft={composing.draft}
+                  editing={composing.editing}
+                  focus={composing.focus}
+                  readOnly={reply.read_only}
+                  fieldError={fieldError}
+                  lineRefused={lineRefused}
+                  directory={directory}
+                  onChange={(draft) => setComposing({ ...composing, draft })}
+                  onRun={() => run(composing)}
+                  onPreview={() => previewComposed(composing)}
+                  onStopEditing={() => setComposing({ ...composing, editing: null })}
+                  onShowRun={showRun}
+                  onUsage={history === null ? null : openUsage}
+                />
+              )}
+            </div>
+          </main>
+        </div>
+        {finding && (
+          <Palette
+            tool={tool}
+            onClose={() => setFinding(false)}
+            onOpen={(command, example) => {
+              const request = example === null ? null : requestOfExample(tool, example.command);
+              choose(command, request === null ? emptyDraft(command) : draftFrom(command, request));
+              setFinding(false);
+            }}
+          />
+        )}
       </div>
-      {finding && (
-        <Palette
-          tool={tool}
-          onClose={() => setFinding(false)}
-          onOpen={(command, example) => {
-            const request = example === null ? null : requestOfExample(tool, example.command);
-            choose(command, request === null ? emptyDraft(command) : draftFrom(command, request));
-            setFinding(false);
-          }}
-        />
-      )}
-    </div>
+    </OpenVariable>
   );
 }

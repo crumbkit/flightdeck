@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Command, ModelReply, Run } from "@/api/model";
 import { makeQueryClient } from "@/queryClient";
-import { shelfReply } from "../../tests/fixtures/shelf";
+import { environmentShelf, shelfReply } from "../../tests/fixtures/shelf";
 import { ToolPage } from "./ToolPage";
 
 /** The stub server's answer to one route: the lines of a stream, or a failure. */
@@ -437,5 +437,118 @@ describe("ToolPage", () => {
     renderPage({ ...shelfReply, tool: { ...shelfReply.tool, history: null } });
 
     expect(screen.queryByRole("navigation", { name: "Views" })).toBeNull();
+  });
+
+  it("has an Environment button beside Usage only when the tool mounts self environment list", () => {
+    renderPage(shelfReply);
+    const views = screen.getByRole("navigation", { name: "Views" });
+    expect(within(views).getByRole("button", { name: "Usage" })).toBeVisible();
+    expect(within(views).queryByRole("button", { name: "Environment" })).toBeNull();
+  });
+
+  it("opens the environment view from the top bar and goes back to the commands", async () => {
+    const user = userEvent.setup();
+    renderPage({ ...shelfReply, tool: environmentShelf });
+    const views = screen.getByRole("navigation", { name: "Views" });
+
+    await user.click(within(views).getByRole("button", { name: "Environment" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Environment" })).toBeVisible();
+    expect(within(views).getByRole("button", { name: "Environment" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("navigation", { name: "Commands", hidden: true })).not.toBeVisible();
+
+    await user.click(within(views).getByRole("button", { name: "Commands" }));
+
+    expect(screen.queryByRole("heading", { level: 1, name: "Environment" })).toBeNull();
+    expect(screen.getByRole("navigation", { name: "Commands" })).toBeVisible();
+  });
+
+  it("has an Environment button alone for a tool with an environment and no usage view", () => {
+    renderPage({ ...shelfReply, tool: { ...environmentShelf, history: null } });
+    const views = screen.getByRole("navigation", { name: "Views" });
+
+    expect(within(views).getByRole("button", { name: "Environment" })).toBeVisible();
+  });
+
+  it("links a declared variable that a failure names, and the link opens the environment view on its row", async () => {
+    stubServer({
+      "/api/runs": {
+        lines: [
+          { ...started, line: "shelf books list" },
+          {
+            event: "ended",
+            outcome: {
+              kind: "tool_failure",
+              failure: {
+                code: "shelf::environment::required_unset",
+                message: "SHELF_CATALOGUE_URL is required and is not set",
+                recovery: {
+                  kind: "hint",
+                  text: "set SHELF_CATALOGUE_URL in your shell, then start flightdeck again",
+                },
+              },
+            },
+            exit: 78,
+            duration_ms: 3,
+          },
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderPage({ ...shelfReply, tool: environmentShelf });
+    const rail = screen.getByRole("navigation", { name: "Commands" });
+    await user.click(within(rail).getByRole("button", { name: /books list/ }));
+    await user.click(screen.getByRole("button", { name: /Run/ }));
+    const alert = await screen.findByRole("alert");
+    const [message, hint, ...more] = within(alert).getAllByRole("button", {
+      name: "SHELF_CATALOGUE_URL",
+    });
+    expect(hint).toBeDefined();
+    expect(more).toHaveLength(0);
+
+    if (message !== undefined) {
+      await user.click(message);
+    }
+
+    const table = await screen.findByRole("table", { name: "Environment variables" });
+    expect(within(table).getByRole("button", { name: "SHELF_CATALOGUE_URL" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(within(table).getByRole("button", { name: "SHELF_PORT" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
+
+  it("leaves a failure's words plain for a tool without an environment", async () => {
+    stubServer({
+      "/api/runs": {
+        lines: [
+          { ...started, line: "shelf books list" },
+          {
+            event: "ended",
+            outcome: {
+              kind: "tool_failure",
+              failure: { code: "shelf::x", message: "SHELF_CATALOGUE_URL is required" },
+            },
+            exit: 78,
+            duration_ms: 3,
+          },
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderPage(shelfReply);
+    const rail = screen.getByRole("navigation", { name: "Commands" });
+    await user.click(within(rail).getByRole("button", { name: /books list/ }));
+    await user.click(screen.getByRole("button", { name: /Run/ }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("SHELF_CATALOGUE_URL is required");
+    expect(within(alert).queryByRole("button", { name: "SHELF_CATALOGUE_URL" })).toBeNull();
   });
 });

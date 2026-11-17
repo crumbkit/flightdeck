@@ -83,7 +83,15 @@ What works today:
   command, the names of the flags it passed, whether it printed help, its
   exit code and failure code, its wall time and its output in bytes. When
   the figures fail, every count stays 0 and the tool still loads; when the
-  findings or the runs fail, the figures stay without them. flightdeck asks
+  findings or the runs fail, the figures stay without them. When the tool
+  mounts crumbkit-starmap's `self environment list`, which also runs at
+  the same time, the model holds each environment variable that the tool
+  declares and each that crumbkit reads, with its type, its rule when
+  unset, its source, its value and its state. The query runs with the
+  environment that the page's runs get, and with `<TOOL>_PROGRAM=flightdeck`
+  as the reports of the usage log do. A withheld value never reaches the
+  page, and when the query fails the tool loads without an environment.
+  flightdeck asks
   `--version`, `commands list`, `schemas list` and `schemas show` with
   `XDG_STATE_HOME` set to a temporary directory, so those runs stay out of
   the person's usage log and the person's own runs of them are counted.
@@ -113,6 +121,12 @@ What works today:
   runs, the view also shows which command followed which, each session's
   runs and the flags each command's runs passed. It loads in its own file
   the first time it opens.
+  When the tool mounts `self environment list`, an Environment view in
+  the top bar lists each declared variable with its value as flightdeck
+  started the tool, crumbkit's own variables under their own heading, and
+  a withheld value as eight dots. A row opens to the variable's purpose,
+  effect when unset, values, check, group and bind. The name of a declared
+  variable in a failure is a link that opens the view on its row.
   A stream's rows appear as they arrive, under the time since the run
   started and a count of its rows, and Cancel or ⌘. stops the run and
   keeps the rows that came. A failure shows its message, cause, code,

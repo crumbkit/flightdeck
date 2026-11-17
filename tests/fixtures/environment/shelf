@@ -1,0 +1,57 @@
+#!/bin/sh
+# This shelf stands in for a crumbkit tool that mounts crumbkit-starmap's
+# `self environment list`. It runs the shelf that
+# scripts/install-test-tools.sh installs and passes every command through,
+# except three: `commands list` gains the rows of `self environment` and
+# `self environment list`, `self environment list` prints
+# tests/fixtures/starmap/self-environment-list.json, and `books list` fails
+# with shelf::environment::required_unset, a failure that names
+# SHELF_CATALOGUE_URL, when that variable is unset. It needs `perl`.
+here=$(dirname "$0")
+shelf="$here/../../../target/test-tools/bin/shelf"
+
+case "$1 $2 $3" in
+"commands list "*)
+  "$shelf" "$@" | exec perl -MJSON::PP -e '
+my $document = JSON::PP->new->decode(do { local $/; <STDIN> });
+my $list = {
+  path => "shelf self environment list",
+  about => "List the environment variables that shelf declares and their values",
+  long_about => undef,
+  arguments => [],
+  examples => [
+    { command => "shelf self environment list", about => "List the variables the tool declares and their values" },
+    { command => "shelf self environment list --json", about => "Print each variable as JSON, where a withheld value has no text" },
+  ],
+  columns => [
+    map({ { name => $_, long => JSON::PP::false, description => undef } } qw(name type unset source value owner)),
+    map({ { name => $_, long => JSON::PP::true, description => undef } } qw(show bind cache purpose effect values check group state)),
+  ],
+  form => "document",
+  line => undef,
+  children => undef,
+  children_help => undef,
+  exits => [],
+  effects => { read_only => JSON::PP::true, destructive => JSON::PP::false, idempotent => JSON::PP::true, open_world => JSON::PP::false },
+  writes => undef,
+  built_in => JSON::PP::true,
+};
+my $group = { %$list, path => "shelf self environment", about => "Work with shelf'"'"'s environment variables", examples => [], columns => [], form => undef };
+push @{ $document->{data} }, $group, $list;
+print JSON::PP->new->canonical->encode($document), "\n";
+'
+  ;;
+"self environment list")
+  exec cat "$here/../starmap/self-environment-list.json"
+  ;;
+"books list "*)
+  if [ -z "${SHELF_CATALOGUE_URL:-}" ]; then
+    echo '{"schema":"shelf/failure/v1","code":"shelf::environment::required_unset","message":"SHELF_CATALOGUE_URL is required and is not set","cause":"shelf has no catalogue to read its books from","recovery":{"kind":"hint","text":"set SHELF_CATALOGUE_URL in your shell, then start flightdeck again"}}'
+    exit 78
+  fi
+  exec "$shelf" "$@"
+  ;;
+*)
+  exec "$shelf" "$@"
+  ;;
+esac

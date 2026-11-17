@@ -282,6 +282,9 @@ pub enum Query<'a> {
     /// `self runs list`, with each run in the tool's usage log in order
     /// within its session.
     RunsList(OwnRuns),
+    /// `self environment list`, which crumbkit-starmap mounts, with each
+    /// environment variable that the tool declares and its value.
+    EnvironmentList,
 }
 
 /// Whether a report of the tool's usage log keeps flightdeck's own runs.
@@ -307,6 +310,17 @@ impl<'a> Query<'a> {
             Self::FiguresList(own) => own.after(queries::SELF_FIGURES_LIST.words()),
             Self::Usage(own) => own.after(queries::SELF_USAGE.words()),
             Self::RunsList(own) => own.after(queries::SELF_RUNS_LIST.words()),
+            // crumbkit's queries do not name the command, because
+            // crumbkit-starmap adds it. It prints every row at once, so it
+            // takes no `--all`.
+            Self::EnvironmentList => vec![
+                "self",
+                "environment",
+                "list",
+                "--json",
+                "--full",
+                "--no-input",
+            ],
         }
     }
 }

@@ -10,7 +10,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crumbkit_flightdeck::model::{CommandsList, Recovery, SchemasList, SchemasShow, ToolFailure};
+use crumbkit_flightdeck::model::{
+    CommandsList, Recovery, SchemasList, SchemasShow, ToolFailure, Variable,
+};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -195,4 +197,49 @@ fn shelfs_usage_fixture_matches_its_own_schema_which_declares_every_field_flight
     for field in FIGURE_FIELDS {
         assert!(figures.contains_key(field), "{field}");
     }
+}
+
+/// The fields of a variable of `self environment list` that flightdeck
+/// reads.
+const VARIABLE_FIELDS: [&str; 15] = [
+    "name",
+    "type",
+    "unset",
+    "source",
+    "value",
+    "show",
+    "bind",
+    "cache",
+    "purpose",
+    "effect",
+    "enumeration",
+    "values",
+    "check",
+    "group",
+    "owner",
+];
+
+#[test]
+fn the_environment_fixture_matches_crumbkit_starmaps_schema_which_declares_every_field_flightdeck_reads()
+ {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/starmap/self-environment-list-v1.json");
+    let schema: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let mut fixture: Value =
+        serde_json::from_str(include_str!("fixtures/starmap/self-environment-list.json")).unwrap();
+    // The tool prints its own name in the id, and the schema names crumbkit.
+    fixture["schema"] = Value::String("crumbkit/self-environment-list/v1".to_owned());
+
+    let validator = jsonschema::validator_for(&schema).unwrap();
+    let problems: Vec<String> = validator
+        .iter_errors(&fixture)
+        .map(|error| format!("{error} at {}", error.instance_path()))
+        .collect();
+    assert!(problems.is_empty(), "{problems:#?}");
+    let properties = row_properties(&schema, &[]);
+    for field in VARIABLE_FIELDS {
+        assert!(properties.contains_key(field), "{field}");
+    }
+    let variables: Vec<Variable> = serde_json::from_value(fixture["data"].clone()).unwrap();
+    assert_eq!(variables.len(), 16);
 }

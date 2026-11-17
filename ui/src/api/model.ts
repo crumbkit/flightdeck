@@ -216,6 +216,43 @@ const Link = z.object({
 });
 export type Link = z.infer<typeof Link>;
 
+/**
+ * One environment variable from the tool's `self environment list`, with
+ * the field names of that document. A withheld value never reaches the
+ * page: the server drops the text of any value whose `show` is not
+ * "shown", and crumbkit-starmap prints none.
+ */
+const Variable = z.object({
+  name: z.string().min(1),
+  /** The value's type, such as "port" or "log-level: one of error, warn, info, debug". */
+  type: z.string(),
+  /** What happens when the variable is unset, such as "default 8080" or "optional; production required". */
+  unset: z.string(),
+  /** Where the value comes from, such as "setting" or "secret, 1Password". */
+  source: z.string(),
+  /** The value as flightdeck started the tool: its state, and its text unless it is unset or withheld. */
+  value: z.object({
+    state: z.enum(["set", "default", "unset", "invalid"]),
+    text: z.string().nullable(),
+  }),
+  /** "shown" or "withheld", or null when the tool leaves it out. */
+  show: z.string().nullable(),
+  /** The variable's bind, such as a 1Password reference, or null. */
+  bind: z.string().nullable(),
+  purpose: z.string().nullable(),
+  /** What the tool does when the variable is unset, or null when the declaration says nothing. */
+  effect: z.string().nullable(),
+  /** Each value of a named enumeration with what it means, or null for any other type. */
+  values: z.array(z.object({ value: z.string(), description: z.string() })).nullable(),
+  /** The check that the tool's own code makes of the value, or null. */
+  check: z.string().nullable(),
+  /** The group of variables that are set together, or null. */
+  group: z.string().nullable(),
+  /** The library that reads the variable in every tool, such as "crumbkit", or null for the tool's own. */
+  owner: z.string().nullable(),
+});
+export type Variable = z.infer<typeof Variable>;
+
 const Tool = z.object({
   name: z.string().min(1),
   version: z.string(),
@@ -227,6 +264,11 @@ const Tool = z.object({
   figures_since: Day.nullable(),
   /** Each run in the tool's usage log, or null when the tool reports none. */
   history: z.array(Run).nullable(),
+  /**
+   * Each variable the tool declares and each that crumbkit reads, or null
+   * when the tool does not mount `self environment list` or it failed.
+   */
+  environment: z.array(Variable).nullable(),
 });
 export type Tool = z.infer<typeof Tool>;
 
