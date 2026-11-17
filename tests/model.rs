@@ -12,10 +12,11 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crumbkit::{Failure as _, FieldValue};
+#[cfg(unix)]
+use crumbkit_flightdeck::model::ValueState;
 use crumbkit_flightdeck::model::weight;
 use crumbkit_flightdeck::model::{
     self, Arity, CrumbkitFlag, FindingKind, Kind, LoadError, TOOL_LOAD, TOOL_NOT_FOUND, Tool,
-    ValueState,
 };
 use crumbkit_flightdeck::spawn::{HelpLimits, Program, TIME_LIMIT};
 use crumbkit_process::Cancel;
@@ -919,6 +920,43 @@ fn a_failing_environment_call_loads_the_tool_with_no_environment() {
 
     assert!(tool.command(&["things", "list"]).is_some());
     assert!(tool.environment().is_none());
+}
+
+#[cfg(unix)]
+#[test]
+fn a_tools_own_self_environment_list_that_is_not_built_in_is_never_asked() {
+    // The fake tool's commands list schema declares `built_in`, so the model
+    // reads the rows' marks, and its `self environment list` has none. It
+    // writes a mark when it is asked for its environment.
+    let marks = tempfile::tempdir().unwrap();
+    let mark = marks.path().join("asked");
+    let (_directory, path) = fake_tool(&format!(
+        r#"case "$1 $2 $3" in
+"--version  ") echo 'fake 0.1.0' ;;
+"commands list "*) echo '{{"schema":"fake/commands-list/v1","truncated":false,"data":[{{"path":"fake","about":"A fake tool","built_in":false}},{{"path":"fake self","about":"Reviews the tool","built_in":false}},{{"path":"fake self environment","about":"Its own environments","built_in":false}},{{"path":"fake self environment list","about":"Lists its own environments","built_in":false}}]}}' ;;
+"schemas list "*) echo '{{"schema":"fake/schemas-list/v1","truncated":false,"data":[{{"id":"fake/commands-list/v1","kind":"output","form":"document","commands":[]}}]}}' ;;
+"schemas show "*) echo '{{"schema":"fake/schemas-show/v1","data":[{{"id":"fake/commands-list/v1","schema":{{"properties":{{"data":{{"items":{{"properties":{{"built_in":{{}}}}}}}}}}}}}}],"failures":[]}}' ;;
+"self environment list") touch '{}' ;;
+*) exit 2 ;;
+esac"#,
+        mark.display()
+    ));
+    let (_dirs, program) = isolated(path);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    assert!(tool.marks_built_in());
+    assert!(
+        !tool
+            .command(&["self", "environment", "list"])
+            .unwrap()
+            .built_in()
+    );
+    assert!(tool.environment().is_none());
+    assert!(
+        !mark.exists(),
+        "the loader asked the tool's own command for an environment"
+    );
 }
 
 #[cfg(unix)]

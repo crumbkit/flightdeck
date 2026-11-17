@@ -6,9 +6,9 @@ import {
   defaultOf,
   environmentSummary,
   isWithheld,
+  reasonOf,
   variablesCount,
   wrongOf,
-  wrongWords,
 } from "@/lib/environment";
 
 type Props = {
@@ -44,11 +44,13 @@ function Value({ variable }: { variable: Variable }) {
     );
   }
   const { text } = variable.value;
-  return text === null ? (
-    <span className="text-muted-foreground font-sans">not set</span>
-  ) : (
-    <span className="wrap-anywhere">{text}</span>
-  );
+  if (text === null) {
+    // A shown variable can be set to a value that has no text, such as one
+    // bound to something other than plain text.
+    const unset = variable.value.state === "unset" || variable.value.state === "default";
+    return <span className="text-muted-foreground font-sans">{unset ? "not set" : "no text"}</span>;
+  }
+  return <span className="wrap-anywhere">{text}</span>;
 }
 
 /** The variable's state as its word, in red when it stops the tool. */
@@ -240,7 +242,7 @@ export default function Environment({ name, variables, open }: Props) {
                     )}
                     {group.rows.map((variable) => {
                       const isOpen = opened.has(variable.name);
-                      const wrong = isOpen ? null : wrongWords(variable);
+                      const wrong = reasonOf(variable, isOpen);
                       const more = isOpen || wrong !== null;
                       return (
                         <Fragment key={variable.name}>
@@ -302,7 +304,7 @@ export default function Environment({ name, variables, open }: Props) {
                   >
                     {group.rows.map((variable) => {
                       const isOpen = opened.has(variable.name);
-                      const wrong = isOpen ? null : wrongWords(variable);
+                      const wrong = reasonOf(variable, isOpen);
                       return (
                         <li
                           key={variable.name}

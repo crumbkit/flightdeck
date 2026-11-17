@@ -44,10 +44,8 @@ fn each_variable_sends_the_documents_field_names_and_null_for_a_field_the_tool_l
             "value": { "state": "default", "text": "info" },
             "show": "shown",
             "bind": null,
-            "cache": null,
             "purpose": "The least severe message that shelf writes to its log.",
             "effect": "shelf logs at info.",
-            "enumeration": "log-level",
             "values": [
                 { "value": "error", "description": "Only failures." },
                 { "value": "warn", "description": "Failures, and anything that may become one." },

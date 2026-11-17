@@ -76,14 +76,10 @@ pub struct Variable {
     #[serde(default)]
     bind: Option<String>,
     #[serde(default)]
-    cache: Option<String>,
-    #[serde(default)]
     purpose: Option<String>,
     /// What the tool does when the variable is unset.
     #[serde(default)]
     effect: Option<String>,
-    #[serde(default)]
-    enumeration: Option<String>,
     #[serde(default)]
     values: Option<Vec<Described>>,
     /// The check that the tool's own code makes of the value.

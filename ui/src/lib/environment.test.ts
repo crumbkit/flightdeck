@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Variable } from "@/api/model";
 import { environmentShelf } from "../../tests/fixtures/shelf";
-import { defaultOf, environmentSummary, isWithheld, wrongOf, wrongWords } from "./environment";
+import {
+  defaultOf,
+  environmentSummary,
+  isWithheld,
+  reasonOf,
+  wrongOf,
+  wrongWords,
+} from "./environment";
 import { partsOf } from "./variableParts";
 
 const variables = environmentShelf.environment ?? [];
@@ -74,10 +81,34 @@ describe("environmentSummary", () => {
 });
 
 describe("isWithheld", () => {
-  it("is true for a set value without text and false for an unset or shown one", () => {
+  it("is true for a set withheld variable and false for an unset or shown one", () => {
     expect(isWithheld(variable("SHELF_MIRROR_TOKEN"))).toBe(true);
     expect(isWithheld(variable("SHELF_CATALOGUE_URL"))).toBe(false);
     expect(isWithheld(variable("SHELF_DEBUG"))).toBe(false);
+  });
+
+  it("is false for a shown variable that is invalid and has no text", () => {
+    const odd = { ...variable("SHELF_DEBUG"), value: { state: "invalid" as const, text: null } };
+
+    expect(isWithheld(odd)).toBe(false);
+  });
+});
+
+describe("reasonOf", () => {
+  it("keeps the reason on an open row whose detail does not show it", () => {
+    const noEffect = { ...variable("SHELF_CATALOGUE_URL"), effect: null };
+    const noCheck = { ...variable("SHELF_REGION"), check: null };
+
+    expect(reasonOf(noEffect, true)).toBe("The tool needs a value for this variable.");
+    expect(reasonOf(noCheck, true)).toBe("moon does not fit the type region: one of eu, us, ap.");
+  });
+
+  it("leaves the reason to the detail of an open row that shows the effect or the check", () => {
+    expect(reasonOf(variable("SHELF_CATALOGUE_URL"), true)).toBeNull();
+    expect(reasonOf(variable("SHELF_REGION"), true)).toBeNull();
+    expect(reasonOf(variable("SHELF_REGION"), false)).toBe(
+      "The region must have a mirror that answers.",
+    );
   });
 });
 

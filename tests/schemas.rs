@@ -201,22 +201,9 @@ fn shelfs_usage_fixture_matches_its_own_schema_which_declares_every_field_flight
 
 /// The fields of a variable of `self environment list` that flightdeck
 /// reads.
-const VARIABLE_FIELDS: [&str; 15] = [
-    "name",
-    "type",
-    "unset",
-    "source",
-    "value",
-    "show",
-    "bind",
-    "cache",
-    "purpose",
-    "effect",
-    "enumeration",
-    "values",
-    "check",
-    "group",
-    "owner",
+const VARIABLE_FIELDS: [&str; 13] = [
+    "name", "type", "unset", "source", "value", "show", "bind", "purpose", "effect", "values",
+    "check", "group", "owner",
 ];
 
 #[test]

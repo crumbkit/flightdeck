@@ -67,11 +67,24 @@ export function variablesCount(variables: Variable[]): string {
 
 /**
  * Returns true when the run has a value that the page may not show: the
- * tool withholds it, so it has no text, though the variable is set.
+ * tool withholds the variable, as its `show` says, and the variable is set.
+ * The server drops the text of every value whose `show` is not "shown" by
+ * the same rule.
  */
 export function isWithheld(variable: Variable): boolean {
-  const { state, text } = variable.value;
-  return text === null && (state === "set" || state === "invalid");
+  const { state } = variable.value;
+  return variable.show !== "shown" && (state === "set" || state === "invalid");
+}
+
+/**
+ * Returns the sentence that a row shows in red about what stops the tool,
+ * or null. An open row leaves it out only when its detail already shows the
+ * same sentence in red, as the effect or the check.
+ */
+export function reasonOf(variable: Variable, open: boolean): string | null {
+  const words = wrongWords(variable);
+  const inDetail = words === variable.effect || words === variable.check;
+  return open && inDetail ? null : words;
 }
 
 /**
