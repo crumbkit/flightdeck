@@ -12,3 +12,12 @@ unset = "optional"
 empty = "value"
 show = "shown"
 source = "inherited"
+
+[variables.FLIGHTDECK_PORT]
+purpose = "The port that `flightdeck open` listens on, on 127.0.0.1, so a process manager can give the page a fixed port."
+type = "port"
+unset = "optional"
+effect = "When unset, the system picks a free port for each run and `flightdeck open` prints it."
+check = "A port is a whole number from 1 to 65535, and no other program may hold it."
+show = "shown"
+source = "setting"

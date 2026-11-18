@@ -17,3 +17,27 @@ fn an_empty_path_is_a_search_path_and_an_absent_one_is_none() {
     assert_eq!(empty.path(), Some(OsString::new().as_os_str()));
     assert_eq!(absent.path(), None);
 }
+
+#[test]
+fn a_set_port_is_the_port_and_an_absent_one_is_none() {
+    let set = Environment::from_vars([(OsString::from("FLIGHTDECK_PORT"), OsString::from("8123"))])
+        .unwrap();
+    let absent = Environment::from_vars([]).unwrap();
+
+    assert_eq!(set.port(), Some(8123));
+    assert_eq!(absent.port(), None);
+}
+
+#[test]
+fn a_port_that_is_not_a_port_is_refused_and_the_refusal_names_the_variable() {
+    for text in ["0", "65536", "http", "-1", ""] {
+        let error =
+            Environment::from_vars([(OsString::from("FLIGHTDECK_PORT"), OsString::from(text))])
+                .unwrap_err();
+
+        assert!(
+            error.to_string().contains("FLIGHTDECK_PORT"),
+            "{text}: {error}"
+        );
+    }
+}

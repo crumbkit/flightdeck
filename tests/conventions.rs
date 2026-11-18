@@ -49,7 +49,7 @@ const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
     ),
     Unprovoked::new(
         crumbkit_flightdeck::ENVIRONMENT_INVALID,
-        "starmap.toml refuses no value of PATH, the one variable that flightdeck reads.",
+        "Only a FLIGHTDECK_PORT that is not a port provokes it, and a command line sets no variable; tests/open.rs provokes the code.",
     ),
     Unprovoked::area("flightdeck", "run", NO_RUN),
     Unprovoked::area("flightdeck", "choices", NO_RUN),
@@ -77,7 +77,7 @@ const UNTWINNED: &[Unprovoked<'_>] = &[
     ),
     Unprovoked::new(
         crumbkit_flightdeck::ENVIRONMENT_INVALID,
-        "starmap.toml refuses no value of PATH, the one variable that flightdeck reads.",
+        "Only a FLIGHTDECK_PORT that is not a port provokes it, and a command line sets no variable; tests/open.rs provokes the code.",
     ),
     Unprovoked::area("flightdeck", "run", NO_RUN),
     Unprovoked::area("flightdeck", "choices", NO_RUN),

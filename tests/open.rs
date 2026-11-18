@@ -52,6 +52,7 @@ fn run_flightdeck(mut command: Command, args: &[&std::ffi::OsStr], dirs: &Path) 
         .env("XDG_DATA_HOME", dirs.join("data"))
         .env("XDG_STATE_HOME", dirs.join("state"))
         .env("XDG_CACHE_HOME", dirs.join("cache"))
+        .env_remove("FLIGHTDECK_PORT")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -515,5 +516,52 @@ fn a_bare_tool_name_is_refused_when_a_relative_path_entry_cannot_be_made_absolut
     assert!(stderr.contains("flightdeck::tool::search_path"), "{stderr}");
     assert!(stderr.contains("from another directory"), "{stderr}");
     assert!(stderr.contains("the tool's path"), "{stderr}");
+    assert!(!stderr.contains("http://"), "{stderr}");
+}
+
+#[test]
+fn open_listens_on_the_port_that_flightdeck_port_names() {
+    let free = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let wanted = free.local_addr().unwrap().port();
+    drop(free);
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &[
+            "open".as_ref(),
+            shelf().as_os_str(),
+            "--no-browser".as_ref(),
+        ],
+        dirs.path(),
+    );
+    command.env("FLIGHTDECK_PORT", wanted.to_string());
+
+    let open = Open::start_with(command, dirs);
+
+    assert_eq!(open.port, wanted);
+    let (exit, printed) = open.stop(rustix::process::Signal::TERM);
+    assert_eq!(exit, Some(0), "{printed}");
+}
+
+#[test]
+fn open_refuses_a_flightdeck_port_that_is_not_a_port_and_starts_no_server() {
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &[
+            "open".as_ref(),
+            shelf().as_os_str(),
+            "--no-browser".as_ref(),
+        ],
+        dirs.path(),
+    );
+
+    let output = command.env("FLIGHTDECK_PORT", "http").output().unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(
+        stderr.contains("flightdeck::environment::invalid"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("FLIGHTDECK_PORT"), "{stderr}");
     assert!(!stderr.contains("http://"), "{stderr}");
 }

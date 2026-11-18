@@ -45,7 +45,7 @@ fn self_environment_list_prints_flightdecks_variables_with_their_rules_as_json()
         .filter(|row| row["owner"].is_null())
         .map(|row| row["name"].as_str().unwrap())
         .collect();
-    assert_eq!(own, ["PATH"]);
+    assert_eq!(own, ["PATH", "FLIGHTDECK_PORT"]);
     assert!(
         rows.iter()
             .any(|row| row["name"] == "FLIGHTDECK_OUTPUT_BUDGET" && row["owner"] == "crumbkit"),

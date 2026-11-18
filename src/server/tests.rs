@@ -67,3 +67,18 @@ fn a_runners_refusal_of_the_request_gets_422_and_a_runner_that_cannot_run_it_now
     );
     assert_eq!(failure_status(&RunFailure::NotRunning { run: None }), 404);
 }
+
+#[test]
+fn a_listener_binds_the_port_it_is_given_and_a_port_in_use_fails_to_listen() {
+    let free = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let wanted = free.local_addr().unwrap().port();
+    drop(free);
+
+    let listener = super::Listener::bind(Some(wanted)).unwrap();
+
+    assert_eq!(listener.port(), wanted);
+    assert!(matches!(
+        super::Listener::bind(Some(wanted)),
+        Err(super::StartError::Listen(_))
+    ));
+}

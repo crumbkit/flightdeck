@@ -1,0 +1,18 @@
+# How mxv runs flightdeck in a workspace: `mxv up` builds flightdeck and
+# starts its page's server on shelf, a crumbkit example tool.
+#
+# `scripts/install-test-tools.sh` installs shelf under target/test-tools/bin,
+# and must have run once in the checkout before `mxv up`.
+#
+# `routes` is left out on purpose. flightdeck answers only a Host header of
+# 127.0.0.1 and its own port, and the proxy keeps the route's host name, so
+# a request through a route would get 403. Open the page at the address that
+# `mxv ports` or `mxv show` reports for the port `flightdeck`.
+
+ports = ["flightdeck"]
+
+[processes.flightdeck]
+argv = ["./target/debug/flightdeck", "open", "target/test-tools/bin/shelf", "--no-browser"]
+build = ["cargo", "build"]
+ports = { FLIGHTDECK_PORT = "flightdeck" }
+listen = "flightdeck"

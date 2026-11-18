@@ -9,6 +9,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `FLIGHTDECK_PORT` sets the port that `flightdeck open` listens on, on
+  127.0.0.1. When it is unset, the system still picks a free port. A value
+  that is not a port from 1 to 65535 stops `flightdeck open` with
+  `flightdeck::environment::invalid`, and a port that another program
+  holds stops it with `flightdeck::server::failed`.
+- `mxv.toml` declares how mxv runs flightdeck in a workspace, on a port
+  that mxv gives through `FLIGHTDECK_PORT`.
 - `flightdeck skills install` writes flightdeck's agent skill into each of
   `~/.claude/skills`, `~/.agents/skills` and `$CODEX_HOME/skills` that
   exists, or into the directory that `--dir` names. `flightdeck skills

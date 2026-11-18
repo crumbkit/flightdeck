@@ -221,7 +221,7 @@ pub(crate) fn serving(setup: Setup, test: impl FnOnce(&Running<'_>) -> Then) -> 
     };
     let clock = Arc::new(FakeClock::new());
     let runner = Runner::new(tool, program, setup.mode, clock.clone(), setup.runner).unwrap();
-    let listener = Listener::bind().unwrap();
+    let listener = Listener::bind(None).unwrap();
     let port = listener.port();
     let session = Session::new(clock.now()).unwrap();
     let opener = Opener::write(&listener.origin(), session.launch_code().unwrap()).unwrap();

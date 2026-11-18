@@ -72,8 +72,9 @@ pub enum OpenError {
     )]
     SearchPath,
     /// A variable that flightdeck reads has a value that starmap.toml
-    /// refuses. starmap.toml refuses no value of `PATH`, the one variable
-    /// today: it is optional, any path, and its empty text is a value.
+    /// refuses, as when `FLIGHTDECK_PORT` is not a port. starmap.toml
+    /// refuses no value of `PATH`: it is optional, any path, and its empty
+    /// text is a value.
     #[failure(
         code = ENVIRONMENT_INVALID,
         hint = "run `flightdeck self environment list` to see each variable's rule",
@@ -167,7 +168,7 @@ fn open(
     let stop = Arc::new(AtomicBool::new(false));
     watch_signals(&stop).map_err(OpenError::Signals)?;
     let clock = SystemClock;
-    let listener = Listener::bind().map_err(OpenError::Start)?;
+    let listener = Listener::bind(environment.port()).map_err(OpenError::Start)?;
     let origin = listener.origin();
     let session = Session::new(clock.now()).map_err(OpenError::Random)?;
     // A new session always holds its launch code.
