@@ -1,6 +1,7 @@
 //! The page's local HTTP server.
 //!
-//! [`Listener::bind`] listens on 127.0.0.1 on a port that the system picks.
+//! [`Listener::bind`] listens on 127.0.0.1 on the port it is given, or on a
+//! port that the system picks.
 //! [`Server::run`] serves until the caller's stop flag is set or
 //! [`IDLE_LIMIT`] passes without an authenticated request. One thread
 //! accepts connections, and each connection gets a thread of its own, at
@@ -176,18 +177,21 @@ pub struct Listener {
 }
 
 impl Listener {
-    /// Listens on 127.0.0.1 on a port that the system picks.
+    /// Listens on 127.0.0.1 on `port`, or on a port that the system picks
+    /// when `port` is `None`.
     ///
     /// # Errors
     ///
-    /// Returns [`StartError::Listen`] when the system refuses the socket.
-    pub fn bind() -> Result<Self, StartError> {
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).map_err(StartError::Listen)?;
+    /// Returns [`StartError::Listen`] when the system refuses the socket,
+    /// as when another program holds `port`.
+    pub fn bind(port: Option<u16>) -> Result<Self, StartError> {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, port.unwrap_or(0)))
+            .map_err(StartError::Listen)?;
         let port = listener.local_addr().map_err(StartError::Listen)?.port();
         Ok(Self { listener, port })
     }
 
-    /// Returns the port that the system picked.
+    /// Returns the port that the listener holds.
     #[must_use]
     pub const fn port(&self) -> u16 {
         self.port

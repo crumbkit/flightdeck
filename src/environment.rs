@@ -17,11 +17,21 @@ pub(crate) struct Environment {
     /// when `PATH` is absent. An empty `PATH` is a value.
     #[starmap("PATH")]
     path: Option<OsString>,
+    /// The port that the server listens on, or `None` when the system
+    /// picks one.
+    #[starmap("FLIGHTDECK_PORT")]
+    port: Option<starmap::Port>,
 }
 
 impl Environment {
     /// Returns the search path, or `None` when `PATH` is absent.
     pub(crate) fn path(&self) -> Option<&OsStr> {
         self.path.as_deref()
+    }
+
+    /// Returns the port that `FLIGHTDECK_PORT` names, or `None` when it is
+    /// absent.
+    pub(crate) fn port(&self) -> Option<u16> {
+        self.port.map(starmap::Port::get)
     }
 }

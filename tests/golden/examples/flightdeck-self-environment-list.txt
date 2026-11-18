@@ -1,5 +1,6 @@
 NAME                      TYPE                             UNSET     SOURCE     VALUE  OWNER
 PATH                      path; an empty value is a value  optional  inherited  unset  -
+FLIGHTDECK_PORT           port; an empty value is a value  optional  setting    unset  -
 FLIGHTDECK_OUTPUT_BUDGET  integer 1..=4294967295           optional  setting    unset  crumbkit
 NO_COLOR                  string                           optional  inherited  unset  crumbkit
 CLICOLOR                  string                           optional  inherited  unset  crumbkit

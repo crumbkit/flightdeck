@@ -32,6 +32,19 @@ What works today:
   run only the tool's read-only commands. The server stops on Ctrl-C, on
   SIGTERM, and after 30 minutes without a request from the page. When it
   stops, it lets each run finish within five seconds and cancels the rest.
+  When `FLIGHTDECK_PORT` is set, flightdeck listens on that port in place of
+  one the system picks, and it refuses a value that is not a port, an empty
+  one included.
+- `mxv up` runs flightdeck in a workspace, as [mxv.toml](mxv.toml) declares:
+  it builds flightdeck and starts `flightdeck open` on shelf, which
+  `scripts/install-test-tools.sh` installs, on the host port that mxv
+  holds for `flightdeck`. mxv gives the port through `FLIGHTDECK_PORT`.
+  The page signs in only through the opener file, so read the opener's
+  path from `mxv logs flightdeck` and open that file in a browser within
+  60 seconds of the process starting. After that, run `mxv restart` for a
+  new launch code. The address that `mxv ports` reports serves the page
+  without a launch code, and the proxy's route names are not addresses
+  that flightdeck answers to.
 - The browser signs in with a one-time launch code that the opener page
   holds in the URL's fragment, and exchanges it for a token that every API
   request carries. `GET /api/model` returns the tool's model as JSON, and
