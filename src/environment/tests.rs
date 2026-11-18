@@ -30,7 +30,7 @@ fn a_set_port_is_the_port_and_an_absent_one_is_none() {
 
 #[test]
 fn a_port_that_is_not_a_port_is_refused_and_the_refusal_names_the_variable() {
-    for text in ["0", "65536", "http", "-1"] {
+    for text in ["", "0", "65536", "http", "-1"] {
         let error =
             Environment::from_vars([(OsString::from("FLIGHTDECK_PORT"), OsString::from(text))])
                 .unwrap_err();
@@ -39,5 +39,16 @@ fn a_port_that_is_not_a_port_is_refused_and_the_refusal_names_the_variable() {
             error.to_string().contains("FLIGHTDECK_PORT"),
             "{text}: {error}"
         );
+    }
+}
+
+#[test]
+fn the_lowest_and_highest_ports_are_ports() {
+    for (text, port) in [("1", 1), ("65535", 65535)] {
+        let environment =
+            Environment::from_vars([(OsString::from("FLIGHTDECK_PORT"), OsString::from(text))])
+                .unwrap();
+
+        assert_eq!(environment.port(), Some(port));
     }
 }

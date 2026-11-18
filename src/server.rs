@@ -191,7 +191,7 @@ impl Listener {
         Ok(Self { listener, port })
     }
 
-    /// Returns the port that the system picked.
+    /// Returns the port that the listener holds.
     #[must_use]
     pub const fn port(&self) -> u16 {
         self.port

@@ -565,3 +565,53 @@ fn open_refuses_a_flightdeck_port_that_is_not_a_port_and_starts_no_server() {
     assert!(stderr.contains("FLIGHTDECK_PORT"), "{stderr}");
     assert!(!stderr.contains("http://"), "{stderr}");
 }
+
+#[test]
+fn open_refuses_a_port_that_another_program_holds_and_starts_no_server() {
+    let held = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &[
+            "open".as_ref(),
+            shelf().as_os_str(),
+            "--no-browser".as_ref(),
+        ],
+        dirs.path(),
+    );
+
+    let output = command
+        .env(
+            "FLIGHTDECK_PORT",
+            held.local_addr().unwrap().port().to_string(),
+        )
+        .output()
+        .unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("flightdeck::server::failed"), "{stderr}");
+    assert!(!stderr.contains("http://"), "{stderr}");
+}
+
+#[test]
+fn open_refuses_an_empty_flightdeck_port() {
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &[
+            "open".as_ref(),
+            shelf().as_os_str(),
+            "--no-browser".as_ref(),
+        ],
+        dirs.path(),
+    );
+
+    let output = command.env("FLIGHTDECK_PORT", "").output().unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(
+        stderr.contains("flightdeck::environment::invalid"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("FLIGHTDECK_PORT"), "{stderr}");
+}
