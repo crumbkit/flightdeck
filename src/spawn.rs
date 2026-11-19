@@ -101,6 +101,43 @@ pub const STDERR_LIMIT: usize = 64 * 1024;
 /// never warns that the name is invalid.
 pub(crate) const OWN_PROGRAM: &str = "flightdeck";
 
+/// Runs `run` on each of `items` on at most `at_once` scoped threads, and
+/// returns each item's result in the order of `items`. Before each item a
+/// thread asks `go_on`, and once it says no, no further item starts; an
+/// item that never ran gets `skipped()`.
+fn at_most<T: Sync, R: Send>(
+    at_once: usize,
+    items: &[T],
+    skipped: impl Fn() -> R,
+    go_on: impl Fn() -> bool + Sync,
+    run: impl Fn(&T) -> R + Sync,
+) -> Vec<R> {
+    let results = std::sync::Mutex::new(items.iter().map(|_| skipped()).collect::<Vec<R>>());
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    std::thread::scope(|scope| {
+        for _ in 0..at_once.min(items.len()) {
+            scope.spawn(|| {
+                loop {
+                    let index = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    let Some(item) = items.get(index) else {
+                        return;
+                    };
+                    if !go_on() {
+                        return;
+                    }
+                    let result = run(item);
+                    if let Some(slot) = crate::lock::lock(&results).get_mut(index) {
+                        *slot = result;
+                    }
+                }
+            });
+        }
+    });
+    results
+        .into_inner()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 /// A program to start, by name or path, the variables that its runs get
 /// beside flightdeck's own environment, and the directory that its runs
 /// start in when that is not flightdeck's own.

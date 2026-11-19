@@ -26,16 +26,7 @@ export function Label({ children }: { children: ReactNode }) {
 
 /** A count or a fact in a pill, green when `on`. */
 export function Pill({ on = false, children }: { on?: boolean; children: ReactNode }) {
-  return (
-    <span
-      className={cn(
-        "rounded-pill inline-flex items-center border px-2 py-0.5 text-xs whitespace-nowrap",
-        on ? "bg-read-only-soft text-read-only border-transparent" : "bg-card",
-      )}
-    >
-      {children}
-    </span>
-  );
+  return <span className={cn("deck-chip text-xs", on && "deck-chip-on")}>{children}</span>;
 }
 
 /** Says why routes are missing when `mxv proxy status` did not answer, and nothing otherwise. */

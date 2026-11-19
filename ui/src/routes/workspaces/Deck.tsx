@@ -3,6 +3,7 @@ import { cn } from "cn";
 import type { ReactNode } from "react";
 import { workspacesQuery } from "@/api/workspaces";
 import { hrefOf, type Place } from "@/lib/place";
+import "./deck.css";
 import { Label } from "./parts";
 import { Workspace } from "./Workspace";
 import { Workspaces } from "./Workspaces";
@@ -60,8 +61,8 @@ export default function Deck({ place, tool, onSignedOut }: Props) {
   const count = list.data?.summary.workspaces;
   const listHref = hrefOf({ view: "workspaces" });
   return (
-    <div className="flex h-full flex-col md:flex-row">
-      <div className="bg-rail flex shrink-0 flex-col gap-4 border-b px-3 py-4 md:w-64 md:border-r md:border-b-0">
+    <div className="deck">
+      <div className="bg-rail deck-rail">
         <span className="px-2 font-semibold tracking-tight">flightdeck</span>
         <nav aria-label="Target">
           <Label>
@@ -85,7 +86,7 @@ export default function Deck({ place, tool, onSignedOut }: Props) {
           )}
         </nav>
       </div>
-      <main className="min-w-0 flex-1 overflow-y-auto p-5">
+      <main className={cn("deck-main", place.view === "workspace" && "deck-main-workspace")}>
         {place.view === "workspace" ? (
           <Workspace key={place.name} name={place.name} onSignedOut={onSignedOut} />
         ) : (

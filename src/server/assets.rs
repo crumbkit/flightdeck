@@ -80,6 +80,12 @@ pub(super) const ALL: &[Asset] = &[
         content_type: "text/javascript; charset=utf-8",
         body: include_bytes!("../../ui/dist/assets/Deck.js"),
     },
+    // The workspaces pages' layout, which loads with their file.
+    Asset {
+        path: "/assets/Deck.css",
+        content_type: "text/css; charset=utf-8",
+        body: include_bytes!("../../ui/dist/assets/Deck.css"),
+    },
     // The help-page measurement that the weight and both tabs share.
     Asset {
         path: "/assets/measure.js",

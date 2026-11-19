@@ -29,14 +29,11 @@
 //!   work.
 
 use std::io;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use crumbkit_process::{Cancel, Capture, Outcome, RunOptions, StopReason};
 
-use super::{Exit, FreshState, Program};
-use crate::lock::lock;
+use super::{Exit, FreshState, Program, at_most};
 
 #[cfg(unix)]
 #[cfg(test)]
@@ -132,32 +129,16 @@ pub(crate) fn measure_help(
     let started = Instant::now();
     let state = FreshState::new()?;
     let program = state.keep_out(program);
-    let results = Mutex::new(vec![HelpPage::NotRun; pages.len()]);
-    let next = AtomicUsize::new(0);
-    std::thread::scope(|scope| {
-        for _ in 0..AT_ONCE.min(pages.len()) {
-            scope.spawn(|| {
-                loop {
-                    let index = next.fetch_add(1, Ordering::Relaxed);
-                    let Some(words) = pages.get(index) else {
-                        return;
-                    };
-                    if started.elapsed() >= limits.total || stop.is_cancelled() {
-                        return;
-                    }
-                    let page = run_help(&program, words, limits.run, stop);
-                    if let Some(slot) = lock(&results).get_mut(index) {
-                        *slot = page;
-                    }
-                }
-            });
-        }
-    });
+    let results = at_most(
+        AT_ONCE,
+        pages,
+        || HelpPage::NotRun,
+        || started.elapsed() < limits.total && !stop.is_cancelled(),
+        |words| run_help(&program, words, limits.run, stop),
+    );
     // The state directory is removed here, after every run has ended.
     drop(state);
-    Ok(results
-        .into_inner()
-        .unwrap_or_else(std::sync::PoisonError::into_inner))
+    Ok(results)
 }
 
 /// Runs `<program> <words> -h` with a cleared environment that holds only

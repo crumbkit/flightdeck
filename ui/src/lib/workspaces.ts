@@ -32,21 +32,18 @@ export function dotsOf(row: WorkspaceRow): Tone[] {
   return (row.units ?? []).map((unit) => toneOf(unit.state));
 }
 
-/** An address on a card: its words, and the URL it links to, or null for a host port. */
-export type Address = { text: string; href: string | null };
-
 /**
  * Returns a card's Routes: each route that the proxy serves, by its host
  * name, or else each host port of the workspace on 127.0.0.1 in the order
  * of the ports' names.
  */
-export function addressesOf(row: WorkspaceRow): Address[] {
+export function addressesOf(row: WorkspaceRow): string[] {
   if (row.routes.length > 0) {
-    return row.routes.map((route) => ({ text: hostOf(route.url), href: route.url }));
+    return row.routes.map((route) => hostOf(route.url));
   }
   return Object.keys(row.ports)
     .sort()
-    .map((name) => ({ text: `127.0.0.1:${row.ports[name]}`, href: null }));
+    .map((name) => `127.0.0.1:${row.ports[name]}`);
 }
 
 /** Returns the host of `url`, or `url` itself when it does not parse. */

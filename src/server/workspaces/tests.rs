@@ -102,3 +102,54 @@ fn the_stop_ends_a_query_in_progress_at_once() {
         "{reply:?}"
     );
 }
+
+/// Returns the status of `reply`, 200 for JSON.
+fn status_of(reply: &Reply) -> u16 {
+    match reply {
+        Reply::Json(_) => 200,
+        Reply::Failure { status, .. } => *status,
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn a_name_that_the_page_escaped_is_decoded_before_it_is_checked() {
+    let directory = tempfile::tempdir().unwrap();
+    let routes = slow_routes("0", &directory.path().join("runs"));
+
+    assert_eq!(status_of(&routes.show("reading%2Dlist")), 200);
+    assert_eq!(status_of(&routes.show("reading%2Flist")), 422);
+    assert_eq!(status_of(&routes.show("reading%2")), 422);
+    assert_eq!(status_of(&routes.show("%FF")), 422);
+}
+
+#[test]
+fn a_name_of_dots_gets_422_and_runs_no_mxv() {
+    let directory = tempfile::tempdir().unwrap();
+    let log = directory.path().join("runs");
+    let routes = slow_routes("0", &log);
+
+    assert_eq!(status_of(&routes.show("..")), 422);
+    assert_eq!(status_of(&routes.show("%2E")), 422);
+    assert!(!log.exists());
+}
+
+#[test]
+fn a_slow_status_of_one_workspace_does_not_hold_up_another() {
+    let directory = tempfile::tempdir().unwrap();
+    let routes = slow_routes("1", &directory.path().join("runs"));
+    let started = Instant::now();
+
+    let replies: Vec<Reply> = std::thread::scope(|scope| {
+        let first = scope.spawn(|| routes.show("reading-list"));
+        let second = scope.spawn(|| routes.show("shelf-import"));
+        vec![first.join().unwrap(), second.join().unwrap()]
+    });
+
+    // One after the other, the two would take at least 2 seconds.
+    assert!(started.elapsed() < Duration::from_millis(1900));
+    for reply in &replies {
+        assert_eq!(status_of(reply), 200, "{reply:?}");
+    }
+    assert!(routes.show.lock().unwrap().is_empty());
+}

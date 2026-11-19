@@ -3,15 +3,17 @@
 //! `GET /api/workspaces/<name>` with the document of `flightdeck workspaces
 //! show <name> --json`, both from the library that the commands call.
 //!
-//! At most one query of each route runs at a time. A request that arrives
-//! while a query of the same kind runs waits for it, and gets that query's
-//! answer when it asked for the same thing, as the weight measurement shares
-//! its one measurement. A request that arrives after a query ended starts a
-//! new one, so no answer outlives the request that it answered.
+//! At most one list query, and one show query of each name, runs at a time.
+//! A request that arrives while such a query runs waits for it and gets its
+//! answer, as the weight measurement shares its one measurement, so a slow
+//! `mxv status` of one workspace never delays another's page. A request that
+//! arrives after a query ended starts a new one, so no answer outlives the
+//! request that it answered.
 //!
 //! The server's stop cancels the queries in progress, so a query never
 //! holds up the stop.
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crumbkit::Failure;
@@ -20,19 +22,20 @@ use crumbkit_process::Cancel;
 use super::document;
 use super::reply::Reply;
 use crate::lock::lock;
-use crate::workspaces::{self, Mxv, WorkspaceName, WorkspacesError};
+use crate::workspaces::{self, Mxv, NameError, WorkspaceName, WorkspacesError};
 
 #[cfg(unix)]
 #[cfg(test)]
 mod tests;
 
-/// The workspaces routes' mxv, their stop, and the query of each route.
+/// The workspaces routes' mxv, their stop, the list's query, and the show
+/// query of each name that one runs or waits for.
 #[derive(Debug)]
 pub(super) struct Workspaces {
     mxv: Mxv,
     stop: Cancel,
     list: Flight<()>,
-    show: Flight<WorkspaceName>,
+    show: Mutex<HashMap<WorkspaceName, Arc<Flight<()>>>>,
 }
 
 /// The status and body of a workspaces route's reply, which requests that
@@ -50,7 +53,7 @@ impl Workspaces {
             mxv,
             stop: Cancel::new(),
             list: Flight::default(),
-            show: Flight::default(),
+            show: Mutex::new(HashMap::new()),
         }
     }
 
@@ -62,16 +65,25 @@ impl Workspaces {
         reply(&answered)
     }
 
-    /// Answers `GET /api/workspaces/<name>`, with `name` as the page sent
-    /// it. A name that flightdeck refuses gets 422 and starts no query.
-    pub(super) fn show(&self, name: &str) -> Reply {
-        let name = match WorkspaceName::new(name) {
+    /// Answers `GET /api/workspaces/<name>`, with `escaped` as the page
+    /// sent it, percent-encoded. A name that does not decode, or that
+    /// flightdeck refuses, gets 422 and starts no query.
+    pub(super) fn show(&self, escaped: &str) -> Reply {
+        let name = match decoded(escaped).and_then(|text| WorkspaceName::new(&text)) {
             Ok(name) => name,
             Err(reason) => return reply(&answer(Err(WorkspacesError::Name { reason }))),
         };
-        let answered = self.show.get(name.clone(), || {
+        let flight = Arc::clone(lock(&self.show).entry(name.clone()).or_default());
+        let answered = flight.get((), || {
             answer(workspaces::show(&self.mxv, &name, &self.stop).map(|shown| shown.to_json()))
         });
+        // The map holds a name's flight only while a request runs or waits
+        // on it, so names asked once do not pile up.
+        let mut flights = lock(&self.show);
+        if Arc::strong_count(&flight) == 2 {
+            flights.remove(&name);
+        }
+        drop(flights);
         reply(&answered)
     }
 
@@ -80,6 +92,26 @@ impl Workspaces {
     pub(super) fn stop(&self) {
         self.stop.cancel();
     }
+}
+
+/// Returns `escaped` with each `%XX` replaced by its byte, or
+/// [`NameError::Escape`] when an escape is cut short or the bytes are not
+/// UTF-8.
+fn decoded(escaped: &str) -> Result<String, NameError> {
+    let mut bytes = Vec::with_capacity(escaped.len());
+    let mut rest = escaped.as_bytes();
+    while let Some((&byte, after)) = rest.split_first() {
+        if byte == b'%' {
+            let hex = after.get(..2).ok_or(NameError::Escape)?;
+            let text = std::str::from_utf8(hex).map_err(|_| NameError::Escape)?;
+            bytes.push(u8::from_str_radix(text, 16).map_err(|_| NameError::Escape)?);
+            rest = after.get(2..).unwrap_or_default();
+        } else {
+            bytes.push(byte);
+            rest = after;
+        }
+    }
+    String::from_utf8(bytes).map_err(|_| NameError::Escape)
 }
 
 /// Returns the status and body of a query's result.

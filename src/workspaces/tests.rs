@@ -107,9 +107,23 @@ fn a_missing_mxv_is_reported_as_missing() {
     let error = list(&Mxv::new(Program::new("/no/such/mxv")), &Cancel::new()).unwrap_err();
 
     assert!(
-        matches!(error, WorkspacesError::MxvMissing { .. }),
+        matches!(&error, WorkspacesError::MxvMissing { program } if program == "mxv"),
         "{error:?}"
     );
+    assert_eq!(
+        error.to_string(),
+        "cannot start mxv: install mxv, or set FLIGHTDECK_MXV to its path"
+    );
+}
+
+#[test]
+fn show_leaves_out_a_route_that_the_proxy_does_not_serve_even_when_it_names_a_unit() {
+    let name = WorkspaceName::new("reading-list").unwrap();
+
+    let shown = show(&Mxv::new(Program::new(fake_mxv())), &name, &Cancel::new()).unwrap();
+
+    let api = shown.units.iter().find(|unit| unit.name == "api").unwrap();
+    assert!(api.routes.is_empty(), "{:?}", api.routes);
 }
 
 #[test]

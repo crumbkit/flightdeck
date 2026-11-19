@@ -31,14 +31,11 @@
 //!   or the stop cancels it, and only then reaps it. A query only reads, so
 //!   a stopped child leaves no partial work.
 
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use crumbkit_process::{Cancel, Capture, Outcome, OverLimit, RunOptions};
 
-use super::{Exit, Finished, Program, STDERR_LIMIT, SpawnError, Stdout};
-use crate::lock::lock;
+use super::{Exit, Finished, Program, STDERR_LIMIT, SpawnError, Stdout, at_most};
 use crate::workspaces::WorkspaceName;
 
 #[cfg(unix)]
@@ -150,31 +147,13 @@ pub(crate) fn run_all(
     stop: &Cancel,
 ) -> Vec<Result<Finished, SpawnError>> {
     let program = program.marked("mxv");
-    let results: Mutex<Vec<Result<Finished, SpawnError>>> =
-        Mutex::new(queries.iter().map(|_| Ok(not_run())).collect());
-    let next = AtomicUsize::new(0);
-    std::thread::scope(|scope| {
-        for _ in 0..MXV_AT_ONCE.min(queries.len()) {
-            scope.spawn(|| {
-                loop {
-                    let index = next.fetch_add(1, Ordering::Relaxed);
-                    let Some(query) = queries.get(index) else {
-                        return;
-                    };
-                    if stop.is_cancelled() {
-                        return;
-                    }
-                    let result = run_one(&program, query, budget, stop);
-                    if let Some(slot) = lock(&results).get_mut(index) {
-                        *slot = result;
-                    }
-                }
-            });
-        }
-    });
-    results
-        .into_inner()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
+    at_most(
+        MXV_AT_ONCE,
+        queries,
+        || Ok(not_run()),
+        || !stop.is_cancelled(),
+        |query| run_one(&program, query, budget, stop),
+    )
 }
 
 /// Runs `query` until the deadline of `budget` or `stop`, keeping at most

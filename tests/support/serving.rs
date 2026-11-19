@@ -99,6 +99,7 @@ pub(crate) fn unruly() -> PathBuf {
 pub(crate) struct Setup {
     tool: Option<PathBuf>,
     mxv: Vec<(String, OsString)>,
+    mxv_program: Option<PathBuf>,
     program: Option<PathBuf>,
     env: Vec<(String, OsString)>,
     mode: Mode,
@@ -114,6 +115,7 @@ impl Setup {
         Self {
             tool: Some(tool),
             mxv: Vec::new(),
+            mxv_program: None,
             program: None,
             env: Vec::new(),
             mode: Mode::Full,
@@ -140,6 +142,12 @@ impl Setup {
     /// Gives the fake mxv the variable `name` with `value`.
     pub(crate) fn mxv_env(mut self, name: &str, value: impl Into<OsString>) -> Self {
         self.mxv.push((name.to_owned(), value.into()));
+        self
+    }
+
+    /// Asks the mxv at `path` for the workspaces in place of the fake mxv.
+    pub(crate) fn mxv_program(mut self, path: PathBuf) -> Self {
+        self.mxv_program = Some(path);
         self
     }
 
@@ -255,7 +263,7 @@ pub(crate) fn serving(setup: Setup, test: impl FnOnce(&Running<'_>) -> Then) -> 
         }
         None => Server::without_tool(listener, session, setup.server).unwrap(),
     };
-    let mut mxv = Program::new(fake_mxv());
+    let mut mxv = Program::new(setup.mxv_program.clone().unwrap_or_else(fake_mxv));
     for (name, value) in &setup.mxv {
         mxv = mxv.env(name, value);
     }

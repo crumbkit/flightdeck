@@ -57,35 +57,42 @@ function Units({ workspace }: { workspace: WorkspaceShow }) {
     );
   }
   return (
-    <table aria-label="Units" className="w-full border-collapse">
+    <table aria-label="Units" className="deck-units">
+      <colgroup>
+        <col />
+        <col />
+        <col />
+        <col />
+      </colgroup>
       <thead>
-        <tr className="text-muted-foreground border-b text-left text-xs">
-          <th className="py-1.5 pr-2 font-medium">Unit</th>
-          <th className="py-1.5 pr-2 font-medium">State</th>
-          <th className="py-1.5 pr-2 font-medium">Port</th>
-          <th className="py-1.5 font-medium">Open</th>
+        <tr className="text-muted-foreground text-xs">
+          <th>Unit</th>
+          <th>State</th>
+          <th>Port</th>
+          <th>Open</th>
         </tr>
       </thead>
       <tbody>
         {workspace.units.map((unit) => (
-          <tr key={unit.name} className="border-b align-top last:border-b-0">
-            <td className="py-2 pr-2 font-mono">{unit.name}</td>
-            <td className="py-2 pr-2">
+          <tr key={unit.name}>
+            <td className="font-mono">{unit.name}</td>
+            <td>
               <span className="inline-flex items-center gap-1.5">
                 <Dot tone={unitTone(unit)} />
                 {unitWord(unit)}
               </span>
             </td>
-            <td className="py-2 pr-2 font-mono wrap-anywhere">
+            <td className="font-mono wrap-anywhere">
               {unit.ports.map((port) => (
                 <div key={port}>{port}</div>
               ))}
             </td>
-            <td className="py-2">
-              {unit.routes.map((url) => (
-                <a key={url} href={url} className="text-primary block underline underline-offset-2">
-                  route
-                </a>
+            <td>
+              {unit.routes.map((url, index) => (
+                <span key={url}>
+                  {index > 0 && " · "}
+                  <a href={url}>route</a>
+                </span>
               ))}
             </td>
           </tr>
@@ -119,11 +126,10 @@ export function Workspace({ name, onSignedOut }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <nav aria-label="Breadcrumb" className="text-muted-foreground">
-          <a href={list} className="text-primary underline underline-offset-2">
-            local
-          </a>{" "}
-          / <span className="font-mono">{name}</span>
+        <nav aria-label="Breadcrumb" className="deck-crumbs text-muted-foreground">
+          <a href={list}>local</a>
+          <span aria-hidden="true">/</span>
+          <span className="font-mono">{name}</span>
         </nav>
         <h1 className="m-0 font-mono text-xl font-semibold wrap-anywhere">{name}</h1>
       </div>
@@ -133,7 +139,7 @@ export function Workspace({ name, onSignedOut }: Props) {
         </p>
       )}
       {isNotFound(shown.error) && (
-        <div className="bg-card flex max-w-xl flex-col items-start gap-2 rounded-lg border px-4 py-4">
+        <div className="deck-card max-w-xl items-start">
           <p className="m-0">No workspace is named {name}.</p>
           <a href={list} className="text-primary underline underline-offset-2">
             Back to the workspaces
@@ -144,20 +150,14 @@ export function Workspace({ name, onSignedOut }: Props) {
         <Failure error={shown.error} onRetry={() => void shown.refetch()} />
       )}
       {shown.data !== undefined && (
-        <div className="grid items-start gap-4 sm:grid-cols-2">
-          <section
-            aria-label="Checkouts"
-            className="bg-card flex flex-col gap-3 rounded-lg border px-4 py-4"
-          >
+        <div className="deck-cols">
+          <section aria-label="Checkouts" className="deck-card">
             <Label>Checkouts · from mxv status</Label>
             {shown.data.checkouts.map((checkout) => (
               <Checkout key={checkout.folder} checkout={checkout} />
             ))}
           </section>
-          <section
-            aria-label="Units"
-            className="bg-card flex flex-col gap-3 rounded-lg border px-4 py-4"
-          >
+          <section aria-label="Units" className="deck-card">
             <Label>Units · from mxv status</Label>
             <Units workspace={shown.data} />
             <RoutesNote routes={shown.data.routes} then="The table shows no route link." />

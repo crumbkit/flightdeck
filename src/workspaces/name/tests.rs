@@ -32,6 +32,14 @@ fn a_name_with_a_slash_is_refused_because_a_workspace_is_one_directory() {
 }
 
 #[test]
+fn a_name_of_only_one_or_two_dots_is_refused_because_it_names_a_directory_or_its_parent() {
+    assert_eq!(WorkspaceName::new("."), Err(NameError::Dots));
+    assert_eq!(WorkspaceName::new(".."), Err(NameError::Dots));
+    assert!(WorkspaceName::new("...").is_ok());
+    assert!(WorkspaceName::new(".scratch").is_ok());
+}
+
+#[test]
 fn the_name_parses_from_text_as_the_command_line_reads_it() {
     let name: WorkspaceName = "notes-scratch".parse().unwrap();
 

@@ -1247,6 +1247,32 @@ fn a_failed_mxv_list_gets_502_with_mxvs_code() {
 
 #[cfg(unix)]
 #[test]
+fn an_mxv_that_will_not_start_gets_500_naming_flightdeck_mxv_and_no_directory() {
+    serving(
+        Setup::without_tool().mxv_program(std::path::PathBuf::from("/no/such/dir/mxv")),
+        |running| {
+            let token = running.token();
+
+            let reply = get(running, "/api/workspaces", &token);
+
+            assert_eq!(reply.status, 500);
+            assert_eq!(reply.code(), "flightdeck::workspaces::mxv_missing");
+            assert_eq!(
+                reply.json()["message"],
+                "cannot start mxv: install mxv, or set FLIGHTDECK_MXV to its path"
+            );
+            assert!(
+                !reply.json().to_string().contains("/no/such"),
+                "{}",
+                reply.json()
+            );
+            Then::Stop
+        },
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn without_a_tool_the_deck_says_so_and_every_tool_route_answers_404() {
     serving(Setup::without_tool(), |running| {
         let token = running.token();

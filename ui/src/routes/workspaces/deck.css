@@ -1,0 +1,199 @@
+/* The layout of the workspaces pages, in the measures of their mockups.
+   It loads with the pages' own file, so it adds nothing to the first load.
+   Colours come from the roles in index.css. */
+
+.deck {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.deck-rail {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 22px;
+  padding: 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.deck-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 28px 32px;
+}
+
+.deck-main-workspace {
+  padding: 24px 32px;
+}
+
+@media (min-width: 48rem) {
+  .deck {
+    flex-direction: row;
+  }
+
+  .deck-rail {
+    width: 216px;
+    border-bottom: 0;
+    border-right: 1px solid var(--border);
+  }
+}
+
+/* The Workspaces page: the header, then the cards 20px below it. */
+.deck-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.deck-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.deck-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--pill);
+  padding: 2px 8px;
+  background: var(--card);
+  white-space: nowrap;
+}
+
+/* The running count in green, which the mockup draws darker than the
+   read-only role, with the fill as its border. */
+.deck-chip-on {
+  color: light-dark(oklch(32% 0.1 150), var(--read-only));
+  background: var(--read-only-soft);
+  border-color: var(--read-only-soft);
+}
+
+.deck-grid {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 40rem) {
+  .deck-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 80rem) {
+  .deck-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.deck-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--foreground);
+}
+
+a.deck-card:hover {
+  border-color: var(--primary);
+}
+
+.deck-kv {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  row-gap: 6px;
+  margin: 0;
+}
+
+.deck-kv dd {
+  margin: 0;
+}
+
+.deck-dots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.deck-foot {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+/* The One workspace page. */
+.deck-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+}
+
+.deck-crumbs a,
+.deck-units a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.deck-crumbs a:hover,
+.deck-units a:hover {
+  color: var(--primary-hover);
+}
+
+.deck-cols {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 40rem) {
+  .deck-cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.deck-cols > .deck-card {
+  gap: 10px;
+}
+
+.deck-units {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.deck-units th {
+  padding: 4px 8px 6px 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-weight: 500;
+}
+
+.deck-units td {
+  padding: 7px 8px 7px 0;
+  border-bottom: 1px solid light-dark(oklch(92% 0.006 240), oklch(23% 0.01 240));
+  vertical-align: top;
+}
+
+.deck-units tr:last-child td {
+  border-bottom: 0;
+}
+
+/* The mockup's columns: Unit 149, State 110, Port 83 and Open 156 of 498. */
+.deck-units col:nth-child(1) {
+  width: 30%;
+}
+
+.deck-units col:nth-child(2) {
+  width: 22%;
+}
+
+.deck-units col:nth-child(3) {
+  width: 17%;
+}

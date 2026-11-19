@@ -7,9 +7,9 @@ use std::str::FromStr;
 #[cfg(test)]
 mod tests;
 
-/// The name of an mxv workspace. It is not empty, does not start with `-`,
-/// and holds no control character and no `/`, so it reaches mxv as one
-/// value of `--workspace` and names one directory.
+/// The name of an mxv workspace. It is not empty, is not `.` or `..`, does
+/// not start with `-`, and holds no control character and no `/`, so it
+/// reaches mxv as one value of `--workspace` and names one directory.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct WorkspaceName(String);
 
@@ -24,6 +24,10 @@ pub enum NameError {
     Control,
     /// The name holds a `/`, and a workspace is one directory.
     Slash,
+    /// The name is `.` or `..`, which name a directory and its parent.
+    Dots,
+    /// The name in a page's address has a broken `%` escape or is not UTF-8.
+    Escape,
 }
 
 impl WorkspaceName {
@@ -44,6 +48,9 @@ impl WorkspaceName {
         }
         if text.contains('/') {
             return Err(NameError::Slash);
+        }
+        if text == "." || text == ".." {
+            return Err(NameError::Dots);
         }
         Ok(Self(text.to_owned()))
     }
@@ -78,6 +85,8 @@ impl NameError {
             Self::Dash => "dash",
             Self::Control => "control",
             Self::Slash => "slash",
+            Self::Dots => "dots",
+            Self::Escape => "escape",
         }
     }
 }
@@ -89,6 +98,8 @@ impl fmt::Display for NameError {
             Self::Dash => "a workspace name cannot start with -",
             Self::Control => "a workspace name cannot hold a control character",
             Self::Slash => "a workspace name cannot hold a /",
+            Self::Dots => "a workspace name cannot be . or ..",
+            Self::Escape => "a workspace name in an address must be percent-encoded UTF-8",
         })
     }
 }

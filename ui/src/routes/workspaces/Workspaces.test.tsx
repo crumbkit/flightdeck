@@ -44,6 +44,14 @@ describe("Workspaces", () => {
     expect(screen.getByText("1 stopped")).toBeVisible();
   });
 
+  it("draws the running count green only when a workspace runs", async () => {
+    const idle = { ...workspacesList, summary: { ...workspacesList.summary, running: 0 } };
+    stubWorkspaces(Response.json(idle));
+    renderList();
+
+    expect(await screen.findByText("0 running")).not.toHaveClass("deck-chip-on");
+  });
+
   it("draws one card per workspace that links to its page", async () => {
     stubWorkspaces(Response.json(workspacesList));
     renderList();
@@ -83,7 +91,7 @@ describe("Workspaces", () => {
 
     const broken = within(await card("broken-status"));
     expect(broken.getByText("units unknown · mxv::manifest::invalid")).toBeVisible();
-    expect(broken.getByText("Pinned: unknown")).toBeVisible();
+    expect(broken.queryByText(/Pinned/)).toBeNull();
   });
 
   it("says why no card shows a route when this mxv has no proxy status", async () => {
@@ -115,6 +123,25 @@ describe("Workspaces", () => {
 
     expect(await screen.findByText("mxv lists no workspace.")).toBeVisible();
     expect(screen.getByText("mxv new <name> --repo <path>")).toBeVisible();
+  });
+
+  it("names FLIGHTDECK_MXV on the failure card when flightdeck cannot start mxv", async () => {
+    stubWorkspaces(
+      Response.json(
+        {
+          schema: "flightdeck/failure/v1",
+          code: "flightdeck::workspaces::mxv_missing",
+          message: "cannot start mxv: install mxv, or set FLIGHTDECK_MXV to its path",
+          hint: "install mxv, or set FLIGHTDECK_MXV to its path",
+        },
+        { status: 500 },
+      ),
+    );
+    renderList();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "cannot start mxv: install mxv, or set FLIGHTDECK_MXV to its path",
+    );
   });
 
   it("draws a failure card with Try again when mxv list fails, and asks again on Try again", async () => {

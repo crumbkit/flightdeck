@@ -111,11 +111,20 @@ impl Mxv {
         self
     }
 
-    /// Returns the name of the program, for a failure that names it.
+    /// Returns the file name of the program, for a failure that names it.
+    /// A path that `FLIGHTDECK_MXV` gives stays out of the failure, so a
+    /// reply never holds a directory of the person's machine.
     fn shown(&self) -> String {
         self.program.as_ref().map_or_else(
             || MXV.to_owned(),
-            |program| program.name().to_string_lossy().into_owned(),
+            |program| {
+                let name = program.name();
+                Path::new(name)
+                    .file_name()
+                    .unwrap_or(name)
+                    .to_string_lossy()
+                    .into_owned()
+            },
         )
     }
 
@@ -189,7 +198,10 @@ pub enum WorkspacesError {
 impl fmt::Display for WorkspacesError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::MxvMissing { program } => write!(f, "cannot start mxv at {program}"),
+            Self::MxvMissing { program } => write!(
+                f,
+                "cannot start {program}: install mxv, or set FLIGHTDECK_MXV to its path"
+            ),
             Self::MxvFailed {
                 command, message, ..
             } => write!(f, "mxv {command} failed: {message}"),
@@ -575,7 +587,7 @@ pub fn show(
     let (routes, proxy) = routes_of(answers.next());
     let mine: Vec<&wire::Route> = proxy
         .iter()
-        .filter(|route| route.workspace == name.as_str())
+        .filter(|route| route.workspace == name.as_str() && route.url != wire::NOT_SERVED)
         .collect();
     let units = status
         .data

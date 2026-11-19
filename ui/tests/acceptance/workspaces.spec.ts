@@ -61,6 +61,9 @@ test.describe("flightdeck without a tool", () => {
 
     await page.goBack();
     await expect(page.getByRole("heading", { level: 1, name: "reading-list" })).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1, name: "reading-list" })).toBeVisible();
   });
 });
 

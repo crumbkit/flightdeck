@@ -77,16 +77,11 @@ describe("dotsOf", () => {
 
 describe("addressesOf", () => {
   it("gives the proxy's routes by host name, linked to their URL", () => {
-    expect(addressesOf(row)).toEqual([
-      { text: "web.reading-list.mxv.localhost", href: "https://web.reading-list.mxv.localhost" },
-    ]);
+    expect(addressesOf(row)).toEqual(["web.reading-list.mxv.localhost"]);
   });
 
   it("falls back to each host port on 127.0.0.1 in name order when the workspace has no route", () => {
-    expect(addressesOf({ ...row, routes: [] })).toEqual([
-      { text: "127.0.0.1:41002", href: null },
-      { text: "127.0.0.1:41001", href: null },
-    ]);
+    expect(addressesOf({ ...row, routes: [] })).toEqual(["127.0.0.1:41002", "127.0.0.1:41001"]);
   });
 
   it("gives nothing for a workspace with neither", () => {
