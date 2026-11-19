@@ -23,6 +23,7 @@ TOOL is the name of a program on PATH, such as `shelf`, or a path to one,
 such as `./target/debug/shelf`. flightdeck runs the tool's `--version`,
 `commands list`, `schemas list` and `schemas show` to load it, so the tool
 must be built on crumbkit.
+Without TOOL, the page shows this machine's mxv workspaces.
 
 ## Start it where the person can see it
 
@@ -71,8 +72,7 @@ tool's other commands change things that matter.
 A command that the tool declares destructive, or one that declares no
 effects, has Preview in place of Run. For a command that takes `--dry-run`,
 Preview runs the dry run and shows what it would change. For a command
-without `--dry-run`, Preview runs nothing and shows nothing of what the
-command would do. It only asks for the confirmation. The person then
+without `--dry-run`, Preview only asks for the confirmation. The person then
 confirms in the same card, and the command runs once. A confirmation lasts 10 minutes, and a change to the
 form after the preview disables it. flightdeck itself refuses such a run
 without a confirmation, so nothing on the page skips this step.

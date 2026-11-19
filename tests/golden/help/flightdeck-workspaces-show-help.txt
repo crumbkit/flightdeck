@@ -1,0 +1,23 @@
+Show one local mxv workspace with its checkouts and units
+
+Usage: flightdeck workspaces show [OPTIONS] <NAME>
+
+Arguments:
+  <NAME>
+          The workspace's name, as `flightdeck workspaces list` prints it
+
+Options:
+      --json
+          Print the result as a JSON document. The default prints text.
+
+      --no-input
+          Fail instead of asking a question
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Examples:
+  flightdeck workspaces show reading-list --json
+          Print the document that the page of the workspace reading-list draws
+
+Effects: read-only, closed-world.

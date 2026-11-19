@@ -21,6 +21,10 @@ pub(crate) struct Environment {
     /// picks one.
     #[starmap("FLIGHTDECK_PORT")]
     port: Option<starmap::Port>,
+    /// The mxv program that the workspaces queries run, or `None` when
+    /// flightdeck runs `mxv` from `PATH`.
+    #[starmap("FLIGHTDECK_MXV")]
+    mxv: Option<OsString>,
 }
 
 impl Environment {
@@ -33,5 +37,11 @@ impl Environment {
     /// absent.
     pub(crate) fn port(&self) -> Option<u16> {
         self.port.map(starmap::Port::get)
+    }
+
+    /// Returns the mxv program that `FLIGHTDECK_MXV` names, or `None` when
+    /// it is absent.
+    pub(crate) fn mxv(&self) -> Option<&OsStr> {
+        self.mxv.as_deref()
     }
 }

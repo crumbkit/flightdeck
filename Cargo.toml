@@ -56,6 +56,10 @@ starmap = { version = "0.4.2", default-features = false, features = ["derive"] }
 # crumbkit-starmap gives `flightdeck self environment list`, which prints
 # those variables and the ones that crumbkit reads in every tool.
 crumbkit-starmap = { version = "0.4.2", default-features = false }
+# schemars describes the workspaces documents that flightdeck prints, which
+# `flightdeck schemas show` publishes. crumbkit builds against the same major
+# version.
+schemars = { version = "1.2.3", default-features = false, features = ["derive", "std"] }
 # serde reads the JSON documents that a crumbkit tool prints into the model's
 # own types.
 serde = { version = "1.0.229", default-features = false, features = ["std", "derive"] }

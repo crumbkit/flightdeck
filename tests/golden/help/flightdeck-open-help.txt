@@ -1,10 +1,10 @@
-Open a local web page that lists and runs a tool's commands
+Open a local web page of the mxv workspaces and a tool's commands
 
-Usage: flightdeck open [OPTIONS] <TOOL>
+Usage: flightdeck open [OPTIONS] [TOOL]
 
 Arguments:
-  <TOOL>
-          The crumbkit tool, by a name on PATH or a path
+  [TOOL]
+          The crumbkit tool, by a name on PATH or a path; without one, the page shows the workspaces
 
 Options:
       --read-only
@@ -23,6 +23,9 @@ Options:
           Print help (see a summary with '-h')
 
 Examples:
+  flightdeck open
+          Open the Workspaces page in the browser
+
   flightdeck open shelf
           Open the page for shelf in the browser
 

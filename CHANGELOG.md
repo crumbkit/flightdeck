@@ -41,7 +41,28 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `flightdeck self environment list` prints the environment variables that
   flightdeck reads, as its `starmap.toml` declares them, and the ones that
   crumbkit reads in every tool. `flightdeck open flightdeck` therefore has
-  an Environment view. The one variable flightdeck reads itself is `PATH`.
+  an Environment view. The variables flightdeck reads itself are `PATH`,
+  `FLIGHTDECK_PORT` and `FLIGHTDECK_MXV`.
+- `flightdeck open` without a tool serves a page of the mxv workspaces on
+  this machine. Each workspace's card gives its branch, its checkouts,
+  how many of its units run, its routes, or its host ports when this mxv
+  has no `proxy status`, and whether it is pinned. A card opens the
+  workspace's page, which gives each checkout's branch, commit and
+  uncommitted changes, and each unit's state, ports and route links. The
+  pages ask mxv again every 10 seconds for the list and every 5 seconds
+  for one workspace. With a tool, the top bar's Workspaces button opens
+  the same pages, and the rail's Commands link comes back to the tool.
+- `flightdeck workspaces list` and `flightdeck workspaces show NAME` print
+  what the pages show, from `mxv list`, `mxv status` and
+  `mxv proxy status`. `GET /api/workspaces` and
+  `GET /api/workspaces/<name>` send the same documents, and
+  `GET /api/deck` says whether the server holds a tool. flightdeck runs
+  `mxv`, or the program that `FLIGHTDECK_MXV` names, and fails with
+  `flightdeck::workspaces::mxv_missing` when it cannot start it,
+  `flightdeck::workspaces::mxv_failed` with mxv's own code when a query
+  fails, and `flightdeck::workspaces::not_found` for a name that mxv does
+  not know. A workspace whose `mxv status` fails keeps its card, which says
+  that its units are unknown and gives mxv's code.
 
 ### Changed
 

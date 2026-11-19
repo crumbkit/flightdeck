@@ -52,3 +52,19 @@ fn the_lowest_and_highest_ports_are_ports() {
         assert_eq!(environment.port(), Some(port));
     }
 }
+
+#[test]
+fn a_set_mxv_is_its_program_and_an_absent_one_is_none() {
+    let set = Environment::from_vars([(
+        OsString::from("FLIGHTDECK_MXV"),
+        OsString::from("/opt/mxv/bin/mxv"),
+    )])
+    .unwrap();
+    let absent = Environment::from_vars([]).unwrap();
+
+    assert_eq!(
+        set.mxv(),
+        Some(OsString::from("/opt/mxv/bin/mxv").as_os_str())
+    );
+    assert_eq!(absent.mxv(), None);
+}

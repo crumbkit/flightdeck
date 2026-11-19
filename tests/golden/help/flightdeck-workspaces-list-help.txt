@@ -1,0 +1,42 @@
+List the local mxv workspaces with their units, routes and ports
+
+Usage: flightdeck workspaces list [OPTIONS]
+
+Options:
+      --json
+          Print the result as a JSON document. The default prints text.
+
+      --fields <FIELD>
+          Print only these comma-separated fields, in this order. The default prints the compact columns.
+
+      --long
+          Add the long columns after the compact ones. The default prints only the compact columns.
+
+      --full
+          With --json, print every field of every row. The default prints only the fields of the columns.
+
+      --no-input
+          Fail instead of asking a question
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Examples:
+  flightdeck workspaces list
+          List the local mxv workspaces
+
+  flightdeck workspaces list --json --full
+          Print the document that the Workspaces page draws
+
+Columns:
+  name      The workspace's name.
+  branch    The branch that the workspace's checkouts were created on, or null when mxv cannot read the workspace's record.
+  running   The number of units that are running, or null when `mxv status` failed.
+  declared  The number of units that the workspace's manifest declares, or null when `mxv status` failed.
+  pinned    Whether `mxv reclaim` leaves the workspace running, or null when `mxv status` failed.
+
+Columns that --long adds:
+  checkouts  The folder of each checkout, which is its repository's name.
+  problem    Why mxv cannot read the workspace's record, or null when it can.
+
+Effects: read-only, closed-world.

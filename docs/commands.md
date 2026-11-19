@@ -8,7 +8,8 @@ Start a local web page for a crumbkit tool
 
 ### Commands
 
-- [`flightdeck open`](#flightdeck-open): Open a local web page that lists and runs a tool's commands
+- [`flightdeck open`](#flightdeck-open): Open a local web page of the mxv workspaces and a tool's commands
+- [`flightdeck workspaces`](#flightdeck-workspaces): Read the local mxv workspaces
 - [`flightdeck commands`](#flightdeck-commands): Explore flightdeck's commands
 - [`flightdeck skills`](#flightdeck-skills): Give coding agents flightdeck's skill
 - [`flightdeck completion`](#flightdeck-completion): Set up flightdeck's completion in a shell
@@ -25,15 +26,21 @@ Start a local web page for a crumbkit tool
 
 ## `flightdeck open`
 
-Open a local web page that lists and runs a tool's commands
+Open a local web page of the mxv workspaces and a tool's commands
 
 ### Arguments
 
-- `<TOOL>`: The crumbkit tool, by a name on PATH or a path. Required.
+- `<TOOL>`: The crumbkit tool, by a name on PATH or a path; without one, the page shows the workspaces
 - `--read-only`: Run only the tool's read-only commands from the page
 - `--no-browser`: Print the path of the page to open instead of opening the browser
 
 ### Examples
+
+Open the Workspaces page in the browser.
+
+```sh
+flightdeck open
+```
 
 Open the page for shelf in the browser.
 
@@ -53,6 +60,66 @@ Effects: read-only, open-world.
 
 - `130`: A second Ctrl-C while flightdeck stopped ended it at once and left the opener page behind.
 - `143`: A second SIGTERM while flightdeck stopped ended it at once and left the opener page behind.
+
+## `flightdeck workspaces`
+
+Read the local mxv workspaces
+
+### Commands
+
+- [`flightdeck workspaces list`](#flightdeck-workspaces-list): List the local mxv workspaces with their units, routes and ports
+- [`flightdeck workspaces show`](#flightdeck-workspaces-show): Show one local mxv workspace with its checkouts and units
+
+## `flightdeck workspaces list`
+
+List the local mxv workspaces with their units, routes and ports
+
+### Examples
+
+List the local mxv workspaces.
+
+```sh
+flightdeck workspaces list
+```
+
+Print the document that the Workspaces page draws.
+
+```sh
+flightdeck workspaces list --json --full
+```
+
+### Columns
+
+- `name`: The workspace's name.
+- `branch`: The branch that the workspace's checkouts were created on, or null when mxv cannot read the workspace's record.
+- `running`: The number of units that are running, or null when `mxv status` failed.
+- `declared`: The number of units that the workspace's manifest declares, or null when `mxv status` failed.
+- `pinned`: Whether `mxv reclaim` leaves the workspace running, or null when `mxv status` failed.
+
+### Columns that `--long` adds
+
+- `checkouts`: The folder of each checkout, which is its repository's name.
+- `problem`: Why mxv cannot read the workspace's record, or null when it can.
+
+Effects: read-only, closed-world.
+
+## `flightdeck workspaces show`
+
+Show one local mxv workspace with its checkouts and units
+
+### Arguments
+
+- `<NAME>`: The workspace's name, as `flightdeck workspaces list` prints it. Required.
+
+### Examples
+
+Print the document that the page of the workspace reading-list draws.
+
+```sh
+flightdeck workspaces show reading-list --json
+```
+
+Effects: read-only, closed-world.
 
 ## `flightdeck commands`
 

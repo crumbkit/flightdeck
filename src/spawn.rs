@@ -3,11 +3,13 @@
 //! This module and its children are the only places that start a process
 //! (PROC-1). Every thread of flightdeck starts here, where the owner of each
 //! run joins it, or in a `std::thread::scope` that joins it, as the
-//! server's do (SVC-1). The module has four operations. [`open_browser`]
+//! server's do (SVC-1). The module has five operations. [`open_browser`]
 //! opens the opener page in the default browser, and its module states its
 //! five items of PROC-2. `stream` runs one command that the runner checked
-//! against the tool's model, and its module states its own five items of
-//! PROC-2. `describe` runs one of the fixed queries that read a tool's
+//! against the tool's model, and `mxv` runs the read-only queries of mxv
+//! that the workspaces pages read; each module states its own five items of
+//! PROC-2. `measure_help` measures a tool's help pages, as its module says.
+//! `describe` runs one of the fixed queries that read a tool's
 //! description of itself. Each query of `describe` states these five items
 //! of PROC-2:
 //!
@@ -57,6 +59,7 @@ use crumbkit_process::{Capture, Outcome, OverLimit, RunError, RunOptions, Status
 
 mod browser;
 mod help;
+mod mxv;
 mod state;
 mod stream;
 
@@ -66,6 +69,8 @@ mod tests;
 pub use self::browser::{BROWSER_TIME_LIMIT, open_browser};
 pub(crate) use self::help::measure_help;
 pub use self::help::{AT_ONCE, HELP_LIMIT, HELP_TIME_LIMIT, HelpLimits, HelpPage, MEASURE_LIMIT};
+pub(crate) use self::mxv::run_all as run_mxv;
+pub use self::mxv::{Budget, MXV_AT_ONCE, MXV_STDOUT_LIMIT, MXV_TIME_LIMIT, MxvLimits, MxvQuery};
 pub(crate) use self::state::FreshState;
 pub use self::stream::{
     DRAIN_GRACE, Escalation, INTERRUPT_GRACE, LINE_LIMIT, Limit, Limits, QUEUE, TERMINATE_GRACE,

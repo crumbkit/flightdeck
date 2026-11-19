@@ -22,12 +22,25 @@ type Props = {
     environment: boolean;
     onView: (view: PageView) => void;
   } | null;
+  /** Opens the workspaces pages, or null when the bar offers no way there. */
+  onWorkspaces?: (() => void) | null;
   /** What follows the tool's name, such as the directory control. */
   children?: ReactNode;
 };
 
-/** The bar across the top: the tool, the view links, the ⌘K search and the theme control. */
-export function Topbar({ name, version, readOnly, onFind, views = null, children }: Props) {
+/**
+ * The bar across the top: the tool, the view links, the way to the
+ * workspaces, the ⌘K search and the theme control.
+ */
+export function Topbar({
+  name,
+  version,
+  readOnly,
+  onFind,
+  views = null,
+  onWorkspaces = null,
+  children,
+}: Props) {
   return (
     <header className="bg-card flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2">
       <span className="font-semibold tracking-tight">flightdeck</span>
@@ -66,6 +79,11 @@ export function Topbar({ name, version, readOnly, onFind, views = null, children
               </ViewButton>
             )}
           </nav>
+        )}
+        {onWorkspaces !== null && (
+          <ViewButton on={false} onClick={onWorkspaces}>
+            Workspaces
+          </ViewButton>
         )}
         {onFind !== null && (
           <button

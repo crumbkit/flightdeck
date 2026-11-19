@@ -1,0 +1,59 @@
+#!/bin/sh
+# A fake mxv for the workspaces tests. It answers `list`, `status` and
+# `proxy status` with the documents beside it, as mxv prints them with
+# `--json --full`. Every name and path in them is invented.
+#
+# These variables change what it does:
+#
+# - FAKE_MXV_LOG names a file that each run appends its arguments to, one
+#   line per run.
+# - FAKE_MXV_PROXY=refuse answers `proxy status` as an mxv without the
+#   command does: a usage failure and exit code 2.
+# - FAKE_MXV_LIST=fail answers `list` with a failure document and exit
+#   code 1.
+# - FAKE_MXV_SLEEP=<seconds> waits that long before it answers.
+here=$(dirname "$0")
+
+if [ -n "${FAKE_MXV_LOG:-}" ]; then
+  echo "$*" >>"$FAKE_MXV_LOG"
+fi
+if [ -n "${FAKE_MXV_SLEEP:-}" ]; then
+  sleep "$FAKE_MXV_SLEEP"
+fi
+
+case "$1 $2" in
+"list --all")
+  if [ "${FAKE_MXV_LIST:-}" = fail ]; then
+    echo '{"schema":"mxv/failure/v1","code":"mxv::store::unreadable","message":"cannot read the workspace records","fields":{},"recovery":{"kind":"retry"}}'
+    exit 1
+  fi
+  cat "$here/list.json"
+  ;;
+"status --workspace="*)
+  name=${2#--workspace=}
+  case "$name" in
+  reading-list | shelf-import | notes-scratch)
+    cat "$here/status-$name.json"
+    ;;
+  broken-status)
+    echo '{"schema":"mxv/failure/v1","code":"mxv::manifest::invalid","message":"the manifest of broken-status names no unit kind","fields":{},"recovery":{"kind":"hint","text":"fix mxv.toml"}}'
+    exit 1
+    ;;
+  *)
+    echo "{\"schema\":\"mxv/failure/v1\",\"code\":\"mxv::workspace::not_found\",\"message\":\"no workspace is named $name\",\"fields\":{\"name\":\"$name\"},\"recovery\":{\"kind\":\"run\",\"call\":\"mxv list\"}}"
+    exit 1
+    ;;
+  esac
+  ;;
+"proxy status")
+  if [ "${FAKE_MXV_PROXY:-}" = refuse ]; then
+    echo '{"schema":"mxv/failure/v1","code":"mxv::cli::usage","message":"unrecognized subcommand '"'"'proxy'"'"'","fields":{"subcommand":"proxy"},"recovery":{"kind":"run","call":"mxv status -h"}}'
+    exit 2
+  fi
+  cat "$here/proxy-status.json"
+  ;;
+*)
+  echo "fake mxv: unexpected arguments: $*" >&2
+  exit 2
+  ;;
+esac

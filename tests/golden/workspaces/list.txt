@@ -1,0 +1,6 @@
+local: 1 running, 1 stopped
+NAME           BRANCH         RUNNING  DECLARED  PINNED
+broken-status  broken-status  -        -         -
+notes-scratch  notes-scratch  0        0         true
+reading-list   reading-list   2        3         false
+shelf-import   shelf-import   0        1         false

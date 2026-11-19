@@ -41,6 +41,7 @@ import {
 import { textOf } from "@/lib/line";
 import { cellLinkOf, filled } from "@/lib/links";
 import { OpenVariable } from "@/lib/openVariable";
+import { go, placeOf } from "@/lib/place";
 import { needsConfirmation, whyNotRunnable } from "@/lib/rail";
 import { withPageSize } from "@/lib/table";
 import { drawnKey, type Run, transcript } from "@/lib/transcript";
@@ -111,11 +112,15 @@ export function ToolPage({ reply, onSignedOut }: Props) {
     };
   }, []);
 
-  // ⌘K or Ctrl-K opens the palette from anywhere on the page.
+  // ⌘K or Ctrl-K opens the palette from anywhere on the page, and from the
+  // workspaces pages it comes back to the tool's page first.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
+        if (placeOf(window.location.hash).view !== "start") {
+          go({ view: "start" });
+        }
         setFinding(true);
       }
     };
@@ -448,6 +453,7 @@ export function ToolPage({ reply, onSignedOut }: Props) {
           version={tool.version}
           readOnly={reply.read_only}
           onFind={() => setFinding(true)}
+          onWorkspaces={() => go({ view: "workspaces" })}
           views={
             usage || tool.environment !== null
               ? {

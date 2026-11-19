@@ -3,9 +3,10 @@ Start a local web page for a crumbkit tool
 Usage: flightdeck [OPTIONS] <COMMAND>
 
 Verbs
-  open        Open a local web page that lists and runs a tool's commands
+  open        Open a local web page of the mxv workspaces and a tool's commands
 
 Commands
+  workspaces  Read the local mxv workspaces
   commands    Explore flightdeck's commands
   skills      Give coding agents flightdeck's skill
   completion  Set up flightdeck's completion in a shell

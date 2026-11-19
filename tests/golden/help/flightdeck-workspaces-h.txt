@@ -1,0 +1,13 @@
+Read the local mxv workspaces
+
+Usage: flightdeck workspaces [OPTIONS] <COMMAND>
+
+Commands:
+  list  List the local mxv workspaces with their units, routes and ports
+  show  Show one local mxv workspace with its checkouts and units
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Global flags: --json, --fields <FIELD>, --long, --full, --no-input. `flightdeck workspaces --help` describes them.
+Next: flightdeck workspaces <COMMAND> -h

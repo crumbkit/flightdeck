@@ -1126,3 +1126,186 @@ fn a_preview_without_a_directory_cannot_be_confirmed_with_one_and_the_reverse() 
         Then::Stop
     });
 }
+
+// The workspaces routes, `GET /api/deck`, `GET /api/workspaces` and
+// `GET /api/workspaces/<name>`, against the fake mxv in tests/fixtures/mxv.
+
+/// Sends `GET path` with `token`.
+fn get(running: &Running<'_>, path: &str, token: &str) -> Reply {
+    Call::get(running.port, path)
+        .bearer(token)
+        .send(running.port)
+}
+
+#[cfg(unix)]
+#[test]
+fn the_workspaces_routes_refuse_a_request_without_the_token() {
+    serving(Setup::without_tool(), |running| {
+        for path in [
+            "/api/deck",
+            "/api/workspaces",
+            "/api/workspaces/reading-list",
+        ] {
+            let reply = Call::get(running.port, path).send(running.port);
+
+            assert_eq!(reply.status, 401, "{path}");
+            assert_eq!(reply.code(), "flightdeck::session::unauthorized", "{path}");
+        }
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn the_workspaces_route_sends_the_document_that_workspaces_list_prints() {
+    serving(Setup::without_tool(), |running| {
+        let token = running.token();
+
+        let reply = get(running, "/api/workspaces", &token);
+
+        assert_eq!(reply.status, 200);
+        let golden = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/golden/workspaces/list.json"),
+        )
+        .unwrap();
+        let expected: Value = serde_json::from_slice(&golden).unwrap();
+        assert_eq!(reply.json(), expected);
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn the_workspace_route_sends_the_document_that_workspaces_show_prints() {
+    serving(Setup::without_tool(), |running| {
+        let token = running.token();
+
+        let reply = get(running, "/api/workspaces/reading-list", &token);
+
+        assert_eq!(reply.status, 200);
+        let golden = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/golden/workspaces/show.json"),
+        )
+        .unwrap();
+        let expected: Value = serde_json::from_slice(&golden).unwrap();
+        assert_eq!(reply.json(), expected);
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn a_workspace_name_that_flightdeck_refuses_gets_422_and_runs_no_mxv() {
+    let directory = tempfile::tempdir().unwrap();
+    let log = directory.path().join("runs");
+    let setup = Setup::without_tool().mxv_env("FAKE_MXV_LOG", log.as_os_str());
+    serving(setup, |running| {
+        let token = running.token();
+
+        let reply = get(running, "/api/workspaces/-rf", &token);
+
+        assert_eq!(reply.status, 422);
+        assert_eq!(reply.code(), "flightdeck::workspaces::name");
+        Then::Stop
+    });
+    assert!(!log.exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn a_workspace_that_mxv_does_not_know_gets_404_with_the_workspaces_code() {
+    serving(Setup::without_tool(), |running| {
+        let token = running.token();
+
+        let reply = get(running, "/api/workspaces/no-such-workspace", &token);
+
+        assert_eq!(reply.status, 404);
+        assert_eq!(reply.code(), "flightdeck::workspaces::not_found");
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn a_failed_mxv_list_gets_502_with_mxvs_code() {
+    serving(
+        Setup::without_tool().mxv_env("FAKE_MXV_LIST", "fail"),
+        |running| {
+            let token = running.token();
+
+            let reply = get(running, "/api/workspaces", &token);
+
+            assert_eq!(reply.status, 502);
+            assert_eq!(reply.code(), "flightdeck::workspaces::mxv_failed");
+            assert_eq!(reply.json()["fields"]["mxv_code"], "mxv::store::unreadable");
+            Then::Stop
+        },
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn without_a_tool_the_deck_says_so_and_every_tool_route_answers_404() {
+    serving(Setup::without_tool(), |running| {
+        let token = running.token();
+
+        assert_eq!(
+            get(running, "/api/deck", &token).json(),
+            json!({"tool": false})
+        );
+        for path in ["/api/model", "/api/weight"] {
+            assert_eq!(get(running, path, &token).status, 404, "{path}");
+        }
+        for path in [
+            "/api/runs",
+            "/api/previews",
+            "/api/confirmations/1",
+            "/api/runs/1/cancel",
+            "/api/choices",
+        ] {
+            let reply = Call::post(running.port, path, "{}")
+                .bearer(&token)
+                .send(running.port);
+            assert_eq!(reply.status, 404, "{path}");
+        }
+        Then::Stop
+    });
+}
+
+#[test]
+fn with_a_tool_the_deck_says_so() {
+    serving(Setup::shelf(), |running| {
+        let token = running.token();
+
+        assert_eq!(
+            get(running, "/api/deck", &token).json(),
+            json!({"tool": true})
+        );
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn stopping_the_server_during_a_workspaces_query_ends_the_query_at_once() {
+    let setup = Setup::without_tool().mxv_env("FAKE_MXV_SLEEP", "30");
+    let started = Instant::now();
+    serving(setup, |running| {
+        let token = running.token();
+        std::thread::scope(|scope| {
+            let request = scope.spawn(|| get(running, "/api/workspaces", &token));
+            // The request reaches the server and starts mxv before the stop.
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "the test gives the request time to reach the server"
+            )]
+            std::thread::sleep(Duration::from_millis(300));
+            running.stop();
+            request.join().unwrap();
+        });
+        Then::Wait
+    });
+    assert!(started.elapsed() < Duration::from_secs(5));
+}

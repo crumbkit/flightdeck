@@ -301,3 +301,34 @@ fn flightdeck_reads_every_word_of_the_closed_lists_that_crumbkit_starmaps_schema
         assert_eq!(sent["unset_rule"]["local"]["rule"], *word);
     }
 }
+
+/// Returns the JSON file at `path` under the repository's root.
+fn checked_in(path: &str) -> Value {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(path);
+    serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+}
+
+/// Fails the test with every place where `document` breaks `schema`.
+fn assert_valid(schema: &Value, document: &Value) {
+    let validator = jsonschema::validator_for(schema).unwrap();
+    let problems: Vec<String> = validator
+        .iter_errors(document)
+        .map(|error| format!("{error} at {}", error.instance_path()))
+        .collect();
+    assert!(problems.is_empty(), "{problems:#?}");
+}
+
+#[test]
+fn the_workspaces_documents_match_the_schemas_that_flightdeck_publishes() {
+    // The documents are the golden output of tests/workspaces.rs, and the
+    // schemas the golden output of `flightdeck schemas show`.
+    for (schema, document) in [
+        ("flightdeck-workspaces-list-v1", "list"),
+        ("flightdeck-workspaces-show-v1", "show"),
+    ] {
+        assert_valid(
+            &checked_in(&format!("tests/golden/schemas/{schema}.json")),
+            &checked_in(&format!("tests/golden/workspaces/{document}.json")),
+        );
+    }
+}
