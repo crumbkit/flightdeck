@@ -43,6 +43,8 @@ fn requests_that_arrive_during_a_list_share_its_answer() {
     });
 
     assert_eq!(lists_in(&log), 1);
+    // The list slept, so the second request arrived while it ran.
+    assert_eq!(runs_of(&log, "woke list"), 1);
     for reply in replies {
         assert!(matches!(reply, Reply::Json(_)), "{reply:?}");
     }
@@ -101,6 +103,8 @@ fn the_stop_ends_a_query_in_progress_at_once() {
         matches!(reply, Reply::Failure { status: 502, .. }),
         "{reply:?}"
     );
+    // The stop came while mxv slept: no run slept to its end.
+    assert_eq!(runs_of(&directory.path().join("runs"), "woke"), 0);
 }
 
 /// Returns the number of runs in the log at `log` whose arguments start
@@ -176,8 +180,13 @@ fn a_slow_status_of_one_workspace_does_not_hold_up_another() {
         assert!(started.elapsed() < Duration::from_secs(5));
         assert_eq!(status_of(&fast), 200, "{fast:?}");
         routes.stop();
-        slow.join().unwrap();
+        // reading-list's status was still asleep, so the stop failed it.
+        let slow = slow.join().unwrap();
+        assert_eq!(status_of(&slow), 502, "{slow:?}");
     });
+    // Only reading-list's status slept, and the stop ended it asleep.
+    assert_eq!(runs_of(&log, "woke"), 0);
+    assert!(routes.show.lock().unwrap().is_empty());
 }
 
 #[test]
@@ -213,6 +222,7 @@ fn a_shared_show_leaves_no_flight_behind() {
         assert_eq!(status_of(reply), 200, "{reply:?}");
     }
     assert_eq!(runs_of(&log, "status --workspace=reading-list"), 1);
+    assert_eq!(runs_of(&log, "woke status --workspace=reading-list"), 1);
     assert!(routes.show.lock().unwrap().is_empty());
 }
 

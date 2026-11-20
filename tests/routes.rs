@@ -1316,20 +1316,31 @@ fn with_a_tool_the_deck_says_so() {
 #[cfg(unix)]
 #[test]
 fn stopping_the_server_during_a_workspaces_query_ends_the_query_at_once() {
-    let setup = Setup::without_tool().mxv_env("FAKE_MXV_SLEEP", "30");
+    let directory = tempfile::tempdir().unwrap();
+    let log = directory.path().join("runs");
+    let setup = Setup::without_tool()
+        .mxv_env("FAKE_MXV_SLEEP", "30")
+        .mxv_env("FAKE_MXV_LOG", &log);
     let started = Instant::now();
     serving(setup, |running| {
         let token = running.token();
         std::thread::scope(|scope| {
             let request = scope.spawn(|| get(running, "/api/workspaces", &token));
-            // The request reaches the server and starts mxv before the stop.
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "the test gives the request time to reach the server"
-            )]
-            std::thread::sleep(Duration::from_millis(300));
+            // mxv has started and sleeps, so the query is still running
+            // when the server stops.
+            while !log.exists() {
+                #[expect(
+                    clippy::disallowed_methods,
+                    reason = "the test waits for a child that it cannot observe otherwise"
+                )]
+                std::thread::sleep(Duration::from_millis(5));
+            }
             running.stop();
-            request.join().unwrap();
+            let reply = request.join().unwrap();
+            assert_eq!(reply.status, 502, "{}", reply.json());
+            // The stop came while mxv slept: no run slept to its end.
+            let runs = std::fs::read_to_string(&log).unwrap_or_default();
+            assert!(!runs.contains("woke"), "{runs}");
         });
         Then::Wait
     });

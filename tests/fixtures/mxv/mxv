@@ -11,18 +11,31 @@
 #   command does: a usage failure and exit code 2.
 # - FAKE_MXV_LIST=fail answers `list` with a failure document and exit
 #   code 1.
-# - FAKE_MXV_SLEEP=<seconds> waits that long before it answers.
-# - FAKE_MXV_SLEEP_ONLY=<word> waits only in a run whose arguments hold
-#   that word, such as --workspace=reading-list.
+# - FAKE_MXV_SLEEP=<seconds> waits that long before it answers, and then
+#   appends `woke <arguments>` to FAKE_MXV_LOG, so a test can tell that a
+#   run slept to its end.
+# - FAKE_MXV_SLEEP_ONLY=<word> makes FAKE_MXV_SLEEP wait only in a run
+#   whose arguments hold that word, such as --workspace=reading-list. Unset
+#   or empty, every run waits.
 here=$(dirname "$0")
 
 if [ -n "${FAKE_MXV_LOG:-}" ]; then
   echo "$*" >>"$FAKE_MXV_LOG"
 fi
+slept() {
+  sleep "$FAKE_MXV_SLEEP"
+  if [ -n "${FAKE_MXV_LOG:-}" ]; then
+    echo "woke $*" >>"$FAKE_MXV_LOG"
+  fi
+}
 if [ -n "${FAKE_MXV_SLEEP:-}" ]; then
-  case " $* " in
-  *" ${FAKE_MXV_SLEEP_ONLY:-} "*) sleep "$FAKE_MXV_SLEEP" ;;
-  esac
+  if [ -z "${FAKE_MXV_SLEEP_ONLY:-}" ]; then
+    slept "$@"
+  else
+    case " $* " in
+    *" $FAKE_MXV_SLEEP_ONLY "*) slept "$@" ;;
+    esac
+  fi
 fi
 
 case "$1 $2" in
