@@ -47,6 +47,21 @@ function Checkout({ checkout }: { checkout: CheckoutState }) {
   );
 }
 
+/**
+ * One port of a unit, such as `READING_API_PORT=41002`. It may wrap only
+ * after its `=`, so neither its name nor its number breaks.
+ */
+function Port({ port }: { port: string }) {
+  const at = port.lastIndexOf("=") + 1;
+  return (
+    <div>
+      <span className="whitespace-nowrap">{port.slice(0, at)}</span>
+      <wbr />
+      <span className="whitespace-nowrap">{port.slice(at)}</span>
+    </div>
+  );
+}
+
 /** The units table: each unit's name, state, ports and route links. */
 function Units({ workspace }: { workspace: WorkspaceShow }) {
   if (workspace.units.length === 0) {
@@ -77,14 +92,14 @@ function Units({ workspace }: { workspace: WorkspaceShow }) {
           <tr key={unit.name}>
             <td className="font-mono">{unit.name}</td>
             <td>
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                 <Dot tone={unitTone(unit)} />
                 {unitWord(unit)}
               </span>
             </td>
-            <td className="font-mono wrap-anywhere">
+            <td className="font-mono">
               {unit.ports.map((port) => (
-                <div key={port}>{port}</div>
+                <Port key={port} port={port} />
               ))}
             </td>
             <td>
@@ -128,8 +143,6 @@ export function Workspace({ name, onSignedOut }: Props) {
       <div>
         <nav aria-label="Breadcrumb" className="deck-crumbs text-muted-foreground">
           <a href={list}>local</a>
-          <span aria-hidden="true">/</span>
-          <span className="font-mono">{name}</span>
         </nav>
         <h1 className="m-0 font-mono text-xl font-semibold wrap-anywhere">{name}</h1>
       </div>

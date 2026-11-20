@@ -7,10 +7,18 @@ import { hrefOf } from "@/lib/place";
 import { addressesOf, dotsOf, unitsLine } from "@/lib/workspaces";
 import { Dot, Pill, RoutesNote } from "./parts";
 
+/** Returns the footer's word for whether mxv keeps the workspace from reclaiming. */
+function pinnedWord(pinned: boolean | null): string {
+  if (pinned === null) {
+    return "unknown";
+  }
+  return pinned ? "yes" : "no";
+}
+
 /**
  * One workspace's card, which links to its page: its name, its branch,
  * its checkouts, its units, its routes or host ports, and whether it is
- * pinned when mxv says. The card is the link, so its addresses are words, not links.
+ * pinned, or unknown when its `mxv status` failed. The card is the link, so its addresses are words, not links.
  */
 function Card({ row }: { row: WorkspaceRow }) {
   const addresses = addressesOf(row);
@@ -18,10 +26,9 @@ function Card({ row }: { row: WorkspaceRow }) {
   return (
     <a href={hrefOf({ view: "workspace", name: row.name })} className="deck-card transition-tint">
       <span className="font-mono font-medium wrap-anywhere">{row.name}</span>
-      <span className="font-mono text-sm font-medium wrap-anywhere">
-        {row.branch ?? "branch unknown"}
-      </span>
       <dl className="deck-kv">
+        <dt className="text-muted-foreground">Branch</dt>
+        <dd className="font-mono wrap-anywhere">{row.branch ?? "unknown"}</dd>
         <dt className="text-muted-foreground">Repos</dt>
         <dd className="font-mono wrap-anywhere">{row.checkouts.join(", ")}</dd>
         <dt className="text-muted-foreground">Units</dt>
@@ -43,11 +50,9 @@ function Card({ row }: { row: WorkspaceRow }) {
         </dd>
       </dl>
       {row.problem !== null && <p className="text-destructive m-0">{row.problem}</p>}
-      {row.pinned !== null && (
-        <span className="deck-foot text-muted-foreground text-xs">
-          Pinned: {row.pinned ? "yes" : "no"}
-        </span>
-      )}
+      <span className="deck-foot text-muted-foreground text-xs">
+        Pinned: {pinnedWord(row.pinned)}
+      </span>
     </a>
   );
 }

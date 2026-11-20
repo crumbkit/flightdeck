@@ -23,6 +23,12 @@ function renderWorkspace(name: string) {
   );
 }
 
+/** Matches the one element of a port, whose words sit in two parts. */
+function portOf(text: string) {
+  return (_: string, element: Element | null) =>
+    element?.tagName === "DIV" && element.textContent === text;
+}
+
 /** Returns the units table's row of the unit `name`. */
 function unitRow(name: string): HTMLElement {
   const table = screen.getByRole("table", { name: "Units" });
@@ -47,16 +53,29 @@ describe("Workspace", () => {
     expect(asked).toHaveBeenCalledWith("/api/workspaces/reading-list");
   });
 
-  it("heads the page with a breadcrumb back to the list and the workspace's name", async () => {
+  it("heads the page with the workspace's name and a breadcrumb that ends at local", async () => {
     stubServer(Response.json(readingList));
     renderWorkspace("reading-list");
 
     expect(await screen.findByRole("heading", { level: 1, name: "reading-list" })).toBeVisible();
     const crumbs = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(crumbs).toHaveTextContent(/^local$/);
     expect(within(crumbs).getByRole("link", { name: "local" })).toHaveAttribute(
       "href",
       "#/workspaces",
     );
+  });
+
+  it("lets a port wrap only between its name and its number, and keeps a unit's state on one line", async () => {
+    stubServer(Response.json(readingList));
+    renderWorkspace("reading-list");
+    await screen.findByRole("table", { name: "Units" });
+
+    const port = within(unitRow("api")).getByText(portOf("READING_API_PORT=41002"));
+    expect(port.querySelector("wbr")).not.toBeNull();
+    expect(within(port).getByText("READING_API_PORT=")).toHaveClass("whitespace-nowrap");
+    expect(within(port).getByText("41002")).toHaveClass("whitespace-nowrap");
+    expect(within(unitRow("web")).getByText("running, not ready")).toHaveClass("whitespace-nowrap");
   });
 
   it("gives each checkout's branch, commit and uncommitted changes", async () => {
@@ -76,7 +95,7 @@ describe("Workspace", () => {
     await screen.findByRole("table", { name: "Units" });
 
     expect(within(unitRow("api")).getByText("ready")).toBeVisible();
-    expect(within(unitRow("api")).getByText("READING_API_PORT=41002")).toBeVisible();
+    expect(within(unitRow("api")).getByText(portOf("READING_API_PORT=41002"))).toBeVisible();
     const web = within(unitRow("web"));
     expect(web.getByText("running, not ready")).toBeVisible();
     expect(web.getByRole("link", { name: "route" })).toHaveAttribute(

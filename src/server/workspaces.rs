@@ -73,17 +73,13 @@ impl Workspaces {
             Ok(name) => name,
             Err(reason) => return reply(&answer(Err(WorkspacesError::Name { reason }))),
         };
-        let flight = Arc::clone(lock(&self.show).entry(name.clone()).or_default());
-        let answered = flight.get((), || {
-            answer(workspaces::show(&self.mxv, &name, &self.stop).map(|shown| shown.to_json()))
+        let held = Held::new(&self.show, name);
+        let answered = held.flight().get((), || {
+            answer(
+                workspaces::show(&self.mxv, held.name(), &self.stop).map(|shown| shown.to_json()),
+            )
         });
-        // The map holds a name's flight only while a request runs or waits
-        // on it, so names asked once do not pile up.
-        let mut flights = lock(&self.show);
-        if Arc::strong_count(&flight) == 2 {
-            flights.remove(&name);
-        }
-        drop(flights);
+        drop(held);
         reply(&answered)
     }
 
@@ -94,18 +90,79 @@ impl Workspaces {
     }
 }
 
-/// Returns `escaped` with each `%XX` replaced by its byte, or
-/// [`NameError::Escape`] when an escape is cut short or the bytes are not
-/// UTF-8.
+/// One request's hold on the show flight of a name. The map holds a name's
+/// flight only while a request holds it, so names asked once do not pile
+/// up: when the last hold drops, even in a panic, it removes the flight.
+struct Held<'a> {
+    flights: &'a Mutex<HashMap<WorkspaceName, Arc<Flight<()>>>>,
+    name: WorkspaceName,
+    flight: Arc<Flight<()>>,
+}
+
+impl<'a> Held<'a> {
+    /// Holds the flight of `name` in `flights`, making it when none runs.
+    fn new(
+        flights: &'a Mutex<HashMap<WorkspaceName, Arc<Flight<()>>>>,
+        name: WorkspaceName,
+    ) -> Self {
+        let flight = Arc::clone(lock(flights).entry(name.clone()).or_default());
+        Self {
+            flights,
+            name,
+            flight,
+        }
+    }
+
+    /// Returns the held flight.
+    fn flight(&self) -> &Flight<()> {
+        &self.flight
+    }
+
+    /// Returns the name whose flight this holds.
+    const fn name(&self) -> &WorkspaceName {
+        &self.name
+    }
+}
+
+impl Drop for Held<'_> {
+    fn drop(&mut self) {
+        // Each hold lets go of its flight under the map's lock, so the
+        // last one sees only the map's own reference and removes it.
+        let mut flights = lock(self.flights);
+        // An empty flight takes the held one's place, so the held one is
+        // dropped here, while the lock is held.
+        drop(std::mem::take(&mut self.flight));
+        if flights
+            .get(&self.name)
+            .is_some_and(|flight| Arc::strong_count(flight) == 1)
+        {
+            flights.remove(&self.name);
+        }
+    }
+}
+
+/// Returns the value of the ASCII hex digit `byte`, or
+/// [`NameError::Escape`] for any other byte, a sign included.
+fn hex_digit(byte: u8) -> Result<u8, NameError> {
+    match byte {
+        b'0'..=b'9' => Ok(byte - b'0'),
+        b'a'..=b'f' => Ok(byte - b'a' + 10),
+        b'A'..=b'F' => Ok(byte - b'A' + 10),
+        _ => Err(NameError::Escape),
+    }
+}
+
+/// Returns `escaped` with each `%XX`, two ASCII hex digits, replaced by its
+/// byte, or [`NameError::Escape`] when an escape is not two hex digits or
+/// the bytes are not UTF-8.
 fn decoded(escaped: &str) -> Result<String, NameError> {
     let mut bytes = Vec::with_capacity(escaped.len());
     let mut rest = escaped.as_bytes();
     while let Some((&byte, after)) = rest.split_first() {
         if byte == b'%' {
-            let hex = after.get(..2).ok_or(NameError::Escape)?;
-            let text = std::str::from_utf8(hex).map_err(|_| NameError::Escape)?;
-            bytes.push(u8::from_str_radix(text, 16).map_err(|_| NameError::Escape)?);
-            rest = after.get(2..).unwrap_or_default();
+            let (&[high, low], after) = after.split_first_chunk::<2>().ok_or(NameError::Escape)?;
+            bytes.push(hex_digit(high)? << 4 | hex_digit(low)?);
+            rest = after;
         } else {
             bytes.push(byte);
             rest = after;

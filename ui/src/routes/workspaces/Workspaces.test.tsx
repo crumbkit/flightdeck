@@ -65,7 +65,14 @@ describe("Workspaces", () => {
     stubWorkspaces(Response.json(workspacesList));
     renderList();
 
-    const reading = within(await card("reading-list"));
+    const readingCard = await card("reading-list");
+    const reading = within(readingCard);
+    // The name prints once: the branch, the same words here, is a row.
+    expect(reading.getAllByText("reading-list")).toHaveLength(2);
+    const branch = reading.getByText("Branch");
+    expect(branch.tagName).toBe("DT");
+    expect(branch.nextElementSibling).toHaveTextContent("reading-list");
+    expect(reading.getByText("Repos").tagName).toBe("DT");
     expect(reading.getByText("reading, shelf")).toBeVisible();
     expect(reading.getByText("2 of 3 running")).toBeVisible();
     expect(reading.getByText("web.reading-list.mxv.localhost")).toBeVisible();
@@ -91,7 +98,7 @@ describe("Workspaces", () => {
 
     const broken = within(await card("broken-status"));
     expect(broken.getByText("units unknown · mxv::manifest::invalid")).toBeVisible();
-    expect(broken.queryByText(/Pinned/)).toBeNull();
+    expect(broken.getByText("Pinned: unknown")).toBeVisible();
   });
 
   it("says why no card shows a route when this mxv has no proxy status", async () => {

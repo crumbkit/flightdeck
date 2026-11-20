@@ -153,7 +153,9 @@ a.deck-card:hover {
   gap: 16px;
 }
 
-@media (min-width: 40rem) {
+/* Two cards side by side once each is wide enough for a unit's state and
+   port on one line each. */
+@media (min-width: 64rem) {
   .deck-cols {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -185,15 +187,12 @@ a.deck-card:hover {
   border-bottom: 0;
 }
 
-/* The mockup's columns: Unit 149, State 110, Port 83 and Open 156 of 498. */
+/* The mockup's columns: Unit 149, State 110 and Open 156 of 498. The
+   Port column takes what its ports need, since a port never breaks. */
 .deck-units col:nth-child(1) {
   width: 30%;
 }
 
 .deck-units col:nth-child(2) {
   width: 22%;
-}
-
-.deck-units col:nth-child(3) {
-  width: 17%;
 }

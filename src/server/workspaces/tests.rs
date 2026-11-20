@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use super::Workspaces;
+use super::{Workspaces, decoded};
 use crate::server::reply::Reply;
 use crate::spawn::Program;
-use crate::workspaces::Mxv;
+use crate::workspaces::{Mxv, NameError};
 
 /// Returns the path of the fake mxv in `tests/fixtures/mxv`.
 fn fake_mxv() -> PathBuf {
@@ -152,4 +152,42 @@ fn a_slow_status_of_one_workspace_does_not_hold_up_another() {
         assert_eq!(status_of(reply), 200, "{reply:?}");
     }
     assert!(routes.show.lock().unwrap().is_empty());
+}
+
+#[test]
+fn an_escaped_name_that_the_rules_refuse_gets_422_and_runs_no_mxv() {
+    let directory = tempfile::tempdir().unwrap();
+    let log = directory.path().join("runs");
+    let routes = slow_routes("0", &log);
+
+    // An escaped dash, a NUL, an overlong encoding of `/`, and an escape
+    // whose digits carry a sign.
+    for escaped in ["%2Drf", "%00", "%C0%AF", "%+1", "%+1x", "%-1"] {
+        assert_eq!(status_of(&routes.show(escaped)), 422, "{escaped}");
+    }
+    assert!(!log.exists());
+}
+
+#[test]
+fn a_shared_show_leaves_no_flight_behind() {
+    let directory = tempfile::tempdir().unwrap();
+    let routes = slow_routes("0.3", &directory.path().join("runs"));
+
+    std::thread::scope(|scope| {
+        let first = scope.spawn(|| routes.show("reading-list"));
+        let second = scope.spawn(|| routes.show("reading-list"));
+        first.join().unwrap();
+        second.join().unwrap();
+    });
+
+    assert!(routes.show.lock().unwrap().is_empty());
+}
+
+#[test]
+fn an_escape_takes_exactly_two_hex_digits_and_no_sign() {
+    assert_eq!(decoded("reading%2dlist").unwrap(), "reading-list");
+    assert_eq!(decoded("%41%42").unwrap(), "AB");
+    for escaped in ["%+1", "%-1", "%1", "%1g", "% 1", "%\u{e9}"] {
+        assert_eq!(decoded(escaped), Err(NameError::Escape), "{escaped}");
+    }
 }
