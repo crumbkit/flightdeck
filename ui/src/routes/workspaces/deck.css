@@ -153,9 +153,9 @@ a.deck-card:hover {
   gap: 16px;
 }
 
-/* Two cards side by side once each is wide enough for a unit's state and
-   port on one line each. */
-@media (min-width: 64rem) {
+/* Two cards side by side once each is wide enough for the units table at
+   its natural column widths, with a unit's state and port on one line. */
+@media (min-width: 70rem) {
   .deck-cols {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

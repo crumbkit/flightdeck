@@ -103,6 +103,27 @@ fn the_stop_ends_a_query_in_progress_at_once() {
     );
 }
 
+/// Returns the number of runs in the log at `log` whose arguments start
+/// with `start`.
+fn runs_of(log: &Path, start: &str) -> usize {
+    std::fs::read_to_string(log)
+        .unwrap_or_default()
+        .lines()
+        .filter(|line| line.starts_with(start))
+        .count()
+}
+
+/// Waits until the log at `log` holds `count` runs that start with `start`.
+fn wait_for_runs(log: &Path, start: &str, count: usize) {
+    while runs_of(log, start) < count {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the test waits for a child that it cannot observe otherwise"
+        )]
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
 /// Returns the status of `reply`, 200 for JSON.
 fn status_of(reply: &Reply) -> u16 {
     match reply {
@@ -137,21 +158,26 @@ fn a_name_of_dots_gets_422_and_runs_no_mxv() {
 #[test]
 fn a_slow_status_of_one_workspace_does_not_hold_up_another() {
     let directory = tempfile::tempdir().unwrap();
-    let routes = slow_routes("1", &directory.path().join("runs"));
-    let started = Instant::now();
+    let log = directory.path().join("runs");
+    let routes = Workspaces::new(Mxv::new(
+        Program::new(fake_mxv())
+            .env("FAKE_MXV_SLEEP", "30")
+            .env("FAKE_MXV_SLEEP_ONLY", "--workspace=reading-list")
+            .env("FAKE_MXV_LOG", &log),
+    ));
 
-    let replies: Vec<Reply> = std::thread::scope(|scope| {
-        let first = scope.spawn(|| routes.show("reading-list"));
-        let second = scope.spawn(|| routes.show("shelf-import"));
-        vec![first.join().unwrap(), second.join().unwrap()]
+    std::thread::scope(|scope| {
+        let slow = scope.spawn(|| routes.show("reading-list"));
+        wait_for_runs(&log, "status --workspace=reading-list", 1);
+        let started = Instant::now();
+
+        let fast = routes.show("shelf-import");
+
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert_eq!(status_of(&fast), 200, "{fast:?}");
+        routes.stop();
+        slow.join().unwrap();
     });
-
-    // One after the other, the two would take at least 2 seconds.
-    assert!(started.elapsed() < Duration::from_millis(1900));
-    for reply in &replies {
-        assert_eq!(status_of(reply), 200, "{reply:?}");
-    }
-    assert!(routes.show.lock().unwrap().is_empty());
 }
 
 #[test]
@@ -171,15 +197,22 @@ fn an_escaped_name_that_the_rules_refuse_gets_422_and_runs_no_mxv() {
 #[test]
 fn a_shared_show_leaves_no_flight_behind() {
     let directory = tempfile::tempdir().unwrap();
-    let routes = slow_routes("0.3", &directory.path().join("runs"));
+    let log = directory.path().join("runs");
+    let routes = slow_routes("1", &log);
 
-    std::thread::scope(|scope| {
+    let replies: Vec<Reply> = std::thread::scope(|scope| {
         let first = scope.spawn(|| routes.show("reading-list"));
+        // The second request starts while the first one's mxv runs, so it
+        // joins that flight and both finish together.
+        wait_for_runs(&log, "status --workspace=reading-list", 1);
         let second = scope.spawn(|| routes.show("reading-list"));
-        first.join().unwrap();
-        second.join().unwrap();
+        vec![first.join().unwrap(), second.join().unwrap()]
     });
 
+    for reply in &replies {
+        assert_eq!(status_of(reply), 200, "{reply:?}");
+    }
+    assert_eq!(runs_of(&log, "status --workspace=reading-list"), 1);
     assert!(routes.show.lock().unwrap().is_empty());
 }
 

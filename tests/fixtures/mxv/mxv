@@ -12,13 +12,17 @@
 # - FAKE_MXV_LIST=fail answers `list` with a failure document and exit
 #   code 1.
 # - FAKE_MXV_SLEEP=<seconds> waits that long before it answers.
+# - FAKE_MXV_SLEEP_ONLY=<word> waits only in a run whose arguments hold
+#   that word, such as --workspace=reading-list.
 here=$(dirname "$0")
 
 if [ -n "${FAKE_MXV_LOG:-}" ]; then
   echo "$*" >>"$FAKE_MXV_LOG"
 fi
 if [ -n "${FAKE_MXV_SLEEP:-}" ]; then
-  sleep "$FAKE_MXV_SLEEP"
+  case " $* " in
+  *" ${FAKE_MXV_SLEEP_ONLY:-} "*) sleep "$FAKE_MXV_SLEEP" ;;
+  esac
 fi
 
 case "$1 $2" in

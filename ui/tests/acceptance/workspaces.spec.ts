@@ -52,6 +52,31 @@ test.describe("flightdeck without a tool", () => {
       "https://web.reading-list.mxv.localhost",
     );
     await expect(page.getByText("2 uncommitted changes")).toBeVisible();
+    // The units table fits inside its card at every width, the cards side
+    // by side or stacked.
+    for (const width of [1024, 1060, 1100, 1120, 1360]) {
+      await page.setViewportSize({ width, height: 860 });
+      const room = await units.evaluate((table) => {
+        const card = table.closest("section");
+        if (card === null) {
+          return Number.NaN;
+        }
+        const padding = Number.parseFloat(getComputedStyle(card).paddingRight);
+        const border = Number.parseFloat(getComputedStyle(card).borderRightWidth);
+        return (
+          card.getBoundingClientRect().right -
+          border -
+          padding -
+          table.getBoundingClientRect().right
+        );
+      });
+      expect(room, `${width}px`).toBeGreaterThanOrEqual(0);
+      const unit = await units
+        .getByRole("columnheader", { name: "Unit" })
+        .evaluate((cell) => cell.getBoundingClientRect().width);
+      expect(unit, `${width}px`).toBeGreaterThanOrEqual(70);
+    }
+    await page.setViewportSize({ width: 1280, height: 720 });
     await expectNoAccessibilityViolations(page);
 
     await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link").click();
