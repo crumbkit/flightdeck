@@ -1,6 +1,7 @@
 //! A page's server for the server and route tests, run in-process on a port
-//! the system picks. It loads one tool's model, gives the server a runner of
-//! the tool, writes the opener page, and reads the launch code back from it.
+//! the system picks. It loads one tool's model, or none, gives the server a
+//! runner of the tool and the workspaces of the fake mxv, writes the opener
+//! page, and reads the launch code back from it.
 //! The server's clock is injected, so no test waits for the idle limit.
 
 use std::ffi::OsString;
@@ -15,6 +16,7 @@ use crumbkit_flightdeck::opener::Opener;
 use crumbkit_flightdeck::runner::{self, Mode, Runner};
 use crumbkit_flightdeck::server::{Ended, Listener, Server, Session, Settings};
 use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
+use crumbkit_flightdeck::workspaces::Mxv;
 use tempfile::TempDir;
 
 use crate::http::{Call, Reply, exchange, launch_code};
@@ -81,6 +83,11 @@ pub(crate) fn test_tool(name: &str) -> PathBuf {
     path
 }
 
+/// Returns the path of the fake mxv of the workspaces tests.
+pub(crate) fn fake_mxv() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mxv/mxv")
+}
+
 /// Returns the path of the fake tool `unruly` of the runner's tests.
 #[cfg(unix)]
 pub(crate) fn unruly() -> PathBuf {
@@ -90,7 +97,9 @@ pub(crate) fn unruly() -> PathBuf {
 /// What a test serves: the tool, the program that runs it, the runner's
 /// mode and settings, and the server's settings.
 pub(crate) struct Setup {
-    tool: PathBuf,
+    tool: Option<PathBuf>,
+    mxv: Vec<(String, OsString)>,
+    mxv_program: Option<PathBuf>,
     program: Option<PathBuf>,
     env: Vec<(String, OsString)>,
     mode: Mode,
@@ -104,7 +113,9 @@ impl Setup {
     /// polls every 5 milliseconds.
     pub(crate) fn of(tool: PathBuf) -> Self {
         Self {
-            tool,
+            tool: Some(tool),
+            mxv: Vec::new(),
+            mxv_program: None,
             program: None,
             env: Vec::new(),
             mode: Mode::Full,
@@ -119,6 +130,25 @@ impl Setup {
     /// Serves shelf.
     pub(crate) fn shelf() -> Self {
         Self::of(test_tool("shelf"))
+    }
+
+    /// Serves no tool, as `flightdeck open` without a tool does.
+    pub(crate) fn without_tool() -> Self {
+        let mut setup = Self::shelf();
+        setup.tool = None;
+        setup
+    }
+
+    /// Gives the fake mxv the variable `name` with `value`.
+    pub(crate) fn mxv_env(mut self, name: &str, value: impl Into<OsString>) -> Self {
+        self.mxv.push((name.to_owned(), value.into()));
+        self
+    }
+
+    /// Asks the mxv at `path` for the workspaces in place of the fake mxv.
+    pub(crate) fn mxv_program(mut self, path: PathBuf) -> Self {
+        self.mxv_program = Some(path);
+        self
     }
 
     /// Serves only the tool's read-only commands, as `--read-only` does.
@@ -213,20 +243,31 @@ pub(crate) enum Then {
 pub(crate) fn serving(setup: Setup, test: impl FnOnce(&Running<'_>) -> Then) -> Ended {
     crate::signals::interrupt_reaches_children();
     let dirs = tempfile::tempdir().unwrap();
-    let loaded = setup.program_at(&setup.tool, &dirs);
-    let tool = model::load(&loaded, TIME_LIMIT).unwrap();
-    let program = match &setup.program {
-        Some(path) => setup.program_at(path, &dirs),
-        None => loaded,
-    };
     let clock = Arc::new(FakeClock::new());
-    let runner = Runner::new(tool, program, setup.mode, clock.clone(), setup.runner).unwrap();
     let listener = Listener::bind(None).unwrap();
     let port = listener.port();
     let session = Session::new(clock.now()).unwrap();
     let opener = Opener::write(&listener.origin(), session.launch_code().unwrap()).unwrap();
     let code = launch_code(&std::fs::read_to_string(opener.page()).unwrap());
-    let server = Server::new(listener, session, runner, setup.server, None).unwrap();
+    let server = match &setup.tool {
+        Some(tool) => {
+            let loaded = setup.program_at(tool, &dirs);
+            let tool = model::load(&loaded, TIME_LIMIT).unwrap();
+            let program = match &setup.program {
+                Some(path) => setup.program_at(path, &dirs),
+                None => loaded,
+            };
+            let runner =
+                Runner::new(tool, program, setup.mode, clock.clone(), setup.runner).unwrap();
+            Server::new(listener, session, runner, setup.server, None).unwrap()
+        }
+        None => Server::without_tool(listener, session, setup.server).unwrap(),
+    };
+    let mut mxv = Program::new(setup.mxv_program.clone().unwrap_or_else(fake_mxv));
+    for (name, value) in &setup.mxv {
+        mxv = mxv.env(name, value);
+    }
+    let server = server.workspaces(Mxv::new(mxv));
     let stop = AtomicBool::new(false);
     std::thread::scope(|scope| {
         let handle = scope.spawn(|| server.run(&*clock, &stop));

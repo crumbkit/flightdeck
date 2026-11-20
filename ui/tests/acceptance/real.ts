@@ -14,7 +14,7 @@ const root = path.resolve(import.meta.dirname, "../../..");
 /** How long flightdeck may take to print its two lines. */
 const startLimitMs = 10_000;
 
-/** A running `flightdeck open <tool> --no-browser`. */
+/** A running `flightdeck open [tool] --no-browser`. */
 export type Served = {
   /** The opener page, as a file URL. Opening it signs the page in. */
   opener: string;
@@ -71,7 +71,10 @@ async function openerOf(child: ChildProcess): Promise<string> {
  * `release`. "pretty shelf" is tests/fixtures/pretty/shelf, which indents
  * shelf's JSON as a crumbkit tool that sets `JsonLayout::Pretty` does.
  * "environment shelf" is tests/fixtures/environment/shelf, which mounts
- * `self environment list` as crumbkit-starmap does. Each test starts its own flightdeck, because a launch code
+ * `self environment list` as crumbkit-starmap does. "no tool" starts
+ * flightdeck without a tool, so the page shows the workspaces. Every
+ * flightdeck asks tests/fixtures/mxv/mxv, the fake mxv, for the workspaces.
+ * Each test starts its own flightdeck, because a launch code
  * works once, and stops it when the test ends. The Rust lane builds both
  * before this lane runs. `test.use({ readOnly: true })` starts it with
  * `--read-only`. `test.use({ ranBefore: { runs: [["books", "list"]] } })`
@@ -83,7 +86,7 @@ async function openerOf(child: ChildProcess): Promise<string> {
  * whose output is 9,000 bytes, so its command's path passes the budget.
  */
 export const test = checked.extend<{
-  tool: "shelf" | "reading" | "slow reading" | "pretty shelf" | "environment shelf";
+  tool: "shelf" | "reading" | "slow reading" | "pretty shelf" | "environment shelf" | "no tool";
   readOnly: boolean;
   ranBefore: { runs: string[][]; huge?: boolean; heavy?: boolean };
   served: Served;
@@ -100,16 +103,20 @@ export const test = checked.extend<{
       "pretty shelf": path.join(root, "tests/fixtures/pretty/shelf"),
       "environment shelf": path.join(root, "tests/fixtures/environment/shelf"),
     };
-    const program = slow?.program ?? wrappers[tool] ?? installed(tool);
+    const program =
+      tool === "no tool" ? null : (slow?.program ?? wrappers[tool] ?? installed(tool));
     const env = {
       ...process.env,
       XDG_CONFIG_HOME: path.join(home, "config"),
       XDG_DATA_HOME: data,
       XDG_STATE_HOME: path.join(home, "state"),
       XDG_CACHE_HOME: path.join(home, "cache"),
+      FLIGHTDECK_MXV: path.join(root, "tests/fixtures/mxv/mxv"),
     };
     for (const words of ranBefore.runs) {
-      spawnSync(program, words, { env, stdio: "ignore" });
+      if (program !== null) {
+        spawnSync(program, words, { env, stdio: "ignore" });
+      }
     }
     if (ranBefore.huge === true || ranBefore.heavy === true) {
       const log = path.join(home, "state", tool, "usage.jsonl");
@@ -124,7 +131,12 @@ export const test = checked.extend<{
     }
     const child = spawn(
       path.join(root, "target/debug/flightdeck"),
-      ["open", program, "--no-browser", ...(readOnly ? ["--read-only"] : [])],
+      [
+        "open",
+        ...(program === null ? [] : [program]),
+        "--no-browser",
+        ...(readOnly ? ["--read-only"] : []),
+      ],
       { env, stdio: ["ignore", "ignore", "pipe"] },
     );
     try {

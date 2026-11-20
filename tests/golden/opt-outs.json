@@ -10,6 +10,25 @@
         "An agent that passes `--limit` or `--all`, as other listings take them, gets a refusal."
       ],
       "budget": null
+    },
+    {
+      "rule": "listings/list-pages",
+      "applies_to": "flightdeck workspaces list",
+      "reason": "It prints the Workspaces page's document, which holds every workspace and counts them all.",
+      "costs": [
+        "An agent cannot bound the rows that the command prints, so one run can fill its context.",
+        "An agent that passes `--limit` or `--all`, as other listings take them, gets a refusal."
+      ],
+      "budget": null
+    },
+    {
+      "rule": "listings/show-ids",
+      "applies_to": "flightdeck workspaces show",
+      "reason": "It prints the One workspace page's document, which is about one workspace.",
+      "costs": [
+        "An agent runs the command once for each id."
+      ],
+      "budget": null
     }
   ],
   "declarations": [
@@ -21,6 +40,11 @@
     },
     {
       "declaration": "example-precondition",
+      "applies_to": "flightdeck open",
+      "declares": "The example runs only in a test run that provides browser."
+    },
+    {
+      "declaration": "example-precondition",
       "applies_to": "flightdeck open shelf",
       "declares": "The example runs only in a test run that provides browser."
     },
@@ -28,6 +52,21 @@
       "declaration": "example-precondition",
       "applies_to": "flightdeck open ./target/debug/shelf --read-only --no-browser",
       "declares": "The example runs only in a test run that provides browser."
+    },
+    {
+      "declaration": "example-precondition",
+      "applies_to": "flightdeck workspaces list",
+      "declares": "The example runs only in a test run that provides mxv."
+    },
+    {
+      "declaration": "example-precondition",
+      "applies_to": "flightdeck workspaces list --json --full",
+      "declares": "The example runs only in a test run that provides mxv."
+    },
+    {
+      "declaration": "example-precondition",
+      "applies_to": "flightdeck workspaces show reading-list --json",
+      "declares": "The example runs only in a test run that provides mxv."
     }
   ]
 }

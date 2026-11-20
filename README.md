@@ -12,8 +12,9 @@ document and the listing envelope. It links none of the tool's code.
 
 ## Status
 
-`flightdeck open <TOOL>` starts the page's server, its sign-in and the
-routes that run the tool's commands, and serves the page. The page's code is
+`flightdeck open [TOOL]` starts the page's server, its sign-in and the
+routes that run the tool's commands, and serves the page. Without a tool,
+the page shows the mxv workspaces on this machine. The page's code is
 in [ui/](ui/), and the binary embeds its built files from `ui/dist`.
 
 What works today:
@@ -71,6 +72,19 @@ What works today:
   read-only, with `--all` when the source takes it, and answers with at
   most 1,000 choices, each the value of a row's `id` labelled by the row's
   other compact columns.
+- `flightdeck open` without a tool serves the Workspaces page: one card
+  per mxv workspace on this machine, with its branch, its checkouts, how
+  many of its units run, its routes, or its host ports when this mxv has
+  no `proxy status`, and whether it is pinned. A card opens the One
+  workspace page, with each checkout's branch, commit and uncommitted
+  changes, and each unit's state, ports and route links. A tool's page
+  opens them from the top bar's Workspaces button. `flightdeck workspaces
+  list` and `flightdeck workspaces show NAME` print the same facts, and
+  `GET /api/workspaces` and `GET /api/workspaces/<name>` send them.
+  flightdeck runs `mxv list`, `mxv status` and `mxv proxy status`, at
+  most four at a time and within 10 seconds, with the program that
+  `FLIGHTDECK_MXV` names or `mxv` on PATH. The pages leave out what mxv
+  does not supply.
 - `flightdeck commands list`, `flightdeck schemas list` and
   `flightdeck schemas show`, crumbkit's own commands, describe flightdeck
   itself. [docs/commands.md](docs/commands.md) is the reference.

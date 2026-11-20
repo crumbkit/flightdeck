@@ -1,7 +1,8 @@
-//! `flightdeck open <TOOL>`: load the tool's model, start the page's
-//! server with the one runner of the process, write the opener page, print
-//! two lines, open the browser, and serve until Ctrl-C, SIGTERM or the idle
-//! limit.
+//! `flightdeck open [TOOL]`: load the tool's model when the command names
+//! one, start the page's server with the workspaces routes and the one
+//! runner of the process, write the opener page, print two lines, open the
+//! browser, and serve until Ctrl-C, SIGTERM or the idle limit. Without a
+//! tool, the page shows only the workspaces.
 //!
 //! The command prints no result on standard output. It writes its two lines
 //! to standard error, where crumbkit writes messages about a run, and exits
@@ -29,6 +30,7 @@ use crate::opener::Opener;
 use crate::runner::{self, Mode, Runner};
 use crate::server::{Ended, IDLE_LIMIT, Listener, Server, Session, Settings, StartError};
 use crate::spawn::{self, Exit, Program};
+use crate::workspaces::Mxv;
 
 #[cfg(test)]
 mod tests;
@@ -150,10 +152,11 @@ pub(crate) fn run(run: &mut Run, args: &OpenArgs, vars: &[(OsString, OsString)])
     }
 }
 
-/// Loads the tool, serves its page until it stops, and writes the lines
-/// that a person reads to `lines`. A line that cannot be written, as when
-/// standard error is closed, is skipped. The `PATH` of `vars` finds a tool
-/// given by a bare name, and a run in another directory finds the same tool.
+/// Loads the tool when `args` names one, serves the page until it stops,
+/// and writes the lines that a person reads to `lines`. A line that cannot
+/// be written, as when standard error is closed, is skipped. The `PATH` of
+/// `vars` finds a tool given by a bare name, and a run in another directory
+/// finds the same tool.
 fn open(
     args: &OpenArgs,
     vars: &[(OsString, OsString)],
@@ -162,9 +165,16 @@ fn open(
     let launch = launch_directory();
     let environment =
         Environment::from_vars(vars.iter().cloned()).map_err(OpenError::Environment)?;
-    let program = Program::at_launch(&args.tool, launch.as_deref(), environment.path())
-        .ok_or(OpenError::SearchPath)?;
-    let tool = model::load(&program, spawn::TIME_LIMIT).map_err(OpenError::Load)?;
+    let mxv = Mxv::at_launch(environment.mxv(), launch.as_deref(), environment.path());
+    let loaded = match &args.tool {
+        Some(tool) => {
+            let program = Program::at_launch(tool, launch.as_deref(), environment.path())
+                .ok_or(OpenError::SearchPath)?;
+            let tool = model::load(&program, spawn::TIME_LIMIT).map_err(OpenError::Load)?;
+            Some((tool, program))
+        }
+        None => None,
+    };
     let stop = Arc::new(AtomicBool::new(false));
     watch_signals(&stop).map_err(OpenError::Signals)?;
     let clock = SystemClock;
@@ -176,35 +186,49 @@ fn open(
         .launch_code()
         .ok_or_else(|| OpenError::Opener(io::Error::other("the session has no launch code")))?;
     let opener = Opener::write(&origin, code).map_err(OpenError::Opener)?;
-    let commands = match tool.commands().len() {
-        1 => "1 command".to_owned(),
-        count => format!("{count} commands"),
+    let (server, about) = match loaded {
+        Some((tool, program)) => {
+            let commands = match tool.commands().len() {
+                1 => "1 command".to_owned(),
+                count => format!("{count} commands"),
+            };
+            let about = format!(
+                "{} {} · {commands}",
+                printable(tool.name()),
+                printable(tool.version())
+            );
+            let mode = if args.read_only {
+                Mode::ReadOnly
+            } else {
+                Mode::Full
+            };
+            let runner = Runner::new(
+                tool,
+                program,
+                mode,
+                Arc::new(SystemClock),
+                runner::Settings::new(),
+            )
+            .map_err(OpenError::Random)?;
+            let server = Server::new(
+                listener,
+                session,
+                runner,
+                Settings::new(),
+                launch.as_deref().and_then(shown_directory),
+            )
+            .map_err(OpenError::Start)?;
+            (server, about)
+        }
+        None => (
+            Server::without_tool(listener, session, Settings::new()).map_err(OpenError::Start)?,
+            "workspaces".to_owned(),
+        ),
     };
-    let name = format!("{} {}", printable(tool.name()), printable(tool.version()));
-    let mode = if args.read_only {
-        Mode::ReadOnly
-    } else {
-        Mode::Full
-    };
-    let runner = Runner::new(
-        tool,
-        program,
-        mode,
-        Arc::new(SystemClock),
-        runner::Settings::new(),
-    )
-    .map_err(OpenError::Random)?;
-    let server = Server::new(
-        listener,
-        session,
-        runner,
-        Settings::new(),
-        launch.as_deref().and_then(shown_directory),
-    )
-    .map_err(OpenError::Start)?;
+    let server = server.workspaces(mxv);
 
     // The origin comes first, so a tool's name cannot push it out of view.
-    let _ = writeln!(lines, "{origin} · {name} · {commands}");
+    let _ = writeln!(lines, "{origin} · {about}");
     let page = opener.page().display();
     if args.no_browser {
         let _ = writeln!(
@@ -236,7 +260,7 @@ fn open(
 
 /// Returns the directory flightdeck started in, or `None` when it cannot
 /// read it.
-fn launch_directory() -> Option<PathBuf> {
+pub(crate) fn launch_directory() -> Option<PathBuf> {
     #[expect(
         clippy::disallowed_methods,
         reason = "the page shows the directory that flightdeck started in, and a relative tool path resolves against it"

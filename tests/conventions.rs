@@ -33,6 +33,13 @@ const STARTS: &[Failing<'_>] = &[Failing::new(
 const NO_RUN: &str =
     "No flightdeck command runs a tool's commands yet; the runner returns the code.";
 
+/// The reason that no command line provokes a workspaces code in the
+/// convention tests: each needs an mxv that the test sets up.
+const NEEDS_MXV: &str = "Only an mxv that fails, is missing or lacks the workspace provokes it, and a command line sets no variable; tests/workspaces.rs provokes it with a fake mxv.";
+
+/// The reason that no command line provokes the workspace name code.
+const NAME_FROM_PAGE: &str = "Only the page's route returns it; the command line refuses such a name as a usage error before flightdeck runs.";
+
 /// The codes that the recovery check provokes with no command line.
 const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
     Unprovoked::new(
@@ -50,6 +57,16 @@ const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
     Unprovoked::new(
         crumbkit_flightdeck::ENVIRONMENT_INVALID,
         "Only a FLIGHTDECK_PORT that is not a port provokes it, and a command line sets no variable; tests/open.rs provokes the code.",
+    ),
+    Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_MISSING, NEEDS_MXV),
+    Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_FAILED, NEEDS_MXV),
+    Unprovoked::new(
+        crumbkit_flightdeck::workspaces::WORKSPACE_NOT_FOUND,
+        NEEDS_MXV,
+    ),
+    Unprovoked::new(
+        crumbkit_flightdeck::workspaces::WORKSPACE_NAME,
+        NAME_FROM_PAGE,
     ),
     Unprovoked::area("flightdeck", "run", NO_RUN),
     Unprovoked::area("flightdeck", "choices", NO_RUN),
@@ -79,16 +96,38 @@ const UNTWINNED: &[Unprovoked<'_>] = &[
         crumbkit_flightdeck::ENVIRONMENT_INVALID,
         "Only a FLIGHTDECK_PORT that is not a port provokes it, and a command line sets no variable; tests/open.rs provokes the code.",
     ),
+    Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_MISSING, NEEDS_MXV),
+    Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_FAILED, NEEDS_MXV),
+    Unprovoked::new(
+        crumbkit_flightdeck::workspaces::WORKSPACE_NOT_FOUND,
+        NEEDS_MXV,
+    ),
+    Unprovoked::new(
+        crumbkit_flightdeck::workspaces::WORKSPACE_NAME,
+        NAME_FROM_PAGE,
+    ),
     Unprovoked::area("flightdeck", "run", NO_RUN),
     Unprovoked::area("flightdeck", "choices", NO_RUN),
 ];
 
 /// The rules that flightdeck skips for one command, each with its reason.
-const ALLOW: &[Allow] = &[Allow::new(
-    Rule::ListPages,
-    "self environment list",
-    "crumbkit-starmap's built-in prints every declared variable at once and takes no arguments.",
-)];
+const ALLOW: &[Allow] = &[
+    Allow::new(
+        Rule::ListPages,
+        "self environment list",
+        "crumbkit-starmap's built-in prints every declared variable at once and takes no arguments.",
+    ),
+    Allow::new(
+        Rule::ListPages,
+        "workspaces list",
+        "It prints the Workspaces page's document, which holds every workspace and counts them all.",
+    ),
+    Allow::new(
+        Rule::ShowIds,
+        "workspaces show",
+        "It prints the One workspace page's document, which is about one workspace.",
+    ),
+];
 
 /// The settings of flightdeck's recovery check.
 const RECOVERIES: Recoveries<'_> = Recoveries::lists(EXAMPLES, CODES)

@@ -18,16 +18,18 @@ pub mod opener;
 pub mod runner;
 pub mod server;
 pub mod spawn;
+pub mod workspaces;
 
 use std::ffi::OsString;
 use std::process::ExitCode;
 
 use clap::CommandFactory as _;
+use starmap::Env as _;
 
 pub use crate::cli::{Cli, TOOL};
 use crate::cli::{
     CommandsCommand, CompletionCommand, EnvironmentVerb, Resource, SKILL, SchemasCommand,
-    SelfCommand,
+    SelfCommand, WorkspacesCommand,
 };
 use crate::environment::Environment;
 pub use crate::open::{ENVIRONMENT_INVALID, OpenError, SERVER_FAILED, TOOL_SEARCH_PATH};
@@ -39,6 +41,7 @@ pub const CODES: &[&[crumbkit::Code<'static>]] = &[
     OpenError::CODES,
     runner::RunFailure::CODES,
     runner::EndFailure::CODES,
+    workspaces::WorkspacesError::CODES,
 ];
 
 /// Runs flightdeck on `args`, whose first item is the program's name, with
@@ -63,6 +66,7 @@ where
     // before `finish` takes `run`.
     match cli.resource {
         Resource::Open(args) => open::run(&mut run, &args, vars),
+        Resource::Workspaces { command } => workspaces_command(run, &command, vars),
         Resource::Commands {
             command: CommandsCommand::List(args),
         } => {
@@ -103,6 +107,37 @@ where
             let result =
                 crumbkit_starmap::environment(&mut run, <Environment as starmap::Env>::SPEC, vars);
             crumbkit::finish(run, crumbkit_starmap::SELF_ENVIRONMENT_LIST, result)
+        }
+    }
+}
+
+/// Runs `flightdeck workspaces list` or `show` against the mxv that
+/// `FLIGHTDECK_MXV` names, or `mxv` on `PATH`, and prints its document.
+fn workspaces_command(
+    mut run: crumbkit::Run,
+    command: &WorkspacesCommand,
+    vars: &[(OsString, OsString)],
+) -> ExitCode {
+    let environment = match Environment::from_vars(vars.iter().cloned()) {
+        Ok(environment) => environment,
+        Err(error) => {
+            return run.fail(
+                &mut crumbkit::Sink::standard(),
+                &OpenError::Environment(error),
+            );
+        }
+    };
+    let launch = open::launch_directory();
+    let mxv = workspaces::Mxv::at_launch(environment.mxv(), launch.as_deref(), environment.path());
+    let stop = crumbkit_process::Cancel::new();
+    match command {
+        WorkspacesCommand::List => {
+            let result = workspaces::list(&mxv, &stop).map(workspaces::WorkspacesList::listing);
+            crumbkit::finish(run, workspaces::WORKSPACES_LIST, result)
+        }
+        WorkspacesCommand::Show(args) => {
+            let result = workspaces::show(&mxv, &args.name, &stop).map(crumbkit::Prose::new);
+            crumbkit::finish(run, workspaces::WORKSPACES_SHOW, result)
         }
     }
 }

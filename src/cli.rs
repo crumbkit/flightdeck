@@ -14,6 +14,8 @@ use crumbkit::tool::Failures;
 use crumbkit::{NoInput, Tool, ViewFlags};
 use crumbkit_skills::{Skill, skills_command};
 
+use crate::workspaces::{WORKSPACES_LIST, WORKSPACES_SHOW, WorkspaceName};
+
 /// Start a local web page for a crumbkit tool.
 #[derive(Debug, Parser)]
 #[command(name = "flightdeck", version)]
@@ -44,6 +46,8 @@ pub const TOOL: Tool = Tool::new()
         .leaves(&[
             Leaf::new(&["open"])
                 .examples(&[
+                    Example::new(&[], "Open the Workspaces page in the browser")
+                        .needs(&["browser"]),
                     Example::new(&["shelf"], "Open the page for shelf in the browser")
                         .needs(&["browser"]),
                     Example::new(
@@ -54,6 +58,25 @@ pub const TOOL: Tool = Tool::new()
                 ])
                 .effects(Effects::read_only().open_world())
                 .prints_no_result(),
+            Leaf::new(&["workspaces", "list"])
+                .examples(&[
+                    Example::new(&[], "List the local mxv workspaces").needs(&["mxv"]),
+                    Example::new(
+                        &["--json", "--full"],
+                        "Print the document that the Workspaces page draws",
+                    )
+                    .needs(&["mxv"]),
+                ])
+                .effects(Effects::read_only())
+                .document(WORKSPACES_LIST),
+            Leaf::new(&["workspaces", "show"])
+                .examples(&[Example::new(
+                    &["reading-list", "--json"],
+                    "Print the document that the page of the workspace reading-list draws",
+                )
+                .needs(&["mxv"])])
+                .effects(Effects::read_only())
+                .document(WORKSPACES_SHOW),
             Leaf::new(&["commands", "list"])
                 .examples(&[
                     Example::new(&[], "List every command"),
@@ -126,8 +149,14 @@ pub(crate) const SKILL: Skill = Skill::new(
 /// The resources that flightdeck serves, and the verb `open`.
 #[derive(Debug, Subcommand)]
 pub(crate) enum Resource {
-    /// Open a local web page that lists and runs a tool's commands.
+    /// Open a local web page of the mxv workspaces and a tool's commands.
     Open(OpenArgs),
+    /// Read the local mxv workspaces.
+    Workspaces {
+        /// What to do with the workspaces.
+        #[command(subcommand)]
+        command: WorkspacesCommand,
+    },
     /// Explore flightdeck's commands.
     Commands {
         /// What to do with the commands.
@@ -179,6 +208,23 @@ pub(crate) enum EnvironmentVerb {
     List,
 }
 
+/// The commands that read the local mxv workspaces.
+#[derive(Debug, Subcommand)]
+pub(crate) enum WorkspacesCommand {
+    /// List the local mxv workspaces with their units, routes and ports.
+    List,
+    /// Show one local mxv workspace with its checkouts and units.
+    Show(WorkspacesShowArgs),
+}
+
+/// The arguments of `flightdeck workspaces show`.
+#[derive(Debug, Args)]
+pub(crate) struct WorkspacesShowArgs {
+    /// The workspace's name, as `flightdeck workspaces list` prints it.
+    #[arg(value_name = "NAME")]
+    pub(crate) name: WorkspaceName,
+}
+
 /// The commands for flightdeck's own commands.
 #[derive(Debug, Subcommand)]
 pub(crate) enum CommandsCommand {
@@ -209,9 +255,9 @@ pub(crate) enum SchemasCommand {
 /// The arguments of `flightdeck open`.
 #[derive(Debug, Args)]
 pub(crate) struct OpenArgs {
-    /// The crumbkit tool, by a name on PATH or a path.
+    /// The crumbkit tool, by a name on PATH or a path; without one, the page shows the workspaces.
     #[arg(value_name = "TOOL")]
-    pub(crate) tool: OsString,
+    pub(crate) tool: Option<OsString>,
 
     /// Run only the tool's read-only commands from the page.
     #[arg(long)]

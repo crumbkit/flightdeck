@@ -184,6 +184,37 @@ impl Drop for Open {
 }
 
 #[test]
+fn open_without_a_tool_serves_the_workspaces_of_the_mxv_that_flightdeck_mxv_names() {
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(&["open".as_ref(), "--no-browser".as_ref()], dirs.path());
+    command.env(
+        "FLIGHTDECK_MXV",
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mxv/mxv"),
+    );
+    let open = Open::start_with(command, dirs);
+    let port = open.port;
+    let token = exchange(
+        port,
+        &launch_code(&std::fs::read_to_string(&open.page).unwrap()),
+    );
+
+    let deck = Call::get(port, "/api/deck").bearer(&token).send(port);
+    let workspaces = Call::get(port, "/api/workspaces").bearer(&token).send(port);
+    let model = Call::get(port, "/api/model").bearer(&token).send(port);
+
+    assert_eq!(
+        open.lines[0],
+        format!("http://127.0.0.1:{port} · workspaces")
+    );
+    assert_eq!(deck.json(), json!({"tool": false}));
+    assert_eq!(workspaces.status, 200);
+    assert_eq!(workspaces.json()["summary"]["workspaces"], 4);
+    assert_eq!(model.status, 404);
+    let (exit, printed) = open.stop(rustix::process::Signal::TERM);
+    assert_eq!(exit, Some(0), "{printed}");
+}
+
+#[test]
 fn open_on_a_missing_tool_prints_tool_not_found_and_starts_no_server() {
     let dirs = tempfile::tempdir().unwrap();
     let missing = dirs.path().join("no-such-tool");

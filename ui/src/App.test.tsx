@@ -1,12 +1,13 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { App } from "@/App";
 import { dropToken } from "@/api/client";
 import { makeQueryClient } from "@/queryClient";
 import { readToken } from "@/storage";
 import { shelfReply } from "../tests/fixtures/shelf";
+import { workspacesList } from "../tests/fixtures/workspaces";
 
 /** A request the page sent, as the stub of fetch saw it. */
 type Sent = { path: string; method: string; headers: Headers; body: string | null };
@@ -31,6 +32,9 @@ function stubServer(
       return body === JSON.stringify({ code })
         ? Response.json({ token: "token-for-test" })
         : Response.json({ title: "refused" }, { status: 401 });
+    }
+    if (path === "/api/deck") {
+      return Response.json({ tool: true });
     }
     if (path === "/api/model") {
       return Response.json(shelfReply);
@@ -123,8 +127,35 @@ function renderApp(code: string | null) {
   );
 }
 
+/**
+ * Stubs fetch with a server that holds no tool: the session exchange, the
+ * deck, which says there is no tool, and the workspaces list. Every other
+ * path is not found, as the server answers.
+ */
+function stubToolless(): string[] {
+  const asked: string[] = [];
+  vi.stubGlobal("fetch", async (path: string) => {
+    asked.push(path);
+    if (path === "/api/session") {
+      return Response.json({ token: "token-for-test" });
+    }
+    if (path === "/api/deck") {
+      return Response.json({ tool: false });
+    }
+    if (path === "/api/workspaces") {
+      return Response.json(workspacesList);
+    }
+    return Response.json({ code: "test::not_found", title: path }, { status: 404 });
+  });
+  return asked;
+}
+
 beforeEach(() => {
   dropToken();
+});
+
+afterEach(() => {
+  window.location.hash = "";
 });
 
 describe("App", () => {
@@ -148,7 +179,7 @@ describe("App", () => {
     renderApp("an-expired-code");
 
     const card = await screen.findByRole("region", { name: "This page is not signed in" });
-    expect(within(card).getByText("flightdeck open <TOOL>")).toBeInTheDocument();
+    expect(within(card).getByText("flightdeck open [TOOL]")).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "Copy" })).toBeInTheDocument();
   });
 
@@ -238,5 +269,49 @@ describe("App", () => {
     expect(cancels.map((each) => [each.method, each.path])).toEqual([
       ["POST", "/api/runs/r1/cancel"],
     ]);
+  });
+
+  it("shows the workspaces, and never asks for a model, when flightdeck holds no tool", async () => {
+    const asked = stubToolless();
+    renderApp("launch-code-for-test");
+
+    expect(await screen.findByRole("link", { name: /^reading-list/ })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 1, name: "Workspaces on local" })).toBeVisible();
+    expect(asked).not.toContain("/api/model");
+  });
+
+  it("moves between the tool's page and the workspaces, and keeps the tool's page", async () => {
+    stubServer("launch-code-for-test");
+    const user = userEvent.setup();
+    renderApp("launch-code-for-test");
+    await screen.findByRole("region", { name: "Welcome to shelf" });
+
+    await user.click(screen.getByRole("button", { name: "Workspaces" }));
+    expect(await screen.findByRole("heading", { level: 1, name: /Workspaces on/ })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Welcome to shelf" })).toBeNull();
+
+    const views = screen.getByRole("navigation", { name: "Views" });
+    await user.click(within(views).getByRole("link", { name: "Commands" }));
+    expect(await screen.findByRole("region", { name: "Welcome to shelf" })).toBeVisible();
+  });
+
+  it("comes back to the tool's page when ⌘K opens the palette from the workspaces", async () => {
+    // jsdom has no modal dialogs, so the palette's opening is recorded instead.
+    const showModal = vi.fn();
+    HTMLDialogElement.prototype.showModal = showModal;
+    onTestFinished(() => {
+      Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
+    });
+    stubServer("launch-code-for-test");
+    const user = userEvent.setup();
+    renderApp("launch-code-for-test");
+    await screen.findByRole("region", { name: "Welcome to shelf" });
+    await user.click(screen.getByRole("button", { name: "Workspaces" }));
+    await screen.findByRole("heading", { level: 1, name: /Workspaces on/ });
+
+    await user.keyboard("{Meta>}k{/Meta}");
+
+    expect(await screen.findByRole("region", { name: "Welcome to shelf" })).toBeVisible();
+    expect(showModal).toHaveBeenCalled();
   });
 });
