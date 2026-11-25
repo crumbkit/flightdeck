@@ -267,3 +267,4 @@ pub(crate) struct OpenArgs {
     #[arg(long)]
     pub(crate) no_browser: bool,
 }
+fn   badly_formatted ( ) {   }
