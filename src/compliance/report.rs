@@ -97,8 +97,8 @@ pub(crate) struct ImposedRead {
 pub(crate) struct RuleRow {
     /// The rule's path.
     pub(crate) id: String,
-    /// `imposed` or `repository`.
-    pub(crate) source: String,
+    /// Whether the rule comes from the imposed set or the repository.
+    pub(crate) source: RuleSource,
     /// The paths of the groups the rule is in.
     pub(crate) groups: Vec<String>,
     /// What the files must do, or null when the rule cannot be read.
@@ -118,6 +118,19 @@ pub(crate) struct RuleRow {
     /// The facts the rule's checker measured.
     #[serde(flatten)]
     pub(crate) facts: RuleFacts,
+}
+
+/// Where a rule comes from. Board's schema allows only these two values,
+/// so a report with another is invalid at that rule's `source`.
+#[derive(
+    Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq, PartialOrd, Ord,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum RuleSource {
+    /// A rule of the imposed set.
+    Imposed,
+    /// A rule of the repository's own.
+    Repository,
 }
 
 /// The facts a rule's checker measured, which a cell copies.

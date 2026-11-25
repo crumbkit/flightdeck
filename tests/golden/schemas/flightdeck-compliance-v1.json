@@ -669,7 +669,7 @@
           "minimum": 0
         },
         "code": {
-          "description": "Why the cell is not readable: the report's or a refusal's code, or\nthe column's code; null otherwise.",
+          "description": "Why the cell is not readable: the rule's or the suite's code in the\nreport, or the column's code; null otherwise.",
           "type": [
             "string",
             "null"
@@ -1378,7 +1378,7 @@
           }
         },
         "checker": {
-          "description": "What a program checks, as the first report that holds the rule\ngives it; null for a suite or a rule without one."
+          "description": "What a program checks, as the first report that holds the rule\ngives it, taking first the reports on the `--rules-commit` commit;\nnull for a suite or a rule without one."
         },
         "groups": {
           "description": "The paths of the groups the rule is in, in any report.",
@@ -1406,7 +1406,7 @@
           ]
         },
         "requirement": {
-          "description": "What the files must do, from the first report that holds the rule;\nnull for a suite or a rule that cannot be read.",
+          "description": "What the files must do, from the first report that holds the rule,\ntaking first the reports on the `--rules-commit` commit; null for a\nsuite or a rule that cannot be read.",
           "type": [
             "string",
             "null"
@@ -1425,9 +1425,13 @@
         },
         "source": {
           "description": "`imposed` or `repository`, from the report's `rules[].source`; null\nfor a suite.",
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuleSource"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       },
@@ -1512,6 +1516,21 @@
         "behind",
         "omitted",
         "zero"
+      ]
+    },
+    "RuleSource": {
+      "description": "Where a rule comes from. Board's schema allows only these two values,\nso a report with another is invalid at that rule's `source`.",
+      "oneOf": [
+        {
+          "description": "A rule of the imposed set.",
+          "type": "string",
+          "const": "imposed"
+        },
+        {
+          "description": "A rule of the repository's own.",
+          "type": "string",
+          "const": "repository"
+        }
       ]
     },
     "Section": {

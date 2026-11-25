@@ -1,26 +1,23 @@
 //! The groups of rules, such as `rust` and `server`, and the state each
 //! rolls up to in each repository.
 //!
-//! A group's members are the imposed rules whose `groups` name it in any
-//! report, so a rule such as `rust-server` counts in both `rust` and
-//! `server`. A repository's own rules are left out, even its copy of an
-//! imposed rule, which Board never measures: drift sits beside a state and
-//! never changes one. The
-//! build recomputes each roll-up from the cells, worst first, because a
+//! A group's members are the imposed rows whose `groups` name it, which
+//! the build has merged from every report's rules, so a rule such as
+//! `rust-server` counts in both `rust` and `server`. A repository's own
+//! rules are left out, even its copy of an imposed rule, which Board never
+//! measures: drift sits beside a state and never changes one. The build
+//! recomputes each roll-up from the cells, worst first, because a
 //! cell turns stale only at the build's time. It keeps the counts each
 //! report gave the group.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use schemars::JsonSchema;
 use serde::Serialize;
 
 use super::document::Row;
-use super::report::Report;
+use super::report::{Report, RuleSource};
 use super::state::{self, CellState};
-
-/// The source of a rule of the imposed set.
-const IMPOSED: &str = "imposed";
 
 /// One group of rules and its roll-up in each repository.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, JsonSchema)]
@@ -59,16 +56,21 @@ pub(crate) fn roll_up(
     rows: &[Row],
 ) -> Vec<Group> {
     let mut titles: BTreeMap<&str, &str> = BTreeMap::new();
-    let mut members: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    // Each group's imposed rows by path. Rows are keyed by path and
+    // source, so a path has one imposed row.
+    let mut members: BTreeMap<&str, BTreeMap<&str, &Row>> = BTreeMap::new();
     for report in reports.iter().flatten() {
         for group in &report.groups {
             titles.entry(&group.id).or_insert(&group.title);
             members.entry(&group.id).or_default();
         }
-        for rule in report.rules.iter().filter(|rule| rule.source == IMPOSED) {
-            for group in &rule.groups {
-                members.entry(group).or_default().insert(&rule.id);
-            }
+    }
+    for row in rows
+        .iter()
+        .filter(|row| row.source == Some(RuleSource::Imposed))
+    {
+        for group in &row.groups {
+            members.entry(group).or_default().insert(&row.id, row);
         }
     }
     members
@@ -79,12 +81,8 @@ pub(crate) fn roll_up(
                 .zip(reports)
                 .enumerate()
                 .map(|(column, (repository, report))| {
-                    let states = rows
-                        .iter()
-                        .filter(|row| {
-                            row.source.as_deref() == Some(IMPOSED)
-                                && rules.contains(row.id.as_str())
-                        })
+                    let states = rules
+                        .values()
                         .filter_map(|row| row.cells.get(column))
                         .map(|cell| cell.state);
                     GroupCell {
@@ -103,7 +101,7 @@ pub(crate) fn roll_up(
             Group {
                 id: id.to_owned(),
                 title: titles.get(id).map_or(id, |title| *title).to_owned(),
-                members: rules.into_iter().map(str::to_owned).collect(),
+                members: rules.into_keys().map(str::to_owned).collect(),
                 cells,
             }
         })

@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 
 use super::config::{Config, ConfigProblem};
 use super::document::{self, Cell, ComplianceDocument, Inputs, ReportState, Row, Section};
-use super::report::{self, Report, Unread};
+use super::report::{self, Report, RuleSource, Unread};
 use super::state::{self, CellState};
 
 /// The config of the fixtures.
@@ -85,11 +85,11 @@ fn app_alone(app: &Value, days: i64) -> ComplianceDocument {
 
 /// The row of `id` with `source`, or the suite row of `id` when `source` is
 /// `None`.
-fn row<'a>(document: &'a ComplianceDocument, id: &str, source: Option<&str>) -> &'a Row {
+fn row<'a>(document: &'a ComplianceDocument, id: &str, source: Option<RuleSource>) -> &'a Row {
     document
         .rows
         .iter()
-        .find(|row| row.id == id && row.source.as_deref() == source)
+        .find(|row| row.id == id && row.source == source)
         .unwrap_or_else(|| panic!("no row {id}"))
 }
 
@@ -103,7 +103,7 @@ fn cell<'a>(row: &'a Row, repository: &str) -> &'a Cell {
 
 /// The state of the imposed rule `id` in `repository`.
 fn rule_state(document: &ComplianceDocument, id: &str, repository: &str) -> CellState {
-    cell(row(document, id, Some("imposed")), repository).state
+    cell(row(document, id, Some(RuleSource::Imposed)), repository).state
 }
 
 /// The group `id` of `document`.
@@ -256,7 +256,11 @@ fn the_fixture_reports_give_each_cell_the_state_of_its_result() {
         rule_state(&document, "/rules/rust/server", "owner/app"),
         CellState::Written
     );
-    let own = row(&document, "/rules/rust/server", Some("repository"));
+    let own = row(
+        &document,
+        "/rules/rust/server",
+        Some(RuleSource::Repository),
+    );
     assert_eq!(cell(own, "owner/app").state, CellState::NotReadable);
     assert_eq!(cell(own, "owner/api").state, CellState::Absent);
     let suite = row(&document, "/suites/api-rust-standard", None);
@@ -273,7 +277,12 @@ fn rows_come_in_sections_measured_zero_suite_then_written() {
     sorted.sort();
     assert_eq!(sections, sorted);
     assert_eq!(
-        row(&document, "/rules/payments/v1-signer", Some("imposed")).section,
+        row(
+            &document,
+            "/rules/payments/v1-signer",
+            Some(RuleSource::Imposed)
+        )
+        .section,
         Section::Zero
     );
 }
@@ -321,7 +330,11 @@ fn a_missing_report_gives_its_column_no_report_and_the_others_render() {
     let gone = &document.repositories[3];
     assert_eq!(gone.report, ReportState::NoReport);
     assert_eq!(gone.code.as_deref(), Some(document::NO_REPORT));
-    let file_size = row(&document, "/rules/rust/file-size", Some("imposed"));
+    let file_size = row(
+        &document,
+        "/rules/rust/file-size",
+        Some(RuleSource::Imposed),
+    );
     assert_eq!(cell(file_size, "owner/gone").state, CellState::NotReadable);
     assert_eq!(
         cell(file_size, "owner/gone").code.as_deref(),
@@ -374,7 +387,11 @@ fn a_warning_that_names_a_measured_rule_leaves_its_state() {
     }]);
     let document = built([missing(), read(&api), missing(), missing()], &at_days(0));
     let api_cell = cell(
-        row(&document, "/rules/rust/file-size", Some("imposed")),
+        row(
+            &document,
+            "/rules/rust/file-size",
+            Some(RuleSource::Imposed),
+        ),
         "owner/api",
     );
     assert_eq!(api_cell.state, CellState::Failing);
@@ -382,38 +399,16 @@ fn a_warning_that_names_a_measured_rule_leaves_its_state() {
 }
 
 #[test]
-fn a_refusal_gives_its_code_only_to_the_unreadable_row_of_its_path() {
-    // owner/app holds an imposed and a repository /rules/rust/server. Board
-    // marks the imposed one unreadable with no code of its own, and the
-    // refusal names the path both rows share.
+fn a_rule_source_that_is_neither_imposed_nor_repository_is_an_invalid_report_at_its_path() {
     let mut app = value(APP);
-    let rules = app["rules"].as_array_mut().unwrap();
-    for rule in rules.iter_mut() {
-        if rule["id"] == "/rules/rust/server" && rule["source"] == "imposed" {
-            rule["result"] = json!("unreadable");
-            rule["code"] = Value::Null;
-        }
-    }
-    app["refused"] = json!([{
-        "code": "board::ref::dangling",
-        "rules": ["/rules/rust/server"],
-        "message": "Board marks the rule degraded.",
-    }]);
-    let document = app_alone(&app, 0);
-    let imposed = cell(
-        row(&document, "/rules/rust/server", Some("imposed")),
-        "owner/app",
-    );
-    assert_eq!(imposed.state, CellState::NotReadable);
-    assert_eq!(imposed.code.as_deref(), Some("board::ref::dangling"));
-    let own = cell(
-        row(&document, "/rules/rust/server", Some("repository")),
-        "owner/app",
-    );
-    assert_eq!(own.result.as_deref(), Some("unmeasured"));
-    assert_eq!(
-        own.code, None,
-        "the repository's own row keeps its own code"
+    app["rules"][2]["source"] = json!("inherited");
+    assert!(
+        matches!(
+            read(&app),
+            Err(Unread::Invalid { field: Some(field), .. }) if field == "rules[2].source"
+        ),
+        "{:?}",
+        read(&app)
     );
 }
 
@@ -458,7 +453,11 @@ fn a_zero_rule_measure_may_be_a_number_a_label_a_flag_or_null() {
         json!({"remaining": 2, "label": "two left", "done": false, "unknown": null});
     let document = app_alone(&app, 0);
     let facts = cell(
-        row(&document, "/rules/payments/v1-signer", Some("imposed")),
+        row(
+            &document,
+            "/rules/payments/v1-signer",
+            Some(RuleSource::Imposed),
+        ),
         "owner/app",
     )
     .facts
@@ -505,6 +504,41 @@ fn two_reports_that_give_one_rule_different_checkers_share_one_row() {
     );
     assert_eq!(cell(rows[0], "owner/api").state, CellState::Written);
     assert_eq!(document.repositories[1].counts.written, 2);
+}
+
+#[test]
+fn a_report_on_the_rules_commit_gives_its_rule_the_section_ahead_of_an_earlier_column() {
+    // owner/app read an older commit of the set, where the file-size rule
+    // was a measured rule; owner/api read the current one, where it is a
+    // written rule with another requirement.
+    let mut app = value(APP);
+    app["board"]["rules_commit"] = json!("0".repeat(40));
+    let mut api = value(API);
+    let current = api["board"]["rules_commit"].as_str().unwrap().to_owned();
+    for rule in api["rules"].as_array_mut().unwrap() {
+        if rule["id"] == "/rules/rust/file-size" {
+            rule["checker"] = Value::Null;
+            rule["result"] = json!("written");
+            rule["requirement"] = json!("The current requirement.");
+        }
+    }
+    let inputs = Inputs {
+        rules_commit: Some(current),
+        ..at_days(0)
+    };
+    let document = built([read(&app), read(&api), missing(), missing()], &inputs);
+    let file_size = row(
+        &document,
+        "/rules/rust/file-size",
+        Some(RuleSource::Imposed),
+    );
+    assert_eq!(file_size.section, Section::Written);
+    assert_eq!(
+        file_size.requirement.as_deref(),
+        Some("The current requirement.")
+    );
+    assert_eq!(file_size.checker, None);
+    assert_eq!(cell(file_size, "owner/app").state, CellState::Current);
 }
 
 // Drift: one test each.
@@ -612,13 +646,16 @@ fn commits_since_and_its_code_copy_from_the_suite_run_nulls_included() {
 #[test]
 fn each_row_carries_the_source_the_report_gives_its_rule() {
     let document = fixtures();
-    let sources: Vec<Option<&str>> = document
+    let sources: Vec<Option<RuleSource>> = document
         .rows
         .iter()
         .filter(|row| row.id == "/rules/rust/server")
-        .map(|row| row.source.as_deref())
+        .map(|row| row.source)
         .collect();
-    assert_eq!(sources, [Some("imposed"), Some("repository")]);
+    assert_eq!(
+        sources,
+        [Some(RuleSource::Imposed), Some(RuleSource::Repository)]
+    );
 }
 
 // Groups.
@@ -759,7 +796,7 @@ fn a_stale_after_days_of_0_is_refused_at_its_line() {
 }
 
 #[test]
-fn an_every_hours_of_0_is_refused() {
+fn an_every_hours_of_0_is_refused_at_its_line() {
     let text = CONFIG.replace("every_hours = 24", "every_hours = 0");
     let problem = Config::parse(&text).unwrap_err();
     assert!(
@@ -767,4 +804,5 @@ fn an_every_hours_of_0_is_refused() {
         "{}",
         problem.message
     );
+    assert_eq!(problem.line, Some(18), "{}", problem.message);
 }
