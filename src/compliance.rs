@@ -36,8 +36,8 @@ pub use self::document::{
 pub use self::drift::Drift;
 pub use self::groups::{Group, GroupCell};
 pub use self::report::{
-    Differs, FailedCase, FileOver, MeasureValue, Omitted, PinBehind, Refused, RuleFacts, SourceRun,
-    SuiteRun, ZeroRead,
+    Differs, FailedCase, FileOver, MeasureValue, Omitted, PinBehind, Refused, RuleFacts,
+    RuleSource, SourceRun, SuiteRun, ZeroRead,
 };
 pub use self::state::CellState;
 

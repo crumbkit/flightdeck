@@ -50,8 +50,7 @@ pub(crate) struct ConfigFile {
     _audits: Option<Audits>,
     /// How often the controls job builds the pages.
     #[serde(default)]
-    #[schemars(with = "Option<Build>")]
-    build: Option<Spanned<Build>>,
+    build: Option<Build>,
     /// The imposed rule set that every repository's rules are compared
     /// with.
     imposed: ImposedFile,
@@ -124,12 +123,12 @@ pub(crate) enum AuditsKind {
 }
 
 /// How often the controls job builds the pages.
-#[derive(Clone, Copy, Debug, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Build {
     /// The hours between two builds, which give the next build's time.
-    #[schemars(range(min = 1))]
-    pub(crate) every_hours: u32,
+    #[schemars(with = "u32", range(min = 1))]
+    every_hours: Spanned<u32>,
 }
 
 /// The imposed rule set, as the config names it.
@@ -295,17 +294,7 @@ impl Config {
         let every_hours = file
             .build
             .as_ref()
-            .map(|build| {
-                let hours = build.get_ref().every_hours;
-                if hours == 0 {
-                    Err(ConfigProblem {
-                        line: Some(line_of(text, build.span().start)),
-                        message: "[build] every_hours is 0, and it must be at least 1".to_owned(),
-                    })
-                } else {
-                    Ok(hours)
-                }
-            })
+            .map(|build| at_least_1(&build.every_hours, "[build] every_hours"))
             .transpose()?;
         let mut seen = BTreeSet::new();
         let mut repositories = Vec::with_capacity(file.repositories.len());

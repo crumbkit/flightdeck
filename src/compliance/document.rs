@@ -17,7 +17,9 @@ use serde::Serialize;
 use super::config::Config;
 use super::drift::Drift;
 use super::groups::{self, Group};
-use super::report::{Refused, Report, RuleFacts, RuleRow, SourceRun, SuiteRow, SuiteRun, Unread};
+use super::report::{
+    Refused, Report, RuleFacts, RuleRow, RuleSource, SourceRun, SuiteRow, SuiteRun, Unread,
+};
 use super::state::{self, CellState};
 
 /// The code of a column whose repository has no report file.
@@ -217,9 +219,10 @@ pub struct Row {
     pub section: Section,
     /// `imposed` or `repository`, from the report's `rules[].source`; null
     /// for a suite.
-    pub source: Option<String>,
-    /// What the files must do, from the first report that holds the rule;
-    /// null for a suite or a rule that cannot be read.
+    pub source: Option<RuleSource>,
+    /// What the files must do, from the first report that holds the rule,
+    /// taking first the reports on the `--rules-commit` commit; null for a
+    /// suite or a rule that cannot be read.
     pub requirement: Option<String>,
     /// Why the requirement exists; null as for `requirement`.
     pub purpose: Option<String>,
@@ -228,7 +231,8 @@ pub struct Row {
     /// When the rule is shown to an agent; null for a suite.
     pub show: Option<String>,
     /// What a program checks, as the first report that holds the rule
-    /// gives it; null for a suite or a rule without one.
+    /// gives it, taking first the reports on the `--rules-commit` commit;
+    /// null for a suite or a rule without one.
     pub checker: Option<serde_json::Value>,
     /// The paths of the groups the rule is in, in any report.
     pub groups: Vec<String>,
@@ -247,8 +251,8 @@ pub struct Cell {
     pub repository: String,
     /// What the cell reads.
     pub state: CellState,
-    /// Why the cell is not readable: the report's or a refusal's code, or
-    /// the column's code; null otherwise.
+    /// Why the cell is not readable: the rule's or the suite's code in the
+    /// report, or the column's code; null otherwise.
     pub code: Option<String>,
     /// The rule's `result` as the report gives it; null for a suite or an
     /// absent rule.
@@ -311,7 +315,7 @@ fn utc(at: Timestamp) -> String {
 /// suite has none of. The section is no part of it, because two reports may
 /// give one rule different checkers, such as a report that read an older
 /// commit of the imposed set.
-type RowKey = (String, Option<String>);
+type RowKey = (String, Option<RuleSource>);
 
 /// Returns the section of a rule whose checker is `checker`.
 fn section_of(checker: Option<&serde_json::Value>) -> Section {
@@ -340,10 +344,18 @@ pub(crate) fn build(
         .collect();
     let readable: Vec<Option<&Report>> =
         reports.iter().map(|report| report.as_ref().ok()).collect();
+    // A row describes its rule as the first report that holds it gives it,
+    // so the reports on the current commit of the imposed set come first.
+    let on_commit = |report: &&Report| {
+        inputs.rules_commit.is_some()
+            && report.board.rules_commit.as_deref() == inputs.rules_commit.as_deref()
+    };
+    let (current, others): (Vec<&Report>, Vec<&Report>) =
+        readable.iter().flatten().copied().partition(on_commit);
     let mut rows: BTreeMap<RowKey, Row> = BTreeMap::new();
-    for report in readable.iter().flatten() {
+    for report in current.into_iter().chain(others) {
         for rule in &report.rules {
-            let key = (rule.id.clone(), Some(rule.source.clone()));
+            let key = (rule.id.clone(), Some(rule.source));
             let row = rows.entry(key).or_insert_with(|| empty_rule_row(rule));
             for group in &rule.groups {
                 if !row.groups.contains(group) {
@@ -356,7 +368,6 @@ pub(crate) fn build(
                 .or_insert_with(|| empty_suite_row(suite));
         }
     }
-    // A rule's section is the one the first report that holds it gives.
     let mut rows: Vec<Row> = rows.into_values().collect();
     rows.sort_by(|a, b| (a.section, &a.id, &a.source).cmp(&(b.section, &b.id, &b.source)));
     for row in &mut rows {
@@ -435,7 +446,7 @@ fn empty_rule_row(rule: &RuleRow) -> Row {
     Row {
         id: rule.id.clone(),
         section: section_of(rule.checker.as_ref()),
-        source: Some(rule.source.clone()),
+        source: Some(rule.source),
         requirement: rule.requirement.clone(),
         purpose: rule.purpose.clone(),
         kind: Some(rule.kind.clone()),
@@ -506,25 +517,11 @@ fn cell_of(
         let Some(rule) = report
             .rules
             .iter()
-            .find(|rule| rule.id == row.id && Some(&rule.source) == row.source.as_ref())
+            .find(|rule| rule.id == row.id && Some(rule.source) == row.source)
         else {
             return Cell::absent(repository);
         };
         let found = state::of_result(&rule.result);
-        // A refusal names a rule by its path alone, so it gives a code only
-        // to the row of that path which Board marked unreadable. Board's
-        // own row carries the state, and a warning changes no state.
-        let code = rule.code.clone().or_else(|| {
-            (rule.result == "unreadable")
-                .then(|| {
-                    report
-                        .refused
-                        .iter()
-                        .find(|refused| refused.rules.contains(&rule.id))
-                        .map(|refused| refused.code.clone())
-                })
-                .flatten()
-        });
         Cell {
             repository: repository.to_owned(),
             state: if stale_report {
@@ -532,7 +529,7 @@ fn cell_of(
             } else {
                 found
             },
-            code,
+            code: rule.code.clone(),
             result: Some(rule.result.clone()),
             facts: Some(rule.facts.clone()),
             run: None,
