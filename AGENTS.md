@@ -3,6 +3,10 @@
 - Run `scripts/install-test-tools.sh` once before the tests. It installs
   shelf and reading under `target/test-tools/bin`, and tests that need them
   fail without them.
+- A plain `cargo nextest run` leaves out the test binaries that need shelf
+  and reading, because `default-filter` in `.config/nextest.toml` names
+  them for the shared lane. Run `cargo nextest run --ignore-default-filter`
+  to run every test.
 - Move the crumbkit commit in that script and the schema copies in
   `tests/fixtures/crumbkit/` together, and say so in the pull request.
 - `SNAPSHOTS=overwrite cargo test` rewrites the golden files under

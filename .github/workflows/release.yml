@@ -126,8 +126,10 @@ jobs:
       # shelf and reading at the commit that the install script pins.
       - name: test tools
         run: scripts/install-test-tools.sh
+      # Every test, including the binaries that `default-filter` in
+      # .config/nextest.toml leaves out.
       - name: tests
-        run: cargo nextest run --locked --workspace --all-features
+        run: cargo nextest run --locked --workspace --all-features --ignore-default-filter
 
   build:
     needs: version

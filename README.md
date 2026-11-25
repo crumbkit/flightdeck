@@ -303,7 +303,7 @@ pnpm run build && pnpm run size
 cargo build && pnpm run acceptance
 ```
 
-Commit `ui/dist` with the change. CI's `gate` job fails when the committed
+Commit `ui/dist` with the change. CI's `page` job fails when the committed
 files differ from a fresh build.
 [ui/typescript-standards.toml](ui/typescript-standards.toml) maps the
 TypeScript standards that the page follows to the files that meet them.

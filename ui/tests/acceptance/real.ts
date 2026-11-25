@@ -75,8 +75,9 @@ async function openerOf(child: ChildProcess): Promise<string> {
  * flightdeck without a tool, so the page shows the workspaces. Every
  * flightdeck asks tests/fixtures/mxv/mxv, the fake mxv, for the workspaces.
  * Each test starts its own flightdeck, because a launch code
- * works once, and stops it when the test ends. The Rust lane builds both
- * before this lane runs. `test.use({ readOnly: true })` starts it with
+ * works once, and stops it when the test ends. The `page` job builds
+ * target/debug/flightdeck and installs the test tools before `acceptance`.
+ * `test.use({ readOnly: true })` starts it with
  * `--read-only`. `test.use({ ranBefore: { runs: [["books", "list"]] } })`
  * runs the tool with each argument vector first, in the same directories,
  * so its usage log holds those runs when flightdeck loads it. The runs sit

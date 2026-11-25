@@ -1,6 +1,8 @@
 # flightdeck's lanes, which rust-standards.toml and ui/typescript-standards.toml
-# record as their `lanes` decisions. `gate` runs the Rust pull-request lane
-# and then the page's, and branch protection requires it.
+# record as their `lanes` decisions. `lane` runs the shared Rust pull-request
+# lane, `app` runs the environment check and every test with shelf and
+# reading, and `page` runs the page's lane. `gate` passes when all three pass,
+# and the ruleset requires it.
 # `windows` builds and tests flightdeck on Windows for each pull request,
 # `advisories` runs daily for both, and `macos` runs the tests on macOS once
 # a week.
@@ -32,12 +34,27 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  gate:
+  # The shared pull-request lane (BASE-25) from crumbkit/rust-standards, at
+  # the commit that rust-standards.toml's `lane-commit` decision names. Its
+  # check is `lane / lane`. Its tests leave out the binaries that need shelf
+  # and reading, through `default-filter` in .config/nextest.toml, because the
+  # shared lane cannot install them. flightdeck is not a library, so the lane
+  # leaves out `rustdoc` and `features`.
+  lane:
     if: github.event_name != 'schedule'
-    runs-on: ubuntu-latest
-    # The pull-request lane's time budget (BASE-25), for the Rust lane and
-    # the page's together. A run whose test tools are not cached builds
-    # shelf and reading first.
+    permissions:
+      contents: read # The lane's actions/checkout reads the repository.
+    uses: crumbkit/rust-standards/.github/workflows/rust-lane.yml@5ba71ff31c5f5d8e69b34d04bb65bd0177f7ebeb
+    with:
+      library: false
+      # The pull-request lane's time budget (BASE-25).
+      timeout-minutes: 20
+
+  # The steps that the shared lane cannot run: the environment check, and
+  # every test with shelf and reading installed.
+  app:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read # actions/checkout reads the repository.
@@ -52,14 +69,8 @@ jobs:
       # tool binaries that install-action downloads on every run.
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
-          tool: cargo-nextest@0.9.140,cargo-deny@0.20.2,cargo-shear@1.14.0,zizmor@1.30.1
+          tool: cargo-nextest@0.9.140
           fallback: none
-      # The steps that read only the source run first, so a pull request
-      # that fails one of them fails in seconds.
-      - name: format
-        run: cargo fmt --check
-      - name: workflows
-        run: zizmor .
       # starmap check fails when src reads a variable that starmap.toml does
       # not declare, or when clippy.toml lacks the disallowed readers
       # (BASE-28). The release archive is pinned by its SHA-256.
@@ -89,17 +100,37 @@ jobs:
       - name: test tools
         if: steps.test-tools.outputs.cache-hit != 'true'
         run: scripts/install-test-tools.sh
-      - name: deny
-        run: cargo deny --locked check bans licenses sources
-      - name: shear
-        run: cargo shear
-      - name: clippy
-        run: cargo clippy --locked --workspace --all-targets --all-features
+      # Every test, including the binaries that `default-filter` leaves out.
       - name: tests
-        run: cargo nextest run --locked --workspace --all-features
-      - name: doctests
-        run: cargo test --locked --doc --workspace --all-features
-      # The page's lane runs in ui/ (BASE-16 of the TypeScript standards).
+        run: cargo nextest run --locked --workspace --all-features --ignore-default-filter
+
+  # The page's lane in ui/ (BASE-16 of the TypeScript standards). The
+  # `workflows` step is the shared lane's, which checks the same files. The
+  # acceptance tests start target/debug/flightdeck with shelf and reading, so
+  # the job builds flightdeck and installs the test tools first.
+  page:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read # actions/checkout reads the repository.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      # Only a run on main saves the cache.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - id: test-tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: target/test-tools
+          key: test-tools-${{ runner.os }}-${{ hashFiles('scripts/install-test-tools.sh', 'rust-toolchain.toml') }}
+      - name: test tools
+        if: steps.test-tools.outputs.cache-hit != 'true'
+        run: scripts/install-test-tools.sh
       # pnpm/action-setup installs the pnpm that `packageManager` names, and
       # setup-node the Node that .node-version names. setup-node caches
       # pnpm's store, keyed by the lockfile.
@@ -136,6 +167,10 @@ jobs:
       - name: size
         run: pnpm run size
         working-directory: ui
+      # The acceptance tests start target/debug/flightdeck, which embeds the
+      # committed bundle.
+      - name: flightdeck
+        run: cargo build --locked
       # The browsers are cached by Playwright's version, which the lockfile
       # fixes. The system libraries they need are installed on every run.
       - id: playwright
@@ -157,6 +192,25 @@ jobs:
           name: playwright-traces
           path: ui/test-results/
           retention-days: 7
+
+  # The check that the ruleset requires, until it requires `lane / lane`,
+  # `app` and `page` instead. It fails unless all three succeeded, so a
+  # skipped or cancelled job fails it too.
+  gate:
+    if: always() && github.event_name != 'schedule'
+    needs: [lane, app, page]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: gate
+        env:
+          LANE: ${{ needs.lane.result }}
+          APP: ${{ needs.app.result }}
+          PAGE: ${{ needs.page.result }}
+        run: |
+          echo "lane: $LANE, app: $APP, page: $PAGE"
+          test "$LANE" = success && test "$APP" = success && test "$PAGE" = success
 
   # The tests on Windows, where crumbkit-process runs a tool in a job object.
   # The tests that run a fake tool written as a shell script, or that signal
@@ -193,7 +247,7 @@ jobs:
       - name: clippy
         run: cargo clippy --locked --workspace --all-targets --all-features
       - name: tests
-        run: cargo nextest run --locked --workspace --all-features
+        run: cargo nextest run --locked --workspace --all-features --ignore-default-filter
 
   macos:
     if: github.event.schedule == '17 5 * * 1'
@@ -219,7 +273,7 @@ jobs:
         if: steps.test-tools.outputs.cache-hit != 'true'
         run: scripts/install-test-tools.sh
       - name: tests
-        run: cargo nextest run --locked --workspace --all-features
+        run: cargo nextest run --locked --workspace --all-features --ignore-default-filter
 
   advisories:
     if: github.event_name != 'pull_request' && github.event.schedule != '17 5 * * 1'

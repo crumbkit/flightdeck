@@ -91,13 +91,22 @@ note = "The functions of src/lock.rs take and wait on every lock of flightdeck. 
 [[decision]]
 id = "lanes"
 requirement = """
-- Lane: `gate` in .github/workflows/ci.yml, on each pull request and each push to main, on ubuntu-latest. It runs every step of the pull-request lane except `rustdoc` and `features`, because flightdeck does not adopt the library profile. Before the tests it installs shelf and reading from crumbkit with scripts/install-test-tools.sh, unless the cache holds them. After the Rust steps it runs the page's lane in ui/, which ui/typescript-standards.toml describes. Its budget is twenty minutes, the job's timeout, for both lanes together. A merge waits for it, and it is the one check that branch protection requires.
+- Lane: `lane` in .github/workflows/ci.yml, on each pull request and each push to main. It calls the shared rust-lane.yml at the commit that the `lane-commit` decision names, with `library: false`, so it runs every step of the pull-request lane except `rustdoc` and `features`. Its check is `lane / lane`. Its tests leave out the binaries that need shelf and reading, which `default-filter` in .config/nextest.toml names. Its budget is twenty minutes.
+- Lane: `app` in .github/workflows/ci.yml, on each pull request and each push to main, on ubuntu-24.04. It runs `starmap check`, installs shelf and reading from crumbkit with scripts/install-test-tools.sh unless the cache holds them, and runs every test with `--ignore-default-filter`. Its budget is twenty minutes.
+- Lane: `gate` in .github/workflows/ci.yml, on each pull request and each push to main. It passes when `lane`, `app` and `page` (ui/typescript-standards.toml) all succeeded, and fails when any of them failed, was cancelled or was skipped. It is the one check that the ruleset requires, so a merge waits for all three.
+- Lane: `windows` in .github/workflows/ci.yml, on each pull request and each push to main. It runs Clippy and every test on windows-2025. Nothing waits for it.
 - Lane: `macos` in .github/workflows/ci.yml, weekly on Monday at 05:17 UTC. It runs the tests on macos-latest. Nothing waits for it.
 - Lane: `advisories` in .github/workflows/ci.yml, daily at 06:43 UTC and on each push to main. Nothing waits for it.
-- Lane: release in .github/workflows/release.yml, on each push of a `v*` tag. It runs the tests on ubuntu-24.04 and macos-15 and `advisories` (BASE-29), builds `flightdeck` with `cargo auditable` (BASE-30) for aarch64-apple-darwin, aarch64-unknown-linux-gnu and x86_64-unknown-linux-gnu, and attaches the archives and SHA256SUMS to the tag's GitHub release, which waits for the tests, the advisories and the builds. A pull request that changes the file runs the same jobs and releases nothing.
+- Lane: release in .github/workflows/release.yml, on each push of a `v*` tag. It runs the tests on ubuntu-24.04, macos-15 and windows-2025 and `advisories` (BASE-29), builds `flightdeck` with `cargo auditable` (BASE-30) for aarch64-apple-darwin, aarch64-unknown-linux-gnu, x86_64-unknown-linux-gnu and x86_64-pc-windows-msvc, and attaches the archives and SHA256SUMS to the tag's GitHub release, which waits for the tests, the advisories and the builds. A pull request that changes the file runs the same jobs and releases nothing.
 """
-reason = "The pull-request lane stays on one runner. The weekly macOS run catches a difference in process handling between Linux and macOS; finding it after merge is safe because the release lane runs the tests on both systems before it releases. The daily advisory run catches an advisory published against a dependency already on main, and finding it after merge is safe because nothing is released before it passes."
-realizations = [".github/workflows/ci.yml", "scripts/install-test-tools.sh"]
+reason = "The shared lane keeps flightdeck's pull-request lane the same as every other crumbkit project's, and the jobs beside it run what the shared lane cannot: the environment check, the tests that need shelf and reading, and the page. The thin `gate` job keeps the check that the ruleset requires until the ruleset requires `lane / lane`, `app` and `page` instead. The weekly macOS run catches a difference in process handling between Linux and macOS; finding it after merge is safe because the release lane runs the tests on all three systems before it releases. The daily advisory run catches an advisory published against a dependency already on main, and finding it after merge is safe because nothing is released before it passes."
+realizations = [".github/workflows/ci.yml", ".config/nextest.toml", "scripts/install-test-tools.sh"]
+
+[[decision]]
+id = "lane-commit"
+requirement = "The `lane` job in .github/workflows/ci.yml calls rust-lane.yml at crumbkit/rust-standards commit 5ba71ff31c5f5d8e69b34d04bb65bd0177f7ebeb, which is ahead of `standards.commit` (7c9a7577fed4fe5ba0682960c0380af0a75dace4)."
+reason = "rust-lane.yml first exists at 5ba71ff. flightdeck takes that commit's other changes to the standards in a change of its own, which moves `standards.commit` to the lane's commit."
+realizations = [".github/workflows/ci.yml"]
 
 [[decision]]
 id = "http-server"
