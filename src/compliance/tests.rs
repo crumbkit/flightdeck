@@ -177,7 +177,7 @@ fn a_result_a_later_board_adds_reads_not_readable() {
 fn suite_run(outcome: &str) -> report::SuiteRun {
     report::SuiteRun {
         id: "/suites/s/runs/1".to_owned(),
-        finished: "2026-11-24T00:00:00Z".to_owned(),
+        finished: Some("2026-11-24T00:00:00Z".to_owned()),
         commit: None,
         outcome: outcome.to_owned(),
         failed: Vec::new(),
@@ -365,31 +365,146 @@ fn a_document_of_another_type_is_an_invalid_report_at_its_type() {
 }
 
 #[test]
-fn a_refusal_makes_the_cells_it_names_not_readable_with_its_code() {
-    let mut app = value(APP);
-    app["refused"] = json!([{
-        "code": "rules::zero::run_unreadable",
+fn a_warning_that_names_a_measured_rule_leaves_its_state() {
+    let mut api = value(API);
+    api["refused"] = json!([{
+        "code": "rules::report::member_unmatched",
         "rules": ["/rules/rust/file-size"],
-        "message": "The run cannot be read.",
+        "message": "A member pattern matches no rule.",
     }]);
+    let document = built([missing(), read(&api), missing(), missing()], &at_days(0));
+    let api_cell = cell(
+        row(&document, "/rules/rust/file-size", Some("imposed")),
+        "owner/api",
+    );
+    assert_eq!(api_cell.state, CellState::Failing);
+    assert_eq!(api_cell.code, None);
+}
+
+#[test]
+fn a_refusal_gives_its_code_only_to_the_unreadable_row_of_its_path() {
+    // owner/app holds an imposed and a repository /rules/rust/server. Board
+    // marks the imposed one unreadable with no code of its own, and the
+    // refusal names the path both rows share.
+    let mut app = value(APP);
+    let rules = app["rules"].as_array_mut().unwrap();
+    for rule in rules.iter_mut() {
+        if rule["id"] == "/rules/rust/server" && rule["source"] == "imposed" {
+            rule["result"] = json!("unreadable");
+            rule["code"] = Value::Null;
+        }
+    }
+    app["refused"] = json!([{
+        "code": "board::ref::dangling",
+        "rules": ["/rules/rust/server"],
+        "message": "Board marks the rule degraded.",
+    }]);
+    let document = app_alone(&app, 0);
+    let imposed = cell(
+        row(&document, "/rules/rust/server", Some("imposed")),
+        "owner/app",
+    );
+    assert_eq!(imposed.state, CellState::NotReadable);
+    assert_eq!(imposed.code.as_deref(), Some("board::ref::dangling"));
+    let own = cell(
+        row(&document, "/rules/rust/server", Some("repository")),
+        "owner/app",
+    );
+    assert_eq!(own.result.as_deref(), Some("unmeasured"));
+    assert_eq!(
+        own.code, None,
+        "the repository's own row keeps its own code"
+    );
+}
+
+#[test]
+fn a_report_of_another_repository_is_an_invalid_report_at_its_name() {
+    let report = read(&value(API)).unwrap();
+    assert!(matches!(
+        report::named(report, "owner/app"),
+        Err(Unread::Invalid { field: Some(field), .. }) if field == "repository.name"
+    ));
+    let report = read(&value(API)).unwrap();
+    assert!(
+        report::named(report, "Owner/API").is_ok(),
+        "GitHub names ignore case"
+    );
+}
+
+#[test]
+fn a_suite_run_that_records_no_time_reads_not_readable_and_the_report_still_reads() {
+    let mut app = value(APP);
+    app["suites"][0]["run"]["finished"] = Value::Null;
+    let document = app_alone(&app, 0);
+    let suite = cell(
+        row(&document, "/suites/app-rust-standard", None),
+        "owner/app",
+    );
+    assert_eq!(suite.state, CellState::NotReadable);
+    assert_eq!(suite.age_s, None);
+    assert_eq!(document.repositories[0].report, ReportState::Current);
+}
+
+#[test]
+fn a_zero_rule_measure_may_be_a_number_a_label_a_flag_or_null() {
+    let mut app = value(APP);
+    let zero = app["rules"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|rule| rule["id"] == "/rules/payments/v1-signer")
+        .unwrap();
+    zero["zero"]["measures"] =
+        json!({"remaining": 2, "label": "two left", "done": false, "unknown": null});
+    let document = app_alone(&app, 0);
+    let facts = cell(
+        row(&document, "/rules/payments/v1-signer", Some("imposed")),
+        "owner/app",
+    )
+    .facts
+    .clone()
+    .unwrap();
+    let measures = facts.zero.unwrap().measures;
+    assert_eq!(
+        measures["remaining"],
+        Some(super::MeasureValue::Number(2.0))
+    );
+    assert_eq!(
+        measures["label"],
+        Some(super::MeasureValue::Label("two left".to_owned()))
+    );
+    assert_eq!(measures["done"], Some(super::MeasureValue::Flag(false)));
+    assert_eq!(measures["unknown"], None);
+}
+
+#[test]
+fn two_reports_that_give_one_rule_different_checkers_share_one_row() {
+    // owner/api read an older commit of the set, where the file-size rule
+    // was a written rule.
+    let mut api = value(API);
+    for rule in api["rules"].as_array_mut().unwrap() {
+        if rule["id"] == "/rules/rust/file-size" {
+            rule["checker"] = Value::Null;
+            rule["result"] = json!("written");
+        }
+    }
     let document = built(
-        [read(&app), read(&value(API)), missing(), missing()],
+        [read(&value(APP)), read(&api), missing(), missing()],
         &at_days(0),
     );
-    let file_size = row(&document, "/rules/rust/file-size", Some("imposed"));
-    let app_cell = cell(file_size, "owner/app");
-    assert_eq!(app_cell.state, CellState::NotReadable);
+    let rows: Vec<&Row> = document
+        .rows
+        .iter()
+        .filter(|row| row.id == "/rules/rust/file-size")
+        .collect();
+    assert_eq!(rows.len(), 1);
     assert_eq!(
-        app_cell.code.as_deref(),
-        Some("rules::zero::run_unreadable")
+        rows[0].section,
+        Section::Measured,
+        "the first report's checker"
     );
-    assert_eq!(cell(file_size, "owner/api").state, CellState::Failing);
-    // The fixture's own refusal names the degraded judged rule.
-    let plain = row(&document, "/rules/writing/plain", Some("imposed"));
-    assert_eq!(
-        cell(plain, "owner/api").code.as_deref(),
-        Some("board::ref::dangling")
-    );
+    assert_eq!(cell(rows[0], "owner/api").state, CellState::Written);
+    assert_eq!(document.repositories[1].counts.written, 2);
 }
 
 // Drift: one test each.
@@ -549,6 +664,20 @@ fn a_stale_member_makes_its_group_stale() {
 }
 
 #[test]
+fn the_repositorys_own_copy_of_an_imposed_rule_leaves_its_groups_roll_up_as_it_is() {
+    // owner/app holds its own /rules/rust/server, which Board does not
+    // measure. Board rolls owner/app's rust group up to passing.
+    let document = fixtures();
+    let rust = group(&document, "/rules/groups/rust");
+    let app = rust
+        .cells
+        .iter()
+        .find(|cell| cell.repository == "owner/app")
+        .unwrap();
+    assert_eq!(app.state, CellState::Current);
+}
+
+#[test]
 fn a_roll_up_takes_the_worst_state_failing_first_and_absent_last() {
     assert_eq!(state::worst(CellState::WORST_FIRST), CellState::Failing);
     assert_eq!(
@@ -620,4 +749,22 @@ fn the_next_build_is_every_hours_after_this_one() {
     let built: Timestamp = document.built_at.parse().unwrap();
     let next: Timestamp = document.next_build_at.as_deref().unwrap().parse().unwrap();
     assert_eq!(next.duration_since(built), SignedDuration::from_hours(24));
+}
+
+#[test]
+fn a_stale_after_days_of_0_is_refused_at_its_line() {
+    let text = CONFIG.replace("stale_after_days = 7", "stale_after_days = 0");
+    let problem = Config::parse(&text).unwrap_err();
+    assert_eq!(problem.line, Some(5), "{}", problem.message);
+}
+
+#[test]
+fn an_every_hours_of_0_is_refused() {
+    let text = CONFIG.replace("every_hours = 24", "every_hours = 0");
+    let problem = Config::parse(&text).unwrap_err();
+    assert!(
+        problem.message.contains("every_hours"),
+        "{}",
+        problem.message
+    );
 }

@@ -37,7 +37,8 @@ pub(crate) struct ConfigFile {
     /// The most whole days since a report or a suite's run before it reads
     /// stale, 7 when left out.
     #[serde(default)]
-    stale_after_days: Option<u32>,
+    #[schemars(with = "Option<u32>", range(min = 1))]
+    stale_after_days: Option<Spanned<u32>>,
     /// Where each repository's report comes from, unless the repository
     /// names its own source. The build reads only the reports directory,
     /// so it checks the source's shape and `fetch` will read it.
@@ -49,7 +50,8 @@ pub(crate) struct ConfigFile {
     _audits: Option<Audits>,
     /// How often the controls job builds the pages.
     #[serde(default)]
-    build: Option<Build>,
+    #[schemars(with = "Option<Build>")]
+    build: Option<Spanned<Build>>,
     /// The imposed rule set that every repository's rules are compared
     /// with.
     imposed: ImposedFile,
@@ -274,6 +276,37 @@ impl Config {
                 ),
             });
         }
+        let at_least_1 = |value: &Spanned<u32>, key: &str| {
+            if *value.get_ref() == 0 {
+                Err(ConfigProblem {
+                    line: Some(line_of(text, value.span().start)),
+                    message: format!("{key} is 0, and it must be at least 1"),
+                })
+            } else {
+                Ok(*value.get_ref())
+            }
+        };
+        let stale_after_days = file
+            .stale_after_days
+            .as_ref()
+            .map(|days| at_least_1(days, "stale_after_days"))
+            .transpose()?
+            .unwrap_or(DEFAULT_STALE_AFTER_DAYS);
+        let every_hours = file
+            .build
+            .as_ref()
+            .map(|build| {
+                let hours = build.get_ref().every_hours;
+                if hours == 0 {
+                    Err(ConfigProblem {
+                        line: Some(line_of(text, build.span().start)),
+                        message: "[build] every_hours is 0, and it must be at least 1".to_owned(),
+                    })
+                } else {
+                    Ok(hours)
+                }
+            })
+            .transpose()?;
         let mut seen = BTreeSet::new();
         let mut repositories = Vec::with_capacity(file.repositories.len());
         for spanned in file.repositories {
@@ -300,8 +333,8 @@ impl Config {
         }
         Ok(Self {
             title: file.title,
-            stale_after_days: file.stale_after_days.unwrap_or(DEFAULT_STALE_AFTER_DAYS),
-            every_hours: file.build.map(|build| build.every_hours),
+            stale_after_days,
+            every_hours,
             imposed: Imposed {
                 name: file.imposed.name,
                 from: file.imposed.from,

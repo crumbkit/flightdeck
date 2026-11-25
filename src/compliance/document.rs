@@ -307,9 +307,11 @@ fn utc(at: Timestamp) -> String {
     format!("{at:.0}")
 }
 
-/// The key that rows join on: their section's order first, then the path,
-/// then the source, so the document's rows come out in order.
-type RowKey = (Section, String, Option<String>);
+/// The key that rows join on: the path, and the source of a rule, which a
+/// suite has none of. The section is no part of it, because two reports may
+/// give one rule different checkers, such as a report that read an older
+/// commit of the imposed set.
+type RowKey = (String, Option<String>);
 
 /// Returns the section of a rule whose checker is `checker`.
 fn section_of(checker: Option<&serde_json::Value>) -> Section {
@@ -341,11 +343,7 @@ pub(crate) fn build(
     let mut rows: BTreeMap<RowKey, Row> = BTreeMap::new();
     for report in readable.iter().flatten() {
         for rule in &report.rules {
-            let key = (
-                section_of(rule.checker.as_ref()),
-                rule.id.clone(),
-                Some(rule.source.clone()),
-            );
+            let key = (rule.id.clone(), Some(rule.source.clone()));
             let row = rows.entry(key).or_insert_with(|| empty_rule_row(rule));
             for group in &rule.groups {
                 if !row.groups.contains(group) {
@@ -354,11 +352,13 @@ pub(crate) fn build(
             }
         }
         for suite in &report.suites {
-            rows.entry((Section::Suite, suite.id.clone(), None))
+            rows.entry((suite.id.clone(), None))
                 .or_insert_with(|| empty_suite_row(suite));
         }
     }
+    // A rule's section is the one the first report that holds it gives.
     let mut rows: Vec<Row> = rows.into_values().collect();
+    rows.sort_by(|a, b| (a.section, &a.id, &a.source).cmp(&(b.section, &b.id, &b.source)));
     for row in &mut rows {
         row.groups.sort();
         row.cells = names
@@ -483,14 +483,14 @@ fn cell_of(
         }
     };
     let stale_report = seconds_between(report.generated, built_at) > window_s;
-    let mut cell = if row.section == Section::Suite {
+    if row.section == Section::Suite {
         let Some(suite) = report.suites.iter().find(|suite| suite.id == row.id) else {
             return Cell::absent(repository);
         };
         let age_s = suite.run.as_ref().and_then(|run| {
             run.finished
-                .parse::<Timestamp>()
-                .ok()
+                .as_deref()
+                .and_then(|finished| finished.parse::<Timestamp>().ok())
                 .map(|finished| seconds_between(finished, built_at))
         });
         Cell {
@@ -511,6 +511,20 @@ fn cell_of(
             return Cell::absent(repository);
         };
         let found = state::of_result(&rule.result);
+        // A refusal names a rule by its path alone, so it gives a code only
+        // to the row of that path which Board marked unreadable. Board's
+        // own row carries the state, and a warning changes no state.
+        let code = rule.code.clone().or_else(|| {
+            (rule.result == "unreadable")
+                .then(|| {
+                    report
+                        .refused
+                        .iter()
+                        .find(|refused| refused.rules.contains(&rule.id))
+                        .map(|refused| refused.code.clone())
+                })
+                .flatten()
+        });
         Cell {
             repository: repository.to_owned(),
             state: if stale_report {
@@ -518,22 +532,13 @@ fn cell_of(
             } else {
                 found
             },
-            code: rule.code.clone(),
+            code,
             result: Some(rule.result.clone()),
             facts: Some(rule.facts.clone()),
             run: None,
             age_s: None,
         }
-    };
-    if let Some(refused) = report
-        .refused
-        .iter()
-        .find(|refused| refused.rules.contains(&row.id))
-    {
-        cell.state = CellState::NotReadable;
-        cell.code = Some(refused.code.clone());
     }
-    cell
 }
 
 /// Returns the column of the repository `name`, under `group`, whose

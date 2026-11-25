@@ -21,7 +21,7 @@ set -eu
 # The commit that the tag v0.6.0 names.
 CRUMBKIT_REV=de1bc6b8aa94fddf3aca6a30783f1ff002e5cfdc
 # The head of crumbkit/board#358.
-BOARD_REV=4db88612da866691917916c369b820461431cd37
+BOARD_REV=9ef744d362cf1cb48b682c68b8fb8d85f0686c8d
 
 cd "$(dirname "$0")/.."
 cargo install --locked \

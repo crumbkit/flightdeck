@@ -49,6 +49,9 @@ pub(crate) struct Report {
 /// The repository a report measured.
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct RepositoryRead {
+    /// The repository's name in identity form, such as `owner/app`, which
+    /// must be the name the config gives the report's path.
+    pub(crate) name: String,
     /// The commit the report read, or null.
     pub(crate) commit: Option<String>,
     /// When that commit was made, or null.
@@ -176,8 +179,21 @@ pub struct ZeroRead {
     pub run: Option<String>,
     /// Whole seconds from the run's finish to the report, or null.
     pub age_s: Option<u64>,
-    /// Each measure the rule names and the number the run recorded.
-    pub measures: BTreeMap<String, Option<f64>>,
+    /// Each measure the rule names and the value the run recorded, or
+    /// null when it recorded none.
+    pub measures: BTreeMap<String, Option<MeasureValue>>,
+}
+
+/// One value a run recorded for a measure: a number, a label or a flag.
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[serde(untagged)]
+pub enum MeasureValue {
+    /// A number, such as a count.
+    Number(f64),
+    /// A label.
+    Label(String),
+    /// A flag.
+    Flag(bool),
 }
 
 /// One group, as a report rolls it up.
@@ -209,8 +225,9 @@ pub(crate) struct SuiteRow {
 pub struct SuiteRun {
     /// The run, by its logical path.
     pub id: String,
-    /// When the run finished.
-    pub finished: String,
+    /// When the run finished, or started when it records no finish; null
+    /// when it records neither as a time.
+    pub finished: Option<String>,
     /// The commit the run's `versions` name, or null.
     pub commit: Option<String>,
     /// `pass` or `fail`, or a later outcome.
@@ -279,15 +296,15 @@ pub(crate) enum Unread {
     },
 }
 
-/// Reads the report at `path`.
+/// Reads the report of the repository `expected` at `path`.
 ///
 /// # Errors
 ///
 /// Returns [`Unread::Missing`] when no file is at `path`, and
 /// [`Unread::Invalid`] when the file cannot be read, is larger than the
-/// build reads, is not JSON, holds another `$type` or holds a field of the
-/// wrong type.
-pub(crate) fn read(path: &Path) -> Result<Report, Unread> {
+/// build reads, is not JSON, holds another `$type`, holds a field of the
+/// wrong type, or names another repository than `expected`.
+pub(crate) fn read(path: &Path, expected: &str) -> Result<Report, Unread> {
     let file = match std::fs::File::open(path) {
         Ok(file) => file,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Err(Unread::Missing),
@@ -311,7 +328,29 @@ pub(crate) fn read(path: &Path) -> Result<Report, Unread> {
             message: format!("the report is larger than {REPORT_LIMIT} bytes"),
         });
     }
-    parse(&bytes)
+    let report = parse(&bytes)?;
+    named(report, expected)
+}
+
+/// Returns `report` when its `repository.name` is `expected`, which
+/// GitHub compares without regard to case.
+///
+/// # Errors
+///
+/// Returns [`Unread::Invalid`] at `repository.name` when the report names
+/// another repository, such as a report copied to the wrong path.
+pub(crate) fn named(report: Report, expected: &str) -> Result<Report, Unread> {
+    if report.repository.name.eq_ignore_ascii_case(expected) {
+        Ok(report)
+    } else {
+        Err(Unread::Invalid {
+            field: Some("repository.name".to_owned()),
+            message: format!(
+                "the report is of {}, and its path is that of {expected}",
+                report.repository.name
+            ),
+        })
+    }
 }
 
 /// Reads a report from `bytes`.

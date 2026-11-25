@@ -331,3 +331,24 @@ fn the_copy_of_boards_report_schema_matches_what_the_pinned_board_installs() {
         "the pinned Board's rules/report/v1 differs from the copy; run tests/fixtures/board/make-reports.sh with it"
     );
 }
+
+#[test]
+fn rules_commit_marks_a_report_of_another_commit_behind_and_refuses_a_value_that_is_no_commit() {
+    let read = json_file(&reports().join("owner/app.json"));
+    let current = read["board"]["rules_commit"].as_str().unwrap().to_owned();
+    let output = build(&["--json", "--rules-commit", &current]);
+    assert_exit(&output, 0);
+    let document: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(document["data"]["imposed"]["commit"], current.as_str());
+    assert_eq!(
+        document["data"]["repositories"][0]["drift"]["behind"],
+        false
+    );
+    let newer = "a".repeat(40);
+    let output = build(&["--json", "--rules-commit", &newer]);
+    assert_exit(&output, 0);
+    let document: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(document["data"]["repositories"][0]["drift"]["behind"], true);
+    let output = build(&["--rules-commit", "main"]);
+    assert_exit(&output, 2);
+}

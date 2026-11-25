@@ -36,8 +36,8 @@ pub use self::document::{
 pub use self::drift::Drift;
 pub use self::groups::{Group, GroupCell};
 pub use self::report::{
-    Differs, FailedCase, FileOver, Omitted, PinBehind, Refused, RuleFacts, SourceRun, SuiteRun,
-    ZeroRead,
+    Differs, FailedCase, FileOver, MeasureValue, Omitted, PinBehind, Refused, RuleFacts, SourceRun,
+    SuiteRun, ZeroRead,
 };
 pub use self::state::CellState;
 
@@ -158,7 +158,7 @@ pub fn build(request: &BuildRequest) -> Result<ComplianceDocument, ComplianceErr
                 .reports
                 .join(repository.name.owner())
                 .join(format!("{}.json", repository.name.repo()));
-            report::read(&path)
+            report::read(&path, &repository.name.to_string())
         })
         .collect();
     let inputs = document::Inputs {

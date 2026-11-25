@@ -1,5 +1,5 @@
-Compliance, built 2026-11-25T21:46:13Z: 6 failing, 0 stale, 1 of 4 repositories without a report
-owner/app   report 2026-11-25T20:46:13Z  1 failing  0 stale  3 drift
-owner/api   report 2026-11-25T20:46:14Z  4 failing  0 stale  1 drift
-owner/ci    report 2026-11-25T20:46:14Z  1 failing  0 stale  1 drift
+Compliance, built 2026-11-25T22:33:37Z: 6 failing, 0 stale, 1 of 4 repositories without a report
+owner/app   report 2026-11-25T21:33:37Z  1 failing  0 stale  3 drift
+owner/api   report 2026-11-25T21:33:38Z  4 failing  0 stale  1 drift
+owner/ci    report 2026-11-25T21:33:38Z  1 failing  0 stale  1 drift
 owner/gone  no report

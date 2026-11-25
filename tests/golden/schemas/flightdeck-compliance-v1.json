@@ -965,7 +965,7 @@
           "type": "string"
         },
         "members": {
-          "description": "The ids of the rules in the group, by path.",
+          "description": "The ids of the imposed rules in the group, by path.",
           "type": "array",
           "items": {
             "type": "string"
@@ -1043,6 +1043,24 @@
         "from",
         "root",
         "commit"
+      ]
+    },
+    "MeasureValue": {
+      "description": "One value a run recorded for a measure: a number, a label or a flag.",
+      "anyOf": [
+        {
+          "description": "A number, such as a count.",
+          "type": "number",
+          "format": "double"
+        },
+        {
+          "description": "A label.",
+          "type": "string"
+        },
+        {
+          "description": "A flag.",
+          "type": "boolean"
+        }
       ]
     },
     "Omitted": {
@@ -1638,8 +1656,11 @@
           }
         },
         "finished": {
-          "description": "When the run finished.",
-          "type": "string"
+          "description": "When the run finished, or started when it records no finish; null\nwhen it records neither as a time.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "id": {
           "description": "The run, by its logical path.",
@@ -1674,14 +1695,17 @@
           "minimum": 0
         },
         "measures": {
-          "description": "Each measure the rule names and the number the run recorded.",
+          "description": "Each measure the rule names and the value the run recorded, or\nnull when it recorded none.",
           "type": "object",
           "additionalProperties": {
-            "type": [
-              "number",
-              "null"
-            ],
-            "format": "double"
+            "anyOf": [
+              {
+                "$ref": "#/$defs/MeasureValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "run": {

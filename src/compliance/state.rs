@@ -87,9 +87,11 @@ pub(crate) fn of_result(result: &str) -> CellState {
     }
 }
 
-/// Returns the state of a rule or suite cell whose report is older than
-/// the window: a current cell reads stale, and every other state stays,
-/// because a failure the report found is still the newest fact.
+/// Returns the state of a rule cell whose report is older than the window:
+/// a current cell reads stale, and every other state stays, because a
+/// failure the report found is still the newest fact. A suite cell needs
+/// no such step, because its run is never newer than its report, so the
+/// run's own age already makes it stale.
 pub(crate) const fn in_stale_report(state: CellState) -> CellState {
     match state {
         CellState::Current => CellState::Stale,

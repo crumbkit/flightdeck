@@ -1,8 +1,11 @@
 //! The groups of rules, such as `rust` and `server`, and the state each
 //! rolls up to in each repository.
 //!
-//! A group's members are the rules whose `groups` name it in any report,
-//! so a rule such as `rust-server` counts in both `rust` and `server`. The
+//! A group's members are the imposed rules whose `groups` name it in any
+//! report, so a rule such as `rust-server` counts in both `rust` and
+//! `server`. A repository's own rules are left out, even its copy of an
+//! imposed rule, which Board never measures: drift sits beside a state and
+//! never changes one. The
 //! build recomputes each roll-up from the cells, worst first, because a
 //! cell turns stale only at the build's time. It keeps the counts each
 //! report gave the group.
@@ -16,6 +19,9 @@ use super::document::Row;
 use super::report::Report;
 use super::state::{self, CellState};
 
+/// The source of a rule of the imposed set.
+const IMPOSED: &str = "imposed";
+
 /// One group of rules and its roll-up in each repository.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct Group {
@@ -23,7 +29,7 @@ pub struct Group {
     pub id: String,
     /// The group's name for people, or its path when no report names it.
     pub title: String,
-    /// The ids of the rules in the group, by path.
+    /// The ids of the imposed rules in the group, by path.
     pub members: Vec<String>,
     /// The group's roll-up in each repository, in the order of the
     /// document's `repositories`.
@@ -59,7 +65,7 @@ pub(crate) fn roll_up(
             titles.entry(&group.id).or_insert(&group.title);
             members.entry(&group.id).or_default();
         }
-        for rule in &report.rules {
+        for rule in report.rules.iter().filter(|rule| rule.source == IMPOSED) {
             for group in &rule.groups {
                 members.entry(group).or_default().insert(&rule.id);
             }
@@ -75,7 +81,10 @@ pub(crate) fn roll_up(
                 .map(|(column, (repository, report))| {
                     let states = rows
                         .iter()
-                        .filter(|row| row.source.is_some() && rules.contains(row.id.as_str()))
+                        .filter(|row| {
+                            row.source.as_deref() == Some(IMPOSED)
+                                && rules.contains(row.id.as_str())
+                        })
                         .filter_map(|row| row.cells.get(column))
                         .map(|cell| cell.state);
                     GroupCell {

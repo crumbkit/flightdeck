@@ -126,7 +126,7 @@
           ],
           "format": "uint32",
           "default": null,
-          "minimum": 0
+          "minimum": 1
         },
         "title": {
           "description": "The pages' title, such as `Compliance`.",

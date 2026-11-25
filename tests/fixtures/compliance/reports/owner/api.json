@@ -1,7 +1,7 @@
 {
   "$type": "rules/report/v1",
   "board": {
-    "rules_commit": "99a194fa207f6f036acf433100bc50cace216ff8",
+    "rules_commit": "45d8a11d64ae604a69818d726538b12316b83941",
     "rules_from": "owner/controls",
     "version": "0.1.1"
   },
@@ -12,7 +12,7 @@
       "/rules/go/vet"
     ]
   },
-  "generated": "2026-11-25T20:46:14Z",
+  "generated": "2026-11-25T21:33:38Z",
   "groups": [
     {
       "counts": {
@@ -101,9 +101,9 @@
       "source": "imposed",
       "used": null,
       "zero": {
-        "age_s": 124874,
+        "age_s": 127718,
         "measures": {
-          "remaining": 2.0
+          "remaining": 2
         },
         "run": "/suites/signer-callers/runs/20261124T1000Z",
         "suite": "/suites/signer-callers"
