@@ -47,9 +47,7 @@ jobs:
     uses: crumbkit/rust-standards/.github/workflows/rust-lane.yml@5ba71ff31c5f5d8e69b34d04bb65bd0177f7ebeb
     with:
       library: false
-      # The pull-request lane's time budget (BASE-25). A run whose test tools
-      # are not cached builds shelf and reading first, in `app` and `page`,
-      # which share it.
+      # The pull-request lane's time budget (BASE-25).
       timeout-minutes: 20
 
   # The steps that the shared lane cannot run: the environment check, and
