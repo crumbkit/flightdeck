@@ -11,17 +11,16 @@
 # later crumbkit prints, and tests/fixtures/crumbkit/ moves with it.
 # Board is pinned for the contract test in tests/compliance.rs, which
 # compares the copy of Board's rules/report/v1 schema in tests/fixtures/board/
-# with the one this Board installs. The commit is the head of
-# crumbkit/board#358, which adds `board rules report`; it moves to the merge
-# commit once that pull request lands, and tests/fixtures/board/make-reports.sh
-# rewrites the fixtures with it. Board builds for macOS and Linux, so Windows
+# with the one this Board installs. The commit is the merge commit of
+# crumbkit/board#358, which adds `board rules report`. When the pin moves,
+# tests/fixtures/board/make-reports.sh rewrites the fixtures with it. Board builds for macOS and Linux, so Windows
 # skips it, and the contract test runs on Unix alone.
 set -eu
 
 # The commit that the tag v0.6.0 names.
 CRUMBKIT_REV=de1bc6b8aa94fddf3aca6a30783f1ff002e5cfdc
-# The head of crumbkit/board#358.
-BOARD_REV=9ef744d362cf1cb48b682c68b8fb8d85f0686c8d
+# The merge commit of crumbkit/board#358.
+BOARD_REV=11131d85300e45b6f42773bd3c198b411cb15e47
 
 cd "$(dirname "$0")/.."
 cargo install --locked \

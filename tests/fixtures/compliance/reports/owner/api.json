@@ -1,9 +1,9 @@
 {
   "$type": "rules/report/v1",
   "board": {
-    "rules_commit": "45d8a11d64ae604a69818d726538b12316b83941",
+    "rules_commit": "ed45bdbdc7f95ea24284b610f67264cf25122d2f",
     "rules_from": "owner/controls",
-    "version": "0.1.1"
+    "version": "0.1.2"
   },
   "drift": {
     "differs": [],
@@ -12,7 +12,7 @@
       "/rules/go/vet"
     ]
   },
-  "generated": "2026-11-25T21:33:38Z",
+  "generated": "2026-11-25T22:13:20Z",
   "groups": [
     {
       "counts": {
@@ -101,7 +101,7 @@
       "source": "imposed",
       "used": null,
       "zero": {
-        "age_s": 127718,
+        "age_s": 130101,
         "measures": {
           "remaining": 2
         },
