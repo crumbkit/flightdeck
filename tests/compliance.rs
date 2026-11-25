@@ -271,7 +271,8 @@ fn the_fixture_config_validates_against_the_published_config_schema() {
 }
 
 /// The Board that `scripts/install-test-tools.sh` installs, or a failure
-/// that says to run it.
+/// that says to run it. The script installs it on Unix alone.
+#[cfg(unix)]
 fn pinned_board() -> PathBuf {
     let path = here(&format!(
         "target/test-tools/bin/board{}",
