@@ -1,0 +1,235 @@
+{
+  "$type": "rules/report/v1",
+  "board": {
+    "rules_commit": "99a194fa207f6f036acf433100bc50cace216ff8",
+    "rules_from": "owner/controls",
+    "version": "0.1.1"
+  },
+  "drift": {
+    "differs": [],
+    "extra": [],
+    "not_reached": [
+      "/rules/go/vet"
+    ]
+  },
+  "generated": "2026-11-25T20:46:14Z",
+  "groups": [
+    {
+      "counts": {
+        "behind": 0,
+        "missing_measure": 0,
+        "no_run": 0,
+        "not_zero": 0,
+        "over": 0,
+        "stale": 0,
+        "unmeasured": 0,
+        "unreadable": 0,
+        "within": 2,
+        "written": 1,
+        "zero": 0
+      },
+      "id": "/rules/groups/rust",
+      "state": "passing",
+      "title": "Rust"
+    },
+    {
+      "counts": {
+        "behind": 0,
+        "missing_measure": 0,
+        "no_run": 0,
+        "not_zero": 1,
+        "over": 0,
+        "stale": 0,
+        "unmeasured": 0,
+        "unreadable": 0,
+        "within": 0,
+        "written": 1,
+        "zero": 0
+      },
+      "id": "/rules/groups/server",
+      "state": "failing",
+      "title": "Server"
+    }
+  ],
+  "imposed": {
+    "root": "/rules"
+  },
+  "refused": [
+    {
+      "code": "board::ref::dangling",
+      "message": "Board marks the rule /rules/writing/plain degraded with board::ref::dangling; run `board check /rules/writing/plain` for why",
+      "rules": [
+        "/rules/writing/plain"
+      ]
+    }
+  ],
+  "repository": {
+    "commit": "84016e5e4606dc0aace8eeebd07e2b7b0282c742",
+    "committed": "2026-11-20T09:00:00Z",
+    "name": "owner/ci",
+    "uncommitted": false
+  },
+  "rules": [
+    {
+      "behind": [],
+      "checker": {
+        "check": "zero",
+        "measures": [
+          "remaining"
+        ],
+        "suite": "/suites/signer-callers",
+        "within_days": 7
+      },
+      "code": null,
+      "files": [],
+      "groups": [
+        "/rules/groups/server"
+      ],
+      "id": "/rules/payments/v1-signer",
+      "kind": "standing",
+      "max": null,
+      "omitted": {
+        "behind": 0,
+        "files": 0,
+        "over": 0
+      },
+      "over": [],
+      "purpose": "The v1 signer can be removed.",
+      "requirement": "No service still calls the v1 webhook signer.",
+      "result": "not_zero",
+      "show": "failing",
+      "source": "imposed",
+      "used": null,
+      "zero": {
+        "age_s": 124874,
+        "measures": {
+          "remaining": 2.0
+        },
+        "run": "/suites/signer-callers/runs/20261124T1000Z",
+        "suite": "/suites/signer-callers"
+      }
+    },
+    {
+      "behind": [],
+      "checker": {
+        "check": "budget",
+        "max": 60,
+        "per": "file",
+        "unit": "bytes"
+      },
+      "code": null,
+      "files": [
+        "/src/main.rs"
+      ],
+      "groups": [
+        "/rules/groups/rust"
+      ],
+      "id": "/rules/rust/file-size",
+      "kind": "standing",
+      "max": 60,
+      "omitted": {
+        "behind": 0,
+        "files": 0,
+        "over": 0
+      },
+      "over": [],
+      "purpose": "A reader takes in a small file whole.",
+      "requirement": "Keep each Rust file under 60 bytes.",
+      "result": "within",
+      "show": "failing",
+      "source": "imposed",
+      "used": 13,
+      "zero": null
+    },
+    {
+      "behind": [],
+      "checker": null,
+      "code": null,
+      "files": [],
+      "groups": [
+        "/rules/groups/rust",
+        "/rules/groups/server"
+      ],
+      "id": "/rules/rust/server",
+      "kind": "standing",
+      "max": null,
+      "omitted": {
+        "behind": 0,
+        "files": 0,
+        "over": 0
+      },
+      "over": [],
+      "purpose": "A reader finds the handler of a route.",
+      "requirement": "Name each server handler after its route.",
+      "result": "written",
+      "show": "edit",
+      "source": "imposed",
+      "used": null,
+      "zero": null
+    },
+    {
+      "behind": [],
+      "checker": {
+        "at_least": "1.99",
+        "capture": "channel = \"([0-9.]+)\"",
+        "check": "version"
+      },
+      "code": null,
+      "files": [
+        "/rust-toolchain.toml"
+      ],
+      "groups": [
+        "/rules/groups/rust"
+      ],
+      "id": "/rules/toolchains/rust",
+      "kind": "standing",
+      "max": null,
+      "omitted": {
+        "behind": 0,
+        "files": 0,
+        "over": 0
+      },
+      "over": [],
+      "purpose": "Every repository builds on one toolchain.",
+      "requirement": "Pin Rust 1.99 or later.",
+      "result": "within",
+      "show": "failing",
+      "source": "imposed",
+      "used": null,
+      "zero": null
+    },
+    {
+      "behind": [],
+      "checker": {
+        "check": "judged",
+        "rubric": "/rubrics/missing.md"
+      },
+      "code": "board::ref::dangling",
+      "files": [],
+      "groups": [],
+      "id": "/rules/writing/plain",
+      "kind": "standing",
+      "max": null,
+      "omitted": {
+        "behind": 0,
+        "files": 0,
+        "over": 0
+      },
+      "over": [],
+      "purpose": "Readers skim it.",
+      "requirement": "Write the README plainly.",
+      "result": "unreadable",
+      "show": "edit",
+      "source": "imposed",
+      "used": null,
+      "zero": null
+    }
+  ],
+  "source_run": {
+    "commit": "84016e5e4606dc0aace8eeebd07e2b7b0282c742",
+    "repository": "owner/ci",
+    "run_id": 9001,
+    "run_number": 7
+  },
+  "suites": []
+}

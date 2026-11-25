@@ -84,7 +84,18 @@ signal-hook = { version = "0.4.6", default-features = false }
 # jiff reads a run's `at` and writes `started_at`, as RFC 3339 text in UTC,
 # on the first line of a run's stream. crumbkit already depends on it with
 # these features.
-jiff = { version = "1.0.0", default-features = false, features = ["std"] }
+# Its `serde` feature reads the `generated` time of each rules report that
+# `flightdeck compliance build` reads, and the build writes `built_at` with it.
+jiff = { version = "1.0.0", default-features = false, features = ["std", "serde"] }
+# toml reads the flightdeck/compliance-config/v1 file of `flightdeck
+# compliance build`, with the span of each value so a refusal names its line.
+# It shares toml_parser and toml_datetime with the toml_edit that starmap
+# already locks.
+toml = { version = "1.2.1", default-features = false, features = ["std", "parse", "serde"] }
+# serde_path_to_error names the field, such as `rules[0].result`, that makes
+# a rules report invalid, so only that repository's column reads
+# `invalid_report` with the field's path.
+serde_path_to_error = { version = "0.1.20", default-features = false }
 # subtle compares a presented token or launch code with the real one in
 # constant time.
 subtle = { version = "2.6.1", default-features = false }

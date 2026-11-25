@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "flightdeck/compliance-config/v1",
+  "description": "The TOML file that names the repositories a compliance build reads, the imposed rule set and how old a report or run may be before it reads stale.",
+  "$ref": "#/$defs/ConfigFile",
+  "$defs": {
+    "Audits": {
+      "description": "Where the suites' runs come from.",
+      "type": "object",
+      "properties": {
+        "artifact": {
+          "description": "The artifact's name, for the `github-artifact` kind.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "kind": {
+          "description": "`board`, for suites in the controls repository's own board, or\n`github-artifact`.",
+          "$ref": "#/$defs/AuditsKind"
+        },
+        "path": {
+          "description": "The board's directory, for the `board` kind.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ]
+    },
+    "AuditsKind": {
+      "description": "The kinds of place the suites' runs come from.",
+      "oneOf": [
+        {
+          "description": "The controls repository's own board.",
+          "type": "string",
+          "const": "board"
+        },
+        {
+          "description": "An artifact of a GitHub Actions run.",
+          "type": "string",
+          "const": "github-artifact"
+        }
+      ]
+    },
+    "Build": {
+      "description": "How often the controls job builds the pages.",
+      "type": "object",
+      "properties": {
+        "every_hours": {
+          "description": "The hours between two builds, which give the next build's time.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "every_hours"
+      ]
+    },
+    "ConfigFile": {
+      "title": "flightdeck/compliance-config/v1",
+      "description": "A `flightdeck/compliance-config/v1` file, as a person writes it.",
+      "type": "object",
+      "properties": {
+        "audits": {
+          "description": "Where the suites' runs come from, which the build checks and does\nnot read.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Audits"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build": {
+          "description": "How often the controls job builds the pages.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Build"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "imposed": {
+          "description": "The imposed rule set that every repository's rules are compared\nwith.",
+          "$ref": "#/$defs/ImposedFile"
+        },
+        "repositories": {
+          "description": "Each repository whose report the build reads, in the order the\npages show them.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RepositoryFile"
+          }
+        },
+        "schema": {
+          "description": "`flightdeck/compliance-config/v1`.",
+          "type": "string"
+        },
+        "source": {
+          "description": "Where each repository's report comes from, unless the repository\nnames its own source. The build reads only the reports directory,\nso it checks the source's shape and `fetch` will read it.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stale_after_days": {
+          "description": "The most whole days since a report or a suite's run before it reads\nstale, 7 when left out.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
+        },
+        "title": {
+          "description": "The pages' title, such as `Compliance`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "title",
+        "imposed",
+        "repositories"
+      ]
+    },
+    "ImposedFile": {
+      "description": "The imposed rule set, as the config names it.",
+      "type": "object",
+      "properties": {
+        "from": {
+          "description": "The rules board's origin in identity form, such as\n`owner/controls`, which each report's `board.rules_from` must name.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The set's name for people, such as `platform-controls`.",
+          "type": "string"
+        },
+        "root": {
+          "description": "The set's root in the rules board, `/rules` when left out, which\neach report's `imposed.root` must name.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "from"
+      ]
+    },
+    "RepositoryFile": {
+      "description": "One repository, as the config names it.",
+      "type": "object",
+      "properties": {
+        "group": {
+          "description": "The heading the pages show the repository under.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "name": {
+          "description": "The repository's name, `owner/repo`. Its report is\n`<reports>/<owner>/<repo>.json`.",
+          "type": "string"
+        },
+        "source": {
+          "description": "Where this repository's report comes from, in place of the\nconfig's `[source]`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ]
+    },
+    "Source": {
+      "description": "Where a report or a suite's runs come from. The build reads only files;\n`flightdeck compliance fetch` will read the other kinds.",
+      "type": "object",
+      "properties": {
+        "artifact": {
+          "description": "The artifact's name, such as `rules-report`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "branch": {
+          "description": "The branch whose runs count, such as `main`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "kind": {
+          "description": "`github-artifact`, `path` or `url`.",
+          "$ref": "#/$defs/SourceKind"
+        },
+        "path": {
+          "description": "The report's path, for the `path` kind.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "url": {
+          "description": "The report's address, for the `url` kind.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "workflow": {
+          "description": "The workflow file whose newest successful run holds the artifact,\nsuch as `ci.yml`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ]
+    },
+    "SourceKind": {
+      "description": "The kinds of place a report comes from.",
+      "oneOf": [
+        {
+          "description": "An artifact of a GitHub Actions run.",
+          "type": "string",
+          "const": "github-artifact"
+        },
+        {
+          "description": "A file.",
+          "type": "string",
+          "const": "path"
+        },
+        {
+          "description": "An address that serves the report.",
+          "type": "string",
+          "const": "url"
+        }
+      ]
+    }
+  }
+}

@@ -1,6 +1,7 @@
 //! flightdeck's command-line grammar and tool record.
 
 use std::ffi::OsString;
+use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 use crumbkit::commands::{COMMANDS_LIST, CommandsList};
@@ -14,6 +15,7 @@ use crumbkit::tool::Failures;
 use crumbkit::{NoInput, Tool, ViewFlags};
 use crumbkit_skills::{Skill, skills_command};
 
+use crate::compliance::{COMPLIANCE_BUILD, COMPLIANCE_CONFIG};
 use crate::workspaces::{WORKSPACES_LIST, WORKSPACES_SHOW, WorkspaceName};
 
 /// Start a local web page for a crumbkit tool.
@@ -39,6 +41,7 @@ pub const TOOL: Tool = Tool::new()
     .failures(Failures::new().exits(&crate::open::FORCED_EXITS))
     .help(
     Help::new()
+        .file_formats(&[COMPLIANCE_CONFIG])
         .root_verbs(
             &["open"],
             "flightdeck opens a page for a tool, and a tool is no resource of flightdeck's own.",
@@ -77,6 +80,31 @@ pub const TOOL: Tool = Tool::new()
                 .needs(&["mxv"])])
                 .effects(Effects::read_only())
                 .document(WORKSPACES_SHOW),
+            Leaf::new(&["compliance", "build"])
+                .examples(&[
+                    Example::new(
+                        &["--config", "compliance.toml", "--reports", "reports"],
+                        "Print one line per repository with its report's time and its failing, stale and drift counts",
+                    )
+                    .needs(&["reports"]),
+                    Example::new(
+                        &[
+                            "--config",
+                            "compliance.toml",
+                            "--reports",
+                            "reports",
+                            "--out",
+                            "site",
+                            "--build-run",
+                            "Build run #412",
+                            "--json",
+                        ],
+                        "Write site/compliance.json for the pages and print the same document",
+                    )
+                    .needs(&["reports"]),
+                ])
+                .effects(Effects::additive().idempotent())
+                .document(COMPLIANCE_BUILD),
             Leaf::new(&["commands", "list"])
                 .examples(&[
                     Example::new(&[], "List every command"),
@@ -157,6 +185,12 @@ pub(crate) enum Resource {
         #[command(subcommand)]
         command: WorkspacesCommand,
     },
+    /// Build the compliance document from rules reports.
+    Compliance {
+        /// What to do with the reports.
+        #[command(subcommand)]
+        command: ComplianceCommand,
+    },
     /// Explore flightdeck's commands.
     Commands {
         /// What to do with the commands.
@@ -223,6 +257,57 @@ pub(crate) struct WorkspacesShowArgs {
     /// The workspace's name, as `flightdeck workspaces list` prints it.
     #[arg(value_name = "NAME")]
     pub(crate) name: WorkspaceName,
+}
+
+/// The commands that read the repositories' rules reports.
+#[derive(Debug, Subcommand)]
+pub(crate) enum ComplianceCommand {
+    /// Join each repository's rules report into one compliance document.
+    Build(ComplianceBuildArgs),
+}
+
+/// The arguments of `flightdeck compliance build`.
+#[derive(Debug, Args)]
+pub(crate) struct ComplianceBuildArgs {
+    /// The flightdeck/compliance-config/v1 file.
+    #[arg(long, value_name = "FILE")]
+    pub(crate) config: PathBuf,
+
+    /// The directory of the reports, one at <owner>/<repo>.json each.
+    #[arg(long, value_name = "DIR")]
+    pub(crate) reports: PathBuf,
+
+    /// Also write <DIR>/compliance.json.
+    #[arg(long, value_name = "DIR")]
+    pub(crate) out: Option<PathBuf>,
+
+    /// The label of the run that builds the pages.
+    #[arg(long, value_name = "LABEL")]
+    pub(crate) build_run: Option<String>,
+
+    /// The address of that run.
+    #[arg(long, value_name = "URL")]
+    pub(crate) build_url: Option<String>,
+
+    /// The imposed set's current commit.
+    #[arg(long, value_name = "SHA", value_parser = commit_id)]
+    pub(crate) rules_commit: Option<String>,
+
+    /// The build's time, such as 2026-11-25T06:00:00Z; now when left out.
+    #[arg(long, value_name = "TIME")]
+    pub(crate) built_at: Option<jiff::Timestamp>,
+}
+
+/// Reads a full commit id: 40 or 64 lowercase hexadecimal digits.
+fn commit_id(text: &str) -> Result<String, String> {
+    let hex = text
+        .bytes()
+        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
+    if hex && matches!(text.len(), 40 | 64) {
+        Ok(text.to_owned())
+    } else {
+        Err("a commit is 40 or 64 lowercase hexadecimal digits".to_owned())
+    }
 }
 
 /// The commands for flightdeck's own commands.

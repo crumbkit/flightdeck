@@ -1,4 +1,4 @@
-flightdeck has 3 opt-outs from the conventions.
+flightdeck has 3 opt-outs from the conventions and sets 1 budget.
 
 listings/list-pages: flightdeck self environment list
   Reason: crumbkit-starmap's built-in prints every declared variable at once and takes no arguments.
@@ -14,7 +14,12 @@ listings/show-ids: flightdeck workspaces show
   Reason: It prints the One workspace page's document, which is about one workspace.
   Cost: An agent runs the command once for each id.
 
-flightdeck has 7 declarations.
+path-budget/command: flightdeck skills print
+  Budget: 8200 bytes, where the default is 8000 bytes.
+  Reason: Its output is the whole skill, which crumbkit-skills prints, and the root's page lists every resource.
+  Cost: An agent that finds and runs the command can read 200 bytes more than the default, about 50 tokens.
+
+flightdeck has 10 declarations.
 
 root-verbs: flightdeck open
   Declares: Each command sits directly under the root as a verb, and root help lists it under the heading Verbs.
@@ -37,3 +42,12 @@ example-precondition: flightdeck workspaces list --json --full
 
 example-precondition: flightdeck workspaces show reading-list --json
   Declares: The example runs only in a test run that provides mxv.
+
+document-name: flightdeck compliance build
+  Declares: The command prints flightdeck/compliance/v1, where its path gives the name compliance-build.
+
+example-precondition: flightdeck compliance build --config compliance.toml --reports reports
+  Declares: The example runs only in a test run that provides reports.
+
+example-precondition: flightdeck compliance build --config compliance.toml --reports reports --out site --build-run 'Build run #412' --json
+  Declares: The example runs only in a test run that provides reports.

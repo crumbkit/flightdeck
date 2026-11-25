@@ -1,0 +1,37 @@
+# The config of the compliance build's tests. The reports under reports/
+# come from tests/fixtures/board/make-reports.sh; owner/gone has none.
+schema = "flightdeck/compliance-config/v1"
+title = "Compliance"
+stale_after_days = 7
+
+[source]
+kind = "github-artifact"
+workflow = "ci.yml"
+artifact = "rules-report"
+branch = "main"
+
+[audits]
+kind = "board"
+path = "."
+
+[build]
+every_hours = 24
+
+[imposed]
+name = "controls"
+from = "owner/controls"
+
+[[repositories]]
+name = "owner/app"
+group = "Platform"
+
+[[repositories]]
+name = "owner/api"
+group = "Platform"
+
+[[repositories]]
+name = "owner/ci"
+
+[[repositories]]
+name = "owner/gone"
+source = { kind = "path", path = "reports/gone.json" }

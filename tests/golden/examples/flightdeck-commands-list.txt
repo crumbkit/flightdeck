@@ -4,6 +4,8 @@ flightdeck open                   Open a local web page of the mxv workspaces an
 flightdeck workspaces             Read the local mxv workspaces
 flightdeck workspaces list        List the local mxv workspaces with their units, routes and ports
 flightdeck workspaces show        Show one local mxv workspace with its checkouts and units
+flightdeck compliance             Build the compliance document from rules reports
+flightdeck compliance build       Join each repository's rules report into one compliance document
 flightdeck commands               Explore flightdeck's commands
 flightdeck commands list          List a branch of flightdeck's commands with their arguments, examples and columns
 flightdeck skills                 Give coding agents flightdeck's skill

@@ -1,0 +1,1707 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "flightdeck/compliance/v1",
+  "description": "Each repository's report as a column and each rule and suite as a row, with each cell's state, each group's roll-up and where each repository differs from the imposed rule set.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "$ref": "#/$defs/ComplianceDocument"
+    },
+    "dry_run": {
+      "description": "Present, and true, when the run was a dry run that changed nothing.",
+      "const": true
+    },
+    "failures": {
+      "description": "The failures that the answer leaves out. It is empty when nothing failed.",
+      "type": "array",
+      "items": {
+        "description": "A failure of some of the ids: the fields of the failure document without schema.",
+        "type": "object",
+        "properties": {
+          "alternatives": {
+            "description": "Other repairs the caller can try, in order of preference, each in the shape of recovery. It is present only when the failure offers at least one.",
+            "type": "array",
+            "items": {
+              "description": "A repair the caller can try instead, tagged by kind.",
+              "oneOf": [
+                {
+                  "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                  "type": "object",
+                  "properties": {
+                    "all": {
+                      "type": "string"
+                    },
+                    "call": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "const": "run"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "call"
+                  ]
+                },
+                {
+                  "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                  "type": "object",
+                  "properties": {
+                    "call": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "const": "terminal"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "call"
+                  ]
+                },
+                {
+                  "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                  "type": "object",
+                  "properties": {
+                    "args": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "kind": {
+                      "const": "program"
+                    },
+                    "program": {
+                      "type": "string"
+                    },
+                    "run": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "program",
+                    "args",
+                    "run"
+                  ]
+                },
+                {
+                  "description": "Run the same command again later.",
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "retry"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                {
+                  "description": "Make this repair, then take the step `then`.",
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "after"
+                    },
+                    "repair": {
+                      "type": "string"
+                    },
+                    "then": {
+                      "description": "The step that follows the repair.",
+                      "oneOf": [
+                        {
+                          "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                          "type": "object",
+                          "properties": {
+                            "all": {
+                              "type": "string"
+                            },
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "run"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "call"
+                          ]
+                        },
+                        {
+                          "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                          "type": "object",
+                          "properties": {
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "terminal"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "call"
+                          ]
+                        },
+                        {
+                          "description": "Run the same command again later.",
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "const": "retry"
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "repair",
+                    "then"
+                  ]
+                },
+                {
+                  "description": "Follow this advice.",
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "hint"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "text"
+                  ]
+                },
+                {
+                  "description": "There is no next step, for this reason.",
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "none"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "reason"
+                  ]
+                }
+              ]
+            }
+          },
+          "cause": {
+            "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
+            "type": "string"
+          },
+          "causes": {
+            "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "code": {
+            "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
+            "type": "string",
+            "pattern": "^[!-~]+$"
+          },
+          "fields": {
+            "description": "The values at fault, in the order the failure gives them, each under a name of one or more lowercase ASCII letters, digits and underscores. A value is a string, an integer, a boolean, null, or an array or object of such values, and an object holds each key once. It is present only when the failure names at least one.",
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "string",
+                "integer",
+                "boolean",
+                "null",
+                "array",
+                "object"
+              ],
+              "$anchor": "field_value",
+              "additionalProperties": {
+                "$ref": "#field_value"
+              },
+              "items": {
+                "$ref": "#field_value"
+              }
+            },
+            "propertyNames": {
+              "pattern": "^[a-z0-9_]+$"
+            }
+          },
+          "index": {
+            "description": "The position of key among the keys that the caller gave, counted from 0, so two failures of the same key differ. It is present only with key.",
+            "type": "integer",
+            "minimum": 0
+          },
+          "key": {
+            "description": "The key that the caller gave for the answer that failed, when the failure is one answer of a batch.",
+            "type": "string"
+          },
+          "labels": {
+            "description": "The places in a source, such as a file, that the failure points at, in the order the failure gives them. It is present only when the failure has at least one label.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "column": {
+                  "description": "The 1-based column of the start of the span, counted in characters of its line. It is present only when the span could be read.",
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "excerpt": {
+                  "description": "The lines of the source that the span covers, with one line before and one after where the source has them. It is present only when the span could be read.",
+                  "type": "object",
+                  "properties": {
+                    "line": {
+                      "description": "The 1-based number of the first line of the excerpt.",
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "text": {
+                      "description": "The lines, joined by the line breaks of the source, without a line break at the end.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "line",
+                    "text"
+                  ]
+                },
+                "length": {
+                  "description": "The length of the span in bytes.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "line": {
+                  "description": "The 1-based line that holds the start of the span. It is present only when the span could be read.",
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "name": {
+                  "description": "The name of the source, such as a file name. It is present only when the span could be read and the source has a name.",
+                  "type": "string"
+                },
+                "offset": {
+                  "description": "The byte offset of the start of the span from the start of the source.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "text": {
+                  "description": "What the label says about the span. It is present only when the label has text.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "offset",
+                "length"
+              ]
+            }
+          },
+          "message": {
+            "description": "What went wrong.",
+            "type": "string"
+          },
+          "recovery": {
+            "description": "What the caller can do next, tagged by kind.",
+            "oneOf": [
+              {
+                "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                "type": "object",
+                "properties": {
+                  "all": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "run"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "call"
+                ]
+              },
+              {
+                "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                "type": "object",
+                "properties": {
+                  "call": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "terminal"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "call"
+                ]
+              },
+              {
+                "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                "type": "object",
+                "properties": {
+                  "args": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "kind": {
+                    "const": "program"
+                  },
+                  "program": {
+                    "type": "string"
+                  },
+                  "run": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "program",
+                  "args",
+                  "run"
+                ]
+              },
+              {
+                "description": "Run the same command again later.",
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "retry"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              {
+                "description": "Make this repair, then take the step `then`.",
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "after"
+                  },
+                  "repair": {
+                    "type": "string"
+                  },
+                  "then": {
+                    "description": "The step that follows the repair.",
+                    "oneOf": [
+                      {
+                        "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                        "type": "object",
+                        "properties": {
+                          "all": {
+                            "type": "string"
+                          },
+                          "call": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "run"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "call"
+                        ]
+                      },
+                      {
+                        "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                        "type": "object",
+                        "properties": {
+                          "call": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "terminal"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "call"
+                        ]
+                      },
+                      {
+                        "description": "Run the same command again later.",
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "const": "retry"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "repair",
+                  "then"
+                ]
+              },
+              {
+                "description": "Follow this advice.",
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "hint"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "text"
+                ]
+              },
+              {
+                "description": "There is no next step, for this reason.",
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "none"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "reason"
+                ]
+              }
+            ]
+          },
+          "related": {
+            "description": "The diagnostics that the failure's diagnostic relates to it, in the order it gives them. It is present only when there is at least one.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "cause": {
+                  "description": "The errors below the related diagnostic, joined with \": \". It is present only when there is one.",
+                  "type": "string"
+                },
+                "code": {
+                  "description": "The related diagnostic's own code, which is free text. It is present only when the diagnostic has one.",
+                  "type": "string"
+                },
+                "help": {
+                  "description": "The related diagnostic's advice. It is present only when it gives some.",
+                  "type": "string"
+                },
+                "labels": {
+                  "description": "The places in a source, such as a file, that the failure points at, in the order the failure gives them. It is present only when the failure has at least one label.",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "column": {
+                        "description": "The 1-based column of the start of the span, counted in characters of its line. It is present only when the span could be read.",
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "excerpt": {
+                        "description": "The lines of the source that the span covers, with one line before and one after where the source has them. It is present only when the span could be read.",
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "description": "The 1-based number of the first line of the excerpt.",
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "text": {
+                            "description": "The lines, joined by the line breaks of the source, without a line break at the end.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "text"
+                        ]
+                      },
+                      "length": {
+                        "description": "The length of the span in bytes.",
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "line": {
+                        "description": "The 1-based line that holds the start of the span. It is present only when the span could be read.",
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "name": {
+                        "description": "The name of the source, such as a file name. It is present only when the span could be read and the source has a name.",
+                        "type": "string"
+                      },
+                      "offset": {
+                        "description": "The byte offset of the start of the span from the start of the source.",
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "text": {
+                        "description": "What the label says about the span. It is present only when the label has text.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "offset",
+                      "length"
+                    ]
+                  }
+                },
+                "message": {
+                  "description": "What the related diagnostic says.",
+                  "type": "string"
+                },
+                "related": {
+                  "description": "The diagnostics related to this one, in the same shape, to at most eight levels below the failure.",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#related"
+                  }
+                },
+                "severity": {
+                  "description": "How severe the related diagnostic is. A diagnostic that gives no severity is an error.",
+                  "enum": [
+                    "error",
+                    "warning",
+                    "advice"
+                  ]
+                },
+                "url": {
+                  "description": "A page that explains the related diagnostic. It is present only when it has one.",
+                  "type": "string"
+                }
+              },
+              "$anchor": "related",
+              "required": [
+                "message",
+                "severity"
+              ]
+            }
+          },
+          "sentence": {
+            "description": "A fixed sentence that a person reviewed, safe to show to anyone. It is present only when the failure has one.",
+            "type": "string"
+          },
+          "url": {
+            "description": "A page that explains the failure. It is present only when the failure has one.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "recovery"
+        ]
+      }
+    },
+    "schema": {
+      "description": "The id of this document.",
+      "const": "flightdeck/compliance/v1"
+    }
+  },
+  "required": [
+    "schema",
+    "data",
+    "failures"
+  ],
+  "$defs": {
+    "BuildRun": {
+      "description": "The controls job's run that built the document.",
+      "type": "object",
+      "properties": {
+        "label": {
+          "description": "The run's label for people, such as `Build run #412`; null when\nonly its address was given.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "description": "The run's address; null when only its label was given.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "label",
+        "url"
+      ]
+    },
+    "Cell": {
+      "description": "One rule's or suite's cell in one repository.",
+      "type": "object",
+      "properties": {
+        "age_s": {
+          "description": "Whole seconds from the suite's run to the build; null for a rule or\na suite with no run.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "code": {
+          "description": "Why the cell is not readable: the report's or a refusal's code, or\nthe column's code; null otherwise.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "facts": {
+          "description": "What the rule's checker measured; null for a suite or an absent\nrule.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuleFacts"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "repository": {
+          "description": "The repository's name.",
+          "type": "string"
+        },
+        "result": {
+          "description": "The rule's `result` as the report gives it; null for a suite or an\nabsent rule.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The suite's newest qualifying run as the report gives it, with its\ncommits since; null for a rule or a suite with no run.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SuiteRun"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "description": "What the cell reads.",
+          "$ref": "#/$defs/CellState"
+        }
+      },
+      "required": [
+        "repository",
+        "state",
+        "code",
+        "result",
+        "facts",
+        "run",
+        "age_s"
+      ]
+    },
+    "CellState": {
+      "description": "What one cell reads.",
+      "oneOf": [
+        {
+          "description": "A budget is over, a pin is behind, a measure is not 0, or the\nnewest run failed a case.",
+          "type": "string",
+          "const": "failing"
+        },
+        {
+          "description": "The report or the suite's newest clean run is older than the\nwindow, or no clean run exists.",
+          "type": "string",
+          "const": "stale"
+        },
+        {
+          "description": "The cell cannot be judged: the report holds a refusal, a result\nthis build does not know, or a rule the repository holds itself.",
+          "type": "string",
+          "const": "not_readable"
+        },
+        {
+          "description": "The rule is met, or the suite's newest clean run passed within the\nwindow.",
+          "type": "string",
+          "const": "current"
+        },
+        {
+          "description": "The rule has no checker that a report measures.",
+          "type": "string",
+          "const": "written"
+        },
+        {
+          "description": "The rule or suite does not reach this repository.",
+          "type": "string",
+          "const": "absent"
+        }
+      ]
+    },
+    "ComplianceDocument": {
+      "description": "The compliance of every repository the config names, as the pages draw\nit.",
+      "type": "object",
+      "properties": {
+        "build_run": {
+          "description": "The controls job's run that built the document, from `--build-run`\nand `--build-url`; null when neither was given.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BuildRun"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "built_at": {
+          "description": "When the build ran, in UTC.",
+          "type": "string"
+        },
+        "counts": {
+          "description": "How many rule and suite cells read each state, in every column.",
+          "$ref": "#/$defs/StateCounts"
+        },
+        "groups": {
+          "description": "Each group of rules and its roll-up, by path.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Group"
+          }
+        },
+        "imposed": {
+          "description": "The imposed rule set that drift is measured against.",
+          "$ref": "#/$defs/ImposedSet"
+        },
+        "next_build_at": {
+          "description": "When the next build runs, from the config's `[build] every_hours`;\nnull when the config names no interval.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reports": {
+          "description": "How many repositories' reports read each state.",
+          "$ref": "#/$defs/ReportCounts"
+        },
+        "repositories": {
+          "description": "Each repository, in the config's order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RepositoryColumn"
+          }
+        },
+        "rows": {
+          "description": "Each rule and suite: measured rules, zero rules, suites and then\nwritten rules, each by path.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Row"
+          }
+        },
+        "stale_after_days": {
+          "description": "The most whole days since a report or a suite's run before it reads\nstale.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "title": {
+          "description": "The pages' title, from the config.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "built_at",
+        "next_build_at",
+        "stale_after_days",
+        "build_run",
+        "imposed",
+        "counts",
+        "reports",
+        "repositories",
+        "rows",
+        "groups"
+      ]
+    },
+    "Differs": {
+      "description": "One imposed rule that the repository holds with different fields.",
+      "type": "object",
+      "properties": {
+        "fields": {
+          "description": "The fields whose values differ.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "description": "The imposed rule's path.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "fields"
+      ]
+    },
+    "Drift": {
+      "description": "Where one repository differs from the imposed rule set.",
+      "type": "object",
+      "properties": {
+        "behind": {
+          "description": "Whether the report read an older commit of the set: its\n`board.rules_commit` is not the commit `--rules-commit` names. Null\nwhen the build was given no `--rules-commit`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "differs": {
+          "description": "The imposed rules the repository also holds with different fields,\nas the report lists them.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Differs"
+          }
+        },
+        "extra": {
+          "description": "The repository's own rules with no imposed rule of the same path,\nas the report lists them.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "not_reached": {
+          "description": "The imposed rules that reach no file in the repository, as the\nreport lists them.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "other_set": {
+          "description": "Whether the report read another rule set: its `board.rules_from`\nis not the config's `imposed.from`, or its `imposed.root` is not\nthe config's `imposed.root`.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "extra",
+        "differs",
+        "not_reached",
+        "other_set",
+        "behind"
+      ]
+    },
+    "FailedCase": {
+      "description": "One case that failed or erred.",
+      "type": "object",
+      "properties": {
+        "case": {
+          "description": "The case's id.",
+          "type": "string"
+        },
+        "note": {
+          "description": "The run's note on the case, or null.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "case",
+        "note"
+      ]
+    },
+    "FileOver": {
+      "description": "One file over a per-file budget.",
+      "type": "object",
+      "properties": {
+        "file": {
+          "description": "The file, from the repository's root.",
+          "type": "string"
+        },
+        "used": {
+          "description": "What it uses.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "file",
+        "used"
+      ]
+    },
+    "Group": {
+      "description": "One group of rules and its roll-up in each repository.",
+      "type": "object",
+      "properties": {
+        "cells": {
+          "description": "The group's roll-up in each repository, in the order of the\ndocument's `repositories`.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GroupCell"
+          }
+        },
+        "id": {
+          "description": "The group's path, such as `/rules/groups/rust`.",
+          "type": "string"
+        },
+        "members": {
+          "description": "The ids of the rules in the group, by path.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "title": {
+          "description": "The group's name for people, or its path when no report names it.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "members",
+        "cells"
+      ]
+    },
+    "GroupCell": {
+      "description": "One group's roll-up in one repository.",
+      "type": "object",
+      "properties": {
+        "counts": {
+          "description": "How many of the group's members found each result, as the\nrepository's report counted them; null when the report holds no\nsuch group.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          }
+        },
+        "repository": {
+          "description": "The repository's name.",
+          "type": "string"
+        },
+        "state": {
+          "description": "The worst state of the members' cells in this repository, or\n`absent` when no member reaches it.",
+          "$ref": "#/$defs/CellState"
+        }
+      },
+      "required": [
+        "repository",
+        "state",
+        "counts"
+      ]
+    },
+    "ImposedSet": {
+      "description": "The imposed rule set, as the config names it.",
+      "type": "object",
+      "properties": {
+        "commit": {
+          "description": "The set's current commit, from `--rules-commit`; null when the build\nwas not told it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "from": {
+          "description": "The rules board's origin in identity form.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The set's name for people.",
+          "type": "string"
+        },
+        "root": {
+          "description": "The set's root in the rules board.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "from",
+        "root",
+        "commit"
+      ]
+    },
+    "Omitted": {
+      "description": "How many items each list of a rule's facts left out.",
+      "type": "object",
+      "properties": {
+        "behind": {
+          "description": "Pins left out of `behind`.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "files": {
+          "description": "Files left out of `files`.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "over": {
+          "description": "Files left out of `over`.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "files",
+        "over",
+        "behind"
+      ]
+    },
+    "PinBehind": {
+      "description": "One pin older than a version rule's minimum.",
+      "type": "object",
+      "properties": {
+        "file": {
+          "description": "The file, from the repository's root.",
+          "type": "string"
+        },
+        "found": {
+          "description": "The version pinned.",
+          "type": "string"
+        },
+        "line": {
+          "description": "The line the pin is on, from 1.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "file",
+        "line",
+        "found"
+      ]
+    },
+    "Refused": {
+      "description": "One refusal or warning a report met.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "description": "Board's or the plugin's code.",
+          "type": "string"
+        },
+        "message": {
+          "description": "What happened, for people.",
+          "type": "string"
+        },
+        "rules": {
+          "description": "The rules or groups it concerns, by path.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "code",
+        "rules",
+        "message"
+      ]
+    },
+    "ReportCounts": {
+      "description": "How many repositories' reports read each state.",
+      "type": "object",
+      "properties": {
+        "current": {
+          "description": "Reports no older than the window.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "invalid_report": {
+          "description": "Report files the build cannot read.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "no_report": {
+          "description": "Repositories with no report file.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "stale": {
+          "description": "Reports older than the window.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "current",
+        "stale",
+        "no_report",
+        "invalid_report"
+      ]
+    },
+    "ReportState": {
+      "description": "What a repository's report reads as.",
+      "oneOf": [
+        {
+          "description": "The report is no older than the window.",
+          "type": "string",
+          "const": "current"
+        },
+        {
+          "description": "The report is older than the window, so its current cells read\nstale.",
+          "type": "string",
+          "const": "stale"
+        },
+        {
+          "description": "No report file is at the repository's path.",
+          "type": "string",
+          "const": "no_report"
+        },
+        {
+          "description": "The report file is not a report the build reads.",
+          "type": "string",
+          "const": "invalid_report"
+        }
+      ]
+    },
+    "RepositoryColumn": {
+      "description": "One repository's column.",
+      "type": "object",
+      "properties": {
+        "age_s": {
+          "description": "Whole seconds from the report to the build; null without a\nreadable report.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "board_version": {
+          "description": "The Board version that made the report.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "code": {
+          "description": "`flightdeck::compliance::no_report` or\n`flightdeck::compliance::invalid_report`; null when the report was\nread.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "commit": {
+          "description": "The commit the report read; null when it read none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "committed": {
+          "description": "When that commit was made; null when unknown.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "counts": {
+          "description": "How many of the column's rule and suite cells read each state.",
+          "$ref": "#/$defs/StateCounts"
+        },
+        "drift": {
+          "description": "Where the repository differs from the imposed set; null without a\nreadable report.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Drift"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "field": {
+          "description": "The path of the field that made the report invalid, such as\n`rules[0].result`; null otherwise.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "generated": {
+          "description": "When the report was made; null without a readable report.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "group": {
+          "description": "The heading the pages show it under, from the config.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "description": "What made the report invalid; null otherwise.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The repository's name, as the config gives it.",
+          "type": "string"
+        },
+        "refused": {
+          "description": "Each refusal and warning the report met, as it lists them.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Refused"
+          }
+        },
+        "report": {
+          "description": "What the repository's report reads as.",
+          "$ref": "#/$defs/ReportState"
+        },
+        "rules_commit": {
+          "description": "The rules board's commit the report read.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rules_from": {
+          "description": "The rules board's origin the report read.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_run": {
+          "description": "The CI run that made the report, copied from the report; null for a\nlocal report.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceRun"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "uncommitted": {
+          "description": "Whether a tracked file differed from the commit; null without a\nreadable report.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "group",
+        "report",
+        "code",
+        "field",
+        "message",
+        "generated",
+        "age_s",
+        "commit",
+        "committed",
+        "uncommitted",
+        "board_version",
+        "rules_from",
+        "rules_commit",
+        "source_run",
+        "drift",
+        "refused",
+        "counts"
+      ]
+    },
+    "Row": {
+      "description": "One rule or suite and its cell in each repository.",
+      "type": "object",
+      "properties": {
+        "cases": {
+          "description": "How many cases the suite lists, from the first report that holds\nit; null for a rule.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "cells": {
+          "description": "The row's cell in each repository, in the order of the document's\n`repositories`.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Cell"
+          }
+        },
+        "checker": {
+          "description": "What a program checks, as the first report that holds the rule\ngives it; null for a suite or a rule without one."
+        },
+        "groups": {
+          "description": "The paths of the groups the rule is in, in any report.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "description": "The rule's or the suite's path.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "`standing` or `obligation`; null for a suite.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "purpose": {
+          "description": "Why the requirement exists; null as for `requirement`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requirement": {
+          "description": "What the files must do, from the first report that holds the rule;\nnull for a suite or a rule that cannot be read.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "section": {
+          "description": "The part of the matrix the row sits in.",
+          "$ref": "#/$defs/Section"
+        },
+        "show": {
+          "description": "When the rule is shown to an agent; null for a suite.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "description": "`imposed` or `repository`, from the report's `rules[].source`; null\nfor a suite.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "section",
+        "source",
+        "requirement",
+        "purpose",
+        "kind",
+        "show",
+        "checker",
+        "groups",
+        "cases",
+        "cells"
+      ]
+    },
+    "RuleFacts": {
+      "description": "The facts a rule's checker measured, which a cell copies.",
+      "type": "object",
+      "properties": {
+        "behind": {
+          "description": "Each pin older than a version rule's minimum, at most 20.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PinBehind"
+          }
+        },
+        "files": {
+          "description": "The files a budget or version rule read, at most 20.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "max": {
+          "description": "A budget's max, or null for any other rule.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "omitted": {
+          "description": "How many items each list above left out.",
+          "$ref": "#/$defs/Omitted"
+        },
+        "over": {
+          "description": "Each file over a per-file budget, at most 20.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FileOver"
+          }
+        },
+        "used": {
+          "description": "What a budget's files use, or null for any other rule.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "zero": {
+          "description": "What a zero rule's suite's latest run reported, or null.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ZeroRead"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "used",
+        "max",
+        "files",
+        "over",
+        "behind",
+        "omitted",
+        "zero"
+      ]
+    },
+    "Section": {
+      "description": "Which part of the matrix a row sits in.",
+      "oneOf": [
+        {
+          "description": "A budget or version rule, which a report measures.",
+          "type": "string",
+          "const": "measured"
+        },
+        {
+          "description": "A zero rule, read from a suite's newest run.",
+          "type": "string",
+          "const": "zero"
+        },
+        {
+          "description": "A compliance suite, from its newest clean full run.",
+          "type": "string",
+          "const": "suite"
+        },
+        {
+          "description": "A pattern, judged or written rule, or one whose checker a report\ncannot read, which a report lists and does not measure.",
+          "type": "string",
+          "const": "written"
+        }
+      ]
+    },
+    "SourceRun": {
+      "description": "The GitHub Actions run that made a report. The document copies it as it\nis.",
+      "type": "object",
+      "properties": {
+        "commit": {
+          "description": "The commit the run checked out, from `GITHUB_SHA`.",
+          "type": "string"
+        },
+        "repository": {
+          "description": "The repository whose workflow ran, from `GITHUB_REPOSITORY`.",
+          "type": "string"
+        },
+        "run_id": {
+          "description": "The run's id, from `GITHUB_RUN_ID`.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "run_number": {
+          "description": "The run's number in its workflow, from `GITHUB_RUN_NUMBER`.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "repository",
+        "run_id",
+        "run_number",
+        "commit"
+      ]
+    },
+    "StateCounts": {
+      "description": "How many cells read each state.",
+      "type": "object",
+      "properties": {
+        "absent": {
+          "description": "Cells that read absent.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "current": {
+          "description": "Cells that read current.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "failing": {
+          "description": "Cells that read failing.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "not_readable": {
+          "description": "Cells that read not readable.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "stale": {
+          "description": "Cells that read stale.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "written": {
+          "description": "Cells that read written.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "failing",
+        "stale",
+        "not_readable",
+        "current",
+        "written",
+        "absent"
+      ]
+    },
+    "SuiteRun": {
+      "description": "A suite's newest qualifying run. A cell copies it as it is.",
+      "type": "object",
+      "properties": {
+        "commit": {
+          "description": "The commit the run's `versions` name, or null.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "commits_since": {
+          "description": "Commits on the repository since the run's commit, or null when Board\ncould not count them.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "commits_since_code": {
+          "description": "Why `commits_since` is null, or null when it was counted.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "failed": {
+          "description": "Each case that failed or erred.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FailedCase"
+          }
+        },
+        "finished": {
+          "description": "When the run finished.",
+          "type": "string"
+        },
+        "id": {
+          "description": "The run, by its logical path.",
+          "type": "string"
+        },
+        "outcome": {
+          "description": "`pass` or `fail`, or a later outcome.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "finished",
+        "commit",
+        "outcome",
+        "failed",
+        "commits_since",
+        "commits_since_code"
+      ]
+    },
+    "ZeroRead": {
+      "description": "What a zero rule's suite's latest run reported.",
+      "type": "object",
+      "properties": {
+        "age_s": {
+          "description": "Whole seconds from the run's finish to the report, or null.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "measures": {
+          "description": "Each measure the rule names and the number the run recorded.",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        },
+        "run": {
+          "description": "The run, by its logical path, or null when none qualifies.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "suite": {
+          "description": "The suite, by its logical path.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "suite",
+        "run",
+        "age_s",
+        "measures"
+      ]
+    }
+  }
+}
