@@ -52,7 +52,7 @@ pub const CODES: &[&[crumbkit::Code<'static>]] = &[
 /// `crumbkit::parse_from` prints help, the version or a refused command
 /// line and returns its exit code. `crumbkit::finish` prints the result or
 /// the failure in the format that the output flags choose.
-#[must_use]
+#[must_use = "the exit code reports how the command ended, so return it from main"]
 pub fn run_from<I, T>(args: I, vars: &[(OsString, OsString)]) -> ExitCode
 where
     I: IntoIterator<Item = T>,
