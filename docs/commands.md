@@ -10,6 +10,7 @@ Start a local web page for a crumbkit tool
 
 - [`flightdeck open`](#flightdeck-open): Open a local web page of the mxv workspaces and a tool's commands
 - [`flightdeck workspaces`](#flightdeck-workspaces): Read the local mxv workspaces
+- [`flightdeck compliance`](#flightdeck-compliance): Build the compliance document from rules reports
 - [`flightdeck commands`](#flightdeck-commands): Explore flightdeck's commands
 - [`flightdeck skills`](#flightdeck-skills): Give coding agents flightdeck's skill
 - [`flightdeck completion`](#flightdeck-completion): Set up flightdeck's completion in a shell
@@ -120,6 +121,44 @@ flightdeck workspaces show reading-list --json
 ```
 
 Effects: read-only, closed-world.
+
+## `flightdeck compliance`
+
+Build the compliance document from rules reports
+
+### Commands
+
+- [`flightdeck compliance build`](#flightdeck-compliance-build): Join each repository's rules report into one compliance document
+
+## `flightdeck compliance build`
+
+Join each repository's rules report into one compliance document
+
+### Arguments
+
+- `--config <FILE>`: The flightdeck/compliance-config/v1 file. Required.
+- `--reports <DIR>`: The directory of the reports, one at \<owner\>/\<repo\>.json each. Required.
+- `--out <DIR>`: Also write \<DIR\>/compliance.json
+- `--build-run <LABEL>`: The label of the run that builds the pages
+- `--build-url <URL>`: The address of that run
+- `--rules-commit <SHA>`: The imposed set's current commit
+- `--built-at <TIME>`: The build's time, such as 2026-11-25T06:00:00Z; now when left out
+
+### Examples
+
+Print one line per repository with its report's time and its failing, stale and drift counts.
+
+```sh
+flightdeck compliance build --config compliance.toml --reports reports
+```
+
+Write site/compliance.json for the pages and print the same document.
+
+```sh
+flightdeck compliance build --config compliance.toml --reports reports --out site --build-run 'Build run #412' --json
+```
+
+Effects: additive, idempotent, closed-world.
 
 ## `flightdeck commands`
 

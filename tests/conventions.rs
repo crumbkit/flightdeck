@@ -10,12 +10,17 @@
 use clap::CommandFactory as _;
 use crumbkit_flightdeck::{CODES, Cli, TOOL};
 use crumbkit_test::{
-    Allow, Examples, Failing, PathBudgets, Recoveries, Rule, Suite, Twins, Unprovoked,
+    Allow, Budget, Examples, Failing, PathBudgets, Recoveries, Rule, Suite, Twins, Unprovoked,
 };
 
 /// The budgets of the paths through flightdeck's help, which are crumbkit's
 /// defaults.
-const PATH_BUDGETS: PathBudgets<'_> = PathBudgets::new("tests/golden/examples");
+const PATH_BUDGETS: PathBudgets<'_> =
+    PathBudgets::new("tests/golden/examples").nodes(&[Budget::new(
+        "skills print",
+        8_200,
+        "Its output is the whole skill, which crumbkit-skills prints, and the root's page lists every resource.",
+    )]);
 
 /// flightdeck's built binary and the directory that holds its example
 /// golden files.
@@ -40,6 +45,11 @@ const NEEDS_MXV: &str = "Only an mxv that fails, is missing or lacks the workspa
 /// The reason that no command line provokes the workspace name code.
 const NAME_FROM_PAGE: &str = "Only the page's route returns it; the command line refuses such a name as a usage error before flightdeck runs.";
 
+/// The reason that no command line provokes a compliance code in the
+/// convention tests: each needs a config file or an `--out` directory that
+/// the test sets up.
+const NEEDS_FILES: &str = "Only a config file that breaks its rules, or an --out directory that cannot be written, provokes it; tests/compliance.rs provokes it.";
+
 /// The codes that the recovery check provokes with no command line.
 const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
     Unprovoked::new(
@@ -58,6 +68,8 @@ const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
         crumbkit_flightdeck::ENVIRONMENT_INVALID,
         "Only a FLIGHTDECK_PORT that is not a port provokes it, and a command line sets no variable; tests/open.rs provokes the code.",
     ),
+    Unprovoked::new(crumbkit_flightdeck::compliance::CONFIG_INVALID, NEEDS_FILES),
+    Unprovoked::new(crumbkit_flightdeck::compliance::OUT_FAILED, NEEDS_FILES),
     Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_MISSING, NEEDS_MXV),
     Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_FAILED, NEEDS_MXV),
     Unprovoked::new(
@@ -96,6 +108,8 @@ const UNTWINNED: &[Unprovoked<'_>] = &[
         crumbkit_flightdeck::ENVIRONMENT_INVALID,
         "Only a FLIGHTDECK_PORT that is not a port provokes it, and a command line sets no variable; tests/open.rs provokes the code.",
     ),
+    Unprovoked::new(crumbkit_flightdeck::compliance::CONFIG_INVALID, NEEDS_FILES),
+    Unprovoked::new(crumbkit_flightdeck::compliance::OUT_FAILED, NEEDS_FILES),
     Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_MISSING, NEEDS_MXV),
     Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_FAILED, NEEDS_MXV),
     Unprovoked::new(
@@ -140,10 +154,10 @@ const TWINS: Twins<'_> = Twins::lists(EXAMPLES, CODES).unprovoked(UNTWINNED);
 /// Everything the checks read, which `conventions!` expands to one test for
 /// each check. The grammar check needs no verb besides crumbkit's own,
 /// because `open` is a root verb of the tool record, and it accepts the
-/// verbs of the `completion` commands.
+/// verbs of the `completion` commands and `compliance build`.
 const SUITE: Suite<'_> = Suite::new(|| (Cli::command(), TOOL))
     .allow(ALLOW)
-    .verbs(&["install", "check", "print"])
+    .verbs(&["install", "check", "print", "build"])
     .path_budgets(PATH_BUDGETS)
     .examples(EXAMPLES)
     .recoveries(RECOVERIES)

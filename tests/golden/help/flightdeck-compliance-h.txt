@@ -1,0 +1,12 @@
+Build the compliance document from rules reports
+
+Usage: flightdeck compliance [OPTIONS] <COMMAND>
+
+Commands:
+  build  Join each repository's rules report into one compliance document
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Global flags: --json, --fields <FIELD>, --long, --full, --no-input. `flightdeck compliance --help` describes them.
+Next: flightdeck compliance <COMMAND> -h

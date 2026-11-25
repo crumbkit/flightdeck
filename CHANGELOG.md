@@ -9,6 +9,24 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `flightdeck compliance build --config <file> --reports <dir>` reads the
+  `rules/report/v1` file that `board rules report` writes for each
+  repository, at `<dir>/<owner>/<repo>.json`, and prints one
+  `flightdeck/compliance/v1` document with `--json`, or a line per
+  repository with its report's time and its failing, stale and drift
+  counts. Each cell reads `failing`, `stale`, `not_readable`, `current`,
+  `written` or `absent`. A suite run or a report older than the config's
+  `stale_after_days` reads stale. A repository with no report, or an
+  invalid one, gives its column `flightdeck::compliance::no_report` or
+  `flightdeck::compliance::invalid_report`, and the other columns still
+  render. Each repository's drift copies the report's and adds whether it
+  read another rule set and whether it read an older commit of it. `--out`
+  also writes `compliance.json`, replacing an earlier one only once the new
+  file is whole. The config is `flightdeck/compliance-config/v1` TOML, and
+  `flightdeck schemas show` prints both schemas. A config it cannot use
+  stops the build with `flightdeck::compliance::config_invalid`, and a
+  directory it cannot write with `flightdeck::compliance::out_failed`. The
+  command reads only files, and needs no Board, network or token.
 - `FLIGHTDECK_PORT` sets the port that `flightdeck open` listens on, on
   127.0.0.1. When it is unset, the system still picks a free port. A value
   that is not a port from 1 to 65535 stops `flightdeck open` with

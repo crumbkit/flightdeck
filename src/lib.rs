@@ -10,6 +10,7 @@
 
 mod cli;
 pub mod clock;
+pub mod compliance;
 mod environment;
 mod lock;
 pub mod model;
@@ -28,8 +29,8 @@ use starmap::Env as _;
 
 pub use crate::cli::{Cli, TOOL};
 use crate::cli::{
-    CommandsCommand, CompletionCommand, EnvironmentVerb, Resource, SKILL, SchemasCommand,
-    SelfCommand, WorkspacesCommand,
+    CommandsCommand, CompletionCommand, ComplianceBuildArgs, ComplianceCommand, EnvironmentVerb,
+    Resource, SKILL, SchemasCommand, SelfCommand, WorkspacesCommand,
 };
 use crate::environment::Environment;
 pub use crate::open::{ENVIRONMENT_INVALID, OpenError, SERVER_FAILED, TOOL_SEARCH_PATH};
@@ -37,6 +38,7 @@ pub use crate::open::{ENVIRONMENT_INVALID, OpenError, SERVER_FAILED, TOOL_SEARCH
 /// Every failure code that flightdeck declares, in one list for each error
 /// type, which its convention tests pass to crumbkit-test's checks.
 pub const CODES: &[&[crumbkit::Code<'static>]] = &[
+    compliance::ComplianceError::CODES,
     model::LoadError::CODES,
     OpenError::CODES,
     runner::RunFailure::CODES,
@@ -67,6 +69,12 @@ where
     match cli.resource {
         Resource::Open(args) => open::run(&mut run, &args, vars),
         Resource::Workspaces { command } => workspaces_command(run, &command, vars),
+        Resource::Compliance {
+            command: ComplianceCommand::Build(args),
+        } => {
+            let result = compliance_build(&args);
+            crumbkit::finish(run, compliance::COMPLIANCE_BUILD, result)
+        }
         Resource::Commands {
             command: CommandsCommand::List(args),
         } => {
@@ -108,6 +116,29 @@ where
                 crumbkit_starmap::environment(&mut run, <Environment as starmap::Env>::SPEC, vars);
             crumbkit::finish(run, crumbkit_starmap::SELF_ENVIRONMENT_LIST, result)
         }
+    }
+}
+
+/// Runs `flightdeck compliance build`: builds the document, and with
+/// `--out` writes it, naming the file it wrote in the text output's note.
+fn compliance_build(
+    args: &ComplianceBuildArgs,
+) -> Result<crumbkit::Prose<compliance::ComplianceDocument>, compliance::ComplianceError> {
+    let request = compliance::BuildRequest {
+        config: args.config.clone(),
+        reports: args.reports.clone(),
+        built_at: args.built_at.unwrap_or_else(jiff::Timestamp::now),
+        build_run: args.build_run.clone(),
+        build_url: args.build_url.clone(),
+        rules_commit: args.rules_commit.clone(),
+    };
+    let document = compliance::build(&request)?;
+    match &args.out {
+        Some(out) => {
+            let path = compliance::write_out(out, &document)?;
+            Ok(crumbkit::Prose::new(document).note(format!("Wrote {}", path.display())))
+        }
+        None => Ok(crumbkit::Prose::new(document)),
     }
 }
 
