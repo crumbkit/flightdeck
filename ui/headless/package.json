@@ -1,21 +1,73 @@
 {
-  "name": "@flightdeck/headless",
+  "name": "@crumbkit/flightdeck-headless",
   "version": "0.0.0",
-  "private": true,
+  "description": "The state of Flightdeck's compliance pages with no DOM, network or styling: it parses a flightdeck/compliance/v1 document and returns each page's headlines, tiles, rows, counts and words.",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/crumbkit/flightdeck.git",
+    "directory": "ui/headless"
+  },
   "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
   "exports": {
     "./document": "./src/document.ts",
     "./source": "./src/source.ts",
     "./words": "./src/words.ts",
     "./compliance": "./src/compliance.ts",
+    "./matrix": "./src/matrix.ts",
     "./repository": "./src/repository.ts",
     "./rules": "./src/rules.ts",
     "./control": "./src/control.ts",
     "./groups": "./src/groups.ts"
   },
+  "publishConfig": {
+    "exports": {
+      "./document": {
+        "types": "./dist/document.d.ts",
+        "default": "./dist/document.js"
+      },
+      "./source": {
+        "types": "./dist/source.d.ts",
+        "default": "./dist/source.js"
+      },
+      "./words": {
+        "types": "./dist/words.d.ts",
+        "default": "./dist/words.js"
+      },
+      "./compliance": {
+        "types": "./dist/compliance.d.ts",
+        "default": "./dist/compliance.js"
+      },
+      "./matrix": {
+        "types": "./dist/matrix.d.ts",
+        "default": "./dist/matrix.js"
+      },
+      "./repository": {
+        "types": "./dist/repository.d.ts",
+        "default": "./dist/repository.js"
+      },
+      "./rules": {
+        "types": "./dist/rules.d.ts",
+        "default": "./dist/rules.js"
+      },
+      "./control": {
+        "types": "./dist/control.d.ts",
+        "default": "./dist/control.js"
+      },
+      "./groups": {
+        "types": "./dist/groups.d.ts",
+        "default": "./dist/groups.js"
+      }
+    }
+  },
   "scripts": {
     "typecheck": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "@crumbkit/ui": "git+https://github.com/crumbkit/crumbkit-ui.git#v0.1.0",

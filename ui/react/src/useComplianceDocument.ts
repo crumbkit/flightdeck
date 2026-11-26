@@ -1,8 +1,8 @@
 // Reads the compliance document from the app's source, once per source and
 // again on each reload, and keeps the last document it read while a later
 // read fails, so a page never empties because the network dropped.
-import { type ComplianceDocument, InvalidDocument } from "@flightdeck/headless/document";
-import { type ComplianceSource, readDocument } from "@flightdeck/headless/source";
+import { type ComplianceDocument, InvalidDocument } from "@crumbkit/flightdeck-headless/document";
+import { type ComplianceSource, readDocument } from "@crumbkit/flightdeck-headless/source";
 import { useCallback, useEffect, useState } from "react";
 
 /** What reading the document has given so far. */

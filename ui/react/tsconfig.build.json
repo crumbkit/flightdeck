@@ -1,0 +1,27 @@
+{
+  // Emits the ESM and declarations that the package ships in dist/, from
+  // each module its exports name. The relative imports name .ts files, and
+  // tsc rewrites them to .js. The core's modules resolve to the
+  // declarations in ../headless/dist, which its build writes first, so this
+  // build emits only the hooks and their imports keep the core's package
+  // name.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "rewriteRelativeImportExtensions": true,
+    "allowImportingTsExtensions": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": { "@crumbkit/flightdeck-headless/*": ["../headless/dist/*.d.ts"] }
+  },
+  "include": [],
+  "files": [
+    "src/useComplianceDocument.ts",
+    "src/useCompliance.ts",
+    "src/useRepositoryCompliance.ts",
+    "src/useRulesOverview.ts",
+    "src/useControl.ts",
+    "src/useControlGroups.ts"
+  ]
+}

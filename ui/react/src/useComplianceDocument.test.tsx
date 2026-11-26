@@ -1,4 +1,4 @@
-import type { ComplianceSource } from "@flightdeck/headless/source";
+import type { ComplianceSource } from "@crumbkit/flightdeck-headless/source";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { fixtureJson } from "./testing.tsx";

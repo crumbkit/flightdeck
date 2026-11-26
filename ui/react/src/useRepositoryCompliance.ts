@@ -1,13 +1,14 @@
 // One repository's compliance hook (artboards 47, 55 and 56). The selected
 // rule lives in the page address. Choosing a rule moves focus to its detail,
 // so a keyboard or screen reader user lands on what they opened.
-import { type AddressSource, useAddressState } from "@crumbkit/ui/react";
-import type { ComplianceDocument } from "@flightdeck/headless/document";
+
+import type { ComplianceDocument } from "@crumbkit/flightdeck-headless/document";
 import {
   type RepositoryView,
   repositoryAddress,
   repositoryView,
-} from "@flightdeck/headless/repository";
+} from "@crumbkit/flightdeck-headless/repository";
+import { type AddressSource, useAddressState } from "@crumbkit/ui/react";
 import { type RefCallback, useCallback, useEffect, useId, useMemo, useRef } from "react";
 
 /** The props of the button that selects a rule. */

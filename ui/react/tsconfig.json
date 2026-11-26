@@ -1,6 +1,6 @@
 {
-  // BASE-1. tsc only checks the code; the app that imports the hooks
-  // bundles them.
+  // BASE-1. This config only checks the code; tsconfig.build.json emits
+  // the package's dist/.
   "compilerOptions": {
     "target": "es2024",
     "lib": ["es2024", "dom"],

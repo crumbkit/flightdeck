@@ -2,7 +2,7 @@
 // filter in the page address, the matrix's keyboard grid and the written
 // rules' disclosure, and returns the view with prop getters. It renders
 // nothing, so the app draws every element in its own livery.
-import { type AddressSource, useAddressState, useGrid, usePressed } from "@crumbkit/ui/react";
+
 import {
   type ComplianceAddress,
   type ComplianceView,
@@ -10,8 +10,9 @@ import {
   complianceView,
   SHOW_WORDS,
   type Tile,
-} from "@flightdeck/headless/compliance";
-import type { ComplianceDocument } from "@flightdeck/headless/document";
+} from "@crumbkit/flightdeck-headless/compliance";
+import type { ComplianceDocument } from "@crumbkit/flightdeck-headless/document";
+import { type AddressSource, useAddressState, useGrid, usePressed } from "@crumbkit/ui/react";
 import { useId, useMemo } from "react";
 import { useDisclosure } from "./disclosure.ts";
 

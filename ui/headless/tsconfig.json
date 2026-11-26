@@ -1,8 +1,8 @@
 {
   // BASE-1, with one addition: the core's lib holds no DOM and its types
   // hold no runtime's globals, so code here that reaches for the document,
-  // the window or fetch fails to type-check. The app that imports the core
-  // bundles it, so tsc only checks it.
+  // the window or fetch fails to type-check. This config only checks the
+  // code; tsconfig.build.json emits the package's dist/.
   "compilerOptions": {
     "target": "es2024",
     "lib": ["es2024"],
