@@ -27,9 +27,10 @@ id = "lanes"
 requirement = """
 - Lane: `page` in ../.github/workflows/ci.yml, on each pull request and each push to main, on ubuntu-24.04. It runs every step of the pull-request lane from `install` on, in ui/. Before `acceptance` it builds flightdeck and installs shelf and reading, which the acceptance tests start. The `workflows` step is the Rust lane's, in the `lane` job, which checks the same files. Its budget is twenty minutes, the job's timeout. The `gate` job, which the ruleset requires, passes only when `page` succeeded, so a merge waits for it.
 - Lane: `advisories` in ../.github/workflows/ci.yml, daily at 06:43 UTC and on each push to main, runs `pnpm audit` in ui/ after the Rust advisories. Nothing waits for it.
+- Lane: `advisories` in ../.github/workflows/release.yml, on each release and each pull request that changes the release, runs `pnpm audit` in ui/ after the Rust advisories (BASE-17). The GitHub release and the npm publish of @crumbkit/flightdeck-headless and @crumbkit/flightdeck-react both wait for it, so an advisory against any package in pnpm-lock.yaml stops the release.
 """
-reason = "The page's lane runs in a job of its own beside the shared Rust lane, and the one required check, `gate`, covers both. flightdeck has no release yet, so an advisory found after merge only means a pull request that moves the affected pin."
-realizations = ["../.github/workflows/ci.yml"]
+reason = "The page's lane runs in a job of its own beside the shared Rust lane, and the one required check, `gate`, covers both. The daily run catches an advisory published against a dependency already on main, and finding it after merge is safe because the release lane runs the same audit before anything is released or published."
+realizations = ["../.github/workflows/ci.yml", "../.github/workflows/release.yml"]
 
 [[decision]]
 id = "budgets"
