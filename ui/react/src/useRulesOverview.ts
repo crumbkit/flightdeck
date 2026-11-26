@@ -2,8 +2,8 @@
 // live in the page address. It shows the first rules and a button for the
 // rest, moving focus to the first rule the button reveals, and discloses the
 // imposed set's rules and, on a phone, every report.
-import { type AddressSource, useAddressState, usePressed, useSortHeader } from "@crumbkit/ui/react";
-import type { ComplianceDocument } from "@flightdeck/headless/document";
+
+import type { ComplianceDocument } from "@crumbkit/flightdeck-headless/document";
 import {
   CHECKERS,
   KINDS,
@@ -11,7 +11,8 @@ import {
   rulesAddress,
   rulesView,
   SHOWN,
-} from "@flightdeck/headless/rules";
+} from "@crumbkit/flightdeck-headless/rules";
+import { type AddressSource, useAddressState, usePressed, useSortHeader } from "@crumbkit/ui/react";
 import { type RefCallback, useEffect, useMemo, useRef } from "react";
 import { useDisclosure } from "./disclosure.ts";
 

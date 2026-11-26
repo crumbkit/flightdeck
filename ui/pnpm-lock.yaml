@@ -273,12 +273,12 @@ importers:
 
   react:
     dependencies:
+      '@crumbkit/flightdeck-headless':
+        specifier: workspace:*
+        version: link:../headless
       '@crumbkit/ui':
         specifier: git+https://github.com/crumbkit/crumbkit-ui.git#v0.1.0
         version: https://codeload.github.com/crumbkit/crumbkit-ui/tar.gz/b14fc90600bb4bbe96abf75295005dbc92eec779(react@19.3.1)
-      '@flightdeck/headless':
-        specifier: workspace:*
-        version: link:../headless
     devDependencies:
       '@testing-library/dom':
         specifier: 10.4.2

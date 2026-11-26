@@ -1,15 +1,16 @@
 // The groups page's hook (artboard 58). The expanded group and the marked
 // control live in the page address. Following a control to another group
 // it is in opens that group with the control marked, and moves focus to it.
-import { type AddressSource, useAddressState } from "@crumbkit/ui/react";
-import type { ComplianceDocument } from "@flightdeck/headless/document";
+
+import type { ComplianceDocument } from "@crumbkit/flightdeck-headless/document";
 import {
   type GroupEntry,
   type GroupsView,
   groupsAddress,
   groupsView,
   type MemberEntry,
-} from "@flightdeck/headless/groups";
+} from "@crumbkit/flightdeck-headless/groups";
+import { type AddressSource, useAddressState } from "@crumbkit/ui/react";
 import { type RefCallback, useCallback, useEffect, useId, useMemo, useRef } from "react";
 
 /** The props of the button that expands or collapses a group. */

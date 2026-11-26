@@ -1,8 +1,18 @@
 {
-  "name": "@flightdeck/react",
+  "name": "@crumbkit/flightdeck-react",
   "version": "0.0.0",
-  "private": true,
+  "description": "React hooks over @crumbkit/flightdeck-headless that keep the compliance pages' filters in the page address and return prop getters, and render nothing.",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/crumbkit/flightdeck.git",
+    "directory": "ui/react"
+  },
   "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
   "exports": {
     "./useComplianceDocument": "./src/useComplianceDocument.ts",
     "./useCompliance": "./src/useCompliance.ts",
@@ -11,16 +21,45 @@
     "./useControl": "./src/useControl.ts",
     "./useControlGroups": "./src/useControlGroups.ts"
   },
+  "publishConfig": {
+    "exports": {
+      "./useComplianceDocument": {
+        "types": "./dist/useComplianceDocument.d.ts",
+        "default": "./dist/useComplianceDocument.js"
+      },
+      "./useCompliance": {
+        "types": "./dist/useCompliance.d.ts",
+        "default": "./dist/useCompliance.js"
+      },
+      "./useRepositoryCompliance": {
+        "types": "./dist/useRepositoryCompliance.d.ts",
+        "default": "./dist/useRepositoryCompliance.js"
+      },
+      "./useRulesOverview": {
+        "types": "./dist/useRulesOverview.d.ts",
+        "default": "./dist/useRulesOverview.js"
+      },
+      "./useControl": {
+        "types": "./dist/useControl.d.ts",
+        "default": "./dist/useControl.js"
+      },
+      "./useControlGroups": {
+        "types": "./dist/useControlGroups.d.ts",
+        "default": "./dist/useControlGroups.js"
+      }
+    }
+  },
   "scripts": {
     "typecheck": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "@crumbkit/ui": "git+https://github.com/crumbkit/crumbkit-ui.git#v0.1.0",
-    "@flightdeck/headless": "workspace:*"
+    "@crumbkit/flightdeck-headless": "workspace:*"
   },
   "peerDependencies": {
-    "react": "19.3.1"
+    "react": "^19.0.0"
   },
   "devDependencies": {
     "@testing-library/dom": "10.4.2",

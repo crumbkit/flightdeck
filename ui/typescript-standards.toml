@@ -51,7 +51,7 @@ realizations = ["src/routes/ToolPage.tsx", "src/lib/transcript.ts", "src/api/run
 
 [[decision]]
 id = "crumbkit-ui-git-tag"
-requirement = "headless/ and react/ depend on @crumbkit/ui by its git tag, `git+https://github.com/crumbkit/crumbkit-ui.git#v0.1.0`, and pnpm-lock.yaml records the tag's commit. A new version of @crumbkit/ui arrives only in a pull request that moves the tag in both manifests and the lockfile."
+requirement = "headless/ and react/ depend on @crumbkit/ui by its git tag, `git+https://github.com/crumbkit/crumbkit-ui.git#v0.1.0`, and pnpm-lock.yaml records the tag's commit. A new version of @crumbkit/ui arrives only in a pull request that moves the tag in both manifests and the lockfile. The packed tarballs name the exact version the tag's package.json holds instead, which npmjs must hold with the same dist/ (decision packages-emit)."
 reason = "@crumbkit/ui is crumbkit's own package and is not on the npm registry, so it has no exact version for BASE-13 to pin and no release age for BASE-14's cooldown to read, and Dependabot does not offer its updates. The tag plus the lockfile's commit fixes the bytes installed as an exact version would. The maintainer accepted this exception for crumbkit's own packages on 2026-11-25 (board decision /projects/flightdeck/decisions/20261125T0145Z-3ee2)."
 realizations = ["headless/package.json", "react/package.json", "pnpm-lock.yaml"]
 
@@ -60,3 +60,9 @@ id = "headless-core"
 requirement = "headless/ type-checks with the es2024 lib and no runtime's types, so a module there that reaches for the document, the window, fetch or storage fails to type-check. It reads the compliance document only through the ComplianceSource the app passes in, and stores nothing. react/ renders no element and returns props for the app to spread."
 reason = "The compliance pages ship headless, so another front end can render them in its own look, and Flightdeck's own pages are the first user. Keeping the DOM and the network out of the core's types holds that line with the compiler rather than review."
 realizations = ["headless/tsconfig.json", "headless/src/source.ts", "react/tsconfig.json"]
+
+[[decision]]
+id = "packages-emit"
+requirement = "headless/ and react/ are published as @crumbkit/flightdeck-headless and @crumbkit/flightdeck-react. Each package's `build` script runs `tsc -p tsconfig.build.json`, which writes ESM and declarations into its dist/, and publishConfig.exports points the packed manifest at dist/. dist/ is not committed. ../scripts/pack-packages/pack.sh builds and packs both at a release's version and names @crumbkit/ui by exact version, and ../scripts/check-packages/check.sh installs the tarballs into a project with pnpm's default settings, type-checks a consumer against them and renders a page with them."
+reason = "BASE-1's tsconfig emits nothing, because Vite bundles the page. An adopting front end installs the packages from npmjs and runs no build step, so the packages ship compiled JavaScript and declarations. The release builds them, so the tarballs come from the tagged source, and the check proves that an adopter's default pnpm accepts them. In the workspace, exports point at src/, so the page and the tests use the source with no build."
+realizations = ["headless/package.json", "react/package.json", "headless/tsconfig.build.json", "react/tsconfig.build.json", "../scripts/pack-packages/pack.sh", "../scripts/check-packages/check.sh", "../.github/workflows/release.yml"]

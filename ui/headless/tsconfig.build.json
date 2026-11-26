@@ -1,0 +1,26 @@
+{
+  // Emits the ESM and declarations that the package ships in dist/, from
+  // each module its exports name. The relative imports name .ts files, and
+  // tsc rewrites them to .js.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "rewriteRelativeImportExtensions": true,
+    "allowImportingTsExtensions": false,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": [],
+  "files": [
+    "src/document.ts",
+    "src/source.ts",
+    "src/words.ts",
+    "src/compliance.ts",
+    "src/matrix.ts",
+    "src/repository.ts",
+    "src/rules.ts",
+    "src/control.ts",
+    "src/groups.ts"
+  ]
+}

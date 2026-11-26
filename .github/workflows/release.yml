@@ -1,13 +1,24 @@
-# The binary release. It runs the tests on Linux, macOS and Windows and the
+# The release. It runs the tests on Linux, macOS and Windows and the
 # advisory check, builds `flightdeck` for macOS, Linux and Windows, checks
-# that each binary prints the release's version, and attaches the archives to
-# a GitHub release with SHA256SUMS.
+# that each binary prints the release's version, and packs
+# @crumbkit/flightdeck-headless and @crumbkit/flightdeck-react at that
+# version and checks that they install. It attests every release file,
+# publishes the two packages to npmjs, and attaches the archives, the
+# tarballs and SHA256SUMS to a GitHub release.
 #
 # A push of the tag `v<version>` releases that tag, where <version> is the
 # version in Cargo.toml. A manual run with a tag releases that existing tag,
 # such as v0.1.0, which was pushed before this workflow existed. A manual run
 # without a tag, and a pull request that changes this file, build the
-# archives and release nothing.
+# archives and the tarballs and release nothing. A pull request that changes
+# the packages or their scripts runs it too, so the install check runs before
+# a release needs it.
+#
+# Publishing needs npm trusted publishing, so the workflow holds no npm
+# token. npmjs must hold each package once, published by hand, with this
+# workflow set as its trusted publisher, and npmjs must hold the version of
+# @crumbkit/ui that ui/ pins. Until then the `packages` job of a release
+# stops before anything is published or attached (docs/packages.md).
 #
 # No job uses rust-cache, because a poisoned cache would reach the released
 # binaries, and zizmor fails a release workflow that restores a cache.
@@ -17,7 +28,13 @@ on:
   push:
     tags: ["v*"]
   pull_request:
-    paths: [.github/workflows/release.yml]
+    paths:
+      - .github/workflows/release.yml
+      - ui/headless/**
+      - ui/react/**
+      - ui/pnpm-lock.yaml
+      - scripts/pack-packages/**
+      - scripts/check-packages/**
   workflow_dispatch:
     inputs:
       tag:
@@ -188,15 +205,63 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
-  # The release gets the archives and SHA256SUMS. A run again after a failure
-  # replaces the files of a release that the failed run created.
+  # The two package tarballs at the release's version, and the check that a
+  # project with pnpm's default settings installs and renders them. For a
+  # release, pack.sh stops unless npmjs holds the version of @crumbkit/ui
+  # that ui/ pins, with the same dist/ as its tag; a run that releases
+  # nothing only warns.
+  packages:
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read # actions/checkout reads the repository.
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      REGISTRY: ${{ needs.version.outputs.tag != '' && 'require' || 'warn' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.ref }}
+          persist-credentials: false
+      # pnpm/action-setup installs the pnpm that `packageManager` names, and
+      # setup-node the Node that .node-version names, with no cache.
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: ui/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: ui/.node-version
+          package-manager-cache: false
+      - name: install
+        run: pnpm install --frozen-lockfile
+        working-directory: ui
+      - name: pack
+        run: scripts/pack-packages/pack.sh "$VERSION" packages --registry "$REGISTRY"
+      - name: install check
+        run: scripts/check-packages/check.sh "$VERSION" packages
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: flightdeck-packages
+          path: packages/*.tgz
+          if-no-files-found: error
+
+  # The release gets the archives, the tarballs and SHA256SUMS, each with a
+  # build provenance attestation, and npmjs gets the two packages. The steps
+  # run in that order, so a refused attestation uploads nothing and a refused
+  # publish of the core attaches nothing. A run again after a failure skips a
+  # package version that npmjs already holds, because a published version
+  # never changes, and replaces the files of a release that the failed run
+  # created.
   release:
     if: needs.version.outputs.tag != ''
-    needs: [version, advisories, tests, build]
+    needs: [version, advisories, tests, build, packages]
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: write # gh creates the release and uploads its files.
+      id-token: write # attest-build-provenance and npm trusted publishing sign with the run's OIDC token.
+      attestations: write # attest-build-provenance stores the attestations.
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ needs.version.outputs.tag }}
@@ -210,6 +275,37 @@ jobs:
           cd dist
           sha256sum -- * > SHA256SUMS
           cat SHA256SUMS
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*
+      # npm trusted publishing needs npm 11.5.1 or later, which the Node of
+      # ui/.node-version ships, so the job checks out that one file. No
+      # .npmrc names a token; npm exchanges the run's OIDC token for a
+      # short-lived one. The core goes first, because the hooks name its
+      # exact version.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.ref }}
+          path: source
+          sparse-checkout: ui/.node-version
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: source/ui/.node-version
+          package-manager-cache: false
+      - name: publish
+        run: |
+          for package in headless react; do
+            tarball=$(ls dist/crumbkit-flightdeck-$package-*.tgz)
+            name=@crumbkit/flightdeck-$package
+            version=$(tar -xzOf "$tarball" package/package.json | jq -r .version)
+            if npm view "$name@$version" version > /dev/null 2>&1; then
+              echo "npmjs already holds $name $version"
+            else
+              npm publish "$tarball" --access public
+            fi
+          done
       - run: |
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber dist/*

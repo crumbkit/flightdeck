@@ -1,6 +1,6 @@
 // What the hooks' tests share: the fixture, parsed, and an address held in
 // memory in place of the page's.
-import { parseDocument } from "@flightdeck/headless/document";
+import { parseDocument } from "@crumbkit/flightdeck-headless/document";
 import { useState } from "react";
 import fixture from "../../../tests/fixtures/compliance/compliance.json" with { type: "json" };
 
