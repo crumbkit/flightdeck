@@ -5,7 +5,7 @@ import type { Cell, Row } from "./document.ts";
 const facts = {
   used: 1184,
   max: 1000,
-  files: ["/AGENTS.md", "/CLAUDE.md"],
+  files: ["/AGENTS.md", "/CONTEXT.md"],
   over: [],
   behind: [],
   omitted: { files: 0, over: 0, behind: 0 },
@@ -38,7 +38,7 @@ const cell: Cell = {
 
 describe("the cells' sentences, as the artboards word them", () => {
   it("names the files a whole-repository budget counted", () => {
-    expect(failureDetail(row, cell)).toBe("/AGENTS.md and /CLAUDE.md hold 1,184 words together.");
+    expect(failureDetail(row, cell)).toBe("/AGENTS.md and /CONTEXT.md hold 1,184 words together.");
     const one = { ...cell, facts: { ...facts, files: ["/AGENTS.md"] } };
     expect(failureDetail(row, one)).toBe("/AGENTS.md holds 1,184 words, and the limit is 1,000.");
   });
