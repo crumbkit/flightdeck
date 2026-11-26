@@ -133,7 +133,7 @@ crumbkit-test = { version = "0.6.0", default-features = false }
 starmap-test = { version = "0.4.2", default-features = false }
 # The schema tests validate real documents against crumbkit's checked-in
 # JSON Schemas, which use draft 2020-12.
-jsonschema = { version = "0.60.2", default-features = false }
+jsonschema = { version = "0.61.2", default-features = false }
 
 [workspace]
 resolver = "3"
