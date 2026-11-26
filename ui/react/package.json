@@ -1,0 +1,38 @@
+{
+  "name": "@flightdeck/react",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./useComplianceDocument": "./src/useComplianceDocument.ts",
+    "./useCompliance": "./src/useCompliance.ts",
+    "./useRepositoryCompliance": "./src/useRepositoryCompliance.ts",
+    "./useRulesOverview": "./src/useRulesOverview.ts",
+    "./useControl": "./src/useControl.ts",
+    "./useControlGroups": "./src/useControlGroups.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@crumbkit/ui": "git+https://github.com/crumbkit/crumbkit-ui.git#v0.1.0",
+    "@flightdeck/headless": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "19.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.8",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "jsdom": "30.1.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}
