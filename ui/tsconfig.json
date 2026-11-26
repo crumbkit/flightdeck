@@ -28,5 +28,5 @@
 
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src", "tests", "*.ts"]
+  "include": ["src", "tests", "scripts", "*.ts"]
 }

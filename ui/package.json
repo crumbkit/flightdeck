@@ -5,6 +5,7 @@
   "packageManager": "pnpm@12.15.0",
   "scripts": {
     "dev": "vite",
+    "schemas": "node scripts/schemas/schemas.ts && test -z \"$(git status --porcelain --untracked-files=all -- headless/src/api/generated | tee /dev/stderr)\"",
     "lint": "biome ci --error-on-warnings .",
     "fix": "biome check --write .",
     "typecheck": "tsc && pnpm --recursive --filter './*' run typecheck",

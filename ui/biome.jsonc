@@ -85,6 +85,15 @@
   },
   "overrides": [
     {
+      // A generator writes these files from another program's schema
+      // (BASE-21). The next regeneration would undo any format or lint fix,
+      // so Biome leaves them alone, and tsc still checks them.
+      "includes": ["**/src/api/generated/**"],
+      "formatter": { "enabled": false },
+      "linter": { "enabled": false },
+      "assist": { "enabled": false }
+    },
+    {
       // shadcn/ui writes these files (APP-5). They keep its arbitrary
       // values, so a later `shadcn diff` still applies to them.
       "includes": ["src/components/ui/**"],
