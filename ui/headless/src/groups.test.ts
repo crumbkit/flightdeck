@@ -49,6 +49,29 @@ describe("groupsView of the fixture (artboard 58)", () => {
     expect(server.marked).toBe("/rules/rust/server");
   });
 
+  it("collapses the first group when the reader closes it, and opens no other in its place", () => {
+    const rust = view.groups[0];
+    const closed = groupsView(fixtureDocument(), groupsAddress.parse(rust?.toggle ?? ""));
+    expect(closed.groups.map((group) => group.expanded)).toEqual([false, false]);
+  });
+
+  it("collapses another group when the reader closes it", () => {
+    const server = groupsView(
+      fixtureDocument(),
+      groupsAddress.parse("?group=%2Frules%2Fgroups%2Fserver"),
+    );
+    const closed = groupsView(
+      fixtureDocument(),
+      groupsAddress.parse(server.groups[1]?.toggle ?? ""),
+    );
+    expect(closed.groups.map((group) => group.expanded)).toEqual([false, false]);
+    const reopened = groupsView(
+      fixtureDocument(),
+      groupsAddress.parse(closed.groups[1]?.toggle ?? ""),
+    );
+    expect(reopened.groups.map((group) => group.expanded)).toEqual([false, true]);
+  });
+
   it("gives each group and control a spoken name", () => {
     expect(view.groups[0]?.spoken).toBe(
       "Rust, 3 controls: failing, 1 failing · 1 drifting · 1 no report · 1 current",

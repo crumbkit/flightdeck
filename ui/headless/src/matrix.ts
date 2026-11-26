@@ -69,7 +69,7 @@ export function columnHeads(document: ComplianceDocument): ColumnHead[] {
 }
 
 /** Returns a suite's name for people from the rest of its path, such as "Rust standard audit" from "rust-standard". */
-function suiteName(rest: string): string {
+export function suiteName(rest: string): string {
   const words = rest.split("-").filter((word) => word !== "");
   const first = words[0] ?? rest;
   return [`${first.charAt(0).toUpperCase()}${first.slice(1)}`, ...words.slice(1), "audit"].join(
@@ -78,12 +78,7 @@ function suiteName(rest: string): string {
 }
 
 /** Returns the matrix cell of `cell`, in `row`, in `column`. */
-export function matrixCell(
-  name: string,
-  row: Row,
-  cell: Cell,
-  column: RepositoryColumn,
-): MatrixCell {
+function matrixCell(name: string, row: Row, cell: Cell, column: RepositoryColumn): MatrixCell {
   const caption = cellCaption(row, cell, column);
   const spoken = `${column.name}, ${name}: ${spokenState(cell.state, cell.code)}`;
   return {

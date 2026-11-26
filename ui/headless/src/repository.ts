@@ -5,7 +5,15 @@ import { counted } from "@crumbkit/ui/a11y";
 import { defineAddress, id } from "@crumbkit/ui/address";
 import { measuredText } from "./cells.ts";
 import { runLabel } from "./compliance.ts";
-import type { Cell, CellState, ComplianceDocument, RepositoryColumn, Row } from "./document.ts";
+import {
+  CELL_STATES_WORST_FIRST,
+  type Cell,
+  type CellState,
+  type ComplianceDocument,
+  type RepositoryColumn,
+  type Row,
+} from "./document.ts";
+import { suiteName } from "./matrix.ts";
 import { type Snapshot, snapshotOf } from "./snapshot.ts";
 import {
   ageWord,
@@ -122,12 +130,7 @@ function line(column: RepositoryColumn, { row, cell }: Reached): Line {
 function suiteTitle(path: string, repository: string): string {
   const name = shortName(path);
   const prefix = `${shortName(repository)}-`;
-  const rest = name.startsWith(prefix) ? name.slice(prefix.length) : name;
-  const words = rest.split("-");
-  const first = words[0] ?? rest;
-  return [`${first.charAt(0).toUpperCase()}${first.slice(1)}`, ...words.slice(1), "audit"].join(
-    " ",
-  );
+  return suiteName(name.startsWith(prefix) ? name.slice(prefix.length) : name);
 }
 
 /** Returns what a suite's run found, such as "1 of 44 cases failed: PY-07". */
@@ -223,15 +226,6 @@ function detail(column: RepositoryColumn, reached: Reached): Detail {
   };
 }
 
-const ORDER: readonly CellState[] = [
-  "failing",
-  "stale",
-  "not_readable",
-  "current",
-  "written",
-  "absent",
-];
-
 /** Returns the legend of the states the snapshot pages show, with the document's window. */
 function legend(document: ComplianceDocument): LegendEntry[] {
   const days = counted(document.stale_after_days, "day");
@@ -305,7 +299,11 @@ export function repositoryView(
           : `${checkerWord(each.row.checker, false)} · ${measuredText(each.row, each.cell)}`;
       return { ...base, caption, at };
     })
-    .sort((a, b) => ORDER.indexOf(a.state) - ORDER.indexOf(b.state) || a.at - b.at)
+    .sort(
+      (a, b) =>
+        CELL_STATES_WORST_FIRST.indexOf(a.state) - CELL_STATES_WORST_FIRST.indexOf(b.state) ||
+        a.at - b.at,
+    )
     .map(({ at: _, ...check }) => check);
   const chosen =
     checked.find(({ row }) => row.id === address.rule) ??

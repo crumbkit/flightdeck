@@ -5,6 +5,7 @@ import { counted } from "@crumbkit/ui/a11y";
 import type { Cell, RepositoryColumn, Row, RuleFacts, SuiteRun } from "./document.ts";
 import {
   ageWord,
+  andList,
   budgetUnit,
   checkerField,
   checkerNumber,
@@ -44,7 +45,7 @@ function remaining(facts: RuleFacts): number | null {
 }
 
 /** Returns a suite run's caption: its age, or "today", and its commits since, such as "2 d · +6". */
-export function runCaption(run: SuiteRun | null, ageS: number | null): string {
+function runCaption(run: SuiteRun | null, ageS: number | null): string {
   if (run === null) return "no run";
   let age = "no time";
   if (ageS !== null) age = underADay(ageS) ? "today" : ageWord(ageS);
@@ -118,7 +119,11 @@ export function failureDetail(row: Row, cell: Cell): string | null {
       if (overCount(facts) > 1) {
         return `${overCount(facts)} files are over the limit of ${numberWord(max)} ${unit}.`;
       }
-      return `The files hold ${numberWord(facts.used ?? 0)} ${unit}, and the limit is ${numberWord(max)}.`;
+      const used = `${numberWord(facts.used ?? 0)} ${unit}`;
+      const [only, ...others] = facts.files;
+      if (only === undefined) return `The files hold ${used}, and the limit is ${numberWord(max)}.`;
+      if (others.length === 0) return `${only} holds ${used}, and the limit is ${numberWord(max)}.`;
+      return `${andList(facts.files)} hold ${used} together.`;
     }
     case "behind": {
       const pin = facts.behind[0];
@@ -193,7 +198,13 @@ export function measuredText(row: Row, cell: Cell): string {
     case "version": {
       const pin = facts.behind[0];
       if (pin !== undefined) return `${pin.file} pins ${pin.found}`;
-      return facts.files.length === 0 ? "no pin found" : `reads ${facts.files.join(", ")}`;
+      // A report gives the version found only for a pin behind the minimum,
+      // so a pin within it reads as at least that minimum, not its version.
+      const atLeast = checkerField(row.checker, "at_least");
+      if (facts.files.length === 0) return "no pin found";
+      return atLeast === null
+        ? `reads ${andList(facts.files)}`
+        : `${andList(facts.files)} pins at least ${atLeast}`;
     }
     case "zero": {
       const zero = facts.zero;

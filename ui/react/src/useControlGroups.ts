@@ -63,7 +63,7 @@ export function useControlGroups(document: ComplianceDocument, address: AddressS
       type: "button",
       "aria-expanded": group.expanded,
       "aria-controls": `${base}-${group.id}`,
-      onClick: () => change({ group: group.expanded ? null : group.id, rule: null }),
+      onClick: () => change({ group: group.toggleTo, rule: null }),
     }),
     /** The props of the element that holds a group's controls. */
     getGroupRegionProps: (group: GroupEntry) => ({

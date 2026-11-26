@@ -38,8 +38,11 @@ function recount(document: ComplianceDocument): ComplianceDocument {
 }
 
 /** Returns the fixture with `name`'s report `days` old, so its current rule cells read stale. */
-export function withStaleReport(name: string, days: number): ComplianceDocument {
-  const document = fixtureDocument();
+export function withStaleReport(
+  name: string,
+  days: number,
+  document: ComplianceDocument = fixtureDocument(),
+): ComplianceDocument {
   const index = document.repositories.findIndex((column) => column.name === name);
   const repositories = document.repositories.map((column, at) =>
     at === index ? { ...column, report: "stale" as const, age_s: days * DAY + 60 } : column,
@@ -126,4 +129,43 @@ export function withoutRepository(name: string): ComplianceDocument {
     cells: group.cells.filter((_, at) => at !== index),
   }));
   return recount({ ...document, repositories, rows, groups });
+}
+
+/** Returns `document` with `repository`'s cell of the rule `rule` current, as a report within its limit gives it. */
+export function withPassing(
+  repository: string,
+  rule: string,
+  document: ComplianceDocument = fixtureDocument(),
+): ComplianceDocument {
+  const rows = document.rows.map((row) =>
+    row.id === rule
+      ? {
+          ...row,
+          cells: row.cells.map((cell) =>
+            cell.repository === repository
+              ? { ...cell, state: "current" as const, result: "within" }
+              : cell,
+          ),
+        }
+      : row,
+  );
+  return recount({ ...document, rows });
+}
+
+/** Returns the fixture with the rule `rule` absent from every repository that sent a report. */
+export function reachingOnlyMissing(rule: string): ComplianceDocument {
+  const document = fixtureDocument();
+  const rows = document.rows.map((row) =>
+    row.id === rule
+      ? {
+          ...row,
+          cells: row.cells.map((cell, at) =>
+            document.repositories[at]?.report === "no_report"
+              ? cell
+              : { ...cell, state: "absent" as const, result: null, facts: null },
+          ),
+        }
+      : row,
+  );
+  return recount({ ...document, rows });
 }

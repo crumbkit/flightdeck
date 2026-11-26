@@ -4,13 +4,14 @@
 // is shown a rule and by kind. The filters and the sort live in the address.
 import { counted } from "@crumbkit/ui/a11y";
 import { defineAddress, oneOf } from "@crumbkit/ui/address";
-import { type Direction, filterRows, type RowTest, type Sort, sortRows } from "@crumbkit/ui/table";
+import { filterRows, type RowTest, type Sort, sortRows } from "@crumbkit/ui/table";
 import { cellCaption } from "./cells.ts";
 import type { Cell, ComplianceDocument, RepositoryColumn, Row } from "./document.ts";
 import { addedRules, type DriftState, driftItems, driftState, driftWord } from "./drift.ts";
 import { type Snapshot, snapshotOf } from "./snapshot.ts";
 import {
   ageWord,
+  andList,
   checkerWord,
   checkKind,
   INVALID_REPORT,
@@ -30,7 +31,7 @@ export const SHOWN = ["start", "edit", "failing"] as const;
 export const KINDS = ["standing", "obligation"] as const;
 
 /** The columns the rules table sorts by. */
-export const RULE_SORT_KEYS = ["state", "rule"] as const;
+const RULE_SORT_KEYS = ["state", "rule"] as const;
 
 /** The column the rules table sorts by. */
 export type RuleSortKey = (typeof RULE_SORT_KEYS)[number];
@@ -48,25 +49,14 @@ export const rulesAddress = defineAddress({
 /** The values the Rules page's address holds. */
 export type RulesAddress = ReturnType<typeof rulesAddress.parse>;
 
-/** The direction each column sorts in when first chosen: worst state first, names A to Z. */
-export function firstDirection(_key: RuleSortKey): Direction {
-  return "ascending";
-}
-
 /** What a rule rolls up to over the repositories it reaches. */
 export type RuleState = "failing" | "stale" | "not_readable" | "current" | "stated";
 
 /** The rule states, worst first. */
-export const RULE_STATES: readonly RuleState[] = [
-  "failing",
-  "stale",
-  "not_readable",
-  "current",
-  "stated",
-];
+const RULE_STATES: readonly RuleState[] = ["failing", "stale", "not_readable", "current", "stated"];
 
 /** Returns a rule state's word. */
-export function ruleStateWord(state: RuleState): string {
+function ruleStateWord(state: RuleState): string {
   switch (state) {
     case "failing":
       return "failing";
@@ -218,8 +208,11 @@ function statedCaption(row: Row): string {
 
 /**
  * Returns a rule's entry. A column with no report says nothing of which
- * rules reach it, so it counts neither in the rule's reach nor its state;
- * the Reports table names it.
+ * rules reach it, because the build marks its every row not readable, so
+ * it counts in neither the rule's reach nor its state while a report that
+ * was read reaches the rule. A measured rule that reaches only repositories
+ * with no report reads stale, as artboard 52 shows, so it never counts as
+ * current.
  */
 function entry(document: ComplianceDocument, row: Row): RuleEntry {
   const name = rowName(row);
@@ -230,6 +223,11 @@ function entry(document: ComplianceDocument, row: Row): RuleEntry {
       : [{ column, cell }];
   });
   const reached = cells.map(({ column }) => column.name);
+  const missing = document.repositories.flatMap((column, index) =>
+    !readable(column) && row.cells[index] !== undefined && row.cells[index]?.state !== "absent"
+      ? [column.name]
+      : [],
+  );
   const withReport = document.repositories.filter(readable).length;
   const failing = cells.find(({ cell }) => cell.state === "failing");
   const stale = cells.find(({ cell }) => cell.state === "stale");
@@ -251,6 +249,9 @@ function entry(document: ComplianceDocument, row: Row): RuleEntry {
   } else if (refused !== undefined) {
     state = "not_readable";
     text = refused.cell.code;
+  } else if (cells.length === 0 && row.section !== "written" && missing.length > 0) {
+    state = "stale";
+    text = `${andList(missing)} sent no report`;
   } else if (row.section === "written") {
     state = "stated";
     text = statedCaption(row);
@@ -414,6 +415,6 @@ export function rulesView(document: ComplianceDocument, address: RulesAddress): 
       entries.map((rule) => rule.kind),
       KIND_MEANINGS,
     ),
-    note: "A measured rule fails when any repository's report fails it, and is stale when a repository it reaches has a stale report. Pattern, judged and written rules are stated: a report lists them and measures nothing.",
+    note: "A measured rule fails when any repository's report fails it, and is stale when a repository it reaches has a stale report or none. Pattern, judged and written rules are stated: a report lists them and measures nothing.",
   };
 }

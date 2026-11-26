@@ -160,7 +160,7 @@ describe("complianceView with stale and missing reports", () => {
       [
         ["owner/ci"],
         "2 measured rules",
-        "Its report is 9 days old, so /rules/rust/file-size and /rules/toolchains/rust are stale.",
+        "Its report is 9 days old, so the file size and rust rules are stale.",
       ],
     ]);
     expect(view.missing.items.map((item) => [item.repository, item.word, item.detail])).toEqual([

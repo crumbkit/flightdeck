@@ -35,6 +35,18 @@ function Page() {
 }
 
 describe("useControlGroups", () => {
+  it("collapses the first group when the reader closes it", async () => {
+    render(<Page />);
+    const rust = screen.getByRole("button", { name: "Rust" });
+    await userEvent.click(rust);
+    expect(screen.getByRole("status")).toHaveTextContent("?group=none");
+    expect(rust).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "Server" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
+
   it("expands the first group, and moves the expanded group into the address on a press", async () => {
     render(<Page />);
     const rust = screen.getByRole("button", { name: "Rust" });

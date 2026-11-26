@@ -9,7 +9,7 @@ import { failureDetail, staleAge, staleDetail } from "./cells.ts";
 import type { ComplianceDocument, RepositoryColumn, Row } from "./document.ts";
 import { type ColumnHead, columnHeads, type MatrixRow, matrixRows } from "./matrix.ts";
 import { type Snapshot, snapshotOf } from "./snapshot.ts";
-import { ageWord, andList, daysWord } from "./words.ts";
+import { ageWord, andList, daysWord, shortName } from "./words.ts";
 
 /** The Compliance page's address: `?show=not_current` keeps only rows with a cell that is not current. */
 export const complianceAddress = defineAddress({
@@ -232,7 +232,7 @@ function staleItems(document: ComplianceDocument, rows: readonly MatrixRow[]): C
         key: `report ${column.name}`,
         repositories: [column.name],
         name: counted(rules.length, "measured rule"),
-        detail: `Its report is ${days}, so ${andList(rules.map((rule) => rule.id))} ${verb} stale.`,
+        detail: `Its report is ${days}, so the ${andList(rules.map((rule) => shortName(rule.id).replaceAll("-", " ")))} ${rules.length === 1 ? "rule" : "rules"} ${verb} stale.`,
         run: runLabel(column),
         rule: null,
       },

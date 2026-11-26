@@ -6,7 +6,6 @@ import { type AddressSource, useAddressState, usePressed, useSortHeader } from "
 import type { ComplianceDocument } from "@flightdeck/headless/document";
 import {
   CHECKERS,
-  firstDirection,
   KINDS,
   type RulesView,
   rulesAddress,
@@ -62,7 +61,8 @@ export function useRulesOverview(
   const sort = useSortHeader({
     sort: view.sort,
     onSort: (next) => change({ sort: next.key, direction: next.direction }),
-    firstDirection,
+    // Each column sorts worst state first, or names A to Z, when first chosen.
+    firstDirection: () => "ascending",
   });
   const more = useDisclosure();
   const imposed = useDisclosure();

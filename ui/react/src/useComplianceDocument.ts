@@ -21,6 +21,10 @@ export interface ComplianceDocumentState {
  * Returns the document `source` reads. A read starts when the source
  * changes and on each reload, and the read before it is aborted. A failed
  * read keeps the last document and reports its error.
+ *
+ * `source` must be stable, such as one made at module scope or kept with
+ * useMemo, because each new source object starts a new read; an object
+ * written inline in the render would read again on every render.
  */
 export function useComplianceDocument(source: ComplianceSource): ComplianceDocumentState {
   const [attempt, setAttempt] = useState(0);

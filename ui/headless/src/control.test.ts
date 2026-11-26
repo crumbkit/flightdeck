@@ -23,8 +23,15 @@ describe("controlView of one rule (artboard 57)", () => {
       ]),
     ).toEqual([
       ["owner/api", "failing", "/rust-toolchain.toml pins 1.90.0", null, "1 h", "drifts"],
-      ["owner/app", "current", "reads /rust-toolchain.toml", null, "1 h", "drifts"],
-      ["owner/ci", "current", "reads /rust-toolchain.toml", "run #7", "59 min", "drifts"],
+      ["owner/app", "current", "/rust-toolchain.toml pins at least 1.99", null, "1 h", "drifts"],
+      [
+        "owner/ci",
+        "current",
+        "/rust-toolchain.toml pins at least 1.99",
+        "run #7",
+        "59 min",
+        "drifts",
+      ],
     ]);
   });
 

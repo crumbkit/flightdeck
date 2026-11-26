@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { rulesAddress, rulesView } from "./rules.ts";
-import { fixtureDocument, withStaleReport } from "./testDocuments.ts";
+import {
+  fixtureDocument,
+  reachingOnlyMissing,
+  withPassing,
+  withStaleReport,
+} from "./testDocuments.ts";
 
 const all = rulesAddress.parse("");
 
@@ -126,10 +131,32 @@ describe("rulesView's filters and sort, held in the address", () => {
     expect(rulesAddress.format(all)).toBe("");
   });
 
-  it("reads a rule in a stale report as stale", () => {
-    const view = rulesView(withStaleReport("owner/api", 9), all);
+  it("keeps a failing rule failing when another repository's report is stale", () => {
+    const view = rulesView(withStaleReport("owner/ci", 9), all);
     expect(view.rules.find((rule) => rule.id === "/rules/rust/file-size")?.word).toBe("failing");
-    const stale = rulesView(withStaleReport("owner/ci", 9), all);
-    expect(stale.reports[2]?.word).toBe("stale");
+    expect(view.reports[2]?.word).toBe("stale");
+  });
+
+  it("reads a rule that passes everywhere but a stale report as stale, and counts it in the Stale tile", () => {
+    const passing = withPassing("owner/api", "/rules/rust/file-size");
+    const view = rulesView(withStaleReport("owner/ci", 9, passing), all);
+    const size = view.rules.find((rule) => rule.id === "/rules/rust/file-size");
+    expect(size?.word).toBe("stale");
+    expect(size?.caption).toBe("owner/ci report is 9 d old");
+    expect(view.tiles.find((tile) => tile.key === "stale")?.count).toBe(1);
+  });
+
+  it("reads a rule that reaches only a repository with no report as stale, not current", () => {
+    const view = rulesView(reachingOnlyMissing("/rules/rust/file-size"), all);
+    const size = view.rules.find((rule) => rule.id === "/rules/rust/file-size");
+    expect([size?.word, size?.caption]).toEqual(["stale", "owner/gone sent no report"]);
+    expect(view.tiles.find((tile) => tile.key === "current")?.count).toBe(0);
+    expect(view.tiles.find((tile) => tile.key === "stale")?.count).toBe(1);
+  });
+
+  it("says, as the signed note does, that a repository with no report makes a rule stale", () => {
+    expect(rulesView(fixtureDocument(), all).note).toBe(
+      "A measured rule fails when any repository's report fails it, and is stale when a repository it reaches has a stale report or none. Pattern, judged and written rules are stated: a report lists them and measures nothing.",
+    );
   });
 });

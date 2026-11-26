@@ -5,13 +5,23 @@
 // expanded group and the marked control live in the page address.
 import { counted } from "@crumbkit/ui/a11y";
 import { defineAddress, id } from "@crumbkit/ui/address";
-import { groupRows, rollUp } from "@crumbkit/ui/table";
+import { rollUp } from "@crumbkit/ui/table";
 import type { Cell, ComplianceDocument, Group, RepositoryColumn, Row } from "./document.ts";
 import { driftsOn } from "./drift.ts";
 import { ruleRows } from "./rules.ts";
 import { andList, checkerWord, INVALID_REPORT, NO_REPORT, rowName, shortName } from "./words.ts";
 
-/** The groups page's address: the expanded group and the marked control. */
+/**
+ * The value of the address's `group` when the reader has closed every
+ * group. A group's id is a path, which starts with "/", so it never reads
+ * as this word.
+ */
+const NO_GROUP = "none";
+
+/**
+ * The groups page's address: the expanded group and the marked control. An
+ * address that names no group opens the first; `group=none` opens none.
+ */
 export const groupsAddress = defineAddress({ group: id(), rule: id() });
 
 /** The values the groups page's address holds. */
@@ -28,7 +38,7 @@ export type ControlState =
   | "written";
 
 /** The control states, worst first. */
-export const CONTROL_STATES: readonly ControlState[] = [
+const CONTROL_STATES: readonly ControlState[] = [
   "failing",
   "drifts",
   "stale",
@@ -39,7 +49,7 @@ export const CONTROL_STATES: readonly ControlState[] = [
 ];
 
 /** Returns a control state's word on its chip. */
-export function controlWord(state: ControlState): string {
+function controlWord(state: ControlState): string {
   switch (state) {
     case "failing":
       return "failing";
@@ -64,7 +74,7 @@ function countWord(state: ControlState): string {
 }
 
 /** Returns what a control reads in `column`, or null when it does not apply there. */
-export function controlState(
+function controlState(
   row: Row,
   cell: Cell | undefined,
   column: RepositoryColumn,
@@ -86,7 +96,7 @@ export function controlState(
 }
 
 /** Returns a roll-up's words, worst first, such as "1 failing · 1 drifting · 1 current". */
-export function rollUpWords(states: readonly ControlState[]): string {
+function rollUpWords(states: readonly ControlState[]): string {
   return CONTROL_STATES.flatMap((state) => {
     const count = states.filter((each) => each === state).length;
     return count === 0 ? [] : [`${count} ${countWord(state)}`];
@@ -127,6 +137,8 @@ export interface GroupEntry {
   readonly state: ControlState;
   readonly word: string;
   readonly expanded: boolean;
+  /** The address's `group` after the reader presses the group's button: the group, or none when it is open. */
+  readonly toggleTo: string;
   /** The address that opens this group, or closes it when it is open. */
   readonly toggle: string;
   readonly members: readonly MemberEntry[];
@@ -149,7 +161,8 @@ export interface GroupsView {
 export function groupEntries(document: ComplianceDocument, address: GroupsAddress): GroupEntry[] {
   const rules = new Map(ruleRows(document).map((row) => [row.id, row]));
   const titles = new Map(document.groups.map((group) => [group.id, group.title]));
-  const open = address.group ?? document.groups[0]?.id ?? null;
+  const open =
+    address.group === NO_GROUP ? null : (address.group ?? document.groups[0]?.id ?? null);
   return document.groups.map((group: Group): GroupEntry => {
     const members = group.members.flatMap((member) => {
       const row = rules.get(member);
@@ -179,7 +192,8 @@ export function groupEntries(document: ComplianceDocument, address: GroupsAddres
       state,
       word: controlWord(state),
       expanded,
-      toggle: groupsAddress.format({ group: expanded ? null : group.id, rule: null }),
+      toggleTo: expanded ? NO_GROUP : group.id,
+      toggle: groupsAddress.format({ group: expanded ? NO_GROUP : group.id, rule: null }),
       members: members.map((row, at): MemberEntry => {
         const states = (memberStates[at] ?? []).flatMap((each) => (each === null ? [] : [each]));
         const memberState = rollUp(states, CONTROL_STATES) ?? "current";
@@ -226,11 +240,13 @@ export function groupsView(document: ComplianceDocument, address: GroupsAddress)
   } else if (drifting.length > 1) {
     headline += `, and ${andList(drifting.map((group) => group.title))} also drift`;
   }
-  const rows = ruleRows(document).filter((row) => row.source === "imposed");
+  // A control can sit in several groups; the total counts each control
+  // the groups list once.
+  const shown = new Set(groups.flatMap((group) => group.members.map((member) => member.id)));
   return {
     headline,
     groups,
-    total: groupRows(rows, (row) => row.groups).total,
+    total: shown.size,
     marked: groups.some((group) => group.members.some((member) => member.marked))
       ? address.rule
       : null,

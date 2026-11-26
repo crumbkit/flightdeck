@@ -3,7 +3,7 @@
 // how to check it again, what the rule checks, and the groups it is in.
 import { counted } from "@crumbkit/ui/a11y";
 import { failureDetail, measuredText } from "./cells.ts";
-import type { ComplianceDocument, Row } from "./document.ts";
+import { CELL_STATES_WORST_FIRST, type ComplianceDocument, type Row } from "./document.ts";
 import { type DriftState, driftItems, driftState, driftsOn, driftWord } from "./drift.ts";
 import { type GroupEntry, groupEntries, groupsAddress } from "./groups.ts";
 import { ruleRows } from "./rules.ts";
@@ -71,8 +71,6 @@ const SHOWN_WORDS: Readonly<Record<string, string>> = {
   failing: "an agent sees it only while it fails",
 };
 
-const ORDER = ["failing", "stale", "not_readable", "current", "written", "absent"] as const;
-
 /** Returns a sentence's first word in lower case, as "Lacks /rules/x" reads inside a sentence. */
 function lowerFirst(text: string): string {
   return `${text.charAt(0).toLowerCase()}${text.slice(1)}`;
@@ -115,7 +113,11 @@ export function controlView(document: ComplianceDocument, rule: string): Control
       spoken: `${column.name}: ${spokenState(cell.state, cell.code)}, ${measuredText(row, cell)}`,
     });
   });
-  lines.sort((a, b) => ORDER.indexOf(a.state) - ORDER.indexOf(b.state) || a.at - b.at);
+  lines.sort(
+    (a, b) =>
+      CELL_STATES_WORST_FIRST.indexOf(a.state) - CELL_STATES_WORST_FIRST.indexOf(b.state) ||
+      a.at - b.at,
+  );
   const repositories = lines.map(({ at: _, ...line }) => line);
   const failingCount = repositories.filter((line) => line.state === "failing").length;
   const staleCount = repositories.filter((line) => line.state === "stale").length;
