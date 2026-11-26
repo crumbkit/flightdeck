@@ -9,6 +9,19 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The page's `ui/` is a pnpm workspace with two private packages beside
+  the page. `@flightdeck/headless` parses the `flightdeck/compliance/v1`
+  document and turns it into the view models of the Compliance page, one
+  repository's page, the Rules page, one control's page and the groups
+  page: their headlines, tiles, rows, counts, drift, a word for every state
+  and a spoken name for every cell. It has no DOM, network or styling, and
+  reads the document only through a `ComplianceSource` the app passes in.
+  `@flightdeck/react` holds `useComplianceDocument`, `useCompliance`,
+  `useRepositoryCompliance`, `useRulesOverview`, `useControl` and
+  `useControlGroups`, which keep the filters, the sort, the expanded group
+  and the selected rule in the page address and return prop getters with
+  their roles, `aria-pressed`, `aria-sort`, `aria-expanded` and focus
+  moves. Both depend on `@crumbkit/ui` at its `v0.1.0` tag.
 - `flightdeck compliance build --config <file> --reports <dir>` reads the
   `rules/report/v1` file that `board rules report` writes for each
   repository, at `<dir>/<owner>/<repo>.json`, and prints one

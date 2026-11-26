@@ -1,4 +1,10 @@
-# pnpm reads its settings from this file.
+# pnpm reads its settings from this file. The workspace's root is the page,
+# which the flightdeck binary embeds from dist/. headless holds the
+# compliance pages' state with no DOM and no look, and react holds the
+# React hooks over it, so another front end can render the pages.
+packages:
+  - headless
+  - react
 
 # `pnpm add` writes an exact version, never a range (BASE-13).
 savePrefix: ""
