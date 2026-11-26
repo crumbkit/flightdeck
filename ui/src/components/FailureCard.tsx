@@ -4,6 +4,7 @@ import type { RunRequest } from "@/api/runs";
 import { callLabel, requestOfCall } from "@/lib/call";
 import { Chip } from "./Chip";
 import { CopyButton } from "./CopyButton";
+import { VariableWords } from "./VariableWords";
 
 type Props = {
   /** The failure document, or null for a failure that came without one. */
@@ -21,6 +22,8 @@ type Props = {
  * fields, the places in a source it points at, and what to do next. A
  * `run` recovery is the primary chip and each `run` alternative a quiet
  * one, and each chip fills the composer with its call and runs nothing.
+ * The name of a variable that the tool declares, in the message, the cause
+ * or a hint, opens the environment view on its row.
  */
 export function FailureCard({ failure, words, heading, tool, onCompose }: Props) {
   const cause = failure?.cause;
@@ -29,13 +32,17 @@ export function FailureCard({ failure, words, heading, tool, onCompose }: Props)
     each === undefined ? [] : [each],
   );
   return (
-    <div role="alert" className="border-l-destructive flex flex-col gap-1.5 border-l-4 py-1 pl-3">
+    <div role="alert" className="flex flex-col gap-1.5">
       <p className="m-0">
         {heading !== null && <span className="mr-2 font-mono font-semibold">{heading}</span>}
-        <span className="font-semibold">{words}</span>
+        <span className="font-semibold">
+          <VariableWords text={words} tool={tool} />
+        </span>
       </p>
       {cause !== undefined && cause !== words && (
-        <p className="text-muted-foreground m-0">{cause}</p>
+        <p className="text-muted-foreground m-0">
+          <VariableWords text={cause} tool={tool} />
+        </p>
       )}
       {failure !== null && (
         <span className="flex items-center gap-2">
@@ -106,7 +113,11 @@ function Repair({ repair, primary, fields, tool, onCompose }: RepairProps) {
         <span className="text-muted-foreground text-xs">Run the same command again later.</span>
       );
     case "hint":
-      return <span className="text-muted-foreground text-xs">{repair.text}</span>;
+      return (
+        <span className="text-muted-foreground text-xs">
+          <VariableWords text={repair.text} tool={tool} />
+        </span>
+      );
     case "none":
       return <span className="text-muted-foreground text-xs">{repair.reason}</span>;
   }

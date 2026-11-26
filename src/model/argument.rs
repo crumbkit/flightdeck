@@ -17,6 +17,7 @@ pub struct Argument {
     help: Help,
     one_of: Vec<String>,
     global: bool,
+    after_double_dash: bool,
     crumbkit_flag: Option<CrumbkitFlag>,
 }
 
@@ -53,6 +54,7 @@ impl Argument {
             },
             one_of: row.one_of,
             global: row.global,
+            after_double_dash: row.after_double_dash,
         }
     }
 
@@ -105,6 +107,15 @@ impl Argument {
     #[must_use]
     pub const fn help(&self) -> &Help {
         &self.help
+    }
+
+    /// Returns true when the argument takes the values written after `--`,
+    /// as the program of `starmap run` does, so a line that gives it values
+    /// writes the `--` before them. `commands list` declares it; a tool on
+    /// an older crumbkit leaves it out, which reads as false.
+    #[must_use]
+    pub const fn after_double_dash(&self) -> bool {
+        self.after_double_dash
     }
 
     /// Returns the arguments that can stand in for this one, such as

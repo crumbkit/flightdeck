@@ -12,12 +12,14 @@ too-many-lines-threshold = 150 # BASE-10
 max-fn-params-bools = 3 # BASE-16
 
 disallowed-methods = [
-    # BASE-6: flightdeck reads no environment variable of its own. Its child
-    # processes inherit the environment through src/spawn.rs.
-    { path = "std::env::var", reason = "flightdeck reads no environment variable" },
-    { path = "std::env::var_os", reason = "flightdeck reads no environment variable" },
-    { path = "std::env::vars", reason = "flightdeck reads no environment variable" },
-    { path = "std::env::vars_os", reason = "flightdeck reads no environment variable" },
+    # BASE-6: main reads the environment once, and the struct that derives
+    # starmap::Env in src/environment.rs reads the variables that
+    # starmap.toml declares. Its child processes inherit the environment
+    # through src/spawn.rs.
+    { path = "std::env::var", reason = "read the environment through the struct that derives starmap::Env, whose variables starmap.toml declares" },
+    { path = "std::env::var_os", reason = "read the environment through the struct that derives starmap::Env, whose variables starmap.toml declares" },
+    { path = "std::env::vars", reason = "read the environment through the struct that derives starmap::Env, whose variables starmap.toml declares" },
+    { path = "std::env::vars_os", reason = "read the environment through the struct that derives starmap::Env, whose variables starmap.toml declares" },
     { path = "std::env::set_var", reason = "give a child its variables through spawn::Program::env" },
     { path = "std::env::remove_var", reason = "give a child its variables through spawn::Program::env" },
     { path = "std::env::current_dir", reason = "flightdeck reads no working directory" },

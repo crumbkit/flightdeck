@@ -1,0 +1,14 @@
+List the local mxv workspaces with their units, routes and ports
+
+Usage: flightdeck workspaces list [OPTIONS]
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Examples:
+  flightdeck workspaces list
+  flightdeck workspaces list --json --full
+
+Effects: read-only, closed-world.
+Global flags: --json, --fields <FIELD>, --long, --full, --no-input. `flightdeck workspaces list --help` describes them.
+Next: flightdeck workspaces list --help explains each column.

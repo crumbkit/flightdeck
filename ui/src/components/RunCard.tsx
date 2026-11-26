@@ -6,7 +6,7 @@ import { type ItemFailure, type Output, resultOf, rowsOf, streamReader } from "@
 import type { RunRequest } from "@/api/runs";
 import { useNow, useSampled } from "@/clock";
 import { elapsedWords } from "@/lib/duration";
-import { needsConfirmation } from "@/lib/rail";
+import { needsConfirmation, startsProgram } from "@/lib/rail";
 import { refusedSpan } from "@/lib/refusal";
 import type { PageSize, View } from "@/lib/table";
 import { copiedLine } from "@/lib/table";
@@ -53,7 +53,7 @@ function statusOf(run: Run, rows: number | null): { words: string; failed: boole
   if (ask?.answer === "declined") {
     return { words: "not confirmed", failed: false };
   }
-  if (ask?.answer === "open" && ask.confirmation !== null) {
+  if (ask?.answer === "open" && ask.asks && ask.confirmation !== null) {
     return { words: "awaiting confirmation", failed: false };
   }
   const rowCount = rows === null ? "" : ` · ${counted(rows, "row")}`;
@@ -111,6 +111,16 @@ function LiveStatus({ words, running }: { words: string; running: boolean }) {
       {said}
     </span>
   );
+}
+
+/** Returns the words of the button that starts the card's request again. */
+function againWords(run: Run, command: Command | undefined): string {
+  if (command !== undefined && startsProgram(command)) {
+    return "Ask again";
+  }
+  return run.ask !== undefined || (command !== undefined && needsConfirmation(command))
+    ? "Preview again"
+    : "Run again";
 }
 
 /** A run's line, with the word that a refusal names underlined. */
@@ -212,7 +222,7 @@ export function RunCard(props: Props) {
             className="text-primary active:text-foreground -my-1.5 min-h-8 hover:underline"
             onClick={onRunAgain}
           >
-            {command !== undefined && needsConfirmation(command) ? "Preview again" : "Run again"}
+            {againWords(run, command)}
           </button>
           <CopyButton text={line} label="Copy line" />
           <label className="inline-flex items-center gap-1">
@@ -282,7 +292,10 @@ function Body(props: BodyProps) {
     case "starting":
       return <p className="text-muted-foreground">Running…</p>;
     case "issued":
-      return <p className="m-0">This command has no preview.</p>;
+      // The confirmation card of a command that starts a program says all there is to say.
+      return command !== undefined && startsProgram(command) ? null : (
+        <p className="m-0">This command has no preview.</p>
+      );
     case "running":
       return output.result.kind === "table" && output.result.entries.length > 0 ? (
         <Drawn {...props} />

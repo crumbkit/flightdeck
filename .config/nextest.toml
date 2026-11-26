@@ -5,3 +5,8 @@
 [profile.default]
 fail-fast = false
 retries = 0
+# The shared pull-request lane cannot install shelf, reading and the pinned
+# Board, so a plain run leaves out the test binaries that start them. CI's `app`, `windows` and
+# `macos` jobs and the release's `tests` job install them and pass
+# `--ignore-default-filter`, which runs every test.
+default-filter = "not (binary(compliance) | binary(model) | binary(open) | binary(routes) | binary(runner) | binary(schemas) | binary(server))"

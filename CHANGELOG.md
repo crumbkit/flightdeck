@@ -9,6 +9,44 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The page's `ui/` is a pnpm workspace with two private packages beside
+  the page. `@flightdeck/headless` parses the `flightdeck/compliance/v1`
+  document and turns it into the view models of the Compliance page, one
+  repository's page, the Rules page, one control's page and the groups
+  page: their headlines, tiles, rows, counts, drift, a word for every state
+  and a spoken name for every cell. It has no DOM, network or styling, and
+  reads the document only through a `ComplianceSource` the app passes in.
+  `@flightdeck/react` holds `useComplianceDocument`, `useCompliance`,
+  `useRepositoryCompliance`, `useRulesOverview`, `useControl` and
+  `useControlGroups`, which keep the filters, the sort, the expanded group
+  and the selected rule in the page address and return prop getters with
+  their roles, `aria-pressed`, `aria-sort`, `aria-expanded` and focus
+  moves. Both depend on `@crumbkit/ui` at its `v0.1.0` tag.
+- `flightdeck compliance build --config <file> --reports <dir>` reads the
+  `rules/report/v1` file that `board rules report` writes for each
+  repository, at `<dir>/<owner>/<repo>.json`, and prints one
+  `flightdeck/compliance/v1` document with `--json`, or a line per
+  repository with its report's time and its failing, stale and drift
+  counts. Each cell reads `failing`, `stale`, `not_readable`, `current`,
+  `written` or `absent`. A suite run or a report older than the config's
+  `stale_after_days` reads stale. A repository with no report, or an
+  invalid one, gives its column `flightdeck::compliance::no_report` or
+  `flightdeck::compliance::invalid_report`, and the other columns still
+  render. Each repository's drift copies the report's and adds whether it
+  read another rule set and whether it read an older commit of it. `--out`
+  also writes `compliance.json`, replacing an earlier one only once the new
+  file is whole. The config is `flightdeck/compliance-config/v1` TOML, and
+  `flightdeck schemas show` prints both schemas. A config it cannot use
+  stops the build with `flightdeck::compliance::config_invalid`, and a
+  directory it cannot write with `flightdeck::compliance::out_failed`. The
+  command reads only files, and needs no Board, network or token.
+- `FLIGHTDECK_PORT` sets the port that `flightdeck open` listens on, on
+  127.0.0.1. When it is unset, the system still picks a free port. A value
+  that is not a port from 1 to 65535 stops `flightdeck open` with
+  `flightdeck::environment::invalid`, and a port that another program
+  holds stops it with `flightdeck::server::failed`.
+- `mxv.toml` declares how mxv runs flightdeck in a workspace, on a port
+  that mxv gives through `FLIGHTDECK_PORT`.
 - `flightdeck skills install` writes flightdeck's agent skill into each of
   `~/.claude/skills`, `~/.agents/skills` and `$CODEX_HOME/skills` that
   exists, or into the directory that `--dir` names. `flightdeck skills
@@ -21,11 +59,57 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   commands that agents run badly, and what each failure code of
   `flightdeck open` means.
 - The root command takes `--no-input`.
+- When a tool mounts crumbkit-starmap's `self environment list`, the page
+  has an Environment view beside Usage. It lists each environment variable
+  that the tool declares, and those crumbkit reads under their own
+  heading, with its type, its rule when unset, its source, its value as
+  flightdeck started the tool and its state. A withheld value shows as
+  eight dots and never reaches the page. A row opens to the variable's
+  purpose, effect, values, check, group and bind. A failure that names a
+  declared variable links it to its row. A tool without the command has no
+  Environment button, and when the command fails the rest of the model
+  still loads.
+- `flightdeck self environment list` prints the environment variables that
+  flightdeck reads, as its `starmap.toml` declares them, and the ones that
+  crumbkit reads in every tool. `flightdeck open flightdeck` therefore has
+  an Environment view. The variables flightdeck reads itself are `PATH`,
+  `FLIGHTDECK_PORT` and `FLIGHTDECK_MXV`.
+- `flightdeck open` without a tool serves a page of the mxv workspaces on
+  this machine. Each workspace's card gives its branch, its checkouts,
+  how many of its units run, its routes, or its host ports when this mxv
+  has no `proxy status`, and whether it is pinned. A card opens the
+  workspace's page, which gives each checkout's branch, commit and
+  uncommitted changes, and each unit's state, ports and route links. The
+  pages ask mxv again every 10 seconds for the list and every 5 seconds
+  for one workspace. With a tool, the top bar's Workspaces button opens
+  the same pages, and the rail's Commands link comes back to the tool.
+- `flightdeck workspaces list` and `flightdeck workspaces show NAME` print
+  what the pages show, from `mxv list`, `mxv status` and
+  `mxv proxy status`. `GET /api/workspaces` and
+  `GET /api/workspaces/<name>` send the same documents, and
+  `GET /api/deck` says whether the server holds a tool. flightdeck runs
+  `mxv`, or the program that `FLIGHTDECK_MXV` names, and fails with
+  `flightdeck::workspaces::mxv_missing` when it cannot start it,
+  `flightdeck::workspaces::mxv_failed` with mxv's own code when a query
+  fails, and `flightdeck::workspaces::not_found` for a name that mxv does
+  not know. A workspace whose `mxv status` fails keeps its card, which says
+  that its units are unknown and gives mxv's code.
 
 ### Changed
 
+- flightdeck no longer depends on the unmaintained humantime crate
+  (RUSTSEC-2026-0542); it reads and writes times with jiff. It now reads a
+  run's `at` in any RFC 3339 form jiff accepts, such as an offset like
+  `+01:00`, a lowercase `t` or `z`, or a space for the `T`, where it used to
+  drop a run whose `at` was not `Z` time. It refuses an `at` with a fraction
+  of 10 or more digits, which it used to truncate, and still drops a run
+  from before 1970. The stream's `started_at` keeps its format, and a clock
+  before 1970 now writes as the epoch instead of panicking.
 - flightdeck builds on crumbkit, crumbkit-skills, crumbkit-process and
-  crumbkit-test 0.5.0, and mounts its `skills` commands from crumbkit-skills.
+  crumbkit-test 0.6.0, and mounts its `skills` commands from crumbkit-skills.
+  The help of `flightdeck skills` names flightdeck, and the `Rows:` line of
+  `skills check` and `completion check` says that the default text also
+  lists the rows that report a warning.
 - On a tool built on crumbkit 0.3.2 or later, flightdeck runs
   `self figures list`, `self usage` and `self runs list` with
   `<TOOL>_PROGRAM=flightdeck`, such as `SHELF_PROGRAM` for shelf, and with
@@ -48,6 +132,14 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `--version` with the person's state directory. The `--version` rows that
   those loaders wrote stay in the usage log until they leave its 7-day
   window.
+
+### Fixed
+
+- A run whose tool prints a failure with a `terminal`, `program` or `after`
+  step, as tools on crumbkit 0.6.0 can, ends as the tool's failure with its
+  code and message. Earlier versions could not read such a failure and
+  ended the run with `flightdeck::run::no_document`. The page does not show
+  those steps.
 
 ## [0.2.0] - 2026-11-11
 

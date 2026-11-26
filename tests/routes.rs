@@ -385,6 +385,122 @@ fn a_preview_of_a_command_without_dry_run_is_one_started_line_with_the_id() {
     });
 }
 
+#[cfg(unix)]
+#[test]
+fn a_command_that_runs_a_program_runs_only_with_a_confirmation_id_for_the_same_vector() {
+    serving(Setup::of(unruly()), |running| {
+        let page = Page::of(running);
+        let launch = json!({"path": ["child", "launch"], "values": {"<PROGRAM>": ["echo", "hi"]}});
+        let dry = json!({"path": ["child", "launch"], "values": {"<PROGRAM>": ["echo", "ho"]}});
+
+        let bare = page.send("/api/runs", &launch);
+        let preview = page.stream("/api/previews", &launch).rest();
+        let id = preview[0]["confirmation"].as_str().unwrap();
+        let other = page.send(&format!("/api/confirmations/{id}"), &dry);
+        let id = page.stream("/api/previews", &launch).rest()[0]["confirmation"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let confirmed = page
+            .stream(&format!("/api/confirmations/{id}"), &launch)
+            .rest();
+
+        refused(&bare, 422, "flightdeck::run::needs_confirmation");
+        assert_eq!(preview.len(), 1, "a preview runs nothing: {preview:?}");
+        assert_eq!(preview[0]["preview"], false);
+        assert_eq!(preview[0]["run"], Value::Null);
+        assert_eq!(preview[0]["line"], "unruly child launch -- echo hi");
+        refused(&other, 422, "flightdeck::run::confirmation");
+        assert_eq!(confirmed.last().unwrap()["outcome"]["kind"], "result");
+        let words = confirmed
+            .iter()
+            .find(|line| line["event"] == "line")
+            .and_then(|line| line["text"].as_str())
+            .unwrap();
+        assert!(words.contains(" --yes -- echo hi"), "{words}");
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn the_preview_of_a_program_with_an_assignment_gives_the_confirmed_line_with_yes_before_the_separator()
+ {
+    serving(Setup::of(unruly()), |running| {
+        let page = Page::of(running);
+        let launch = json!({
+            "path": ["child", "launch"],
+            "values": {"<PROGRAM>": ["env", "RUST_LOG=debug", "cargo", "run"]}
+        });
+
+        let preview = page.stream("/api/previews", &launch).rest();
+
+        assert_eq!(
+            preview[0]["confirmed_line"],
+            "unruly child launch --yes -- env 'RUST_LOG=debug' cargo run"
+        );
+        assert_eq!(
+            preview[0]["line"],
+            "unruly child launch -- env 'RUST_LOG=debug' cargo run"
+        );
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn read_only_refuses_a_command_that_runs_a_program_at_preview_and_with_an_id() {
+    serving(Setup::of(unruly()).read_only(), |running| {
+        let page = Page::of(running);
+        let launch = json!({"path": ["child", "launch"], "values": {"<PROGRAM>": ["echo"]}});
+        let id = "0".repeat(32);
+
+        let preview = page.send("/api/previews", &launch);
+        let confirm = page.send(&format!("/api/confirmations/{id}"), &launch);
+
+        refused(&preview, 422, "flightdeck::run::read_only");
+        refused(&confirm, 422, "flightdeck::run::read_only");
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn a_read_only_command_that_reaches_outside_the_tool_runs_without_a_confirmation() {
+    serving(Setup::of(unruly()), |running| {
+        let page = Page::of(running);
+        let fetch = json!({"path": ["child", "fetch"]});
+
+        let lines = page.stream("/api/runs", &fetch).rest();
+
+        assert_eq!(lines.last().unwrap()["outcome"]["kind"], "result");
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn a_destructive_command_that_runs_a_program_still_previews_with_its_dry_run() {
+    serving(Setup::of(unruly()), |running| {
+        let page = Page::of(running);
+        let sweep = json!({"path": ["child", "sweep"]});
+
+        let bare = page.send("/api/runs", &sweep);
+        let lines = page.stream("/api/previews", &sweep).rest();
+
+        refused(&bare, 422, "flightdeck::run::needs_confirmation");
+        assert_eq!(lines[0]["preview"], true);
+        assert_eq!(
+            lines.last().unwrap()["confirmation"]
+                .as_str()
+                .unwrap()
+                .len(),
+            32
+        );
+        Then::Stop
+    });
+}
+
 #[test]
 fn a_stream_from_reading_sends_started_then_each_entry_as_its_own_line_then_ended() {
     let lists = tempfile::tempdir().unwrap();
@@ -1009,4 +1125,224 @@ fn a_preview_without_a_directory_cannot_be_confirmed_with_one_and_the_reverse() 
         assert_eq!(page.book_ids(), [1, 2, 3, 4, 5, 6]);
         Then::Stop
     });
+}
+
+// The workspaces routes, `GET /api/deck`, `GET /api/workspaces` and
+// `GET /api/workspaces/<name>`, against the fake mxv in tests/fixtures/mxv.
+
+/// Sends `GET path` with `token`.
+fn get(running: &Running<'_>, path: &str, token: &str) -> Reply {
+    Call::get(running.port, path)
+        .bearer(token)
+        .send(running.port)
+}
+
+#[cfg(unix)]
+#[test]
+fn the_workspaces_routes_refuse_a_request_without_the_token() {
+    serving(Setup::without_tool(), |running| {
+        for path in [
+            "/api/deck",
+            "/api/workspaces",
+            "/api/workspaces/reading-list",
+        ] {
+            let reply = Call::get(running.port, path).send(running.port);
+
+            assert_eq!(reply.status, 401, "{path}");
+            assert_eq!(reply.code(), "flightdeck::session::unauthorized", "{path}");
+        }
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn the_workspaces_route_sends_the_document_that_workspaces_list_prints() {
+    serving(Setup::without_tool(), |running| {
+        let token = running.token();
+
+        let reply = get(running, "/api/workspaces", &token);
+
+        assert_eq!(reply.status, 200);
+        let golden = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/golden/workspaces/list.json"),
+        )
+        .unwrap();
+        let expected: Value = serde_json::from_slice(&golden).unwrap();
+        assert_eq!(reply.json(), expected);
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn the_workspace_route_sends_the_document_that_workspaces_show_prints() {
+    serving(Setup::without_tool(), |running| {
+        let token = running.token();
+
+        let reply = get(running, "/api/workspaces/reading-list", &token);
+
+        assert_eq!(reply.status, 200);
+        let golden = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/golden/workspaces/show.json"),
+        )
+        .unwrap();
+        let expected: Value = serde_json::from_slice(&golden).unwrap();
+        assert_eq!(reply.json(), expected);
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn a_workspace_name_that_flightdeck_refuses_gets_422_and_runs_no_mxv() {
+    let directory = tempfile::tempdir().unwrap();
+    let log = directory.path().join("runs");
+    let setup = Setup::without_tool().mxv_env("FAKE_MXV_LOG", log.as_os_str());
+    serving(setup, |running| {
+        let token = running.token();
+
+        let reply = get(running, "/api/workspaces/-rf", &token);
+
+        assert_eq!(reply.status, 422);
+        assert_eq!(reply.code(), "flightdeck::workspaces::name");
+        Then::Stop
+    });
+    assert!(!log.exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn a_workspace_that_mxv_does_not_know_gets_404_with_the_workspaces_code() {
+    serving(Setup::without_tool(), |running| {
+        let token = running.token();
+
+        let reply = get(running, "/api/workspaces/no-such-workspace", &token);
+
+        assert_eq!(reply.status, 404);
+        assert_eq!(reply.code(), "flightdeck::workspaces::not_found");
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn a_failed_mxv_list_gets_502_with_mxvs_code() {
+    serving(
+        Setup::without_tool().mxv_env("FAKE_MXV_LIST", "fail"),
+        |running| {
+            let token = running.token();
+
+            let reply = get(running, "/api/workspaces", &token);
+
+            assert_eq!(reply.status, 502);
+            assert_eq!(reply.code(), "flightdeck::workspaces::mxv_failed");
+            assert_eq!(reply.json()["fields"]["mxv_code"], "mxv::store::unreadable");
+            Then::Stop
+        },
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn an_mxv_that_will_not_start_gets_500_naming_flightdeck_mxv_and_no_directory() {
+    serving(
+        Setup::without_tool().mxv_program(std::path::PathBuf::from("/no/such/dir/mxv")),
+        |running| {
+            let token = running.token();
+
+            let reply = get(running, "/api/workspaces", &token);
+
+            assert_eq!(reply.status, 500);
+            assert_eq!(reply.code(), "flightdeck::workspaces::mxv_missing");
+            assert_eq!(
+                reply.json()["message"],
+                "cannot start mxv: install mxv, or set FLIGHTDECK_MXV to its path"
+            );
+            assert!(
+                !reply.json().to_string().contains("/no/such"),
+                "{}",
+                reply.json()
+            );
+            Then::Stop
+        },
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn without_a_tool_the_deck_says_so_and_every_tool_route_answers_404() {
+    serving(Setup::without_tool(), |running| {
+        let token = running.token();
+
+        assert_eq!(
+            get(running, "/api/deck", &token).json(),
+            json!({"tool": false})
+        );
+        for path in ["/api/model", "/api/weight"] {
+            assert_eq!(get(running, path, &token).status, 404, "{path}");
+        }
+        for path in [
+            "/api/runs",
+            "/api/previews",
+            "/api/confirmations/1",
+            "/api/runs/1/cancel",
+            "/api/choices",
+        ] {
+            let reply = Call::post(running.port, path, "{}")
+                .bearer(&token)
+                .send(running.port);
+            assert_eq!(reply.status, 404, "{path}");
+        }
+        Then::Stop
+    });
+}
+
+#[test]
+fn with_a_tool_the_deck_says_so() {
+    serving(Setup::shelf(), |running| {
+        let token = running.token();
+
+        assert_eq!(
+            get(running, "/api/deck", &token).json(),
+            json!({"tool": true})
+        );
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn stopping_the_server_during_a_workspaces_query_ends_the_query_at_once() {
+    let directory = tempfile::tempdir().unwrap();
+    let log = directory.path().join("runs");
+    let setup = Setup::without_tool()
+        .mxv_env("FAKE_MXV_SLEEP", "30")
+        .mxv_env("FAKE_MXV_LOG", &log);
+    let started = Instant::now();
+    serving(setup, |running| {
+        let token = running.token();
+        std::thread::scope(|scope| {
+            let request = scope.spawn(|| get(running, "/api/workspaces", &token));
+            // mxv has started and sleeps, so the query is still running
+            // when the server stops.
+            while !log.exists() {
+                #[expect(
+                    clippy::disallowed_methods,
+                    reason = "the test waits for a child that it cannot observe otherwise"
+                )]
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            running.stop();
+            let reply = request.join().unwrap();
+            assert_eq!(reply.status, 502, "{}", reply.json());
+            // The stop came while mxv slept: no run slept to its end.
+            let runs = std::fs::read_to_string(&log).unwrap_or_default();
+            assert!(!runs.contains("woke"), "{runs}");
+        });
+        Then::Wait
+    });
+    assert!(started.elapsed() < Duration::from_secs(5));
 }

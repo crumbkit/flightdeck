@@ -29,9 +29,18 @@ export type Answer = "open" | "declined" | "confirmed";
  * The question of a preview card. `basis` is the composer's draft that the
  * preview was made from, so the card can tell when the composer has
  * changed since, or null for a preview the page opened by itself.
- * `confirmation` is the id the server issued, once it has.
+ * `confirmation` is the id the server issued, once it has. `asks` is false
+ * for a preview of a command that is not destructive, which the person
+ * pressed Preview for and which asks nothing: Run in the composer runs it.
  */
-export type Ask = { basis: Draft | null; confirmation: string | null; answer: Answer };
+export type Ask = {
+  basis: Draft | null;
+  confirmation: string | null;
+  /** The line the confirmation runs, as the server wrote it, once its first event arrived. */
+  confirmedLine: string | null;
+  answer: Answer;
+  asks: boolean;
+};
 
 /**
  * One card of the transcript. `number` counts from 1 in the order the
@@ -57,6 +66,7 @@ export type Action =
       line: string;
       long: boolean;
       basis: Draft | null;
+      asks: boolean;
     }
   | { type: "answer"; number: number; answer: Exclude<Answer, "open"> }
   /** The events of one run that arrived during one animation frame, in order. */
@@ -75,8 +85,8 @@ export function transcript(runs: Run[], action: Action): Run[] {
       return [...runs, { number, request, line, long, state: { kind: "starting" } }];
     }
     case "preview": {
-      const { number, request, line, long, basis } = action;
-      const ask: Ask = { basis, confirmation: null, answer: "open" };
+      const { number, request, line, long, basis, asks } = action;
+      const ask: Ask = { basis, confirmation: null, confirmedLine: null, answer: "open", asks };
       return [...runs, { number, request, line, long, state: { kind: "starting" }, ask }];
     }
     case "answer":
@@ -132,13 +142,28 @@ function answered(run: Run, answer: Exclude<Answer, "open">): Run {
   return answer === "confirmed" ? { ...run, ask, state: { kind: "starting" } } : { ...run, ask };
 }
 
-/** Keeps the confirmation id that a preview's event carries, while its question is open. */
+/**
+ * Keeps the confirmation id and the confirmed line that a preview's events
+ * carry, while its question is open.
+ */
 function withConfirmation(run: Run, event: RunEvent): Run {
-  const id = event.event === "started" || event.event === "ended" ? event.confirmation : undefined;
-  if (run.ask?.answer !== "open" || id === undefined || id === null) {
+  const { ask } = run;
+  if (ask?.answer !== "open") {
     return run;
   }
-  return { ...run, ask: { ...run.ask, confirmation: id } };
+  const id = event.event === "started" || event.event === "ended" ? event.confirmation : undefined;
+  const line = event.event === "started" ? event.confirmed_line : undefined;
+  if ((id === undefined || id === null) && line === undefined) {
+    return run;
+  }
+  return {
+    ...run,
+    ask: {
+      ...ask,
+      confirmation: id ?? ask.confirmation,
+      confirmedLine: line ?? ask.confirmedLine,
+    },
+  };
 }
 
 function applyEvent(run: Run, event: RunEvent): Run {

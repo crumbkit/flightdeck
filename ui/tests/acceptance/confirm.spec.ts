@@ -102,7 +102,7 @@ test("confirm runs books remove 2 --yes once and the card turns into a result ca
   const confirmations = countConfirmations(page);
   await signIn(page, served);
   const card = await previewRemove(page, "2");
-  await expect(card.getByText("shelf books remove 2 --yes", { exact: true })).toBeVisible();
+  await expect(card.getByText("shelf books remove --yes 2", { exact: true })).toBeVisible();
 
   await card.getByRole("button", { name: "Remove 1 book" }).click();
 

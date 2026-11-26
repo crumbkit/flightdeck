@@ -87,6 +87,7 @@ fn each_query_is_a_fixed_argument_vector_and_each_document_query_passes_no_input
         Query::FiguresList(OwnRuns::Kept),
         Query::Usage(OwnRuns::Kept),
         Query::RunsList(OwnRuns::Kept),
+        Query::EnvironmentList,
     ]
     .iter()
     .map(Query::words)
@@ -131,6 +132,14 @@ fn each_query_is_a_fixed_argument_vector_and_each_document_query_passes_no_input
                 "--json",
                 "--full",
                 "--all",
+                "--no-input"
+            ],
+            vec![
+                "self",
+                "environment",
+                "list",
+                "--json",
+                "--full",
                 "--no-input"
             ],
         ]

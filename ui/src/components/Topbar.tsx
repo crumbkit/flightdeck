@@ -3,23 +3,44 @@ import type { ReactNode } from "react";
 import { ThemeControl } from "./ThemeControl";
 import { ViewButton } from "./ViewButton";
 
+/** The view on screen. */
+export type PageView = "commands" | "usage" | "environment";
+
 type Props = {
   name: string;
   version: string;
   readOnly: boolean;
   onFind: (() => void) | null;
   /**
-   * The Commands and Usage links, with whether the usage view is on screen,
-   * or null when the tool reports no figures and lists no runs, so the page
+   * The view links, with the view on screen and whether the tool has a usage
+   * view and an environment view, or null when it has neither, so the page
    * has one view.
    */
-  views?: { usage: boolean; onView: (usage: boolean) => void } | null;
+  views?: {
+    current: PageView;
+    usage: boolean;
+    environment: boolean;
+    onView: (view: PageView) => void;
+  } | null;
+  /** Opens the workspaces pages, or null when the bar offers no way there. */
+  onWorkspaces?: (() => void) | null;
   /** What follows the tool's name, such as the directory control. */
   children?: ReactNode;
 };
 
-/** The bar across the top: the tool, the view links, the ⌘K search and the theme control. */
-export function Topbar({ name, version, readOnly, onFind, views = null, children }: Props) {
+/**
+ * The bar across the top: the tool, the view links, the way to the
+ * workspaces, the ⌘K search and the theme control.
+ */
+export function Topbar({
+  name,
+  version,
+  readOnly,
+  onFind,
+  views = null,
+  onWorkspaces = null,
+  children,
+}: Props) {
   return (
     <header className="bg-card flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2">
       <span className="font-semibold tracking-tight">flightdeck</span>
@@ -41,13 +62,28 @@ export function Topbar({ name, version, readOnly, onFind, views = null, children
       <span className="ml-auto flex flex-wrap items-center gap-3">
         {views !== null && (
           <nav aria-label="Views" className="flex items-center gap-1">
-            <ViewButton on={!views.usage} onClick={() => views.onView(false)}>
+            <ViewButton on={views.current === "commands"} onClick={() => views.onView("commands")}>
               Commands
             </ViewButton>
-            <ViewButton on={views.usage} onClick={() => views.onView(true)}>
-              Usage
-            </ViewButton>
+            {views.usage && (
+              <ViewButton on={views.current === "usage"} onClick={() => views.onView("usage")}>
+                Usage
+              </ViewButton>
+            )}
+            {views.environment && (
+              <ViewButton
+                on={views.current === "environment"}
+                onClick={() => views.onView("environment")}
+              >
+                Environment
+              </ViewButton>
+            )}
           </nav>
+        )}
+        {onWorkspaces !== null && (
+          <ViewButton on={false} onClick={onWorkspaces}>
+            Workspaces
+          </ViewButton>
         )}
         {onFind !== null && (
           <button

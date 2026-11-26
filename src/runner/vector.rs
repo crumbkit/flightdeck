@@ -92,11 +92,13 @@ impl Vector {
     /// Returns the command line as a person would type it, POSIX-quoted and
     /// without the flags that flightdeck adds, such as
     /// `shelf books remove 2`. With [`Extra::DryRun`] it holds `--dry-run`
-    /// before the positional values, as the dry run ran. It never holds
-    /// `--yes`, which stands for the answer a person gives in a terminal.
+    /// before the positional values, as the dry run ran. With
+    /// [`Extra::Yes`] it holds `--yes` there when the command takes it, as
+    /// the confirmation ran, before any `--`.
     pub(super) fn line(&self, extra: Extra) -> String {
         let flag = match extra {
             Extra::DryRun => format!(" {}", CrumbkitFlag::DryRun.name()),
+            Extra::Yes if self.yes => format!(" {}", CrumbkitFlag::Yes.name()),
             Extra::None | Extra::Yes => String::new(),
         };
         format!("{}{flag}{}", self.line.head, self.line.tail)
@@ -159,6 +161,8 @@ pub(super) fn build<'tool>(
     let mut line = Line::new(tool.name(), path);
     let mut options = Vec::new();
     let mut positionals = Vec::new();
+    // True when a positional argument that has values takes them after `--`.
+    let mut separated = false;
     // The first positional argument without a value. A value of a later
     // positional argument would reach the tool as this one's.
     let mut empty: Option<&str> = None;
@@ -213,10 +217,13 @@ pub(super) fn build<'tool>(
             (Kind::Positional, true) => {
                 return Err(refuse(argument.name(), Reason::UnknownArgument));
             }
-            (Kind::Positional, false) => positionals.extend(given.values),
+            (Kind::Positional, false) => {
+                separated |= argument.after_double_dash();
+                positionals.extend(given.values);
+            }
         }
     }
-    line.positionals(&positionals);
+    line.positionals(&positionals, separated);
 
     let takes = |flag: CrumbkitFlag| command.crumbkit_flags().any(|(own, _)| own == flag);
     // crumbkit lists a global `--full` on every command below the one that
@@ -357,9 +364,10 @@ impl Line {
     }
 
     /// Adds the positional values, after `--` when one of them starts with
-    /// `-`.
-    fn positionals(&mut self, values: &[String]) {
-        if values.iter().any(|value| value.starts_with('-')) {
+    /// `-` or `separated` says an argument that takes its values after `--`
+    /// has some.
+    fn positionals(&mut self, values: &[String], separated: bool) {
+        if separated || values.iter().any(|value| value.starts_with('-')) {
             push(&mut self.tail, "--");
         }
         for value in values {

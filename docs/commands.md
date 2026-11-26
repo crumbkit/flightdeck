@@ -8,11 +8,14 @@ Start a local web page for a crumbkit tool
 
 ### Commands
 
-- [`flightdeck open`](#flightdeck-open): Open a local web page that lists and runs a tool's commands
+- [`flightdeck open`](#flightdeck-open): Open a local web page of the mxv workspaces and a tool's commands
+- [`flightdeck workspaces`](#flightdeck-workspaces): Read the local mxv workspaces
+- [`flightdeck compliance`](#flightdeck-compliance): Build the compliance document from rules reports
 - [`flightdeck commands`](#flightdeck-commands): Explore flightdeck's commands
 - [`flightdeck skills`](#flightdeck-skills): Give coding agents flightdeck's skill
 - [`flightdeck completion`](#flightdeck-completion): Set up flightdeck's completion in a shell
 - [`flightdeck schemas`](#flightdeck-schemas): Explore the JSON documents that flightdeck prints
+- [`flightdeck self`](#flightdeck-self): Review flightdeck itself
 
 ### Arguments
 
@@ -24,15 +27,21 @@ Start a local web page for a crumbkit tool
 
 ## `flightdeck open`
 
-Open a local web page that lists and runs a tool's commands
+Open a local web page of the mxv workspaces and a tool's commands
 
 ### Arguments
 
-- `<TOOL>`: The crumbkit tool, by a name on PATH or a path. Required.
+- `<TOOL>`: The crumbkit tool, by a name on PATH or a path; without one, the page shows the workspaces
 - `--read-only`: Run only the tool's read-only commands from the page
 - `--no-browser`: Print the path of the page to open instead of opening the browser
 
 ### Examples
+
+Open the Workspaces page in the browser.
+
+```sh
+flightdeck open
+```
 
 Open the page for shelf in the browser.
 
@@ -52,6 +61,104 @@ Effects: read-only, open-world.
 
 - `130`: A second Ctrl-C while flightdeck stopped ended it at once and left the opener page behind.
 - `143`: A second SIGTERM while flightdeck stopped ended it at once and left the opener page behind.
+
+## `flightdeck workspaces`
+
+Read the local mxv workspaces
+
+### Commands
+
+- [`flightdeck workspaces list`](#flightdeck-workspaces-list): List the local mxv workspaces with their units, routes and ports
+- [`flightdeck workspaces show`](#flightdeck-workspaces-show): Show one local mxv workspace with its checkouts and units
+
+## `flightdeck workspaces list`
+
+List the local mxv workspaces with their units, routes and ports
+
+### Examples
+
+List the local mxv workspaces.
+
+```sh
+flightdeck workspaces list
+```
+
+Print the document that the Workspaces page draws.
+
+```sh
+flightdeck workspaces list --json --full
+```
+
+### Columns
+
+- `name`: The workspace's name.
+- `branch`: The branch that the workspace's checkouts were created on, or null when mxv cannot read the workspace's record.
+- `running`: The number of units that are running, or null when `mxv status` failed.
+- `declared`: The number of units that the workspace's manifest declares, or null when `mxv status` failed.
+- `pinned`: Whether `mxv reclaim` leaves the workspace running, or null when `mxv status` failed.
+
+### Columns that `--long` adds
+
+- `checkouts`: The folder of each checkout, which is its repository's name.
+- `problem`: Why mxv cannot read the workspace's record, or null when it can.
+
+Effects: read-only, closed-world.
+
+## `flightdeck workspaces show`
+
+Show one local mxv workspace with its checkouts and units
+
+### Arguments
+
+- `<NAME>`: The workspace's name, as `flightdeck workspaces list` prints it. Required.
+
+### Examples
+
+Print the document that the page of the workspace reading-list draws.
+
+```sh
+flightdeck workspaces show reading-list --json
+```
+
+Effects: read-only, closed-world.
+
+## `flightdeck compliance`
+
+Build the compliance document from rules reports
+
+### Commands
+
+- [`flightdeck compliance build`](#flightdeck-compliance-build): Join each repository's rules report into one compliance document
+
+## `flightdeck compliance build`
+
+Join each repository's rules report into one compliance document
+
+### Arguments
+
+- `--config <FILE>`: The flightdeck/compliance-config/v1 file. Required.
+- `--reports <DIR>`: The directory of the reports, one at \<owner\>/\<repo\>.json each. Required.
+- `--out <DIR>`: Also write \<DIR\>/compliance.json
+- `--build-run <LABEL>`: The label of the run that builds the pages
+- `--build-url <URL>`: The address of that run
+- `--rules-commit <SHA>`: The imposed set's current commit
+- `--built-at <TIME>`: The build's time, such as 2026-11-25T06:00:00Z; now when left out
+
+### Examples
+
+Print one line per repository with its report's time and its failing, stale and drift counts.
+
+```sh
+flightdeck compliance build --config compliance.toml --reports reports
+```
+
+Write site/compliance.json for the pages and print the same document.
+
+```sh
+flightdeck compliance build --config compliance.toml --reports reports --out site --build-run 'Build run #412' --json
+```
+
+Effects: additive, idempotent, closed-world.
 
 ## `flightdeck commands`
 
@@ -98,13 +205,13 @@ Give coding agents flightdeck's skill
 
 ### Commands
 
-- [`flightdeck skills install`](#flightdeck-skills-install): Install this tool's skills into each agent skills directory that exists
-- [`flightdeck skills check`](#flightdeck-skills-check): Check that each installed copy of this tool's skills matches this build
-- [`flightdeck skills print`](#flightdeck-skills-print): Print this tool's skill
+- [`flightdeck skills install`](#flightdeck-skills-install): Install flightdeck's skills into each agent skills directory that exists
+- [`flightdeck skills check`](#flightdeck-skills-check): Check that each installed copy of flightdeck's skills matches this flightdeck
+- [`flightdeck skills print`](#flightdeck-skills-print): Print flightdeck's skill
 
 ## `flightdeck skills install`
 
-Install this tool's skills into each agent skills directory that exists
+Install flightdeck's skills into each agent skills directory that exists
 
 ### Arguments
 
@@ -113,13 +220,13 @@ Install this tool's skills into each agent skills directory that exists
 
 ### Examples
 
-Install the skills into each agent skills directory that exists.
+Install flightdeck's skills into each agent skills directory that exists.
 
 ```sh
 flightdeck skills install
 ```
 
-Install them, replacing a file or a link that install did not write.
+Install flightdeck's skills, replacing a file or a link that install did not write.
 
 ```sh
 flightdeck skills install --force
@@ -140,7 +247,7 @@ Effects: additive, idempotent, closed-world.
 
 ## `flightdeck skills check`
 
-Check that each installed copy of this tool's skills matches this build
+Check that each installed copy of flightdeck's skills matches this flightdeck
 
 ### Arguments
 
@@ -148,7 +255,7 @@ Check that each installed copy of this tool's skills matches this build
 
 ### Examples
 
-Report each agent skills directory whose copy is missing or differs.
+Report each agent skills directory where flightdeck's skills are missing or differ.
 
 ```sh
 flightdeck skills check
@@ -169,11 +276,11 @@ Effects: read-only, closed-world.
 
 ## `flightdeck skills print`
 
-Print this tool's skill
+Print flightdeck's skill
 
 ### Examples
 
-Print the skill.
+Print flightdeck's skill.
 
 ```sh
 flightdeck skills print
@@ -325,5 +432,62 @@ flightdeck schemas show flightdeck/schemas-list/v1
 
 - `id`: The document's id, such as `shelf/books-list/v1`.
 - `schema`: The document's 2020-12 JSON Schema.
+
+Effects: read-only, closed-world.
+
+## `flightdeck self`
+
+Review flightdeck itself
+
+### Commands
+
+- [`flightdeck self environment`](#flightdeck-self-environment): Explore the environment variables that flightdeck reads
+
+## `flightdeck self environment`
+
+Explore the environment variables that flightdeck reads
+
+### Commands
+
+- [`flightdeck self environment list`](#flightdeck-self-environment-list): List the variables that flightdeck and crumbkit read, with their rules and values
+
+## `flightdeck self environment list`
+
+List the variables that flightdeck and crumbkit read, with their rules and values
+
+### Examples
+
+List the variables the tool declares and their values.
+
+```sh
+flightdeck self environment list
+```
+
+Print each variable as JSON, where a withheld value has no text.
+
+```sh
+flightdeck self environment list --json
+```
+
+### Columns
+
+- `name`: The variable's name.
+- `type`: The type of the variable's value, such as port or integer 1..=100.
+- `unset`: What happens when the variable has no value, in local mode and, when it differs, in production.
+- `source`: Where the variable's value comes from, with the kind of its bind.
+- `value`: The variable's value in this shell, or its default; a withheld value prints as eight dots and has no text in JSON.
+- `owner`: The library that reads the variable in every tool, such as `crumbkit`; empty, and left out of `--json`, for a variable that the tool's own declaration holds.
+
+### Columns that `--long` adds
+
+- `show`: Whether the value may be shown or is withheld.
+- `bind`: The variable's bind, such as a 1Password reference, when it has one.
+- `cache`: `never` when the bind keeps the value out of any cache of resolved values; empty, and left out of `--json`, when a cache may keep it.
+- `purpose`: The sentence that says what the variable is for.
+- `effect`: The sentence that says what the application does when the variable is unset; empty, and left out of `--json`, when the spec states none.
+- `values`: Each value of a named enumeration with its description; empty, and left out of `--json`, for any other type.
+- `check`: The sentence that states the check the application's own code makes of the value, which starmap never runs; empty, and left out of `--json`, when the spec states none.
+- `group`: The name of the group of variables that are set together or not at all, which the variable belongs to; empty, and left out of `--json`, when it belongs to none.
+- `state`: Where the value comes from: `set` when this shell sets the variable, `default` when it leaves the variable unset and the default applies, `unset` when the variable has no value, and `invalid` when this shell sets a value that does not fit the type. The same state as `value.state`, at the top level.
 
 Effects: read-only, closed-world.

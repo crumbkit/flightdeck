@@ -93,7 +93,7 @@ jobs:
           ref: ${{ needs.version.outputs.ref }}
           persist-credentials: false
       - run: rustup toolchain install
-      - uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+      - uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
         with:
           tool: cargo-deny@0.20.2
           fallback: none
@@ -119,15 +119,17 @@ jobs:
           ref: ${{ needs.version.outputs.ref }}
           persist-credentials: false
       - run: rustup toolchain install
-      - uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+      - uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
         with:
           tool: cargo-nextest@0.9.140
           fallback: none
       # shelf and reading at the commit that the install script pins.
       - name: test tools
         run: scripts/install-test-tools.sh
+      # Every test, including the binaries that `default-filter` in
+      # .config/nextest.toml leaves out.
       - name: tests
-        run: cargo nextest run --locked --workspace --all-features
+        run: cargo nextest run --locked --workspace --all-features --ignore-default-filter
 
   build:
     needs: version
@@ -159,7 +161,7 @@ jobs:
           persist-credentials: false
       # rustup installs the toolchain that rust-toolchain.toml pins.
       - run: rustup target add "$TARGET"
-      - uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+      - uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
         with:
           tool: cargo-auditable@0.7.7
           fallback: none

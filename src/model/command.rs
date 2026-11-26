@@ -271,6 +271,23 @@ impl Command {
         self.class
     }
 
+    /// Returns true when the command declares `runs_program`, which is how
+    /// crumbkit marks a command that starts a program the caller names. The
+    /// command's name and its open-world hint decide nothing: a read-only
+    /// command that reaches a network is open-world and starts no program.
+    /// flightdeck cannot preview what such a program changes, so the runner
+    /// starts the command only after a confirmation.
+    #[must_use]
+    pub const fn starts_program(&self) -> bool {
+        matches!(
+            self.effects,
+            Effects::Known {
+                runs_program: true,
+                ..
+            }
+        )
+    }
+
     /// Returns how the command guards its writes, or `None` for a command
     /// without guards.
     #[must_use]
@@ -285,6 +302,13 @@ impl Command {
     #[must_use]
     pub const fn prints_no_result(&self) -> bool {
         self.prints_no_result
+    }
+
+    /// Returns true when crumbkit, or a crate built on it such as
+    /// crumbkit-starmap, adds the command to the tool, such as `self usage`.
+    #[must_use]
+    pub const fn built_in(&self) -> bool {
+        self.built_in
     }
 
     /// Returns how often the command ran, from the tool's `self figures
@@ -467,13 +491,18 @@ pub enum Class {
 impl Class {
     /// Returns the class that `effects` decide. A command that declares
     /// itself destructive is destructive, even when it also declares itself
-    /// read-only, and a command that declares nothing is destructive.
+    /// read-only, and a command that declares nothing is destructive. A
+    /// command that runs a program is never read-only, even when its
+    /// document says so, so no read-only path reaches it.
     const fn of(effects: &Effects) -> Self {
         match effects {
             Effects::Known {
                 destructive: true, ..
             }
             | Effects::Unknown => Self::Destructive,
+            Effects::Known {
+                runs_program: true, ..
+            } => Self::Additive,
             Effects::Known {
                 read_only: true, ..
             } => Self::ReadOnly,
@@ -498,19 +527,25 @@ pub enum Effects {
         idempotent: bool,
         /// The command reaches things outside the tool, such as a network.
         open_world: bool,
+        /// The command runs a program that the caller names, which implies
+        /// open-world. A tool on a crumbkit before the field leaves it out,
+        /// which reads as false.
+        runs_program: bool,
     },
     /// The command declares no effects.
     #[default]
     Unknown,
 }
 
-/// The four hints of a command that declares its effects.
+/// The hints of a command that declares its effects.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 struct KnownEffects {
     read_only: bool,
     destructive: bool,
     idempotent: bool,
     open_world: bool,
+    #[serde(default)]
+    runs_program: bool,
 }
 
 impl From<Option<KnownEffects>> for Effects {
@@ -521,11 +556,13 @@ impl From<Option<KnownEffects>> for Effects {
                 destructive,
                 idempotent,
                 open_world,
+                runs_program,
             }) => Self::Known {
                 read_only,
                 destructive,
                 idempotent,
                 open_world,
+                runs_program,
             },
             None => Self::Unknown,
         }
@@ -540,11 +577,13 @@ impl From<Effects> for Option<KnownEffects> {
                 destructive,
                 idempotent,
                 open_world,
+                runs_program,
             } => Some(KnownEffects {
                 read_only,
                 destructive,
                 idempotent,
                 open_world,
+                runs_program,
             }),
             Effects::Unknown => None,
         }

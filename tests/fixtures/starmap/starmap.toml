@@ -1,0 +1,72 @@
+# A version of shelf that declares one variable of each kind the Environment
+# view draws.
+[enumerations.log-level]
+error = "Only failures."
+warn = "Failures, and anything that may become one."
+info = "Each command that runs, and what it changed."
+debug = "Every step, for finding a fault."
+
+[enumerations.region]
+eu = "The mirror in Europe."
+us = "The mirror in North America."
+ap = "The mirror in Asia Pacific."
+
+[groups.mirror]
+variables = ["SHELF_MIRROR_ACCOUNT", "SHELF_MIRROR_TOKEN"]
+
+[variables.SHELF_PORT]
+purpose = "The port the catalogue listens on."
+type = "port"
+unset = { default = "8080" }
+effect = "The catalogue listens on 8080."
+check = "The port must be above 1024."
+show = "shown"
+source = "setting"
+
+[variables.SHELF_DEBUG]
+purpose = "Logs each catalogue query."
+type = "boolean"
+unset = { default = "false" }
+show = "shown"
+source = "setting"
+
+[variables.SHELF_CATALOGUE_URL]
+purpose = "The base URL of the catalogue that shelf reads."
+type = "url"
+unset = "required"
+effect = "Every books command fails, because shelf has no catalogue to read."
+show = "shown"
+source = "setting"
+
+[variables.SHELF_MIRROR_ACCOUNT]
+purpose = "The account shelf uses at the catalogue mirror."
+type = "string"
+unset = "optional"
+show = "shown"
+source = "setting"
+
+[variables.SHELF_MIRROR_TOKEN]
+purpose = "The token that shelf sends to the catalogue's mirror."
+type = "string"
+unset = { local = "optional", production = "required" }
+effect = "shelf reads the catalogue without its mirror."
+show = "withheld"
+source = "secret"
+bind = { one-password = "op://Personal/shelf mirror/token" }
+
+[variables.SHELF_LOG_LEVEL]
+purpose = "The least severe message that shelf writes to its log."
+type = { enumeration = "log-level" }
+unset = { default = "info" }
+effect = "shelf logs at info."
+show = "shown"
+source = "setting"
+
+[variables.SHELF_REGION]
+purpose = "The region whose catalogue mirror shelf prefers."
+type = { enumeration = "region" }
+unset = { default = "eu" }
+effect = "shelf prefers the eu mirror."
+check = "The region must have a mirror that answers."
+show = "shown"
+source = "setting"

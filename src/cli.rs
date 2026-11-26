@@ -1,6 +1,7 @@
 //! flightdeck's command-line grammar and tool record.
 
 use std::ffi::OsString;
+use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 use crumbkit::commands::{COMMANDS_LIST, CommandsList};
@@ -12,7 +13,10 @@ use crumbkit::help::{Effects, Example, Help, Leaf};
 use crumbkit::schemas::{SCHEMAS_LIST, SCHEMAS_SHOW, SchemasList, SchemasShow};
 use crumbkit::tool::Failures;
 use crumbkit::{NoInput, Tool, ViewFlags};
-use crumbkit_skills::Skill;
+use crumbkit_skills::{Skill, skills_command};
+
+use crate::compliance::{COMPLIANCE_BUILD, COMPLIANCE_CONFIG};
+use crate::workspaces::{WORKSPACES_LIST, WORKSPACES_SHOW, WorkspaceName};
 
 /// Start a local web page for a crumbkit tool.
 #[derive(Debug, Parser)]
@@ -37,6 +41,7 @@ pub const TOOL: Tool = Tool::new()
     .failures(Failures::new().exits(&crate::open::FORCED_EXITS))
     .help(
     Help::new()
+        .file_formats(&[COMPLIANCE_CONFIG])
         .root_verbs(
             &["open"],
             "flightdeck opens a page for a tool, and a tool is no resource of flightdeck's own.",
@@ -44,6 +49,8 @@ pub const TOOL: Tool = Tool::new()
         .leaves(&[
             Leaf::new(&["open"])
                 .examples(&[
+                    Example::new(&[], "Open the Workspaces page in the browser")
+                        .needs(&["browser"]),
                     Example::new(&["shelf"], "Open the page for shelf in the browser")
                         .needs(&["browser"]),
                     Example::new(
@@ -54,6 +61,50 @@ pub const TOOL: Tool = Tool::new()
                 ])
                 .effects(Effects::read_only().open_world())
                 .prints_no_result(),
+            Leaf::new(&["workspaces", "list"])
+                .examples(&[
+                    Example::new(&[], "List the local mxv workspaces").needs(&["mxv"]),
+                    Example::new(
+                        &["--json", "--full"],
+                        "Print the document that the Workspaces page draws",
+                    )
+                    .needs(&["mxv"]),
+                ])
+                .effects(Effects::read_only())
+                .document(WORKSPACES_LIST),
+            Leaf::new(&["workspaces", "show"])
+                .examples(&[Example::new(
+                    &["reading-list", "--json"],
+                    "Print the document that the page of the workspace reading-list draws",
+                )
+                .needs(&["mxv"])])
+                .effects(Effects::read_only())
+                .document(WORKSPACES_SHOW),
+            Leaf::new(&["compliance", "build"])
+                .examples(&[
+                    Example::new(
+                        &["--config", "compliance.toml", "--reports", "reports"],
+                        "Print one line per repository with its report's time and its failing, stale and drift counts",
+                    )
+                    .needs(&["reports"]),
+                    Example::new(
+                        &[
+                            "--config",
+                            "compliance.toml",
+                            "--reports",
+                            "reports",
+                            "--out",
+                            "site",
+                            "--build-run",
+                            "Build run #412",
+                            "--json",
+                        ],
+                        "Write site/compliance.json for the pages and print the same document",
+                    )
+                    .needs(&["reports"]),
+                ])
+                .effects(Effects::additive().idempotent())
+                .document(COMPLIANCE_BUILD),
             Leaf::new(&["commands", "list"])
                 .examples(&[
                     Example::new(&[], "List every command"),
@@ -71,9 +122,9 @@ pub const TOOL: Tool = Tool::new()
                 )])
                 .effects(Effects::read_only())
                 .document(SCHEMAS_LIST),
-            crumbkit_skills::install_leaf(&["skills", "install"]),
-            crumbkit_skills::check_leaf(&["skills", "check"]),
-            crumbkit_skills::print_leaf(&["skills", "print"]),
+            FlightdeckSkills::install_leaf(&["skills", "install"]),
+            FlightdeckSkills::check_leaf(&["skills", "check"]),
+            FlightdeckSkills::print_leaf(&["skills", "print"]),
             Leaf::new(&["completion", "install"])
                 .examples(&[
                     Example::new(&["--shell", "fish"], "Install flightdeck's completion for fish"),
@@ -98,6 +149,7 @@ pub const TOOL: Tool = Tool::new()
                 )])
                 .effects(Effects::read_only())
                 .document(COMPLETION_PRINT),
+            crumbkit_starmap::list_leaf(&["self", "environment", "list"]),
             Leaf::new(&["schemas", "show"])
                 .examples(&[Example::new(
                     &["flightdeck/schemas-list/v1"],
@@ -106,6 +158,12 @@ pub const TOOL: Tool = Tool::new()
                 .effects(Effects::read_only())
                 .document(SCHEMAS_SHOW),
         ]),
+);
+
+skills_command!(
+    /// The commands for flightdeck's skill.
+    pub(crate) FlightdeckSkills,
+    "flightdeck"
 );
 
 /// flightdeck's agent skill, which `flightdeck skills install` writes into
@@ -119,8 +177,20 @@ pub(crate) const SKILL: Skill = Skill::new(
 /// The resources that flightdeck serves, and the verb `open`.
 #[derive(Debug, Subcommand)]
 pub(crate) enum Resource {
-    /// Open a local web page that lists and runs a tool's commands.
+    /// Open a local web page of the mxv workspaces and a tool's commands.
     Open(OpenArgs),
+    /// Read the local mxv workspaces.
+    Workspaces {
+        /// What to do with the workspaces.
+        #[command(subcommand)]
+        command: WorkspacesCommand,
+    },
+    /// Build the compliance document from rules reports.
+    Compliance {
+        /// What to do with the reports.
+        #[command(subcommand)]
+        command: ComplianceCommand,
+    },
     /// Explore flightdeck's commands.
     Commands {
         /// What to do with the commands.
@@ -131,7 +201,7 @@ pub(crate) enum Resource {
     Skills {
         /// What to do with the skill.
         #[command(subcommand)]
-        command: crumbkit_skills::SkillsCommand,
+        command: FlightdeckSkills,
     },
     /// Set up flightdeck's completion in a shell.
     Completion {
@@ -145,6 +215,99 @@ pub(crate) enum Resource {
         #[command(subcommand)]
         command: SchemasCommand,
     },
+    /// Review flightdeck itself.
+    #[command(name = "self")]
+    SelfCommand {
+        /// What to review.
+        #[command(subcommand)]
+        command: SelfCommand,
+    },
+}
+
+/// The commands that review flightdeck itself.
+#[derive(Debug, Subcommand)]
+pub(crate) enum SelfCommand {
+    /// Explore the environment variables that flightdeck reads.
+    Environment {
+        /// What to do with them.
+        #[command(subcommand)]
+        verb: EnvironmentVerb,
+    },
+}
+
+/// What to do with flightdeck's environment variables.
+#[derive(Debug, Subcommand)]
+pub(crate) enum EnvironmentVerb {
+    /// List the variables that flightdeck and crumbkit read, with their rules and values.
+    List,
+}
+
+/// The commands that read the local mxv workspaces.
+#[derive(Debug, Subcommand)]
+pub(crate) enum WorkspacesCommand {
+    /// List the local mxv workspaces with their units, routes and ports.
+    List,
+    /// Show one local mxv workspace with its checkouts and units.
+    Show(WorkspacesShowArgs),
+}
+
+/// The arguments of `flightdeck workspaces show`.
+#[derive(Debug, Args)]
+pub(crate) struct WorkspacesShowArgs {
+    /// The workspace's name, as `flightdeck workspaces list` prints it.
+    #[arg(value_name = "NAME")]
+    pub(crate) name: WorkspaceName,
+}
+
+/// The commands that read the repositories' rules reports.
+#[derive(Debug, Subcommand)]
+pub(crate) enum ComplianceCommand {
+    /// Join each repository's rules report into one compliance document.
+    Build(ComplianceBuildArgs),
+}
+
+/// The arguments of `flightdeck compliance build`.
+#[derive(Debug, Args)]
+pub(crate) struct ComplianceBuildArgs {
+    /// The flightdeck/compliance-config/v1 file.
+    #[arg(long, value_name = "FILE")]
+    pub(crate) config: PathBuf,
+
+    /// The directory of the reports, one at <owner>/<repo>.json each.
+    #[arg(long, value_name = "DIR")]
+    pub(crate) reports: PathBuf,
+
+    /// Also write <DIR>/compliance.json.
+    #[arg(long, value_name = "DIR")]
+    pub(crate) out: Option<PathBuf>,
+
+    /// The label of the run that builds the pages.
+    #[arg(long, value_name = "LABEL")]
+    pub(crate) build_run: Option<String>,
+
+    /// The address of that run.
+    #[arg(long, value_name = "URL")]
+    pub(crate) build_url: Option<String>,
+
+    /// The imposed set's current commit.
+    #[arg(long, value_name = "SHA", value_parser = commit_id)]
+    pub(crate) rules_commit: Option<String>,
+
+    /// The build's time, such as 2026-11-25T06:00:00Z; now when left out.
+    #[arg(long, value_name = "TIME")]
+    pub(crate) built_at: Option<jiff::Timestamp>,
+}
+
+/// Reads a full commit id: 40 or 64 lowercase hexadecimal digits.
+fn commit_id(text: &str) -> Result<String, String> {
+    let hex = text
+        .bytes()
+        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
+    if hex && matches!(text.len(), 40 | 64) {
+        Ok(text.to_owned())
+    } else {
+        Err("a commit is 40 or 64 lowercase hexadecimal digits".to_owned())
+    }
 }
 
 /// The commands for flightdeck's own commands.
@@ -177,9 +340,9 @@ pub(crate) enum SchemasCommand {
 /// The arguments of `flightdeck open`.
 #[derive(Debug, Args)]
 pub(crate) struct OpenArgs {
-    /// The crumbkit tool, by a name on PATH or a path.
+    /// The crumbkit tool, by a name on PATH or a path; without one, the page shows the workspaces.
     #[arg(value_name = "TOOL")]
-    pub(crate) tool: OsString,
+    pub(crate) tool: Option<OsString>,
 
     /// Run only the tool's read-only commands from the page.
     #[arg(long)]

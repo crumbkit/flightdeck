@@ -7,19 +7,28 @@ codes that no start provokes:
   flightdeck::tool::load: Only a tool that prints something other than its description provokes it; tests/model.rs provokes it with fake tools.
   flightdeck::server::failed: Only a system that refuses a socket, a random read or a temporary file provokes it.
   flightdeck::tool::search_path: Only a launch directory whose name holds PATH's separator provokes it; tests/open.rs provokes the code.
-  flightdeck::run::refused: No flightdeck command runs a tool's commands yet; the runner returns the code.
-  flightdeck::run::needs_confirmation: No flightdeck command runs a tool's commands yet; the runner returns the code.
-  flightdeck::run::read_only: No flightdeck command runs a tool's commands yet; the runner returns the code.
-  flightdeck::run::confirmation: No flightdeck command runs a tool's commands yet; the runner returns the code.
-  flightdeck::run::directory: No flightdeck command runs a tool's commands yet; the runner returns the code.
-  flightdeck::run::no_document: No flightdeck command runs a tool's commands yet; the runner returns the code.
-  flightdeck::run::spawn: No flightdeck command runs a tool's commands yet; the runner returns the code.
-  flightdeck::run::output_limit: No flightdeck command runs a tool's commands yet; the runner returns the code.
-  flightdeck::run::busy: No flightdeck command runs a tool's commands yet; the runner returns the code.
-  flightdeck::run::not_running: No flightdeck command runs a tool's commands yet; the runner returns the code.
-  flightdeck::run::random: No flightdeck command runs a tool's commands yet; the runner returns the code.
-  flightdeck::run::closed: No flightdeck command runs a tool's commands yet; the runner returns the code.
-  flightdeck::choices::no_listing: No flightdeck command runs a tool's commands yet; the runner returns the code.
-  flightdeck::choices::time_limit: No flightdeck command runs a tool's commands yet; the runner returns the code.
+  flightdeck::environment::invalid: Only a FLIGHTDECK_PORT that is not a port provokes it, and a command line sets no variable; tests/open.rs provokes the code.
+  flightdeck::compliance::config_invalid: Only a config file that breaks its rules, or an --out directory that cannot be written, provokes it; tests/compliance.rs provokes it.
+  flightdeck::compliance::out_failed: Only a config file that breaks its rules, or an --out directory that cannot be written, provokes it; tests/compliance.rs provokes it.
+  flightdeck::workspaces::mxv_missing: Only an mxv that fails, is missing or lacks the workspace provokes it, and a command line sets no variable; tests/workspaces.rs provokes it with a fake mxv.
+  flightdeck::workspaces::mxv_failed: Only an mxv that fails, is missing or lacks the workspace provokes it, and a command line sets no variable; tests/workspaces.rs provokes it with a fake mxv.
+  flightdeck::workspaces::not_found: Only an mxv that fails, is missing or lacks the workspace provokes it, and a command line sets no variable; tests/workspaces.rs provokes it with a fake mxv.
+  flightdeck::workspaces::name: Only the page's route returns it; the command line refuses such a name as a usage error before flightdeck runs.
+  flightdeck::run::*: No flightdeck command runs a tool's commands yet; the runner returns the code.
+    flightdeck::run::refused
+    flightdeck::run::needs_confirmation
+    flightdeck::run::read_only
+    flightdeck::run::confirmation
+    flightdeck::run::directory
+    flightdeck::run::spawn
+    flightdeck::run::busy
+    flightdeck::run::not_running
+    flightdeck::run::closed
+    flightdeck::run::random
+    flightdeck::run::no_document
+    flightdeck::run::output_limit
+  flightdeck::choices::*: No flightdeck command runs a tool's commands yet; the runner returns the code.
+    flightdeck::choices::no_listing
+    flightdeck::choices::time_limit
 
 codes whose recoveries the check did not follow, because no declared code spells them: 0

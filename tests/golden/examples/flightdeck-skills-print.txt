@@ -23,6 +23,7 @@ TOOL is the name of a program on PATH, such as `shelf`, or a path to one,
 such as `./target/debug/shelf`. flightdeck runs the tool's `--version`,
 `commands list`, `schemas list` and `schemas show` to load it, so the tool
 must be built on crumbkit.
+Without TOOL, the page shows this machine's mxv workspaces.
 
 ## Start it where the person can see it
 
@@ -43,8 +44,7 @@ limit.
 With `--no-browser`, flightdeck opens no browser. It prints the path of an
 opener page, a local file that sends the browser to the page's address with
 a one-time launch code in the URL's fragment, the part after `#`. The person
-opens that file in a browser. If the browser does not open without the flag,
-flightdeck prints the same path.
+opens that file in a browser.
 
 A bare `http://127.0.0.1:PORT` address will not sign in, because it carries
 no launch code. The code works once and expires 60 seconds after flightdeck
@@ -72,8 +72,7 @@ tool's other commands change things that matter.
 A command that the tool declares destructive, or one that declares no
 effects, has Preview in place of Run. For a command that takes `--dry-run`,
 Preview runs the dry run and shows what it would change. For a command
-without `--dry-run`, Preview runs nothing and shows nothing of what the
-command would do. It only asks for the confirmation. The person then
+without `--dry-run`, Preview only asks for the confirmation. The person then
 confirms in the same card, and the command runs once. A confirmation lasts 10 minutes, and a change to the
 form after the preview disables it. flightdeck itself refuses such a run
 without a confirmation, so nothing on the page skips this step.
@@ -90,6 +89,9 @@ pages read before it, and its wall time and output size. A command with many
 failures or refusals, or one that agents read help for before most runs, is
 one they run badly. A command's cost card shows the tool's findings about it,
 such as a retry after a failure.
+
+A tool that mounts `self environment list` also has an Environment view of
+its variables and their values.
 
 The Weight tab shows the bytes of help a reader passes to reach each
 command, and Both sets that weight beside the command's runs.

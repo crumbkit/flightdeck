@@ -60,6 +60,10 @@ pub(super) struct ArgumentRow {
     pub(super) help: Option<String>,
     pub(super) long_help: Option<String>,
     pub(super) global: bool,
+    /// Whether the argument's values come after `--`. A tool on a crumbkit
+    /// before this field leaves it out, which reads as false.
+    #[serde(default)]
+    pub(super) after_double_dash: bool,
     pub(super) one_of: Vec<String>,
 }
 

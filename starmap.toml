@@ -1,0 +1,34 @@
+# The environment variables that flightdeck reads itself. The struct that
+# derives starmap::Env in src/environment.rs reads them, and
+# `flightdeck self environment list` prints them beside the variables that
+# the crumbkit crate reads in every tool, which crumbkit-starmap declares.
+
+[variables.PATH]
+purpose = "The search path that finds the tool `flightdeck open` names by a bare name. flightdeck makes each entry absolute against the directory it started in, and gives the result to every run of the tool."
+type = "path"
+unset = "optional"
+# An empty PATH still searches the directory flightdeck started in, as an
+# unset one does not, so the empty text is a value.
+empty = "value"
+show = "shown"
+source = "inherited"
+
+[variables.FLIGHTDECK_PORT]
+purpose = "The port that `flightdeck open` listens on, on 127.0.0.1, so a process manager can give the page a fixed port."
+type = "port"
+unset = "optional"
+# An empty value is a value, so it is refused as a port and does not count as
+# unset.
+empty = "value"
+effect = "When unset, the system picks a free port for each run and `flightdeck open` prints it."
+check = "A port is a whole number from 1 to 65535, and no other program may hold it."
+show = "shown"
+source = "setting"
+
+[variables.FLIGHTDECK_MXV]
+purpose = "The mxv program whose workspaces the Workspaces page and `flightdeck workspaces` read, by a name on PATH or a path."
+type = "path"
+unset = "optional"
+effect = "When unset, flightdeck runs mxv from PATH."
+show = "shown"
+source = "setting"

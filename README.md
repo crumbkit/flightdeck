@@ -12,8 +12,9 @@ document and the listing envelope. It links none of the tool's code.
 
 ## Status
 
-`flightdeck open <TOOL>` starts the page's server, its sign-in and the
-routes that run the tool's commands, and serves the page. The page's code is
+`flightdeck open [TOOL]` starts the page's server, its sign-in and the
+routes that run the tool's commands, and serves the page. Without a tool,
+the page shows the mxv workspaces on this machine. The page's code is
 in [ui/](ui/), and the binary embeds its built files from `ui/dist`.
 
 What works today:
@@ -32,6 +33,19 @@ What works today:
   run only the tool's read-only commands. The server stops on Ctrl-C, on
   SIGTERM, and after 30 minutes without a request from the page. When it
   stops, it lets each run finish within five seconds and cancels the rest.
+  When `FLIGHTDECK_PORT` is set, flightdeck listens on that port in place of
+  one the system picks, and it refuses a value that is not a port, an empty
+  one included.
+- `mxv up` runs flightdeck in a workspace, as [mxv.toml](mxv.toml) declares:
+  it builds flightdeck and starts `flightdeck open` on shelf, which
+  `scripts/install-test-tools.sh` installs, on the host port that mxv
+  holds for `flightdeck`. mxv gives the port through `FLIGHTDECK_PORT`.
+  The page signs in only through the opener file, so read the opener's
+  path from `mxv logs flightdeck` and open that file in a browser within
+  60 seconds of the process starting. After that, run `mxv restart` for a
+  new launch code. The address that `mxv ports` reports serves the page
+  without a launch code, and the proxy's route names are not addresses
+  that flightdeck answers to.
 - The browser signs in with a one-time launch code that the opener page
   holds in the URL's fragment, and exchanges it for a token that every API
   request carries. `GET /api/model` returns the tool's model as JSON, and
@@ -58,6 +72,19 @@ What works today:
   read-only, with `--all` when the source takes it, and answers with at
   most 1,000 choices, each the value of a row's `id` labelled by the row's
   other compact columns.
+- `flightdeck open` without a tool serves the Workspaces page: one card
+  per mxv workspace on this machine, with its branch, its checkouts, how
+  many of its units run, its routes, or its host ports when this mxv has
+  no `proxy status`, and whether it is pinned. A card opens the One
+  workspace page, with each checkout's branch, commit and uncommitted
+  changes, and each unit's state, ports and route links. A tool's page
+  opens them from the top bar's Workspaces button. `flightdeck workspaces
+  list` and `flightdeck workspaces show NAME` print the same facts, and
+  `GET /api/workspaces` and `GET /api/workspaces/<name>` send them.
+  flightdeck runs `mxv list`, `mxv status` and `mxv proxy status`, at
+  most four at a time and within 10 seconds, with the program that
+  `FLIGHTDECK_MXV` names or `mxv` on PATH. The pages leave out what mxv
+  does not supply.
 - `flightdeck commands list`, `flightdeck schemas list` and
   `flightdeck schemas show`, crumbkit's own commands, describe flightdeck
   itself. [docs/commands.md](docs/commands.md) is the reference.
@@ -83,7 +110,15 @@ What works today:
   command, the names of the flags it passed, whether it printed help, its
   exit code and failure code, its wall time and its output in bytes. When
   the figures fail, every count stays 0 and the tool still loads; when the
-  findings or the runs fail, the figures stay without them. flightdeck asks
+  findings or the runs fail, the figures stay without them. When the tool
+  mounts crumbkit-starmap's `self environment list`, which also runs at
+  the same time, the model holds each environment variable that the tool
+  declares and each that crumbkit reads, with its type, its rule when
+  unset, its source, its value and its state. The query runs with the
+  environment that the page's runs get, and with `<TOOL>_PROGRAM=flightdeck`
+  as the reports of the usage log do. A withheld value never reaches the
+  page, and when the query fails the tool loads without an environment.
+  flightdeck asks
   `--version`, `commands list`, `schemas list` and `schemas show` with
   `XDG_STATE_HOME` set to a temporary directory, so those runs stay out of
   the person's usage log and the person's own runs of them are counted.
@@ -113,6 +148,12 @@ What works today:
   runs, the view also shows which command followed which, each session's
   runs and the flags each command's runs passed. It loads in its own file
   the first time it opens.
+  When the tool mounts `self environment list`, an Environment view in
+  the top bar lists each declared variable with its value as flightdeck
+  started the tool, crumbkit's own variables under their own heading, and
+  a withheld value as eight dots. A row opens to the variable's purpose,
+  effect when unset, values, check, group and bind. The name of a declared
+  variable in a failure is a link that opens the view on its row.
   A stream's rows appear as they arrive, under the time since the run
   started and a count of its rows, and Cancel or ⌘. stops the run and
   keeps the rows that came. A failure shows its message, cause, code,
@@ -146,7 +187,11 @@ What works today:
   confirms. When the composer changes after the preview, the card marks
   itself stale and disables its confirm button. Confirm runs the command
   once in the same card, which then shows its result. A run that fails
-  because the tool asks for `--yes` opens the same card. Under
+  because the tool asks for `--yes` opens the same card. A command that
+  is not destructive and takes `--dry-run` keeps Run and has Preview
+  beside it. Its card shows the dry run and asks nothing, and its
+  "Preview again" previews again. Preview has no keyboard shortcut, and
+  ⌘↩ runs. Under
   `--read-only`, the topbar shows a lock, the commands that are not
   read-only stay in the rail dimmed with a lock, and their composer says
   why in place of its button.
@@ -258,7 +303,7 @@ pnpm run build && pnpm run size
 cargo build && pnpm run acceptance
 ```
 
-Commit `ui/dist` with the change. CI's `gate` job fails when the committed
+Commit `ui/dist` with the change. CI's `page` job fails when the committed
 files differ from a fresh build.
 [ui/typescript-standards.toml](ui/typescript-standards.toml) maps the
 TypeScript standards that the page follows to the files that meet them.

@@ -1,13 +1,53 @@
-flightdeck has no opt-outs from the conventions.
+flightdeck has 3 opt-outs from the conventions and sets 1 budget.
 
-flightdeck has 3 declarations.
+listings/list-pages: flightdeck self environment list
+  Reason: crumbkit-starmap's built-in prints every declared variable at once and takes no arguments.
+  Cost: An agent cannot bound the rows that the command prints, so one run can fill its context.
+  Cost: An agent that passes `--limit` or `--all`, as other listings take them, gets a refusal.
+
+listings/list-pages: flightdeck workspaces list
+  Reason: It prints the Workspaces page's document, which holds every workspace and counts them all.
+  Cost: An agent cannot bound the rows that the command prints, so one run can fill its context.
+  Cost: An agent that passes `--limit` or `--all`, as other listings take them, gets a refusal.
+
+listings/show-ids: flightdeck workspaces show
+  Reason: It prints the One workspace page's document, which is about one workspace.
+  Cost: An agent runs the command once for each id.
+
+path-budget/command: flightdeck skills print
+  Budget: 8200 bytes, where the default is 8000 bytes.
+  Reason: Its output is the whole skill, which crumbkit-skills prints, and the root's page lists every resource.
+  Cost: An agent that finds and runs the command can read 200 bytes more than the default, about 50 tokens.
+
+flightdeck has 10 declarations.
 
 root-verbs: flightdeck open
   Declares: Each command sits directly under the root as a verb, and root help lists it under the heading Verbs.
   Reason: flightdeck opens a page for a tool, and a tool is no resource of flightdeck's own.
+
+example-precondition: flightdeck open
+  Declares: The example runs only in a test run that provides browser.
 
 example-precondition: flightdeck open shelf
   Declares: The example runs only in a test run that provides browser.
 
 example-precondition: flightdeck open ./target/debug/shelf --read-only --no-browser
   Declares: The example runs only in a test run that provides browser.
+
+example-precondition: flightdeck workspaces list
+  Declares: The example runs only in a test run that provides mxv.
+
+example-precondition: flightdeck workspaces list --json --full
+  Declares: The example runs only in a test run that provides mxv.
+
+example-precondition: flightdeck workspaces show reading-list --json
+  Declares: The example runs only in a test run that provides mxv.
+
+document-name: flightdeck compliance build
+  Declares: The command prints flightdeck/compliance/v1, where its path gives the name compliance-build.
+
+example-precondition: flightdeck compliance build --config compliance.toml --reports reports
+  Declares: The example runs only in a test run that provides reports.
+
+example-precondition: flightdeck compliance build --config compliance.toml --reports reports --out site --build-run 'Build run #412' --json
+  Declares: The example runs only in a test run that provides reports.

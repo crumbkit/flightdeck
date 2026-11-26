@@ -1,4 +1,4 @@
-Print this tool's skill
+Print flightdeck's skill
 
 Usage: flightdeck skills print [OPTIONS]
 

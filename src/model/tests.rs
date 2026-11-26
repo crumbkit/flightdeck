@@ -69,6 +69,44 @@ fn the_model_gives_each_command_the_class_that_its_effects_decide() {
 }
 
 #[test]
+fn only_the_runs_program_effect_makes_a_command_start_a_program_and_a_missing_one_reads_as_false() {
+    let starts = |effects: serde_json::Value| {
+        let mut document: serde_json::Value = serde_json::from_str(WITH_GOALS).unwrap();
+        for row in document["data"].as_array_mut().unwrap() {
+            if row["path"] == "shelf books list" {
+                row["effects"] = effects.clone();
+            }
+        }
+        let commands: CommandsList = serde_json::from_value(document).unwrap();
+        let tool = Tool::assemble("shelf 0.1.1", commands, Vec::new()).unwrap();
+        let command = tool.command(&["books", "list"]).unwrap();
+        (
+            command.starts_program(),
+            serde_json::to_value(command).unwrap()["class"].clone(),
+        )
+    };
+    let hints = |open_world, runs_program: Option<bool>| {
+        let mut hints = serde_json::json!({
+            "read_only": false,
+            "destructive": false,
+            "idempotent": false,
+            "open_world": open_world,
+        });
+        if let Some(runs_program) = runs_program {
+            hints["runs_program"] = runs_program.into();
+        }
+        hints
+    };
+
+    assert_eq!(starts(hints(true, Some(true))), (true, "additive".into()));
+    assert_eq!(starts(hints(true, Some(false))), (false, "additive".into()));
+    assert_eq!(starts(hints(true, None)), (false, "additive".into()));
+    let mut read_only = hints(true, Some(true));
+    read_only["read_only"] = true.into();
+    assert_eq!(starts(read_only), (true, "additive".into()));
+}
+
+#[test]
 fn a_listing_reads_its_next_steps_with_calls_and_runs() {
     let listing: Listing<serde_json::Value> = serde_json::from_str(WITH_NEXT).unwrap();
 
@@ -845,6 +883,44 @@ fn a_run_row_that_does_not_read_is_left_out_and_the_others_still_read() {
 
     let steps: Vec<u64> = history.runs().iter().map(|run| run.step()).collect();
     assert_eq!(steps, [7]);
+}
+
+/// Returns the whole seconds that the first run of shelf's runs list reads
+/// to when its `at` is `at`, or `None` when the run does not read.
+fn first_run_at(at: &str) -> Option<u64> {
+    let runs = edited(RUNS, |document| {
+        document["data"][0]["at"] = serde_json::json!(at);
+    });
+    let history = History::read(runs.as_bytes(), "shelf", OwnRuns::Kept).unwrap();
+
+    history
+        .runs()
+        .iter()
+        .find(|run| run.step() == 1)
+        .map(|run| run.at())
+}
+
+#[test]
+fn a_runs_time_reads_to_whole_seconds_with_or_without_a_fraction_or_an_offset() {
+    assert_eq!(first_run_at("2026-11-10T10:14:45Z"), Some(1_794_305_685));
+    assert_eq!(
+        first_run_at("2026-11-10T10:14:45.987Z"),
+        Some(1_794_305_685)
+    );
+    assert_eq!(
+        first_run_at("2026-11-10T11:14:45+01:00"),
+        Some(1_794_305_685)
+    );
+}
+
+#[test]
+fn a_run_before_1970_is_left_out() {
+    assert_eq!(first_run_at("1969-12-31T23:59:59Z"), None);
+}
+
+#[test]
+fn a_runs_time_with_a_ten_digit_fraction_is_left_out() {
+    assert_eq!(first_run_at("2026-11-10T10:14:45.1234567890Z"), None);
 }
 
 #[test]

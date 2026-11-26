@@ -25,16 +25,16 @@ note = "src/server/assets.rs embeds each file of ui/dist with include_bytes!, un
 [[decision]]
 id = "lanes"
 requirement = """
-- Lane: `gate` in ../.github/workflows/ci.yml, on each pull request and each push to main. After the Rust lane's steps it runs every step of the pull-request lane from `install` on, in ui/. The `workflows` step is the Rust lane's, which checks the same files. Its budget is twenty minutes, the job's timeout, for both lanes together. A merge waits for it, and it is the one check that branch protection requires.
+- Lane: `page` in ../.github/workflows/ci.yml, on each pull request and each push to main, on ubuntu-24.04. It runs every step of the pull-request lane from `install` on, in ui/. Before `acceptance` it builds flightdeck and installs shelf and reading, which the acceptance tests start. The `workflows` step is the Rust lane's, in the `lane` job, which checks the same files. Its budget is twenty minutes, the job's timeout. The `gate` job, which the ruleset requires, passes only when `page` succeeded, so a merge waits for it.
 - Lane: `advisories` in ../.github/workflows/ci.yml, daily at 06:43 UTC and on each push to main, runs `pnpm audit` in ui/ after the Rust advisories. Nothing waits for it.
 """
-reason = "One required check covers the Rust lane and the page's, so branch protection names one job. flightdeck has no release yet, so an advisory found after merge only means a pull request that moves the affected pin."
+reason = "The page's lane runs in a job of its own beside the shared Rust lane, and the one required check, `gate`, covers both. flightdeck has no release yet, so an advisory found after merge only means a pull request that moves the affected pin."
 realizations = ["../.github/workflows/ci.yml"]
 
 [[decision]]
 id = "budgets"
-requirement = "The first load, index.html with assets/app.js, assets/index.css and the font files in fonts/, stays under 245 kB with Brotli. Every built file together stays under 250 kB."
-reason = "The first load holds React, TanStack Query, zod, the page and its four font files, which the page draws its first screen with. The page has one screen and loads nothing lazily, so the two budgets cover the same files today. The limit of 245 kB sits a few kB above the first load of 237.9 kB, so a change that adds to it is a choice. The fonts are about 111 kB of that, and leave about 12 kB under the every-file budget, so one more font file would break it."
+requirement = "The first load, index.html with assets/app.js, assets/shared.js, assets/rolldown-runtime.js, assets/index.css and the font files in fonts/, stays under 246 kB with Brotli. Every built file together stays under 264 kB."
+reason = "The first load holds React, TanStack Query, zod, the commands view and its four font files, which the page draws its first screen with. The Usage view, its Weight and Both tabs, the help measurement they share, the Environment view and the workspaces pages each load in a file of their own the first time they open, so they count only toward the every-file budget. On 17 November 2026 the first load was 245.5 kB, after the Environment view's failure-card link and the model's schema of a variable raised the limit from 245 kB to 246 kB, which the maintainer approved on 2026-11-17 (board decision /projects/flightdeck/decisions/20261117T1620Z-pr-b-labels-and-budget). The workspaces pages raised the every-file limit from 260 kB to 264 kB, within the 275 kB that the maintainer allowed for them (board answer /projects/flightdeck/answers/workspaces-ui-budget), and, with their layout in a stylesheet of their own that loads with them, left the first load at 245.95 kB and every built file together at 263.95 kB, so both budgets are effectively full. The fonts are about 111 kB of both. A change that adds to either budget is a choice: the next lazy file, such as another view, needs the every-file limit raised or something removed, and the pull request that does it says which."
 realizations = ["package.json"]
 
 [[decision]]
@@ -48,3 +48,15 @@ id = "streamed-runs"
 requirement = "src/routes/ToolPage.tsx calls streamRun from src/api/runs.ts for each run, and the transcript's reducer in src/lib/transcript.ts holds every run's state, including its lines. Each run has its own AbortController, which leaving the page aborts. A cancel goes through useMutation."
 reason = "APP-11 has a component read server data through TanStack Query. A run is a stream of events that the page draws as they arrive, and the page holds many runs at once, each with its own lines. A mutation holds the state of one call and has no place for events that arrive before the call ends, so a mutation per run would add a second copy of each run's state beside the reducer that draws it. The reducer is the one place that holds a run."
 realizations = ["src/routes/ToolPage.tsx", "src/lib/transcript.ts", "src/api/runs.ts"]
+
+[[decision]]
+id = "crumbkit-ui-git-tag"
+requirement = "headless/ and react/ depend on @crumbkit/ui by its git tag, `git+https://github.com/crumbkit/crumbkit-ui.git#v0.1.0`, and pnpm-lock.yaml records the tag's commit. A new version of @crumbkit/ui arrives only in a pull request that moves the tag in both manifests and the lockfile."
+reason = "@crumbkit/ui is crumbkit's own package and is not on the npm registry, so it has no exact version for BASE-13 to pin and no release age for BASE-14's cooldown to read, and Dependabot does not offer its updates. The tag plus the lockfile's commit fixes the bytes installed as an exact version would. The maintainer accepted this exception for crumbkit's own packages on 2026-11-25 (board decision /projects/flightdeck/decisions/20261125T0145Z-3ee2)."
+realizations = ["headless/package.json", "react/package.json", "pnpm-lock.yaml"]
+
+[[decision]]
+id = "headless-core"
+requirement = "headless/ type-checks with the es2024 lib and no runtime's types, so a module there that reaches for the document, the window, fetch or storage fails to type-check. It reads the compliance document only through the ComplianceSource the app passes in, and stores nothing. react/ renders no element and returns props for the app to spread."
+reason = "The compliance pages ship headless, so another front end can render them in its own look, and Flightdeck's own pages are the first user. Keeping the DOM and the network out of the core's types holds that line with the compiler rather than review."
+realizations = ["headless/tsconfig.json", "headless/src/source.ts", "react/tsconfig.json"]

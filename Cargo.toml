@@ -16,6 +16,7 @@ include = [
     "/src/**",
     "/skill/**",
     "/ui/dist/**",
+    "/starmap.toml",
     "/Cargo.toml",
     "/Cargo.lock",
     "/README.md",
@@ -44,11 +45,21 @@ clap = { version = "4.6.7", default-features = false, features = [
 # feature writes the `Failure` impl of the model's load failures, and the
 # `complete` feature answers a shell's completion request and gives
 # `flightdeck completion install`, `check` and `print`.
-crumbkit = { version = "0.5.0", default-features = false, features = ["derive", "complete"] }
+crumbkit = { version = "0.6.0", default-features = false, features = ["derive", "complete"] }
 # crumbkit-skills installs flightdeck's embedded agent skill,
 # `skill/SKILL.md`, with `flightdeck skills install`, and gives `check` and
 # `print`.
-crumbkit-skills = { version = "0.5.0", default-features = false }
+crumbkit-skills = { version = "0.6.0", default-features = false }
+# starmap's `derive` feature reads the variables that starmap.toml declares
+# into the struct in src/environment.rs, which embeds the file.
+starmap = { version = "0.4.2", default-features = false, features = ["derive"] }
+# crumbkit-starmap gives `flightdeck self environment list`, which prints
+# those variables and the ones that crumbkit reads in every tool.
+crumbkit-starmap = { version = "0.4.2", default-features = false }
+# schemars describes the workspaces documents that flightdeck prints, which
+# `flightdeck schemas show` publishes. crumbkit builds against the same major
+# version.
+schemars = { version = "1.2.3", default-features = false, features = ["derive", "std"] }
 # serde reads the JSON documents that a crumbkit tool prints into the model's
 # own types.
 serde = { version = "1.0.229", default-features = false, features = ["std", "derive"] }
@@ -70,10 +81,21 @@ secrecy = { version = "0.10.3", default-features = false, features = ["serde"] }
 # signal-hook sets a flag on Ctrl-C and SIGTERM, which the server's loop
 # reads, so `flightdeck open` stops and removes its opener page.
 signal-hook = { version = "0.4.6", default-features = false }
-# humantime writes when a run started, as RFC 3339 text in UTC, on the first
-# line of its stream. crumbkit already depends on it. It has no default
-# features.
-humantime = { version = "2.4.0", default-features = false }
+# jiff reads a run's `at` and writes `started_at`, as RFC 3339 text in UTC,
+# on the first line of a run's stream. crumbkit already depends on it with
+# these features.
+# Its `serde` feature reads the `generated` time of each rules report that
+# `flightdeck compliance build` reads, and the build writes `built_at` with it.
+jiff = { version = "1.0.0", default-features = false, features = ["std", "serde"] }
+# toml reads the flightdeck/compliance-config/v1 file of `flightdeck
+# compliance build`, with the span of each value so a refusal names its line.
+# It shares toml_parser and toml_datetime with the toml_edit that starmap
+# already locks.
+toml = { version = "1.2.1", default-features = false, features = ["std", "parse", "serde"] }
+# serde_path_to_error names the field, such as `rules[0].result`, that makes
+# a rules report invalid, so only that repository's column reads
+# `invalid_report` with the field's path.
+serde_path_to_error = { version = "0.1.20", default-features = false }
 # subtle compares a presented token or launch code with the real one in
 # constant time.
 subtle = { version = "2.6.1", default-features = false }
@@ -86,7 +108,7 @@ tempfile = { version = "3.27.0", default-features = false }
 # child in a process group of its own on Unix or a job object on Windows,
 # reads its output within limits and a deadline, stops it by escalating
 # signals, and reaps it.
-crumbkit-process = { version = "0.5.0", default-features = false }
+crumbkit-process = { version = "0.6.0", default-features = false }
 # shlex quotes each word of a run's display line for a POSIX shell.
 shlex = { version = "2.0.1", default-features = false }
 # unicode-general-category tells the runner which characters are format
@@ -105,10 +127,13 @@ rustix = { version = "1.1.6", default-features = false, features = ["std", "proc
 wait-timeout = { version = "0.2.1", default-features = false }
 # The convention tests check flightdeck's command tree, tool record and codes with
 # crumbkit-test.
-crumbkit-test = { version = "0.5.0", default-features = false }
+crumbkit-test = { version = "0.6.0", default-features = false }
+# starmap-test checks that the struct in src/environment.rs reads exactly
+# the variables that starmap.toml declares.
+starmap-test = { version = "0.4.2", default-features = false }
 # The schema tests validate real documents against crumbkit's checked-in
 # JSON Schemas, which use draft 2020-12.
-jsonschema = { version = "0.60.2", default-features = false }
+jsonschema = { version = "0.61.2", default-features = false }
 
 [workspace]
 resolver = "3"

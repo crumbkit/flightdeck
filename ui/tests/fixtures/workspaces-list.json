@@ -1,0 +1,100 @@
+{
+  "schema": "flightdeck/workspaces-list/v1",
+  "data": [
+    {
+      "name": "broken-status",
+      "branch": "broken-status",
+      "checkouts": ["crumbs"],
+      "ports": {},
+      "problem": null,
+      "routes": [],
+      "declared": null,
+      "running": null,
+      "pinned": null,
+      "units": null,
+      "status_error": {
+        "code": "mxv::manifest::invalid",
+        "message": "the manifest of broken-status names no unit kind"
+      }
+    },
+    {
+      "name": "notes-scratch",
+      "branch": "notes-scratch",
+      "checkouts": ["notes"],
+      "ports": {},
+      "problem": null,
+      "routes": [],
+      "declared": 0,
+      "running": 0,
+      "pinned": true,
+      "units": [],
+      "status_error": null
+    },
+    {
+      "name": "reading-list",
+      "branch": "reading-list",
+      "checkouts": ["reading", "shelf"],
+      "ports": {
+        "api": 41002,
+        "web": 41001
+      },
+      "problem": null,
+      "routes": [
+        {
+          "route": "web",
+          "url": "https://web.reading-list.mxv.localhost",
+          "unit": "web"
+        }
+      ],
+      "declared": 3,
+      "running": 2,
+      "pinned": false,
+      "units": [
+        {
+          "name": "api",
+          "state": "running"
+        },
+        {
+          "name": "web",
+          "state": "running"
+        },
+        {
+          "name": "cache",
+          "state": "exited"
+        }
+      ],
+      "status_error": null
+    },
+    {
+      "name": "shelf-import",
+      "branch": "shelf-import",
+      "checkouts": ["shelf"],
+      "ports": {
+        "api": 41010
+      },
+      "problem": null,
+      "routes": [],
+      "declared": 1,
+      "running": 0,
+      "pinned": false,
+      "units": [
+        {
+          "name": "api",
+          "state": "stopped"
+        }
+      ],
+      "status_error": null
+    }
+  ],
+  "total": 4,
+  "truncated": false,
+  "summary": {
+    "target": "local",
+    "workspaces": 4,
+    "running": 1,
+    "stopped": 1,
+    "routes": {
+      "state": "available"
+    }
+  }
+}

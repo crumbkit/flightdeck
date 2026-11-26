@@ -1,6 +1,7 @@
 //! The page's local HTTP server.
 //!
-//! [`Listener::bind`] listens on 127.0.0.1 on a port that the system picks.
+//! [`Listener::bind`] listens on 127.0.0.1 on the port it is given, or on a
+//! port that the system picks.
 //! [`Server::run`] serves until the caller's stop flag is set or
 //! [`IDLE_LIMIT`] passes without an authenticated request. One thread
 //! accepts connections, and each connection gets a thread of its own, at
@@ -11,6 +12,12 @@
 //! security headers of `reply` and `Connection: close`. The routes are these:
 //!
 //! - `POST /api/session` exchanges the launch code for the token, once.
+//! - `GET /api/deck` says whether the server holds a tool, so the page
+//!   knows whether to load its model.
+//! - `GET /api/workspaces` and `GET /api/workspaces/<name>` answer with the
+//!   documents of `flightdeck workspaces list` and `show`, as the
+//!   `workspaces` module describes. They answer 404 when the server reads no
+//!   workspaces.
 //! - `GET /api/model` returns the tool's model, whether the page is
 //!   read-only and the directory that flightdeck started in.
 //! - `GET /api/weight` returns the bytes of each distinct help page of the
@@ -30,13 +37,15 @@
 //! - `POST /api/choices` takes a [`ChoicesRequest`], runs the read-only
 //!   source of an inferred link, and answers with its [`Choices`] as one
 //!   JSON document, or with the runner's failure document.
+//! - The routes of a tool, `/api/model` to `/api/choices`, answer 404 when
+//!   flightdeck started with no tool.
 //! - Any other `/api/` path gets 404.
 //! - `GET /` and the other asset paths serve the embedded page.
 //!
 //! Every `/api/` path except `/api/session` needs the token. One
 //! [`Runner`] serves every connection. When the server stops, it stops
-//! accepting, lets the runner's shutdown end every run, and then joins
-//! every thread (SVC-2). After the runner's shutdown, each stream has one
+//! accepting, cancels the workspaces queries in progress, lets the runner's
+//! shutdown end every run, and then joins every thread (SVC-2). After the runner's shutdown, each stream has one
 //! write time in all to write its remaining lines. `docs/security.md` states what these
 //! guards defend against.
 
@@ -48,6 +57,7 @@ mod request;
 mod secret;
 mod session;
 mod stream;
+mod workspaces;
 
 #[cfg(test)]
 mod tests;
@@ -71,10 +81,12 @@ use self::reply::{Refusal, Replies, Reply};
 use self::request::{API, Address, Head, Method};
 pub use self::session::{CODE_LIFETIME, Session};
 use self::stream::{Pacing, Stream};
+use self::workspaces::Workspaces;
 use crate::clock::Clock;
 use crate::lock::lock;
 use crate::model::Tool;
 use crate::runner::{Choices, ChoicesRequest, MOST_RUNS, Mode, RunFailure, RunRequest, Runner};
+use crate::workspaces::Mxv;
 
 /// The query of `GET /api/weight` that asks the runner to measure a partial
 /// measurement again. Any other query reads as none.
@@ -176,18 +188,21 @@ pub struct Listener {
 }
 
 impl Listener {
-    /// Listens on 127.0.0.1 on a port that the system picks.
+    /// Listens on 127.0.0.1 on `port`, or on a port that the system picks
+    /// when `port` is `None`.
     ///
     /// # Errors
     ///
-    /// Returns [`StartError::Listen`] when the system refuses the socket.
-    pub fn bind() -> Result<Self, StartError> {
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).map_err(StartError::Listen)?;
+    /// Returns [`StartError::Listen`] when the system refuses the socket,
+    /// as when another program holds `port`.
+    pub fn bind(port: Option<u16>) -> Result<Self, StartError> {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, port.unwrap_or(0)))
+            .map_err(StartError::Listen)?;
         let port = listener.local_addr().map_err(StartError::Listen)?.port();
         Ok(Self { listener, port })
     }
 
-    /// Returns the port that the system picked.
+    /// Returns the port that the listener holds.
     #[must_use]
     pub const fn port(&self) -> u16 {
         self.port
@@ -252,6 +267,13 @@ struct ModelReply<'a> {
     tool: &'a Tool,
 }
 
+/// The document of `GET /api/deck`.
+#[derive(Serialize)]
+struct DeckReply {
+    /// Whether the server holds a tool, whose model `GET /api/model` sends.
+    tool: bool,
+}
+
 /// The document of `POST /api/session`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -271,10 +293,12 @@ pub struct Server {
 struct Shared {
     address: Address,
     session: Mutex<Session>,
-    model: Vec<u8>,
+    deck: Vec<u8>,
+    model: Option<Vec<u8>>,
     replies: Replies,
     connections: Connections,
-    runner: Runner,
+    runner: Option<Runner>,
+    workspaces: Option<Workspaces>,
     settings: Settings,
     wake: SyncSender<Wake>,
     cut_off: OnceLock<Instant>,
@@ -311,16 +335,58 @@ impl Server {
             tool: runner.tool(),
         })
         .map_err(StartError::Json)?;
+        Self::serving(listener, session, Some((model, runner)), settings)
+    }
+
+    /// Returns the server that answers on `listener` with `session` and
+    /// holds no tool, so only the workspaces routes that
+    /// [`Server::workspaces`] adds answer, and a tool's routes answer 404.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StartError::Json`] when a reply that never changes cannot
+    /// be built.
+    pub fn without_tool(
+        listener: Listener,
+        session: Session,
+        settings: Settings,
+    ) -> Result<Self, StartError> {
+        Self::serving(listener, session, None, settings)
+    }
+
+    /// Returns the server with the workspaces routes, which read the
+    /// workspaces of `mxv`.
+    #[must_use]
+    pub fn workspaces(mut self, mxv: Mxv) -> Self {
+        self.shared.workspaces = Some(Workspaces::new(mxv));
+        self
+    }
+
+    /// Returns the server of `tool`, the model's reply and the runner, or
+    /// of no tool.
+    fn serving(
+        listener: Listener,
+        session: Session,
+        tool: Option<(Vec<u8>, Runner)>,
+        settings: Settings,
+    ) -> Result<Self, StartError> {
+        let deck = serde_json::to_vec(&DeckReply {
+            tool: tool.is_some(),
+        })
+        .map_err(StartError::Json)?;
+        let (model, runner) = tool.unzip();
         // One waiting wake is enough: the watcher stops at the first.
         let (wake, wakes) = mpsc::sync_channel(1);
         Ok(Self {
             shared: Shared {
                 address: Address::new(listener.port()),
                 session: Mutex::new(session),
+                deck,
                 model,
                 replies: Replies::new(settings.write_time)?,
                 connections: Connections::default(),
                 runner,
+                workspaces: None,
                 settings,
                 wake,
                 cut_off: OnceLock::new(),
@@ -371,7 +437,12 @@ impl Server {
             // the ones that `close_reads` closes. A panic in it, which only a
             // broken invariant can cause, left no connection to close.
             acceptor.join().ok();
-            shared.runner.shutdown();
+            if let Some(workspaces) = &shared.workspaces {
+                workspaces.stop();
+            }
+            if let Some(runner) = &shared.runner {
+                runner.shutdown();
+            }
             // Every run has ended, so each stream has only its last lines
             // left, and it has one write time in all to write them. A line
             // already being written ends by its own deadline, which is no
@@ -560,12 +631,18 @@ impl Shared {
                 let document = format!(r#"{{"token":"{}"}}"#, token.expose_secret());
                 Ok(Answer::Reply(Reply::Json(document.into_bytes())))
             }
-            Route::Model => Ok(Answer::Reply(Reply::Json(self.model.clone()))),
+            Route::Deck => Ok(Answer::Reply(Reply::Json(self.deck.clone()))),
+            Route::Workspaces => Ok(Answer::Reply(self.workspaces()?.list())),
+            Route::Workspace(name) => Ok(Answer::Reply(self.workspaces()?.show(name))),
+            Route::Model => Ok(Answer::Reply(Reply::Json(
+                self.model.clone().ok_or(Refusal::NotFound)?,
+            ))),
             Route::Weight => {
+                let runner = self.runner()?;
                 let weight = if head.query() == Some(MEASURE_AGAIN) {
-                    self.runner.weight_again()
+                    runner.weight_again()
                 } else {
-                    self.runner.weight()
+                    runner.weight()
                 };
                 // serde_json fails only on a map key that is not a string,
                 // and the weight has no map.
@@ -574,45 +651,64 @@ impl Shared {
                 )))
             }
             Route::Runs => {
+                let runner = self.runner()?;
                 let run = run_request(request, connection)?;
                 Ok(streamed(
-                    self.runner.run(&run).map(|run| Stream::Run(Box::new(run))),
+                    runner.run(&run).map(|run| Stream::Run(Box::new(run))),
                 ))
             }
             Route::Previews => {
+                let runner = self.runner()?;
                 let run = run_request(request, connection)?;
                 Ok(streamed(
-                    self.runner
+                    runner
                         .preview(&run)
                         .map(|preview| Stream::Preview(Box::new(preview))),
                 ))
             }
             Route::Confirmation(id) => {
+                let runner = self.runner()?;
                 let run = run_request(request, connection)?;
                 let confirmed = id
                     .parse()
-                    .and_then(|id| self.runner.confirm(&id, &run))
+                    .and_then(|id| runner.confirm(&id, &run))
                     .map(|run| Stream::Run(Box::new(run)));
                 Ok(streamed(confirmed))
             }
             Route::Choices => {
+                let runner = self.runner()?;
                 let body = request.body(connection)?;
                 let choices: ChoicesRequest =
                     serde_json::from_slice(&body).map_err(|_| Refusal::Body)?;
-                Ok(Answer::Reply(match self.runner.choices(&choices) {
+                Ok(Answer::Reply(match runner.choices(&choices) {
                     Ok(found) => Reply::Json(choices_json(&found)),
                     Err(failure) => failed(&failure),
                 }))
             }
-            Route::Cancel(id) => Ok(Answer::Reply(
-                match id.parse().and_then(|id| self.runner.cancel(id)) {
-                    Ok(()) => Reply::Done,
-                    Err(failure) => failed(&failure),
-                },
-            )),
+            Route::Cancel(id) => {
+                let runner = self.runner()?;
+                Ok(Answer::Reply(
+                    match id.parse().and_then(|id| runner.cancel(id)) {
+                        Ok(()) => Reply::Done,
+                        Err(failure) => failed(&failure),
+                    },
+                ))
+            }
             Route::Asset(asset) => Ok(Answer::Reply(Reply::Asset(asset))),
             Route::ApiNotFound | Route::NotFound => Err(Refusal::NotFound),
         }
+    }
+
+    /// Returns the runner, or the refusal of a tool's route when the server
+    /// holds no tool.
+    fn runner(&self) -> Result<&Runner, Refusal> {
+        self.runner.as_ref().ok_or(Refusal::NotFound)
+    }
+
+    /// Returns the workspaces routes, or the refusal of a path that the
+    /// server does not serve when it reads no workspaces.
+    fn workspaces(&self) -> Result<&Workspaces, Refusal> {
+        self.workspaces.as_ref().ok_or(Refusal::NotFound)
     }
 
     /// Accepts the request's token. A request that finds the session
@@ -771,11 +867,20 @@ const CONFIRMATIONS: &str = "/api/confirmations/";
 /// The path prefix of a run, which its id and `/cancel` follow.
 const RUNS: &str = "/api/runs/";
 
+/// The path prefix of one workspace, which its name follows.
+const WORKSPACE: &str = "/api/workspaces/";
+
 /// Where a request goes.
 #[derive(Debug)]
 enum Route<'a> {
     /// `POST /api/session`.
     Session,
+    /// `GET /api/deck`.
+    Deck,
+    /// `GET /api/workspaces`.
+    Workspaces,
+    /// `GET /api/workspaces/<name>`, with the name as the page sent it.
+    Workspace(&'a str),
     /// `GET /api/model`.
     Model,
     /// `GET /api/weight`.
@@ -812,8 +917,15 @@ impl<'a> Route<'a> {
                 return Self::Cancel(id);
             }
         }
+        if method == Method::Get
+            && let Some(name) = path.strip_prefix(WORKSPACE)
+        {
+            return Self::Workspace(name);
+        }
         match (method, path) {
             (Method::Post, "/api/session") => Self::Session,
+            (Method::Get, "/api/deck") => Self::Deck,
+            (Method::Get, "/api/workspaces") => Self::Workspaces,
             (Method::Get, "/api/model") => Self::Model,
             (Method::Get, "/api/weight") => Self::Weight,
             (Method::Post, "/api/runs") => Self::Runs,

@@ -1,14 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { RunEvent } from "@/api/runs";
 import { command, shelf } from "../../tests/fixtures/shelf";
-import {
-  asksForYes,
-  confirmedLine,
-  confirmLabel,
-  countOf,
-  effectsInWords,
-  question,
-} from "./confirm";
+import { asksForYes, confirmLabel, countOf, effectsInWords, question } from "./confirm";
+import { programOf } from "./form";
 
 const remove = command(shelf, "books remove");
 
@@ -42,6 +36,30 @@ describe("question", () => {
   });
 });
 
+/** A command whose positional argument takes its values after `--`. */
+const launch = {
+  ...remove,
+  path: ["run"],
+  arguments: remove.arguments.map((each) =>
+    each.kind === "positional" ? { ...each, name: "<PROGRAM>", after_double_dash: true } : each,
+  ),
+};
+const launched = (words: string[]) => ({ path: ["run"], values: { "<PROGRAM>": words } });
+
+describe("programOf", () => {
+  it("names the values of the argument that comes after the separator", () => {
+    expect(programOf(launch, launched(["cargo", "run"]))).toBe("cargo run");
+  });
+
+  it("quotes each value as the line does, so a script reads as one word", () => {
+    expect(programOf(launch, launched(["sh", "-c", "rm -rf build"]))).toBe("sh -c 'rm -rf build'");
+  });
+
+  it("names the command's own words when it has no such values", () => {
+    expect(programOf(launch, { path: ["run"], values: {} })).toBe("run");
+  });
+});
+
 describe("effectsInWords", () => {
   it("words each effect the command declares", () => {
     expect(effectsInWords(remove)).toBe("Destructive. Idempotent.");
@@ -49,7 +67,13 @@ describe("effectsInWords", () => {
       effectsInWords({
         ...remove,
         class: "additive",
-        effects: { read_only: false, destructive: false, idempotent: false },
+        effects: {
+          read_only: false,
+          destructive: false,
+          idempotent: false,
+          open_world: false,
+          runs_program: false,
+        },
       }),
     ).toBe("Additive. Not idempotent.");
   });
@@ -58,21 +82,6 @@ describe("effectsInWords", () => {
     expect(effectsInWords({ ...remove, class: "destructive", effects: null })).toBe(
       "Effects unknown, so flightdeck treats this command as destructive.",
     );
-  });
-});
-
-describe("confirmedLine", () => {
-  it("adds --yes for a command that takes it", () => {
-    expect(confirmedLine(remove, "shelf books remove 2")).toBe("shelf books remove 2 --yes");
-  });
-
-  it("leaves the line as it is for a command without --yes", () => {
-    const withoutYes = {
-      ...remove,
-      arguments: remove.arguments.filter((each) => each.crumbkit_flag !== "--yes"),
-    };
-
-    expect(confirmedLine(withoutYes, "shelf books remove 2")).toBe("shelf books remove 2");
   });
 });
 

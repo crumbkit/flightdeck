@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Command, ModelReply, Run } from "@/api/model";
 import { makeQueryClient } from "@/queryClient";
-import { shelfReply } from "../../tests/fixtures/shelf";
+import { environmentShelf, shelfReply } from "../../tests/fixtures/shelf";
 import { ToolPage } from "./ToolPage";
 
 /** The stub server's answer to one route: the lines of a stream, or a failure. */
@@ -84,7 +84,17 @@ async function previewRemove2() {
 describe("ToolPage", () => {
   it("says a command without a dry run has no preview, and confirms its request once", async () => {
     const sent = stubServer({
-      "/api/previews": { lines: [{ ...started, run: null, preview: false, confirmation: "c1" }] },
+      "/api/previews": {
+        lines: [
+          {
+            ...started,
+            run: null,
+            preview: false,
+            confirmed_line: "shelf books remove --yes 2",
+            confirmation: "c1",
+          },
+        ],
+      },
       "/api/confirmations/c1": confirmedRun,
     });
     const reply = withRemove((command) => ({
@@ -97,13 +107,78 @@ describe("ToolPage", () => {
     const card = await screen.findByRole("region", { name: /^Run 1: .*awaiting confirmation/ });
     expect(within(card).getByText("This command has no preview.")).toBeInTheDocument();
     expect(
-      within(card).getByRole("group", { name: "Run shelf books remove 2 --yes?" }),
+      within(card).getByRole("group", { name: "Run shelf books remove --yes 2?" }),
     ).toBeVisible();
     await user.click(within(card).getByRole("button", { name: "Remove" }));
 
     expect(
       await screen.findByRole("region", { name: /^Run 1: shelf books remove 2, exit 0/ }),
     ).toBeInTheDocument();
+    expect(sent.filter((path) => path === "/api/confirmations/c1")).toHaveLength(1);
+  });
+
+  it("asks before it starts the program that a runs_program command names, and never says it has no preview", async () => {
+    const sent = stubServer({
+      "/api/previews": {
+        lines: [
+          {
+            ...started,
+            line: "shelf books remove -- cargo run",
+            confirmed_line: "shelf books remove --yes -- cargo run",
+            run: null,
+            preview: false,
+            confirmation: "c1",
+          },
+        ],
+      },
+      "/api/confirmations/c1": confirmedRun,
+    });
+    const reply = withRemove((command) => ({
+      ...command,
+      class: "additive",
+      effects: {
+        read_only: false,
+        destructive: false,
+        idempotent: false,
+        open_world: true,
+        runs_program: true,
+      },
+      arguments: command.arguments
+        .filter((each) => each.crumbkit_flag !== "--dry-run")
+        .map((each) =>
+          each.name === "<ID>"
+            ? {
+                ...each,
+                after_double_dash: true,
+                help: { line: "The program to run, after --", long: null },
+              }
+            : each,
+        ),
+    }));
+    const user = userEvent.setup();
+    renderPage(reply);
+
+    const rail = screen.getByRole("navigation", { name: "Commands" });
+    await user.click(within(rail).getByRole("button", { name: /books remove/ }));
+    await user.type(screen.getByLabelText(/The program to run/), "cargo run ");
+    expect(screen.getByRole("button", { name: /^Run/ })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: /^Run/ }));
+
+    const card = await screen.findByRole("region", { name: /^Run 1: .*awaiting confirmation/ });
+    const question = within(card).getByRole("group", { name: "Start cargo run?" });
+    expect(within(question).getByText("starts a program")).toBeVisible();
+    expect(question).toHaveTextContent(
+      "This command starts cargo run on this computer. flightdeck cannot preview what that program changes.",
+    );
+    expect(within(question).getByText("shelf books remove --yes -- cargo run")).toBeVisible();
+    expect(within(card).queryByText("This command has no preview.")).toBeNull();
+    expect(within(card).getByRole("button", { name: "Cancel" })).toHaveFocus();
+    expect(sent.filter((path) => path.startsWith("/api/confirmations/"))).toEqual([]);
+
+    await user.click(within(card).getByRole("button", { name: "Start cargo run" }));
+
+    expect(await screen.findByRole("region", { name: /^Run 1: .*exit 0/ })).toBeInTheDocument();
+    expect(sent.filter((path) => path === "/api/runs")).toEqual([]);
     expect(sent.filter((path) => path === "/api/confirmations/c1")).toHaveLength(1);
   });
 
@@ -143,6 +218,55 @@ describe("ToolPage", () => {
     expect(sent.filter((path) => path.startsWith("/api/confirmations/"))).toHaveLength(1);
   });
 
+  it("previews a command that is not destructive from the Preview beside Run, asks nothing, and previews again from the card", async () => {
+    const dryRun = {
+      lines: [
+        { ...started, preview: true, confirmation: null },
+        { event: "line", text: removed },
+        {
+          event: "ended",
+          outcome: { kind: "result" },
+          exit: 0,
+          duration_ms: 3,
+          confirmation: "c1",
+        },
+      ],
+    };
+    const sent = stubServer({ "/api/previews": dryRun });
+    const reply = withRemove((command) => ({
+      ...command,
+      class: "additive",
+      effects: {
+        read_only: false,
+        destructive: false,
+        idempotent: true,
+        open_world: false,
+        runs_program: false,
+      },
+    }));
+    const user = userEvent.setup();
+    renderPage(reply);
+
+    const rail = screen.getByRole("navigation", { name: "Commands" });
+    await user.click(within(rail).getByRole("button", { name: /books remove/ }));
+    await user.type(screen.getByLabelText(/The ids of the books to remove/), "2 ");
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+
+    const card = await screen.findByRole("region", { name: /^Run 1: / });
+    expect(await within(card).findByText("Frankenstein")).toBeVisible();
+    expect(card).toHaveAccessibleName(/exit 0/);
+    expect(card).not.toHaveAccessibleName(/awaiting confirmation/);
+    expect(within(card).queryByRole("group")).toBeNull();
+    expect(within(card).queryByRole("button", { name: "Cancel" })).toBeNull();
+    const posted = () => sent.filter((path) => path !== "/api/choices");
+    expect(posted()).toEqual(["/api/previews"]);
+
+    await user.click(within(card).getByRole("button", { name: "Preview again" }));
+
+    await screen.findByRole("region", { name: /^Run 2: / });
+    expect(posted()).toEqual(["/api/previews", "/api/previews"]);
+  });
+
   it("opens the preview card for a run that fails because it needs --yes", async () => {
     stubServer({
       "/api/runs": {
@@ -176,7 +300,13 @@ describe("ToolPage", () => {
     const reply = withRemove((command) => ({
       ...command,
       class: "additive",
-      effects: { read_only: false, destructive: false, idempotent: true },
+      effects: {
+        read_only: false,
+        destructive: false,
+        idempotent: true,
+        open_world: false,
+        runs_program: false,
+      },
     }));
     const user = userEvent.setup();
     renderPage(reply);
@@ -307,5 +437,118 @@ describe("ToolPage", () => {
     renderPage({ ...shelfReply, tool: { ...shelfReply.tool, history: null } });
 
     expect(screen.queryByRole("navigation", { name: "Views" })).toBeNull();
+  });
+
+  it("has an Environment button beside Usage only when the tool mounts self environment list", () => {
+    renderPage(shelfReply);
+    const views = screen.getByRole("navigation", { name: "Views" });
+    expect(within(views).getByRole("button", { name: "Usage" })).toBeVisible();
+    expect(within(views).queryByRole("button", { name: "Environment" })).toBeNull();
+  });
+
+  it("opens the environment view from the top bar and goes back to the commands", async () => {
+    const user = userEvent.setup();
+    renderPage({ ...shelfReply, tool: environmentShelf });
+    const views = screen.getByRole("navigation", { name: "Views" });
+
+    await user.click(within(views).getByRole("button", { name: "Environment" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Environment" })).toBeVisible();
+    expect(within(views).getByRole("button", { name: "Environment" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("navigation", { name: "Commands", hidden: true })).not.toBeVisible();
+
+    await user.click(within(views).getByRole("button", { name: "Commands" }));
+
+    expect(screen.queryByRole("heading", { level: 1, name: "Environment" })).toBeNull();
+    expect(screen.getByRole("navigation", { name: "Commands" })).toBeVisible();
+  });
+
+  it("has an Environment button alone for a tool with an environment and no usage view", () => {
+    renderPage({ ...shelfReply, tool: { ...environmentShelf, history: null } });
+    const views = screen.getByRole("navigation", { name: "Views" });
+
+    expect(within(views).getByRole("button", { name: "Environment" })).toBeVisible();
+  });
+
+  it("links a declared variable that a failure names, and the link opens the environment view on its row", async () => {
+    stubServer({
+      "/api/runs": {
+        lines: [
+          { ...started, line: "shelf books list" },
+          {
+            event: "ended",
+            outcome: {
+              kind: "tool_failure",
+              failure: {
+                code: "shelf::environment::required_unset",
+                message: "SHELF_CATALOGUE_URL is required and is not set",
+                recovery: {
+                  kind: "hint",
+                  text: "set SHELF_CATALOGUE_URL in your shell, then start flightdeck again",
+                },
+              },
+            },
+            exit: 78,
+            duration_ms: 3,
+          },
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderPage({ ...shelfReply, tool: environmentShelf });
+    const rail = screen.getByRole("navigation", { name: "Commands" });
+    await user.click(within(rail).getByRole("button", { name: /books list/ }));
+    await user.click(screen.getByRole("button", { name: /Run/ }));
+    const alert = await screen.findByRole("alert");
+    const [message, hint, ...more] = within(alert).getAllByRole("button", {
+      name: "SHELF_CATALOGUE_URL",
+    });
+    expect(hint).toBeDefined();
+    expect(more).toHaveLength(0);
+
+    if (message !== undefined) {
+      await user.click(message);
+    }
+
+    const table = await screen.findByRole("table", { name: "Environment variables" });
+    expect(within(table).getByRole("button", { name: "SHELF_CATALOGUE_URL" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(within(table).getByRole("button", { name: "SHELF_PORT" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
+
+  it("leaves a failure's words plain for a tool without an environment", async () => {
+    stubServer({
+      "/api/runs": {
+        lines: [
+          { ...started, line: "shelf books list" },
+          {
+            event: "ended",
+            outcome: {
+              kind: "tool_failure",
+              failure: { code: "shelf::x", message: "SHELF_CATALOGUE_URL is required" },
+            },
+            exit: 78,
+            duration_ms: 3,
+          },
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderPage(shelfReply);
+    const rail = screen.getByRole("navigation", { name: "Commands" });
+    await user.click(within(rail).getByRole("button", { name: /books list/ }));
+    await user.click(screen.getByRole("button", { name: /Run/ }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("SHELF_CATALOGUE_URL is required");
+    expect(within(alert).queryByRole("button", { name: "SHELF_CATALOGUE_URL" })).toBeNull();
   });
 });

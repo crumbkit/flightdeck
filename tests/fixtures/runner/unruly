@@ -167,7 +167,19 @@ case "$1 $2" in
     ;;
   esac
   ;;
-"child both" | "child pair" | "child visit")
+"child launch" | "child sweep")
+  # It prints the words it was started with, so a test sees where flightdeck
+  # put each flag.
+  case " $* " in
+  *" --dry-run "*)
+    echo '{"schema":"unruly/child-launch/v1","dry_run":true,"data":{}}'
+    ;;
+  *)
+    echo "{\"schema\":\"unruly/child-launch/v1\",\"data\":{\"words\":\"$*\"}}"
+    ;;
+  esac
+  ;;
+"child both" | "child pair" | "child visit" | "child fetch")
   echo '{"schema":"unruly/child-both/v1","data":{}}'
   ;;
 *)

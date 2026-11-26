@@ -115,4 +115,30 @@ describe("lineOf", () => {
       }),
     ).toBe("shelf books show 2 'it'\\''s'");
   });
+
+  it("writes -- before the values of an argument that takes them after --", () => {
+    const program = {
+      ...show,
+      arguments: show.arguments.map((each) =>
+        each.name === "<ID>" ? { ...each, after_double_dash: true } : each,
+      ),
+    };
+
+    expect(
+      lineOf(
+        "starmap",
+        { ...program, path: ["run"] },
+        {
+          path: ["run"],
+          values: { "<ID>": ["cargo", "run"], "--long": true as const },
+        },
+      ),
+    ).toBe("starmap run --long -- cargo run");
+  });
+
+  it("writes -- before a positional value that starts with a dash, as the server's line does", () => {
+    expect(lineOf("shelf", show, { path: ["books", "show"], values: { "<ID>": ["-1"] } })).toBe(
+      "shelf books show -- -1",
+    );
+  });
 });

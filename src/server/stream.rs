@@ -5,7 +5,7 @@
 use std::io;
 use std::net::TcpStream;
 use std::sync::OnceLock;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
@@ -16,6 +16,18 @@ use crate::clock::Clock;
 use crate::model::ToolFailure;
 use crate::runner::{Outcome, Preview, Run, RunEvent, Waited};
 use crate::spawn::Exit;
+
+#[cfg(test)]
+mod tests;
+
+/// Returns `time` in RFC 3339 with whole seconds in UTC, such as
+/// `2026-11-10T10:14:45Z`. A time before 1970 writes as the epoch and a
+/// time after jiff's last timestamp writes as 9999-12-30T22:00:00Z, so that
+/// a wrong clock still has a form.
+fn utc_seconds(time: SystemTime) -> String {
+    let clamped = jiff::Timestamp::try_from(time.max(UNIX_EPOCH)).unwrap_or(jiff::Timestamp::MAX);
+    format!("{clamped:.0}")
+}
 
 /// The content type of a stream: one JSON object on each line.
 const NDJSON: &str = "application/x-ndjson";
@@ -77,6 +89,7 @@ impl Stream {
                 started_at,
                 preview: Some(PreviewStart {
                     preview: preview.run_id().is_some(),
+                    confirmed_line: preview.confirmed_line(),
                     confirmation: preview.confirmation().map(|id| id.to_string()),
                 }),
             },
@@ -111,7 +124,7 @@ enum Record<'a> {
         started_at: String,
         /// What a preview adds.
         #[serde(flatten)]
-        preview: Option<PreviewStart>,
+        preview: Option<PreviewStart<'a>>,
     },
     /// One line of the tool's standard output, as it arrived.
     Line {
@@ -135,9 +148,12 @@ enum Record<'a> {
 
 /// What a preview's `started` record adds.
 #[derive(Serialize)]
-struct PreviewStart {
+struct PreviewStart<'a> {
     /// True when the preview runs the command with `--dry-run`.
     preview: bool,
+    /// The command line as the confirmation runs it, with `--yes` before
+    /// any `--` when the command takes it.
+    confirmed_line: &'a str,
     /// The confirmation id, which a preview that runs nothing issues at
     /// once, and a dry run issues when it ends with a result.
     confirmation: Option<String>,
@@ -227,7 +243,7 @@ pub(super) fn write(
     pacing: &Pacing<'_>,
 ) -> io::Result<()> {
     let started = clock.now();
-    let started_at = humantime::format_rfc3339_seconds(started.wall()).to_string();
+    let started_at = utc_seconds(started.wall());
     let mut body = reply::start(connection, 200, NDJSON, None, pacing.write_time)?;
     pacing.send(&mut body, &line(&stream.started(started_at))?)?;
     loop {

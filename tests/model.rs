@@ -12,6 +12,8 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crumbkit::{Failure as _, FieldValue};
+#[cfg(unix)]
+use crumbkit_flightdeck::model::ValueState;
 use crumbkit_flightdeck::model::weight;
 use crumbkit_flightdeck::model::{
     self, Arity, CrumbkitFlag, FindingKind, Kind, LoadError, TOOL_LOAD, TOOL_NOT_FOUND, Tool,
@@ -158,7 +160,7 @@ fn shelf_has_seventeen_runnable_commands_its_version_and_its_about_line() {
         ]
     );
     assert_eq!(shelf.name(), "shelf");
-    assert_eq!(shelf.version(), "0.3.2+git-8ee2eadd29eb");
+    assert_eq!(shelf.version(), "0.6.0+git-de1bc6b8aa94");
     assert_eq!(
         shelf.about(),
         Some("Browse a small catalogue of public-domain books")
@@ -848,6 +850,143 @@ esac"#
     ))
 }
 
+/// A fake tool like the one of [`fake_crumbkit_tool`] that also mounts
+/// `self environment list`, which runs `environment`, a shell command.
+#[cfg(unix)]
+fn fake_tool_with_environment(environment: &str) -> (TempDir, PathBuf) {
+    fake_tool(&format!(
+        r#"case "$1 $2 $3" in
+"--version  ") echo 'fake 0.1.0' ;;
+"commands list "*) echo '{{"schema":"fake/commands-list/v1","truncated":false,"data":[{{"path":"fake","about":"A fake tool"}},{{"path":"fake things","about":"Things"}},{{"path":"fake things list","about":"Lists things"}},{{"path":"fake self","about":"Reviews the tool"}},{{"path":"fake self environment","about":"Environment variables"}},{{"path":"fake self environment list","about":"Lists the environment variables"}}]}}' ;;
+"schemas list "*) echo '{{"schema":"fake/schemas-list/v1","truncated":false,"data":[]}}' ;;
+"self environment list") {environment} ;;
+*) exit 2 ;;
+esac"#
+    ))
+}
+
+#[cfg(unix)]
+#[test]
+fn a_tool_that_mounts_self_environment_list_sends_each_variable_with_the_value_that_flightdeck_gave_it()
+ {
+    // The fake tool prints its own FAKE_PORT, as crumbkit-starmap reads the
+    // tool's process environment.
+    let (_directory, path) = fake_tool_with_environment(
+        r#"echo "{\"schema\":\"fake/self-environment-list/v1\",\"truncated\":false,\"data\":[{\"name\":\"FAKE_PORT\",\"type\":\"port\",\"unset\":\"required\",\"source\":\"setting\",\"value\":{\"state\":\"set\",\"text\":\"$FAKE_PORT\"},\"show\":\"shown\",\"bind\":null,\"purpose\":\"The port.\",\"state\":\"set\"}]}""#,
+    );
+    let (_dirs, program) = isolated(path);
+    let program = program.env("FAKE_PORT", "9000");
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    let environment = tool.environment().unwrap();
+    let values: Vec<(&str, ValueState, Option<&str>)> = environment
+        .iter()
+        .map(|variable| (variable.name(), variable.state(), variable.text()))
+        .collect();
+    assert_eq!(values, [("FAKE_PORT", ValueState::Set, Some("9000"))]);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_shelf_that_mounts_self_environment_list_loads_its_variables_and_crumbkits() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/environment/shelf");
+    test_tool("shelf");
+    let (_dirs, program) = isolated(path);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    assert!(
+        tool.command(&["self", "environment", "list"])
+            .unwrap()
+            .built_in()
+    );
+    let environment = tool.environment().unwrap();
+    assert_eq!(environment.len(), 16);
+    let crumbkits = environment
+        .iter()
+        .filter(|variable| variable.owner() == Some("crumbkit"))
+        .count();
+    assert_eq!(crumbkits, 9);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_failing_environment_call_loads_the_tool_with_no_environment() {
+    let (_directory, path) = fake_tool_with_environment("echo 'no spec' >&2; exit 1");
+    let (_dirs, program) = isolated(path);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    assert!(tool.command(&["things", "list"]).is_some());
+    assert!(tool.environment().is_none());
+}
+
+#[cfg(unix)]
+#[test]
+fn a_tools_own_self_environment_list_that_is_not_built_in_is_never_asked() {
+    // The fake tool's commands list schema declares `built_in`, so the model
+    // reads the rows' marks, and its `self environment list` has none. It
+    // writes a mark when it is asked for its environment.
+    let marks = tempfile::tempdir().unwrap();
+    let mark = marks.path().join("asked");
+    let (_directory, path) = fake_tool(&format!(
+        r#"case "$1 $2 $3" in
+"--version  ") echo 'fake 0.1.0' ;;
+"commands list "*) echo '{{"schema":"fake/commands-list/v1","truncated":false,"data":[{{"path":"fake","about":"A fake tool","built_in":false}},{{"path":"fake self","about":"Reviews the tool","built_in":false}},{{"path":"fake self environment","about":"Its own environments","built_in":false}},{{"path":"fake self environment list","about":"Lists its own environments","built_in":false}}]}}' ;;
+"schemas list "*) echo '{{"schema":"fake/schemas-list/v1","truncated":false,"data":[{{"id":"fake/commands-list/v1","kind":"output","form":"document","commands":[]}}]}}' ;;
+"schemas show "*) echo '{{"schema":"fake/schemas-show/v1","data":[{{"id":"fake/commands-list/v1","schema":{{"properties":{{"data":{{"items":{{"properties":{{"built_in":{{}}}}}}}}}}}}}}],"failures":[]}}' ;;
+"self environment list") touch '{}' ;;
+*) exit 2 ;;
+esac"#,
+        mark.display()
+    ));
+    let (_dirs, program) = isolated(path);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    assert!(tool.marks_built_in());
+    assert!(
+        !tool
+            .command(&["self", "environment", "list"])
+            .unwrap()
+            .built_in()
+    );
+    assert!(tool.environment().is_none());
+    assert!(
+        !mark.exists(),
+        "the loader asked the tool's own command for an environment"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_tool_without_self_environment_list_loads_with_no_environment_and_is_never_asked_for_one() {
+    let marks = tempfile::tempdir().unwrap();
+    let mark = marks.path().join("asked");
+    let (_directory, path) = fake_crumbkit_tool(
+        r#"{"schema":"fake/schemas-show/v1","data":[{"id":"fake/things-list/v1","schema":{}}]}"#,
+        "0",
+    );
+    let script = std::fs::read_to_string(&path).unwrap().replace(
+        "*) exit 2 ;;",
+        &format!(
+            "\"self environment\") touch '{}' ;;\n*) exit 2 ;;",
+            mark.display()
+        ),
+    );
+    std::fs::write(&path, script).unwrap();
+    let (_dirs, program) = isolated(path);
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    assert!(tool.environment().is_none());
+    assert!(
+        !mark.exists(),
+        "the loader asked a tool without the command for its environment"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn a_failing_usage_call_leaves_the_figures_without_findings() {
@@ -937,4 +1076,25 @@ fn measuring_shelfs_help_pages_leaves_the_persons_usage_figures_unchanged() {
     // the measurement's pages would have shown had they reached the log.
     shelf_directly(&shelf, dirs.path(), &["books", "list", "-h"]);
     assert_ne!(figures_of(&program), before);
+}
+
+#[test]
+fn flightdeck_loads_itself_with_the_environment_its_starmap_toml_declares() {
+    let (_dirs, program) = isolated(env!("CARGO_BIN_EXE_flightdeck"));
+
+    let tool = model::load(&program, TIME_LIMIT).unwrap();
+
+    assert!(
+        tool.command(&["self", "environment", "list"])
+            .unwrap()
+            .built_in()
+    );
+    let own: Vec<&str> = tool
+        .environment()
+        .unwrap()
+        .iter()
+        .filter(|variable| variable.owner().is_none())
+        .map(|variable| variable.name())
+        .collect();
+    assert_eq!(own, ["PATH", "FLIGHTDECK_PORT", "FLIGHTDECK_MXV"]);
 }

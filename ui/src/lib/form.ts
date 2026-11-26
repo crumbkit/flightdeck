@@ -157,30 +157,65 @@ function quote(word: string): string {
   return /^[\w./:=,@%+-]+$/.test(word) ? word : `'${word.replaceAll("'", "'\\''")}'`;
 }
 
+type CommandArgument = Command["arguments"][number];
+
+/** Returns the values that `request` gives `argument`, as plain words. */
+function valuesOf(argument: CommandArgument, request: RunRequest): string[] {
+  const value = request.values[argument.name];
+  if (value === undefined || value === true) {
+    return [];
+  }
+  return typeof value === "string" ? [value] : value;
+}
+
+/**
+ * Returns the positional values of `request`, quoted, and whether the line
+ * writes `--` before them: when a value starts with a dash, or an argument
+ * that takes its values after `--` has some, as the server's line has them.
+ */
+function tailOf(command: Command, request: RunRequest): { words: string[]; separated: boolean } {
+  const given = command.arguments
+    .filter((each) => each.kind === "positional")
+    .map((each) => ({ each, values: valuesOf(each, request) }));
+  const words = given.flatMap(({ values }) => values.map(quote));
+  const separated =
+    words.some((word) => word.startsWith("-")) ||
+    given.some(({ each, values }) => each.after_double_dash && values.length > 0);
+  return { words, separated };
+}
+
+/**
+ * Returns the program that `request` starts for a command that runs one:
+ * the values of the argument that takes them after `--`, quoted as the
+ * line quotes them, such as "cargo run" or "sh -c 'rm -rf build'", or the command's own words when it has none.
+ */
+export function programOf(command: Command, request: RunRequest): string {
+  const words = command.arguments
+    .filter((each) => each.after_double_dash)
+    .flatMap((each) => valuesOf(each, request));
+  return (words.length > 0 ? words.map(quote) : command.path).join(" ");
+}
+
 /**
  * Returns the command line of `request` as a person would type it: the
  * tool, the path, the positional values, then each option in the order the
- * command declares it. The server's own line replaces it once a run starts.
+ * command declares it. When the values go after `--`, the options come
+ * first and then `--` and the values, as the server's line has them. The
+ * server's own line replaces it once a run starts.
  */
 export function lineOf(tool: string, command: Command, request: RunRequest): string {
-  const words = [tool, ...command.path];
-  const positionals = command.arguments.filter((each) => each.kind === "positional");
-  const named = command.arguments.filter((each) => each.kind === "named");
-  for (const argument of [...positionals, ...named]) {
-    const value = request.values[argument.name];
-    if (value === undefined) {
-      continue;
-    }
-    const flag = argument.kind === "named" ? [argument.name] : [];
-    if (value === true) {
-      words.push(...flag);
-    } else if (typeof value === "string") {
-      words.push(...flag, quote(value));
-    } else {
-      for (const item of value) {
-        words.push(...flag, quote(item));
+  const { words: positional, separated } = tailOf(command, request);
+  const named = command.arguments
+    .filter((each) => each.kind === "named")
+    .flatMap((each) => {
+      const value = request.values[each.name];
+      if (value === undefined) {
+        return [];
       }
-    }
-  }
-  return words.join(" ");
+      return value === true
+        ? [each.name]
+        : valuesOf(each, request).flatMap((item) => [each.name, quote(item)]);
+    });
+  const words = separated ? [...named, "--", ...positional] : [...positional, ...named];
+  return [tool, ...command.path, ...words].join(" ");
 }

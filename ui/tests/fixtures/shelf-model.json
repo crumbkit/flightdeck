@@ -3,7 +3,7 @@
   "read_only": false,
   "tool": {
     "name": "shelf",
-    "version": "0.3.2+git-8ee2eadd29eb",
+    "version": "0.6.0+git-de1bc6b8aa94",
     "about": "Browse a small catalogue of public-domain books",
     "headings": [
       {
@@ -60,6 +60,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": "--limit"
           },
           {
@@ -78,6 +79,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": "--all"
           },
           {
@@ -96,6 +98,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -115,6 +118,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -133,6 +137,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -151,6 +156,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -169,6 +175,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -228,7 +235,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -260,6 +268,7 @@
             },
             "one_of": ["--from"],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -279,6 +288,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -297,6 +307,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -316,6 +327,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -334,6 +346,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -352,6 +365,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -370,6 +384,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -425,7 +440,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -457,6 +473,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -475,6 +492,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -494,6 +512,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -512,6 +531,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -530,6 +550,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -548,6 +569,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -571,7 +593,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -603,6 +626,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -621,6 +645,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": "--dry-run"
           },
           {
@@ -639,6 +664,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": "--yes"
           },
           {
@@ -657,6 +683,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -676,6 +703,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -694,6 +722,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -712,6 +741,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -730,6 +760,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -789,7 +820,8 @@
           "read_only": false,
           "destructive": true,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "destructive",
         "writes": {
@@ -825,6 +857,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -844,6 +877,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": "--limit"
           },
           {
@@ -862,6 +896,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": "--all"
           },
           {
@@ -880,6 +915,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -899,6 +935,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -917,6 +954,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -935,6 +973,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -953,6 +992,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -991,7 +1031,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -1023,6 +1064,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": "--limit"
           },
           {
@@ -1041,6 +1083,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": "--all"
           },
           {
@@ -1059,6 +1102,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -1078,6 +1122,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -1096,6 +1141,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -1114,6 +1160,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -1132,6 +1179,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -1177,7 +1225,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -1209,6 +1258,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -1227,6 +1277,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -1246,6 +1297,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -1264,6 +1316,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -1282,6 +1335,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -1300,6 +1354,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -1330,7 +1385,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -1362,6 +1418,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -1381,6 +1438,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -1400,6 +1458,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -1418,6 +1477,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -1437,6 +1497,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -1455,6 +1516,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -1473,6 +1535,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -1491,6 +1554,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -1535,7 +1599,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -1567,6 +1632,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -1586,6 +1652,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -1605,6 +1672,27 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--context",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["LABEL"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Keep only the runs that reported this context, such as project",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -1624,6 +1712,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": "--limit"
           },
           {
@@ -1642,6 +1731,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": "--all"
           },
           {
@@ -1660,6 +1750,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -1679,6 +1770,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -1697,6 +1789,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -1715,6 +1808,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -1733,6 +1827,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -1827,7 +1922,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -1859,6 +1955,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -1878,6 +1975,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -1897,6 +1995,27 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
+            "crumbkit_flag": null
+          },
+          {
+            "name": "--context",
+            "short": null,
+            "kind": "named",
+            "arity": {
+              "kind": "many",
+              "value_names": ["LABEL"]
+            },
+            "required": false,
+            "defaults": [],
+            "possible_values": [],
+            "help": {
+              "line": "Keep only the runs that reported this context, such as project",
+              "long": null
+            },
+            "one_of": [],
+            "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -1916,6 +2035,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": "--limit"
           },
           {
@@ -1934,6 +2054,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": "--all"
           },
           {
@@ -1952,6 +2073,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -1971,6 +2093,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -1989,6 +2112,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -2007,6 +2131,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -2025,6 +2150,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -2116,6 +2242,16 @@
               "name": "parent",
               "long": true,
               "description": "The span id of the run's caller, as 16 lowercase hex digits, or null when the run started a new trace."
+            },
+            {
+              "name": "lock_ms",
+              "long": true,
+              "description": "The milliseconds that the run spent waiting to take locks, or 0 when the tool reported none."
+            },
+            {
+              "name": "context",
+              "long": true,
+              "description": "The label of the place where the run took place, or null when the tool reported none."
             }
           ]
         },
@@ -2124,7 +2260,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -2156,6 +2293,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -2175,6 +2313,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -2193,6 +2332,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -2212,6 +2352,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -2230,6 +2371,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -2248,6 +2390,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -2266,6 +2409,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -2300,7 +2444,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -2312,7 +2457,7 @@
       },
       {
         "path": ["skills", "install"],
-        "about": "Install shelf's skill into each agent skills directory that exists",
+        "about": "Install shelf's skills into each agent skills directory that exists",
         "long_about": null,
         "arguments": [
           {
@@ -2332,6 +2477,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -2350,6 +2496,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -2368,6 +2515,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -2387,6 +2535,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -2405,6 +2554,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -2423,6 +2573,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -2441,17 +2592,18 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
         "examples": [
           {
             "command": "shelf skills install",
-            "about": "Install shelf's skill into each agent skills directory that exists"
+            "about": "Install shelf's skills into each agent skills directory that exists"
           },
           {
             "command": "shelf skills install --force",
-            "about": "Install it, replacing a file or a link that install did not write"
+            "about": "Install shelf's skills, replacing a file or a link that install did not write"
           }
         ],
         "result": {
@@ -2462,6 +2614,11 @@
               "name": "state",
               "long": false,
               "description": "What install did: failed, skipped, written or unchanged."
+            },
+            {
+              "name": "skill",
+              "long": false,
+              "description": "The skill's name, which names its folder in each skills directory, such as `shelf`."
             },
             {
               "name": "dirs",
@@ -2476,7 +2633,7 @@
             {
               "name": "path",
               "long": true,
-              "description": "The SKILL.md file that install wrote or left, at its real path."
+              "description": "The SKILL.md file that install wrote or left, or the skill's other file whose write failed, at its real path."
             }
           ]
         },
@@ -2485,7 +2642,8 @@
           "read_only": false,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "additive",
         "writes": {
@@ -2501,7 +2659,7 @@
       },
       {
         "path": ["skills", "check"],
-        "about": "Check that each installed copy of shelf's skill matches this shelf",
+        "about": "Check that each installed copy of shelf's skills matches this shelf",
         "long_about": null,
         "arguments": [
           {
@@ -2521,6 +2679,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -2539,6 +2698,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -2558,6 +2718,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -2576,6 +2737,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -2594,6 +2756,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -2612,13 +2775,14 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
         "examples": [
           {
             "command": "shelf skills check",
-            "about": "Report each agent skills directory whose copy is missing or differs"
+            "about": "Report each agent skills directory where shelf's skills are missing or differ"
           }
         ],
         "result": {
@@ -2631,6 +2795,11 @@
               "description": "Whether the copy is the binary's: missing, differs, unreadable, linked or current."
             },
             {
+              "name": "skill",
+              "long": false,
+              "description": "The skill's name, which names its folder in each skills directory, such as `shelf`."
+            },
+            {
               "name": "dirs",
               "long": false,
               "description": "The skills directories that share this copy, as named. Directories that resolve to one place through a symbolic link share one copy."
@@ -2638,7 +2807,7 @@
             {
               "name": "reason",
               "long": false,
-              "description": "Why the copy differs, cannot be read or is linked, such as `written by shelf 0.2.0` or `linked to /src/shelf/skill`, or null."
+              "description": "Why the copy is missing a file, differs, cannot be read or is linked, such as `written by shelf 0.2.0`, `REFERENCE.md is missing` or `linked to /src/shelf/skill`, or null."
             },
             {
               "name": "path",
@@ -2652,7 +2821,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -2683,6 +2853,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -2702,6 +2873,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -2720,6 +2892,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -2738,6 +2911,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -2756,6 +2930,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -2775,7 +2950,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -2807,6 +2983,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -2825,6 +3002,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -2843,6 +3021,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -2862,6 +3041,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -2880,6 +3060,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -2898,6 +3079,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -2916,6 +3098,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -2951,7 +3134,7 @@
             {
               "name": "reason",
               "long": false,
-              "description": "Why install skipped or failed, or what it replaced under --force, such as `linked to /src/shelf/shelf.fish`, or null."
+              "description": "Why install skipped or failed, or what it replaced under --force, such as `linked to /path/to/target.fish`, or null."
             }
           ]
         },
@@ -2960,7 +3143,8 @@
           "read_only": false,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "additive",
         "writes": {
@@ -2996,6 +3180,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -3014,6 +3199,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -3033,6 +3219,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -3051,6 +3238,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -3069,6 +3257,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -3087,6 +3276,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -3118,7 +3308,7 @@
             {
               "name": "reason",
               "long": false,
-              "description": "Why the file differs, cannot be read or is linked, such as `linked to /src/shelf/shelf.fish`, or null."
+              "description": "Why the file differs, cannot be read or is linked, such as `linked to /path/to/target.fish`, or null."
             }
           ]
         },
@@ -3127,7 +3317,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -3159,6 +3350,7 @@
             },
             "one_of": [],
             "global": false,
+            "after_double_dash": false,
             "crumbkit_flag": null
           },
           {
@@ -3177,6 +3369,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--json"
           },
           {
@@ -3196,6 +3389,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--fields"
           },
           {
@@ -3214,6 +3408,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--long"
           },
           {
@@ -3232,6 +3427,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--full"
           },
           {
@@ -3250,6 +3446,7 @@
             },
             "one_of": [],
             "global": true,
+            "after_double_dash": false,
             "crumbkit_flag": "--no-input"
           }
         ],
@@ -3269,7 +3466,8 @@
           "read_only": true,
           "destructive": false,
           "idempotent": true,
-          "open_world": false
+          "open_world": false,
+          "runs_program": false
         },
         "class": "read_only",
         "writes": null,
@@ -3326,6 +3524,28 @@
                     "type": "object"
                   },
                   {
+                    "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                    "properties": {
+                      "args": {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "kind": {
+                        "const": "program"
+                      },
+                      "program": {
+                        "type": "string"
+                      },
+                      "run": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["kind", "program", "args", "run"],
+                    "type": "object"
+                  },
+                  {
                     "description": "Run the same command again later.",
                     "properties": {
                       "kind": {
@@ -3333,6 +3553,63 @@
                       }
                     },
                     "required": ["kind"],
+                    "type": "object"
+                  },
+                  {
+                    "description": "Make this repair, then take the step `then`.",
+                    "properties": {
+                      "kind": {
+                        "const": "after"
+                      },
+                      "repair": {
+                        "type": "string"
+                      },
+                      "then": {
+                        "description": "The step that follows the repair.",
+                        "oneOf": [
+                          {
+                            "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                            "properties": {
+                              "all": {
+                                "type": "string"
+                              },
+                              "call": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "const": "run"
+                              }
+                            },
+                            "required": ["kind", "call"],
+                            "type": "object"
+                          },
+                          {
+                            "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                            "properties": {
+                              "call": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "const": "terminal"
+                              }
+                            },
+                            "required": ["kind", "call"],
+                            "type": "object"
+                          },
+                          {
+                            "description": "Run the same command again later.",
+                            "properties": {
+                              "kind": {
+                                "const": "retry"
+                              }
+                            },
+                            "required": ["kind"],
+                            "type": "object"
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["kind", "repair", "then"],
                     "type": "object"
                   },
                   {
@@ -3368,6 +3645,13 @@
             "cause": {
               "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
               "type": "string"
+            },
+            "causes": {
+              "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             },
             "code": {
               "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
@@ -3491,6 +3775,28 @@
                   "type": "object"
                 },
                 {
+                  "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                  "properties": {
+                    "args": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "kind": {
+                      "const": "program"
+                    },
+                    "program": {
+                      "type": "string"
+                    },
+                    "run": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["kind", "program", "args", "run"],
+                  "type": "object"
+                },
+                {
                   "description": "Run the same command again later.",
                   "properties": {
                     "kind": {
@@ -3498,6 +3804,63 @@
                     }
                   },
                   "required": ["kind"],
+                  "type": "object"
+                },
+                {
+                  "description": "Make this repair, then take the step `then`.",
+                  "properties": {
+                    "kind": {
+                      "const": "after"
+                    },
+                    "repair": {
+                      "type": "string"
+                    },
+                    "then": {
+                      "description": "The step that follows the repair.",
+                      "oneOf": [
+                        {
+                          "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                          "properties": {
+                            "all": {
+                              "type": "string"
+                            },
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "run"
+                            }
+                          },
+                          "required": ["kind", "call"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                          "properties": {
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "terminal"
+                            }
+                          },
+                          "required": ["kind", "call"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Run the same command again later.",
+                          "properties": {
+                            "kind": {
+                              "const": "retry"
+                            }
+                          },
+                          "required": ["kind"],
+                          "type": "object"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["kind", "repair", "then"],
                   "type": "object"
                 },
                 {
@@ -3627,6 +3990,10 @@
             "schema": {
               "const": "shelf/failure/v1",
               "description": "The id of this document."
+            },
+            "sentence": {
+              "description": "A fixed sentence that a person reviewed, safe to show to anyone. It is present only when the failure has one.",
+              "type": "string"
             },
             "url": {
               "description": "A page that explains the failure. It is present only when the failure has one.",
@@ -3921,6 +4288,28 @@
                           "type": "object"
                         },
                         {
+                          "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                          "properties": {
+                            "args": {
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "kind": {
+                              "const": "program"
+                            },
+                            "program": {
+                              "type": "string"
+                            },
+                            "run": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "program", "args", "run"],
+                          "type": "object"
+                        },
+                        {
                           "description": "Run the same command again later.",
                           "properties": {
                             "kind": {
@@ -3928,6 +4317,63 @@
                             }
                           },
                           "required": ["kind"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Make this repair, then take the step `then`.",
+                          "properties": {
+                            "kind": {
+                              "const": "after"
+                            },
+                            "repair": {
+                              "type": "string"
+                            },
+                            "then": {
+                              "description": "The step that follows the repair.",
+                              "oneOf": [
+                                {
+                                  "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                  "properties": {
+                                    "all": {
+                                      "type": "string"
+                                    },
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "run"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                  "properties": {
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "terminal"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "Run the same command again later.",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "retry"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["kind", "repair", "then"],
                           "type": "object"
                         },
                         {
@@ -3963,6 +4409,13 @@
                   "cause": {
                     "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
                     "type": "string"
+                  },
+                  "causes": {
+                    "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
                   },
                   "code": {
                     "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
@@ -4086,6 +4539,28 @@
                         "type": "object"
                       },
                       {
+                        "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                        "properties": {
+                          "args": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "kind": {
+                            "const": "program"
+                          },
+                          "program": {
+                            "type": "string"
+                          },
+                          "run": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "program", "args", "run"],
+                        "type": "object"
+                      },
+                      {
                         "description": "Run the same command again later.",
                         "properties": {
                           "kind": {
@@ -4093,6 +4568,63 @@
                           }
                         },
                         "required": ["kind"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Make this repair, then take the step `then`.",
+                        "properties": {
+                          "kind": {
+                            "const": "after"
+                          },
+                          "repair": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "description": "The step that follows the repair.",
+                            "oneOf": [
+                              {
+                                "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                "properties": {
+                                  "all": {
+                                    "type": "string"
+                                  },
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "run"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                "properties": {
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "terminal"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "Run the same command again later.",
+                                "properties": {
+                                  "kind": {
+                                    "const": "retry"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["kind", "repair", "then"],
                         "type": "object"
                       },
                       {
@@ -4218,6 +4750,10 @@
                       "type": "object"
                     },
                     "type": "array"
+                  },
+                  "sentence": {
+                    "description": "A fixed sentence that a person reviewed, safe to show to anyone. It is present only when the failure has one.",
+                    "type": "string"
                   },
                   "url": {
                     "description": "A page that explains the failure. It is present only when the failure has one.",
@@ -4350,6 +4886,28 @@
                           "type": "object"
                         },
                         {
+                          "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                          "properties": {
+                            "args": {
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "kind": {
+                              "const": "program"
+                            },
+                            "program": {
+                              "type": "string"
+                            },
+                            "run": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "program", "args", "run"],
+                          "type": "object"
+                        },
+                        {
                           "description": "Run the same command again later.",
                           "properties": {
                             "kind": {
@@ -4357,6 +4915,63 @@
                             }
                           },
                           "required": ["kind"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Make this repair, then take the step `then`.",
+                          "properties": {
+                            "kind": {
+                              "const": "after"
+                            },
+                            "repair": {
+                              "type": "string"
+                            },
+                            "then": {
+                              "description": "The step that follows the repair.",
+                              "oneOf": [
+                                {
+                                  "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                  "properties": {
+                                    "all": {
+                                      "type": "string"
+                                    },
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "run"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                  "properties": {
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "terminal"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "Run the same command again later.",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "retry"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["kind", "repair", "then"],
                           "type": "object"
                         },
                         {
@@ -4392,6 +5007,13 @@
                   "cause": {
                     "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
                     "type": "string"
+                  },
+                  "causes": {
+                    "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
                   },
                   "code": {
                     "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
@@ -4515,6 +5137,28 @@
                         "type": "object"
                       },
                       {
+                        "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                        "properties": {
+                          "args": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "kind": {
+                            "const": "program"
+                          },
+                          "program": {
+                            "type": "string"
+                          },
+                          "run": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "program", "args", "run"],
+                        "type": "object"
+                      },
+                      {
                         "description": "Run the same command again later.",
                         "properties": {
                           "kind": {
@@ -4522,6 +5166,63 @@
                           }
                         },
                         "required": ["kind"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Make this repair, then take the step `then`.",
+                        "properties": {
+                          "kind": {
+                            "const": "after"
+                          },
+                          "repair": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "description": "The step that follows the repair.",
+                            "oneOf": [
+                              {
+                                "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                "properties": {
+                                  "all": {
+                                    "type": "string"
+                                  },
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "run"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                "properties": {
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "terminal"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "Run the same command again later.",
+                                "properties": {
+                                  "kind": {
+                                    "const": "retry"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["kind", "repair", "then"],
                         "type": "object"
                       },
                       {
@@ -4647,6 +5348,10 @@
                       "type": "object"
                     },
                     "type": "array"
+                  },
+                  "sentence": {
+                    "description": "A fixed sentence that a person reviewed, safe to show to anyone. It is present only when the failure has one.",
+                    "type": "string"
                   },
                   "url": {
                     "description": "A page that explains the failure. It is present only when the failure has one.",
@@ -4795,6 +5500,10 @@
                   "description": "The arguments that the command's help shows, in definition order.",
                   "items": {
                     "properties": {
+                      "after_double_dash": {
+                        "description": "Whether the argument takes the values written after `--`, which is clap's `last` setting. A command line that gives the argument values writes `--` before them.",
+                        "type": "boolean"
+                      },
                       "defaults": {
                         "description": "The values that the argument takes when the caller leaves it out, as help shows them.",
                         "items": {
@@ -4868,6 +5577,7 @@
                       "help",
                       "long_help",
                       "global",
+                      "after_double_dash",
                       "one_of"
                     ],
                     "type": "object"
@@ -4887,7 +5597,7 @@
                   "type": ["string", "null"]
                 },
                 "columns": {
-                  "description": "The columns of the result that the command prints, from the document of the tool record's leaf for the command. A headed command's text has no columns, so it lists the JSON fields that `--fields` selects, ending with `text` and `base64`.",
+                  "description": "The columns of the result that the command prints, from the document of the tool record's leaf for the command. A headed command's text has no columns, so it lists the JSON fields that `--fields` selects, ending with `text` and `base64` when the row type has them.",
                   "items": {
                     "properties": {
                       "description": {
@@ -4926,9 +5636,19 @@
                     "read_only": {
                       "description": "Whether the command changes nothing.",
                       "type": "boolean"
+                    },
+                    "runs_program": {
+                      "description": "Whether the command runs a program that the caller names, such as the program after `--`. It is true only when open_world is true.",
+                      "type": "boolean"
                     }
                   },
-                  "required": ["read_only", "destructive", "idempotent", "open_world"],
+                  "required": [
+                    "read_only",
+                    "destructive",
+                    "idempotent",
+                    "open_world",
+                    "runs_program"
+                  ],
                   "type": ["object", "null"]
                 },
                 "examples": {
@@ -5347,6 +6067,28 @@
                           "type": "object"
                         },
                         {
+                          "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                          "properties": {
+                            "args": {
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "kind": {
+                              "const": "program"
+                            },
+                            "program": {
+                              "type": "string"
+                            },
+                            "run": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "program", "args", "run"],
+                          "type": "object"
+                        },
+                        {
                           "description": "Run the same command again later.",
                           "properties": {
                             "kind": {
@@ -5354,6 +6096,63 @@
                             }
                           },
                           "required": ["kind"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Make this repair, then take the step `then`.",
+                          "properties": {
+                            "kind": {
+                              "const": "after"
+                            },
+                            "repair": {
+                              "type": "string"
+                            },
+                            "then": {
+                              "description": "The step that follows the repair.",
+                              "oneOf": [
+                                {
+                                  "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                  "properties": {
+                                    "all": {
+                                      "type": "string"
+                                    },
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "run"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                  "properties": {
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "terminal"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "Run the same command again later.",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "retry"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["kind", "repair", "then"],
                           "type": "object"
                         },
                         {
@@ -5389,6 +6188,13 @@
                   "cause": {
                     "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
                     "type": "string"
+                  },
+                  "causes": {
+                    "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
                   },
                   "code": {
                     "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
@@ -5512,6 +6318,28 @@
                         "type": "object"
                       },
                       {
+                        "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                        "properties": {
+                          "args": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "kind": {
+                            "const": "program"
+                          },
+                          "program": {
+                            "type": "string"
+                          },
+                          "run": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "program", "args", "run"],
+                        "type": "object"
+                      },
+                      {
                         "description": "Run the same command again later.",
                         "properties": {
                           "kind": {
@@ -5519,6 +6347,63 @@
                           }
                         },
                         "required": ["kind"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Make this repair, then take the step `then`.",
+                        "properties": {
+                          "kind": {
+                            "const": "after"
+                          },
+                          "repair": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "description": "The step that follows the repair.",
+                            "oneOf": [
+                              {
+                                "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                "properties": {
+                                  "all": {
+                                    "type": "string"
+                                  },
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "run"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                "properties": {
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "terminal"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "Run the same command again later.",
+                                "properties": {
+                                  "kind": {
+                                    "const": "retry"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["kind", "repair", "then"],
                         "type": "object"
                       },
                       {
@@ -5644,6 +6529,10 @@
                       "type": "object"
                     },
                     "type": "array"
+                  },
+                  "sentence": {
+                    "description": "A fixed sentence that a person reviewed, safe to show to anyone. It is present only when the failure has one.",
+                    "type": "string"
                   },
                   "url": {
                     "description": "A page that explains the failure. It is present only when the failure has one.",
@@ -5916,7 +6805,7 @@
                 },
                 {
                   "const": "mostly waiting",
-                  "description": "A command is a slow command, and some of its runs that took at least\n1 second spent at least half that time waiting on another system, as\nthe tool reported through its facts. It counts those runs.",
+                  "description": "A command is a slow command, and some of its runs that took at least\n1 second spent at least half that time waiting on another system, as\nthe tool reported through its facts, or on locks, as it reported\nthrough `lock_waited`. It counts those runs.",
                   "type": "string"
                 }
               ]
@@ -6436,6 +7325,10 @@
                   "description": "The command path below the tool's name, such as `books show`, or the\ntool's name for its root command.",
                   "type": "string"
                 },
+                "context": {
+                  "description": "The label of the place where the run took place, or null when the\ntool reported none.",
+                  "type": ["string", "null"]
+                },
                 "exit": {
                   "description": "The run's exit code, or null when the run ended before it exited.",
                   "format": "uint8",
@@ -6453,6 +7346,12 @@
                 "help": {
                   "description": "Whether the run printed a help page.",
                   "type": "boolean"
+                },
+                "lock_ms": {
+                  "description": "The milliseconds that the run spent waiting to take locks, or 0 when\nthe tool reported none.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "ms": {
                   "description": "The run's wall time in milliseconds.",
@@ -6747,6 +7646,10 @@
                   "$ref": "#/$defs/Name",
                   "description": "The command path below the tool's name, such as books show."
                 },
+                "context": {
+                  "$ref": "#/$defs/Label",
+                  "description": "Where the run took place, one label from the tool's own constants,\nwhich the tool reports with `context`. The last report stays."
+                },
                 "empty": {
                   "description": "Whether a listing or a stream had no rows, so its output printed the\nempty note (ADR-0050). It is present only when one had none.",
                   "type": "boolean"
@@ -6782,6 +7685,12 @@
                 "interrupted": {
                   "description": "Whether the line was written when the run ended on SIGINT or SIGTERM.\nIt is present only when that is so.",
                   "type": "boolean"
+                },
+                "lock_ms": {
+                  "description": "The milliseconds that the run spent waiting to take locks, summed,\nwhich the tool reports with `lock_waited`. It is present only when\nit is more than 0.",
+                  "format": "uint64",
+                  "minimum": 1,
+                  "type": "integer"
                 },
                 "ms": {
                   "description": "The run's wall time in milliseconds, from `start` to the line.",
@@ -6920,12 +7829,12 @@
         "id": "shelf/skills-install/v1",
         "kind": "output",
         "form": "document",
-        "description": "What install did in each skills directory: written, unchanged, skipped or failed.",
+        "description": "What install did with each skill in each skills directory: written, unchanged, skipped or failed.",
         "commands": [["skills", "install"]],
         "schema": {
           "$defs": {
             "InstallRow": {
-              "description": "One skills directory, or several that resolve to the same place, and\nwhat install did there.",
+              "description": "One skill in one skills directory, or in several that resolve to the\nsame place, and what install did with it there.",
               "properties": {
                 "dirs": {
                   "description": "The skills directories that share this copy, as named. Directories that resolve to one place through a symbolic link share one copy.",
@@ -6935,23 +7844,27 @@
                   "type": "array"
                 },
                 "path": {
-                  "description": "The SKILL.md file that install wrote or left, at its real path.",
+                  "description": "The SKILL.md file that install wrote or left, or the skill's other file whose write failed, at its real path.",
                   "type": "string"
                 },
                 "reason": {
                   "description": "Why install skipped or failed, or what it replaced under --force, such as `linked to /src/shelf/skill`, or null.",
                   "type": ["string", "null"]
                 },
+                "skill": {
+                  "description": "The skill's name, which names its folder in each skills directory, such as `shelf`.",
+                  "type": "string"
+                },
                 "state": {
                   "$ref": "#/$defs/Installed",
                   "description": "What install did: failed, skipped, written or unchanged."
                 }
               },
-              "required": ["state", "dirs", "reason"],
+              "required": ["state", "skill", "dirs", "reason"],
               "type": "object"
             },
             "Installed": {
-              "description": "What install did in one skills directory.",
+              "description": "What install did with one skill in one skills directory.",
               "oneOf": [
                 {
                   "const": "failed",
@@ -6977,7 +7890,7 @@
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
-          "description": "What install did in each skills directory: written, unchanged, skipped or failed.",
+          "description": "What install did with each skill in each skills directory: written, unchanged, skipped or failed.",
           "properties": {
             "cut": {
               "additionalProperties": false,
@@ -7075,12 +7988,12 @@
         "id": "shelf/skills-check/v1",
         "kind": "output",
         "form": "document",
-        "description": "Whether each skills directory holds the skill that the binary embeds: current, linked, missing, differs or unreadable.",
+        "description": "Whether each skills directory holds each skill that the binary embeds: current, linked, missing, differs or unreadable.",
         "commands": [["skills", "check"]],
         "schema": {
           "$defs": {
             "CheckRow": {
-              "description": "One skills directory, or several that resolve to the same place, and\nwhether it holds the binary's skill.",
+              "description": "One skill in one skills directory, or in several that resolve to the\nsame place, and whether the directory holds the binary's copy of it.",
               "properties": {
                 "dirs": {
                   "description": "The skills directories that share this copy, as named. Directories that resolve to one place through a symbolic link share one copy.",
@@ -7094,15 +8007,19 @@
                   "type": "string"
                 },
                 "reason": {
-                  "description": "Why the copy differs, cannot be read or is linked, such as `written by shelf 0.2.0` or `linked to /src/shelf/skill`, or null.",
+                  "description": "Why the copy is missing a file, differs, cannot be read or is linked, such as `written by shelf 0.2.0`, `REFERENCE.md is missing` or `linked to /src/shelf/skill`, or null.",
                   "type": ["string", "null"]
+                },
+                "skill": {
+                  "description": "The skill's name, which names its folder in each skills directory, such as `shelf`.",
+                  "type": "string"
                 },
                 "state": {
                   "$ref": "#/$defs/Checked",
                   "description": "Whether the copy is the binary's: missing, differs, unreadable, linked or current."
                 }
               },
-              "required": ["state", "dirs", "reason"],
+              "required": ["state", "skill", "dirs", "reason"],
               "type": "object"
             },
             "Checked": {
@@ -7137,7 +8054,7 @@
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
-          "description": "Whether each skills directory holds the skill that the binary embeds: current, linked, missing, differs or unreadable.",
+          "description": "Whether each skills directory holds each skill that the binary embeds: current, linked, missing, differs or unreadable.",
           "properties": {
             "cut": {
               "additionalProperties": false,
@@ -7235,19 +8152,30 @@
         "id": "shelf/skills-print/v1",
         "kind": "output",
         "form": "document",
-        "description": "The tool's agent skill: its name, its version and the text of its SKILL.md.",
+        "description": "One agent skill of the tool: the tool's name and version, the skill's name, the text of its SKILL.md and the names of its other files.",
         "commands": [["skills", "print"]],
         "schema": {
           "$defs": {
             "SkillText": {
-              "description": "A tool's skill as `skills print` prints it. The text output is the\nskill's text, and the JSON document holds the tool's name and version\nbeside it.",
+              "description": "A tool's skill as `skills print` prints it. The text output is the\nskill's text, and the JSON document holds the tool's name, the skill's\nname, the tool's version and the names of the skill's other files\nbeside it.",
               "properties": {
+                "files": {
+                  "description": "The names of the skill's other files, which install writes beside SKILL.md, in the order the tool gives them.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "skill": {
+                  "description": "The skill's name, which names the skill's folder, such as `shelf`.",
+                  "type": "string"
+                },
                 "text": {
-                  "description": "The text of the tool's SKILL.md, as the tool embeds it, without the metadata lines that install adds.",
+                  "description": "The text of the skill's SKILL.md, as the tool embeds it, without the metadata lines that install adds.",
                   "type": "string"
                 },
                 "tool": {
-                  "description": "The tool's name, which names the skill's folder, such as `shelf`.",
+                  "description": "The tool's name, such as `shelf`.",
                   "type": "string"
                 },
                 "version": {
@@ -7255,12 +8183,12 @@
                   "type": "string"
                 }
               },
-              "required": ["tool", "version", "text"],
+              "required": ["tool", "skill", "version", "text", "files"],
               "type": "object"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
-          "description": "The tool's agent skill: its name, its version and the text of its SKILL.md.",
+          "description": "One agent skill of the tool: the tool's name and version, the skill's name, the text of its SKILL.md and the names of its other files.",
           "properties": {
             "data": {
               "$ref": "#/$defs/SkillText"
@@ -7309,6 +8237,28 @@
                           "type": "object"
                         },
                         {
+                          "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                          "properties": {
+                            "args": {
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "kind": {
+                              "const": "program"
+                            },
+                            "program": {
+                              "type": "string"
+                            },
+                            "run": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "program", "args", "run"],
+                          "type": "object"
+                        },
+                        {
                           "description": "Run the same command again later.",
                           "properties": {
                             "kind": {
@@ -7316,6 +8266,63 @@
                             }
                           },
                           "required": ["kind"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Make this repair, then take the step `then`.",
+                          "properties": {
+                            "kind": {
+                              "const": "after"
+                            },
+                            "repair": {
+                              "type": "string"
+                            },
+                            "then": {
+                              "description": "The step that follows the repair.",
+                              "oneOf": [
+                                {
+                                  "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                  "properties": {
+                                    "all": {
+                                      "type": "string"
+                                    },
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "run"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                  "properties": {
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "terminal"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "Run the same command again later.",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "retry"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["kind", "repair", "then"],
                           "type": "object"
                         },
                         {
@@ -7351,6 +8358,13 @@
                   "cause": {
                     "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
                     "type": "string"
+                  },
+                  "causes": {
+                    "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
                   },
                   "code": {
                     "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
@@ -7474,6 +8488,28 @@
                         "type": "object"
                       },
                       {
+                        "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                        "properties": {
+                          "args": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "kind": {
+                            "const": "program"
+                          },
+                          "program": {
+                            "type": "string"
+                          },
+                          "run": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "program", "args", "run"],
+                        "type": "object"
+                      },
+                      {
                         "description": "Run the same command again later.",
                         "properties": {
                           "kind": {
@@ -7481,6 +8517,63 @@
                           }
                         },
                         "required": ["kind"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Make this repair, then take the step `then`.",
+                        "properties": {
+                          "kind": {
+                            "const": "after"
+                          },
+                          "repair": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "description": "The step that follows the repair.",
+                            "oneOf": [
+                              {
+                                "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                "properties": {
+                                  "all": {
+                                    "type": "string"
+                                  },
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "run"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                "properties": {
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "terminal"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "Run the same command again later.",
+                                "properties": {
+                                  "kind": {
+                                    "const": "retry"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["kind", "repair", "then"],
                         "type": "object"
                       },
                       {
@@ -7607,6 +8700,10 @@
                     },
                     "type": "array"
                   },
+                  "sentence": {
+                    "description": "A fixed sentence that a person reviewed, safe to show to anyone. It is present only when the failure has one.",
+                    "type": "string"
+                  },
                   "url": {
                     "description": "A page that explains the failure. It is present only when the failure has one.",
                     "type": "string"
@@ -7643,7 +8740,7 @@
                   "type": "string"
                 },
                 "reason": {
-                  "description": "Why install skipped or failed, or what it replaced under --force, such as `linked to /src/shelf/shelf.fish`, or null.",
+                  "description": "Why install skipped or failed, or what it replaced under --force, such as `linked to /path/to/target.fish`, or null.",
                   "type": ["string", "null"]
                 },
                 "shell": {
@@ -7770,7 +8867,7 @@
                   "type": "string"
                 },
                 "reason": {
-                  "description": "Why the file differs, cannot be read or is linked, such as `linked to /src/shelf/shelf.fish`, or null.",
+                  "description": "Why the file differs, cannot be read or is linked, such as `linked to /path/to/target.fish`, or null.",
                   "type": ["string", "null"]
                 },
                 "shell": {
@@ -7955,6 +9052,28 @@
                           "type": "object"
                         },
                         {
+                          "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                          "properties": {
+                            "args": {
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "kind": {
+                              "const": "program"
+                            },
+                            "program": {
+                              "type": "string"
+                            },
+                            "run": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "program", "args", "run"],
+                          "type": "object"
+                        },
+                        {
                           "description": "Run the same command again later.",
                           "properties": {
                             "kind": {
@@ -7962,6 +9081,63 @@
                             }
                           },
                           "required": ["kind"],
+                          "type": "object"
+                        },
+                        {
+                          "description": "Make this repair, then take the step `then`.",
+                          "properties": {
+                            "kind": {
+                              "const": "after"
+                            },
+                            "repair": {
+                              "type": "string"
+                            },
+                            "then": {
+                              "description": "The step that follows the repair.",
+                              "oneOf": [
+                                {
+                                  "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                  "properties": {
+                                    "all": {
+                                      "type": "string"
+                                    },
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "run"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                  "properties": {
+                                    "call": {
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "const": "terminal"
+                                    }
+                                  },
+                                  "required": ["kind", "call"],
+                                  "type": "object"
+                                },
+                                {
+                                  "description": "Run the same command again later.",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "retry"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["kind", "repair", "then"],
                           "type": "object"
                         },
                         {
@@ -7997,6 +9173,13 @@
                   "cause": {
                     "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
                     "type": "string"
+                  },
+                  "causes": {
+                    "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
                   },
                   "code": {
                     "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
@@ -8120,6 +9303,28 @@
                         "type": "object"
                       },
                       {
+                        "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                        "properties": {
+                          "args": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "kind": {
+                            "const": "program"
+                          },
+                          "program": {
+                            "type": "string"
+                          },
+                          "run": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "program", "args", "run"],
+                        "type": "object"
+                      },
+                      {
                         "description": "Run the same command again later.",
                         "properties": {
                           "kind": {
@@ -8127,6 +9332,63 @@
                           }
                         },
                         "required": ["kind"],
+                        "type": "object"
+                      },
+                      {
+                        "description": "Make this repair, then take the step `then`.",
+                        "properties": {
+                          "kind": {
+                            "const": "after"
+                          },
+                          "repair": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "description": "The step that follows the repair.",
+                            "oneOf": [
+                              {
+                                "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                                "properties": {
+                                  "all": {
+                                    "type": "string"
+                                  },
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "run"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                                "properties": {
+                                  "call": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "terminal"
+                                  }
+                                },
+                                "required": ["kind", "call"],
+                                "type": "object"
+                              },
+                              {
+                                "description": "Run the same command again later.",
+                                "properties": {
+                                  "kind": {
+                                    "const": "retry"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["kind", "repair", "then"],
                         "type": "object"
                       },
                       {
@@ -8253,6 +9515,10 @@
                     },
                     "type": "array"
                   },
+                  "sentence": {
+                    "description": "A fixed sentence that a person reviewed, safe to show to anyone. It is present only when the failure has one.",
+                    "type": "string"
+                  },
                   "url": {
                     "description": "A page that explains the failure. It is present only when the failure has one.",
                     "type": "string"
@@ -8317,6 +9583,7 @@
       }
     ],
     "figures_since": null,
-    "history": []
+    "history": [],
+    "environment": null
   }
 }

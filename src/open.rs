@@ -1,13 +1,15 @@
-//! `flightdeck open <TOOL>`: load the tool's model, start the page's
-//! server with the one runner of the process, write the opener page, print
-//! two lines, open the browser, and serve until Ctrl-C, SIGTERM or the idle
-//! limit.
+//! `flightdeck open [TOOL]`: load the tool's model when the command names
+//! one, start the page's server with the workspaces routes and the one
+//! runner of the process, write the opener page, print two lines, open the
+//! browser, and serve until Ctrl-C, SIGTERM or the idle limit. Without a
+//! tool, the page shows only the workspaces.
 //!
 //! The command prints no result on standard output. It writes its two lines
 //! to standard error, where crumbkit writes messages about a run, and exits
 //! with 0 when the server stops. A failure before the server starts prints
 //! through crumbkit and exits with 1.
 
+use std::ffi::OsString;
 use std::fmt;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -18,24 +20,31 @@ use std::sync::atomic::AtomicBool;
 use crumbkit::{Code, Failure, Recovery, Run, Sink};
 use crumbkit_process::Status;
 use signal_hook::consts::{SIGINT, SIGTERM};
+use starmap::Env as _;
 
 use crate::cli::OpenArgs;
 use crate::clock::{Clock as _, SystemClock};
+use crate::environment::Environment;
 use crate::model::{self, LoadError};
 use crate::opener::Opener;
 use crate::runner::{self, Mode, Runner};
 use crate::server::{Ended, IDLE_LIMIT, Listener, Server, Session, Settings, StartError};
 use crate::spawn::{self, Exit, Program};
+use crate::workspaces::Mxv;
 
 #[cfg(test)]
 mod tests;
 
 /// The code of a page's server that could not start or stopped answering.
-pub const SERVER_FAILED: Code = Code::new("flightdeck", "server", "failed");
+pub const SERVER_FAILED: Code = Code::from_spelling("flightdeck::server::failed");
+
+/// The code of a variable that flightdeck reads whose value starmap.toml
+/// refuses.
+pub const ENVIRONMENT_INVALID: Code = Code::from_spelling("flightdeck::environment::invalid");
 
 /// The code of a bare tool name that flightdeck cannot look up the same way
 /// from every directory, because an entry of `PATH` cannot be made absolute.
-pub const TOOL_SEARCH_PATH: Code = Code::new("flightdeck", "tool", "search_path");
+pub const TOOL_SEARCH_PATH: Code = Code::from_spelling("flightdeck::tool::search_path");
 
 /// The exit codes of a second Ctrl-C or SIGTERM while `flightdeck open`
 /// stops, which ends the process at once. The tool record declares them,
@@ -64,6 +73,15 @@ pub enum OpenError {
         alternative = Recovery::hint("run flightdeck open from another directory"),
     )]
     SearchPath,
+    /// A variable that flightdeck reads has a value that starmap.toml
+    /// refuses, as when `FLIGHTDECK_PORT` is not a port. starmap.toml
+    /// refuses no value of `PATH`: it is optional, any path, and its empty
+    /// text is a value.
+    #[failure(
+        code = ENVIRONMENT_INVALID,
+        hint = "run `flightdeck self environment list` to see each variable's rule",
+    )]
+    Environment(starmap::ReadError),
     /// The tool's model could not be loaded.
     #[failure(forward)]
     Load(LoadError),
@@ -96,6 +114,7 @@ impl fmt::Display for OpenError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SearchPath => f.write_str("a relative PATH entry cannot be made absolute"),
+            Self::Environment(error) => error.fmt(f),
             Self::Load(error) => error.fmt(f),
             Self::Signals(_) => f.write_str("cannot watch for Ctrl-C"),
             Self::Start(_) => f.write_str("cannot start the page's server"),
@@ -113,42 +132,53 @@ impl std::error::Error for OpenError {
             Self::Load(error) => error.source(),
             Self::Signals(error) | Self::Opener(error) | Self::Serve(error) => Some(error),
             Self::Start(error) => Some(error),
+            Self::Environment(error) => Some(error),
             Self::Random(error) => Some(error),
         }
     }
 }
 
-/// Runs `flightdeck open` with `args`, and prints a failure through
-/// `run`.
-pub(crate) fn run(run: &mut Run, args: &OpenArgs) -> ExitCode {
+/// Runs `flightdeck open` with `args` and the process environment `vars`,
+/// and prints a failure through `run`.
+pub(crate) fn run(run: &mut Run, args: &OpenArgs, vars: &[(OsString, OsString)]) -> ExitCode {
     #[expect(
         clippy::disallowed_methods,
         reason = "crumbkit's Run prints only documents and failures, so open writes its two lines to standard error here (CLI-1)"
     )]
     let mut lines = io::stderr();
-    match open(args, &mut lines) {
+    match open(args, vars, &mut lines) {
         Ok(()) => crumbkit::events::ended(0, Some(0)),
         Err(failure) => run.fail(&mut Sink::standard(), &failure),
     }
 }
 
-/// Loads the tool, serves its page until it stops, and writes the lines
-/// that a person reads to `lines`. A line that cannot be written, as when
-/// standard error is closed, is skipped.
-fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
+/// Loads the tool when `args` names one, serves the page until it stops,
+/// and writes the lines that a person reads to `lines`. A line that cannot
+/// be written, as when standard error is closed, is skipped. The `PATH` of
+/// `vars` finds a tool given by a bare name, and a run in another directory
+/// finds the same tool.
+fn open(
+    args: &OpenArgs,
+    vars: &[(OsString, OsString)],
+    lines: &mut dyn Write,
+) -> Result<(), OpenError> {
     let launch = launch_directory();
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "a run in another directory must find the tool that this PATH found at launch"
-    )]
-    let search = std::env::var_os("PATH");
-    let program = Program::at_launch(&args.tool, launch.as_deref(), search.as_deref())
-        .ok_or(OpenError::SearchPath)?;
-    let tool = model::load(&program, spawn::TIME_LIMIT).map_err(OpenError::Load)?;
+    let environment =
+        Environment::from_vars(vars.iter().cloned()).map_err(OpenError::Environment)?;
+    let mxv = Mxv::at_launch(environment.mxv(), launch.as_deref(), environment.path());
+    let loaded = match &args.tool {
+        Some(tool) => {
+            let program = Program::at_launch(tool, launch.as_deref(), environment.path())
+                .ok_or(OpenError::SearchPath)?;
+            let tool = model::load(&program, spawn::TIME_LIMIT).map_err(OpenError::Load)?;
+            Some((tool, program))
+        }
+        None => None,
+    };
     let stop = Arc::new(AtomicBool::new(false));
     watch_signals(&stop).map_err(OpenError::Signals)?;
     let clock = SystemClock;
-    let listener = Listener::bind().map_err(OpenError::Start)?;
+    let listener = Listener::bind(environment.port()).map_err(OpenError::Start)?;
     let origin = listener.origin();
     let session = Session::new(clock.now()).map_err(OpenError::Random)?;
     // A new session always holds its launch code.
@@ -156,35 +186,49 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
         .launch_code()
         .ok_or_else(|| OpenError::Opener(io::Error::other("the session has no launch code")))?;
     let opener = Opener::write(&origin, code).map_err(OpenError::Opener)?;
-    let commands = match tool.commands().len() {
-        1 => "1 command".to_owned(),
-        count => format!("{count} commands"),
+    let (server, about) = match loaded {
+        Some((tool, program)) => {
+            let commands = match tool.commands().len() {
+                1 => "1 command".to_owned(),
+                count => format!("{count} commands"),
+            };
+            let about = format!(
+                "{} {} · {commands}",
+                printable(tool.name()),
+                printable(tool.version())
+            );
+            let mode = if args.read_only {
+                Mode::ReadOnly
+            } else {
+                Mode::Full
+            };
+            let runner = Runner::new(
+                tool,
+                program,
+                mode,
+                Arc::new(SystemClock),
+                runner::Settings::new(),
+            )
+            .map_err(OpenError::Random)?;
+            let server = Server::new(
+                listener,
+                session,
+                runner,
+                Settings::new(),
+                launch.as_deref().and_then(shown_directory),
+            )
+            .map_err(OpenError::Start)?;
+            (server, about)
+        }
+        None => (
+            Server::without_tool(listener, session, Settings::new()).map_err(OpenError::Start)?,
+            "workspaces".to_owned(),
+        ),
     };
-    let name = format!("{} {}", printable(tool.name()), printable(tool.version()));
-    let mode = if args.read_only {
-        Mode::ReadOnly
-    } else {
-        Mode::Full
-    };
-    let runner = Runner::new(
-        tool,
-        program,
-        mode,
-        Arc::new(SystemClock),
-        runner::Settings::new(),
-    )
-    .map_err(OpenError::Random)?;
-    let server = Server::new(
-        listener,
-        session,
-        runner,
-        Settings::new(),
-        launch.as_deref().and_then(shown_directory),
-    )
-    .map_err(OpenError::Start)?;
+    let server = server.workspaces(mxv);
 
     // The origin comes first, so a tool's name cannot push it out of view.
-    let _ = writeln!(lines, "{origin} · {name} · {commands}");
+    let _ = writeln!(lines, "{origin} · {about}");
     let page = opener.page().display();
     if args.no_browser {
         let _ = writeln!(
@@ -216,7 +260,7 @@ fn open(args: &OpenArgs, lines: &mut dyn Write) -> Result<(), OpenError> {
 
 /// Returns the directory flightdeck started in, or `None` when it cannot
 /// read it.
-fn launch_directory() -> Option<PathBuf> {
+pub(crate) fn launch_directory() -> Option<PathBuf> {
     #[expect(
         clippy::disallowed_methods,
         reason = "the page shows the directory that flightdeck started in, and a relative tool path resolves against it"

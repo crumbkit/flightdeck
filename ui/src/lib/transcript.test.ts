@@ -131,6 +131,7 @@ describe("a preview card", () => {
     line: "shelf books remove 2",
     started_at: "2026-11-02T09:00:00Z",
     preview: true,
+    confirmed_line: "shelf books remove --yes 2",
     confirmation: null,
   } as const;
 
@@ -142,6 +143,7 @@ describe("a preview card", () => {
       line: "shelf books remove 2",
       long: false,
       basis: null,
+      asks: true,
     });
   }
 
@@ -157,7 +159,13 @@ describe("a preview card", () => {
     } as const;
     runs = transcript(runs, { type: "events", number: 1, events: [ended] });
 
-    expect(runs[0]?.ask).toEqual({ basis: null, confirmation: "c1", answer: "open" });
+    expect(runs[0]?.ask).toEqual({
+      basis: null,
+      confirmation: "c1",
+      confirmedLine: "shelf books remove --yes 2",
+      answer: "open",
+      asks: true,
+    });
     expect(runs[0]?.state.kind).toBe("ended");
   });
 

@@ -1,0 +1,356 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "flightdeck/workspaces-list/v1",
+  "description": "Each local mxv workspace with its checkouts, ports, routes and units, and how many have a unit running.",
+  "type": "object",
+  "properties": {
+    "cut": {
+      "description": "Present when the output budget cut the result short, so data holds only its first rows.",
+      "type": "object",
+      "properties": {
+        "budget": {
+          "description": "The most bytes that the run printed on standard output.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "code": {
+          "description": "The over-budget code.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "budget"
+      ]
+    },
+    "data": {
+      "description": "The rows of the page, up to the limit.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/WorkspaceRow"
+      }
+    },
+    "dry_run": {
+      "description": "Present, and true, when the run was a dry run that changed nothing.",
+      "const": true
+    },
+    "next": {
+      "description": "The next steps, in the order the text prints them. It is absent when there are none.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "commands": {
+            "description": "The commands that carry out the step, in order.",
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "call": {
+                      "description": "A command line of this tool.",
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "call"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "run": {
+                      "description": "A command line of another program.",
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "run"
+                  ]
+                }
+              ]
+            }
+          },
+          "text": {
+            "description": "The sentence or phrase that the text prints for the step.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "text",
+          "commands"
+        ]
+      }
+    },
+    "schema": {
+      "description": "The id of this document.",
+      "const": "flightdeck/workspaces-list/v1"
+    },
+    "summary": {
+      "$ref": "#/$defs/ListSummary"
+    },
+    "total": {
+      "description": "The number of rows that matched, of which data holds one page. It is absent when the tool did not count the rows.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "truncated": {
+      "description": "True when the document leaves out rows that matched, because of the limit or the output budget, and false when data holds every row.",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema",
+    "data",
+    "truncated",
+    "summary"
+  ],
+  "$defs": {
+    "ListSummary": {
+      "description": "What the Workspaces page's header says.",
+      "type": "object",
+      "properties": {
+        "routes": {
+          "description": "Whether the proxy's routes could be read.",
+          "$ref": "#/$defs/Routes"
+        },
+        "running": {
+          "description": "The number of workspaces with at least one unit running.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "stopped": {
+          "description": "The number of workspaces that declare units and have none running.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "target": {
+          "description": "The target that the workspaces belong to: `local`, this machine.",
+          "type": "string"
+        },
+        "workspaces": {
+          "description": "The number of workspaces.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "target",
+        "workspaces",
+        "running",
+        "stopped",
+        "routes"
+      ]
+    },
+    "MxvError": {
+      "description": "A failure that mxv reported for one query, or flightdeck's words for a\nquery that printed no failure document.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "description": "mxv's own code, such as `mxv::workspace::not_found`, or null when\nmxv printed no failure document.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "description": "What went wrong.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ]
+    },
+    "RouteLink": {
+      "description": "One route that the proxy serves for a workspace.",
+      "type": "object",
+      "properties": {
+        "route": {
+          "description": "The route's name in the workspace's manifest.",
+          "type": "string"
+        },
+        "unit": {
+          "description": "The unit that listens on the route's port, or null when none does.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "description": "The URL that serves the route.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "route",
+        "url",
+        "unit"
+      ]
+    },
+    "Routes": {
+      "description": "Whether the proxy's routes could be read.",
+      "oneOf": [
+        {
+          "description": "`mxv proxy status` answered, so each workspace's routes are known.",
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "available"
+            }
+          },
+          "required": [
+            "state"
+          ]
+        },
+        {
+          "description": "`mxv proxy status` failed, so no workspace shows a route.",
+          "type": "object",
+          "properties": {
+            "reason": {
+              "description": "Why the routes could not be read.",
+              "type": "string"
+            },
+            "state": {
+              "type": "string",
+              "const": "unavailable"
+            }
+          },
+          "required": [
+            "state",
+            "reason"
+          ]
+        }
+      ]
+    },
+    "UnitState": {
+      "description": "One unit's name and state.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The unit's name in the manifest.",
+          "type": "string"
+        },
+        "state": {
+          "description": "The unit's state as `mxv status` reports it, such as `running`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "state"
+      ]
+    },
+    "WorkspaceRow": {
+      "description": "One local workspace, as the Workspaces page draws its card.",
+      "type": "object",
+      "properties": {
+        "branch": {
+          "description": "The branch that the workspace's checkouts were created on, or null\nwhen mxv cannot read the workspace's record.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "checkouts": {
+          "description": "The folder of each checkout, which is its repository's name.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "declared": {
+          "description": "The number of units that the workspace's manifest declares, or null\nwhen `mxv status` failed.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "name": {
+          "description": "The workspace's name.",
+          "type": "string"
+        },
+        "pinned": {
+          "description": "Whether `mxv reclaim` leaves the workspace running, or null when\n`mxv status` failed.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "ports": {
+          "description": "The host port that the workspace holds for each named port.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0
+          }
+        },
+        "problem": {
+          "description": "Why mxv cannot read the workspace's record, or null when it can.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "routes": {
+          "description": "Each route that the proxy serves for the workspace.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RouteLink"
+          }
+        },
+        "running": {
+          "description": "The number of units that are running, or null when `mxv status`\nfailed.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "status_error": {
+          "description": "Why `mxv status` failed for this workspace, or null when it\nanswered.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MxvError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "units": {
+          "description": "Each unit with its state, or null when `mxv status` failed.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/UnitState"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "branch",
+        "declared",
+        "running",
+        "pinned"
+      ]
+    }
+  }
+}

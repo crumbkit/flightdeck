@@ -52,6 +52,7 @@ fn run_flightdeck(mut command: Command, args: &[&std::ffi::OsStr], dirs: &Path) 
         .env("XDG_DATA_HOME", dirs.join("data"))
         .env("XDG_STATE_HOME", dirs.join("state"))
         .env("XDG_CACHE_HOME", dirs.join("cache"))
+        .env_remove("FLIGHTDECK_PORT")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -183,6 +184,37 @@ impl Drop for Open {
 }
 
 #[test]
+fn open_without_a_tool_serves_the_workspaces_of_the_mxv_that_flightdeck_mxv_names() {
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(&["open".as_ref(), "--no-browser".as_ref()], dirs.path());
+    command.env(
+        "FLIGHTDECK_MXV",
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mxv/mxv"),
+    );
+    let open = Open::start_with(command, dirs);
+    let port = open.port;
+    let token = exchange(
+        port,
+        &launch_code(&std::fs::read_to_string(&open.page).unwrap()),
+    );
+
+    let deck = Call::get(port, "/api/deck").bearer(&token).send(port);
+    let workspaces = Call::get(port, "/api/workspaces").bearer(&token).send(port);
+    let model = Call::get(port, "/api/model").bearer(&token).send(port);
+
+    assert_eq!(
+        open.lines[0],
+        format!("http://127.0.0.1:{port} · workspaces")
+    );
+    assert_eq!(deck.json(), json!({"tool": false}));
+    assert_eq!(workspaces.status, 200);
+    assert_eq!(workspaces.json()["summary"]["workspaces"], 4);
+    assert_eq!(model.status, 404);
+    let (exit, printed) = open.stop(rustix::process::Signal::TERM);
+    assert_eq!(exit, Some(0), "{printed}");
+}
+
+#[test]
 fn open_on_a_missing_tool_prints_tool_not_found_and_starts_no_server() {
     let dirs = tempfile::tempdir().unwrap();
     let missing = dirs.path().join("no-such-tool");
@@ -214,7 +246,7 @@ fn open_prints_two_lines_and_no_secret_and_stops_on_sigterm_with_exit_0() {
 
     assert_eq!(
         open.lines[0],
-        format!("http://127.0.0.1:{port} · shelf 0.3.2+git-8ee2eadd29eb · 17 commands"),
+        format!("http://127.0.0.1:{port} · shelf 0.6.0+git-de1bc6b8aa94 · 17 commands"),
     );
     assert_eq!(
         open.lines[1],
@@ -516,4 +548,101 @@ fn a_bare_tool_name_is_refused_when_a_relative_path_entry_cannot_be_made_absolut
     assert!(stderr.contains("from another directory"), "{stderr}");
     assert!(stderr.contains("the tool's path"), "{stderr}");
     assert!(!stderr.contains("http://"), "{stderr}");
+}
+
+#[test]
+fn open_listens_on_the_port_that_flightdeck_port_names() {
+    let free = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let wanted = free.local_addr().unwrap().port();
+    drop(free);
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &[
+            "open".as_ref(),
+            shelf().as_os_str(),
+            "--no-browser".as_ref(),
+        ],
+        dirs.path(),
+    );
+    command.env("FLIGHTDECK_PORT", wanted.to_string());
+
+    let open = Open::start_with(command, dirs);
+
+    assert_eq!(open.port, wanted);
+    let (exit, printed) = open.stop(rustix::process::Signal::TERM);
+    assert_eq!(exit, Some(0), "{printed}");
+}
+
+#[test]
+fn open_refuses_a_flightdeck_port_that_is_not_a_port_and_starts_no_server() {
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &[
+            "open".as_ref(),
+            shelf().as_os_str(),
+            "--no-browser".as_ref(),
+        ],
+        dirs.path(),
+    );
+
+    let output = command.env("FLIGHTDECK_PORT", "http").output().unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(
+        stderr.contains("flightdeck::environment::invalid"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("FLIGHTDECK_PORT"), "{stderr}");
+    assert!(!stderr.contains("http://"), "{stderr}");
+}
+
+#[test]
+fn open_refuses_a_port_that_another_program_holds_and_starts_no_server() {
+    let held = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &[
+            "open".as_ref(),
+            shelf().as_os_str(),
+            "--no-browser".as_ref(),
+        ],
+        dirs.path(),
+    );
+
+    let output = command
+        .env(
+            "FLIGHTDECK_PORT",
+            held.local_addr().unwrap().port().to_string(),
+        )
+        .output()
+        .unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("flightdeck::server::failed"), "{stderr}");
+    assert!(!stderr.contains("http://"), "{stderr}");
+}
+
+#[test]
+fn open_refuses_an_empty_flightdeck_port() {
+    let dirs = tempfile::tempdir().unwrap();
+    let mut command = flightdeck(
+        &[
+            "open".as_ref(),
+            shelf().as_os_str(),
+            "--no-browser".as_ref(),
+        ],
+        dirs.path(),
+    );
+
+    let output = command.env("FLIGHTDECK_PORT", "").output().unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(
+        stderr.contains("flightdeck::environment::invalid"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("FLIGHTDECK_PORT"), "{stderr}");
 }
