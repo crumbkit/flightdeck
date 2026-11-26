@@ -52,7 +52,7 @@ realizations = ["src/routes/ToolPage.tsx", "src/lib/transcript.ts", "src/api/run
 [[decision]]
 id = "crumbkit-ui-git-tag"
 requirement = "headless/ and react/ depend on @crumbkit/ui by its git tag, `git+https://github.com/crumbkit/crumbkit-ui.git#v0.1.0`, and pnpm-lock.yaml records the tag's commit. A new version of @crumbkit/ui arrives only in a pull request that moves the tag in both manifests and the lockfile. The packed tarballs name the exact version the tag's package.json holds instead, which npmjs must hold with the same dist/ (decision packages-emit)."
-reason = "@crumbkit/ui is crumbkit's own package and is not on the npm registry, so it has no exact version for BASE-13 to pin and no release age for BASE-14's cooldown to read, and Dependabot does not offer its updates. The tag plus the lockfile's commit fixes the bytes installed as an exact version would. The maintainer accepted this exception for crumbkit's own packages on 2026-11-25 (board decision /projects/flightdeck/decisions/20261125T0145Z-3ee2)."
+reason = "@crumbkit/ui is crumbkit's own package. Its own change publishes it to npmjs, and until npmjs holds a version the workspace has no exact version for BASE-13 to pin and no release age for BASE-14's cooldown to read, and Dependabot does not offer its updates. The tag plus the lockfile's commit fixes the bytes installed as an exact version would. The workspace pins the tag and the packed tarballs pin the registry version, and pack.sh checks that the two hold the same dist/. The maintainer accepted this exception for crumbkit's own packages on 2026-11-25 (board decision /projects/flightdeck/decisions/20261125T0145Z-3ee2)."
 realizations = ["headless/package.json", "react/package.json", "pnpm-lock.yaml"]
 
 [[decision]]

@@ -1,24 +1,28 @@
 # The release. It runs the tests on Linux, macOS and Windows and the
 # advisory check, builds `flightdeck` for macOS, Linux and Windows, checks
-# that each binary prints the release's version, and packs
-# @crumbkit/flightdeck-headless and @crumbkit/flightdeck-react at that
-# version and checks that they install. It attests every release file,
-# publishes the two packages to npmjs, and attaches the archives, the
-# tarballs and SHA256SUMS to a GitHub release.
+# that each binary prints the release's version, and attaches the archives to
+# a GitHub release with SHA256SUMS, each with a build provenance attestation.
+# It also packs @crumbkit/flightdeck-headless and @crumbkit/flightdeck-react
+# at that version and checks that they install.
 #
 # A push of the tag `v<version>` releases that tag, where <version> is the
 # version in Cargo.toml. A manual run with a tag releases that existing tag,
-# such as v0.1.0, which was pushed before this workflow existed. A manual run
+# such as v0.1.0, which was pushed before this workflow existed; it runs only
+# from main or a v* tag, and the `version` job refuses any other branch,
+# because the jobs that release hold the run's OIDC token. A manual run
 # without a tag, and a pull request that changes this file, build the
 # archives and the tarballs and release nothing. A pull request that changes
 # the packages or their scripts runs it too, so the install check runs before
 # a release needs it.
 #
-# Publishing needs npm trusted publishing, so the workflow holds no npm
-# token. npmjs must hold each package once, published by hand, with this
-# workflow set as its trusted publisher, and npmjs must hold the version of
-# @crumbkit/ui that ui/ pins. Until then the `packages` job of a release
-# stops before anything is published or attached (docs/packages.md).
+# The `publish` job publishes the two packages to npmjs and attaches their
+# tarballs to the release, and it runs only when the repository variable
+# NPM_PUBLISH is `true`. Until the owner sets it, a release attaches the
+# binary archives alone and publishes nothing. Before setting it, npmjs must
+# hold each package once, published by hand, with this workflow set as its
+# trusted publisher, and must hold the version of @crumbkit/ui that ui/ pins
+# (docs/packages.md). Publishing uses npm trusted publishing, so the workflow
+# holds no npm token. The binary release never waits on publishing.
 #
 # No job uses rust-cache, because a poisoned cache would reach the released
 # binaries, and zizmor fails a release workflow that restores a cache.
@@ -54,7 +58,8 @@ defaults:
     shell: bash
 
 jobs:
-  # The tag to release, if any, and the version that Cargo.toml holds at it.
+  # The tag to release, if any, the version that Cargo.toml holds at it, and
+  # whether the run publishes the packages.
   version:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -64,10 +69,14 @@ jobs:
       ref: ${{ steps.tag.outputs.ref }}
       tag: ${{ steps.tag.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.tag.outputs.publish }}
     steps:
+      # A run that releases starts from main or a v* tag, so a workflow file
+      # on an unreviewed branch never gets the release jobs' OIDC token.
       - id: tag
         env:
           INPUT_TAG: ${{ inputs.tag }}
+          NPM_PUBLISH: ${{ vars.NPM_PUBLISH }}
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             tag=$GITHUB_REF_NAME
@@ -79,8 +88,22 @@ jobs:
             v[0-9]*) ref=refs/tags/$tag ;;
             *) echo "the tag is $tag, and a release tag starts with v and a digit" >&2; exit 1 ;;
           esac
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          if [ -n "$tag" ]; then
+            case "$GITHUB_REF" in
+              refs/heads/main | refs/tags/v*) ;;
+              *) echo "the run is on $GITHUB_REF, and a release runs from main or a v* tag" >&2; exit 1 ;;
+            esac
+          fi
+          if [ -n "$tag" ] && [ "$NPM_PUBLISH" = true ]; then
+            publish=true
+          else
+            publish=false
+          fi
+          {
+            echo "tag=$tag"
+            echo "ref=$ref"
+            echo "publish=$publish"
+          } >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.tag.outputs.ref }}
@@ -207,9 +230,9 @@ jobs:
 
   # The two package tarballs at the release's version, and the check that a
   # project with pnpm's default settings installs and renders them. For a
-  # release, pack.sh stops unless npmjs holds the version of @crumbkit/ui
-  # that ui/ pins, with the same dist/ as its tag; a run that releases
-  # nothing only warns.
+  # run that publishes, pack.sh stops unless npmjs holds the version of
+  # @crumbkit/ui that ui/ pins, with the same dist/ as its tag; any other run
+  # only warns.
   packages:
     needs: version
     runs-on: ubuntu-24.04
@@ -218,7 +241,7 @@ jobs:
       contents: read # actions/checkout reads the repository.
     env:
       VERSION: ${{ needs.version.outputs.version }}
-      REGISTRY: ${{ needs.version.outputs.tag != '' && 'require' || 'warn' }}
+      REGISTRY: ${{ needs.version.outputs.publish == 'true' && 'require' || 'warn' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -242,25 +265,22 @@ jobs:
         run: scripts/check-packages/check.sh "$VERSION" packages
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: flightdeck-packages
+          name: packages
           path: packages/*.tgz
           if-no-files-found: error
 
-  # The release gets the archives, the tarballs and SHA256SUMS, each with a
-  # build provenance attestation, and npmjs gets the two packages. The steps
-  # run in that order, so a refused attestation uploads nothing and a refused
-  # publish of the core attaches nothing. A run again after a failure skips a
-  # package version that npmjs already holds, because a published version
-  # never changes, and replaces the files of a release that the failed run
-  # created.
+  # The release gets the binary archives and SHA256SUMS, each with a build
+  # provenance attestation. A refused attestation uploads nothing. A run
+  # again after a failure replaces the files of a release that the failed
+  # run created. It waits for no npm step.
   release:
     if: needs.version.outputs.tag != ''
-    needs: [version, advisories, tests, build, packages]
+    needs: [version, advisories, tests, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: write # gh creates the release and uploads its files.
-      id-token: write # attest-build-provenance and npm trusted publishing sign with the run's OIDC token.
+      id-token: write # attest-build-provenance signs with the run's OIDC token.
       attestations: write # attest-build-provenance stores the attestations.
     env:
       GH_TOKEN: ${{ github.token }}
@@ -274,6 +294,54 @@ jobs:
       - run: |
           cd dist
           sha256sum -- * > SHA256SUMS
+          cat SHA256SUMS
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*
+      - run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber dist/*
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" --generate-notes dist/*
+          fi
+
+  # Only when the repository variable NPM_PUBLISH is `true`: npmjs gets the
+  # two packages, and the release gets their tarballs, listed in its
+  # SHA256SUMS, each with a build provenance attestation. The steps run in
+  # that order, so a refused attestation publishes nothing and a refused
+  # publish of the core attaches nothing. A run again after a failure skips
+  # a package version that npmjs already holds, because a published version
+  # never changes.
+  publish:
+    if: needs.version.outputs.publish == 'true'
+    needs: [version, packages, release]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # gh downloads SHA256SUMS and uploads the tarballs.
+      id-token: write # attest-build-provenance and npm trusted publishing sign with the run's OIDC token.
+      attestations: write # attest-build-provenance stores the attestations.
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.version.outputs.tag }}
+    steps:
+      # The version job refuses this too; the check stays beside the token.
+      - name: ref
+        run: |
+          case "$GITHUB_REF" in
+            refs/heads/main | refs/tags/v*) ;;
+            *) echo "the run is on $GITHUB_REF, and publishing runs from main or a v* tag" >&2; exit 1 ;;
+          esac
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: packages
+          path: dist
+      # The release's SHA256SUMS, with the tarballs' lines in place of any
+      # that an earlier run wrote.
+      - run: |
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS --dir "$RUNNER_TEMP"
+          cd dist
+          { grep -v ' crumbkit-flightdeck-' "$RUNNER_TEMP/SHA256SUMS" || true; sha256sum -- *.tgz; } > SHA256SUMS
           cat SHA256SUMS
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
@@ -306,9 +374,4 @@ jobs:
               npm publish "$tarball" --access public
             fi
           done
-      - run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber dist/*
-          else
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" --generate-notes dist/*
-          fi
+      - run: gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber dist/*

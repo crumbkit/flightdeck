@@ -22,17 +22,19 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and the selected rule in the page address and return prop getters with
   their roles, `aria-pressed`, `aria-sort`, `aria-expanded` and focus
   moves. Both depend on `@crumbkit/ui` at its `v0.1.0` tag.
-- Each release publishes `@crumbkit/flightdeck-headless` and
+- A release can publish `@crumbkit/flightdeck-headless` and
   `@crumbkit/flightdeck-react` to npmjs at the release's version, with npm
-  trusted publishing, and attaches both tarballs to the GitHub release. They
-  ship compiled JavaScript and declarations, name `@crumbkit/ui` and each
+  trusted publishing, and attach both tarballs to the GitHub release. It
+  does so only once the repository variable `NPM_PUBLISH` is `true`; until
+  then a release attaches the binary archives alone. The packages ship
+  compiled JavaScript and declarations, name `@crumbkit/ui` and each
   other by exact version, and install with one `pnpm add` under pnpm's
   default settings. Before anything is published, the release installs both
   into a new project, checks that it holds one copy of `@crumbkit/ui`,
   type-checks a consumer and renders a page with them. `docs/packages.md`
   gives the install line.
-- Every file a release attaches, the binary archives, the tarballs and
-  `SHA256SUMS`, carries a build provenance attestation, which
+- Every file a release attaches, the binary archives, `SHA256SUMS` and any
+  tarballs, carries a build provenance attestation, which
   `gh attestation verify <file> --repo crumbkit/flightdeck --signer-workflow
   crumbkit/flightdeck/.github/workflows/release.yml` checks.
 - `flightdeck compliance build --config <file> --reports <dir>` reads the

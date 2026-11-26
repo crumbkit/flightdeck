@@ -18,9 +18,10 @@
 #
 # A tarball that names @crumbkit/ui by version installs only once npmjs
 # holds that version, with the same dist/ as the tag. The script checks
-# both. With --registry require, the release's setting, a missing version
-# or a different dist/ stops the pack; with --registry warn, the default
-# for a build that releases nothing, it prints a warning and packs.
+# both. With --registry require, the setting of a release that publishes, a
+# missing version or a different dist/ stops the pack; with --registry warn,
+# the default and the setting of every other run, it prints a warning and
+# packs.
 set -euo pipefail
 
 usage() {
@@ -78,7 +79,7 @@ registry_problem() {
   if [ "$registry" = require ]; then
     fail "$1"
   fi
-  echo "::warning::pack-packages: $1; a release would stop here"
+  echo "::warning::pack-packages: $1; a release that publishes would stop here"
 }
 if ! (cd "$work" && npm pack --silent --ignore-scripts "@crumbkit/ui@$ui_version" > "$work/ui-pack" 2> "$work/ui-error"); then
   registry_problem "npmjs holds no @crumbkit/ui $ui_version, which $pin pins"
