@@ -22,13 +22,13 @@ describe("repositoryView of one repository (artboards 47, 55 and 56)", () => {
       [
         "Keep each Rust file under 60 bytes",
         "budget · bytes per file · max 60",
-        "1 file over: /src/main.rs 67",
+        "1 file over: src/main.rs 67",
         "failing",
       ],
       [
         "Pin Rust 1.99 or later",
         "version · at least 1.99",
-        "/rust-toolchain.toml pins 1.90.0",
+        "rust-toolchain.toml pins 1.90.0",
         "failing",
       ],
     ]);

@@ -11,7 +11,6 @@ import { addedRules, type DriftState, driftItems, driftState, driftWord } from "
 import { type Snapshot, snapshotOf } from "./snapshot.ts";
 import {
   ageWord,
-  andList,
   checkerWord,
   checkKind,
   INVALID_REPORT,
@@ -209,10 +208,9 @@ function statedCaption(row: Row): string {
 /**
  * Returns a rule's entry. A column with no report says nothing of which
  * rules reach it, because the build marks its every row not readable, so
- * it counts in neither the rule's reach nor its state while a report that
- * was read reaches the rule. A measured rule that reaches only repositories
- * with no report reads stale, as artboard 52 shows, so it never counts as
- * current.
+ * it counts in neither the rule's reach nor its state. The build makes a
+ * row only from a rule a report that was read lists, so every rule reaches
+ * at least one readable column.
  */
 function entry(document: ComplianceDocument, row: Row): RuleEntry {
   const name = rowName(row);
@@ -223,11 +221,6 @@ function entry(document: ComplianceDocument, row: Row): RuleEntry {
       : [{ column, cell }];
   });
   const reached = cells.map(({ column }) => column.name);
-  const missing = document.repositories.flatMap((column, index) =>
-    !readable(column) && row.cells[index] !== undefined && row.cells[index]?.state !== "absent"
-      ? [column.name]
-      : [],
-  );
   const withReport = document.repositories.filter(readable).length;
   const failing = cells.find(({ cell }) => cell.state === "failing");
   const stale = cells.find(({ cell }) => cell.state === "stale");
@@ -249,9 +242,6 @@ function entry(document: ComplianceDocument, row: Row): RuleEntry {
   } else if (refused !== undefined) {
     state = "not_readable";
     text = refused.cell.code;
-  } else if (cells.length === 0 && row.section !== "written" && missing.length > 0) {
-    state = "stale";
-    text = `${andList(missing)} sent no report`;
   } else if (row.section === "written") {
     state = "stated";
     text = statedCaption(row);
@@ -415,6 +405,6 @@ export function rulesView(document: ComplianceDocument, address: RulesAddress): 
       entries.map((rule) => rule.kind),
       KIND_MEANINGS,
     ),
-    note: "A measured rule fails when any repository's report fails it, and is stale when a repository it reaches has a stale report or none. Pattern, judged and written rules are stated: a report lists them and measures nothing.",
+    note: "A measured rule fails when any repository's report fails it, and is stale when a report that reaches it is stale. A repository that sent no report reaches no rule, so it changes no rule's state. A rule a report could not read is in no tile. Pattern, judged and written rules are stated: a report lists them and measures nothing.",
   };
 }

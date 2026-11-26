@@ -21,6 +21,30 @@ function overCount(facts: RuleFacts): number {
   return facts.over.length + facts.omitted.over;
 }
 
+/**
+ * Returns a file as a sentence names it, such as "AGENTS.md" for "/AGENTS.md":
+ * a report gives paths from the repository's root, and the artboards' sentences
+ * drop the leading slash. The pages' "Reads" lists keep the path as given.
+ */
+function fileName(path: string): string {
+  return path.replace(/^\//, "");
+}
+
+/**
+ * Returns the files a report lists, as a sentence names them, with how many
+ * there are counting those the build left out. Past three files, or when the
+ * build left some out, it names the first two and counts the rest, such as
+ * "AGENTS.md, CONTEXT.md and 48 more files".
+ */
+function filesWord(facts: RuleFacts): { readonly text: string; readonly count: number } {
+  const names = facts.files.map(fileName);
+  const count = names.length + facts.omitted.files;
+  if (count <= 3 && facts.omitted.files === 0) return { text: andList(names), count };
+  if (names.length === 0) return { text: counted(count, "file"), count };
+  const shown = names.slice(0, 2);
+  return { text: `${shown.join(", ")} and ${count - shown.length} more files`, count };
+}
+
 /** Whether a budget counts each file on its own. */
 function perFile(row: Row): boolean {
   return checkerField(row.checker, "per") !== null;
@@ -114,16 +138,17 @@ export function failureDetail(row: Row, cell: Cell): string | null {
       const max = facts.max ?? checkerNumber(row.checker, "max") ?? 0;
       const first = facts.over[0];
       if (overCount(facts) === 1 && first !== undefined) {
-        return `${first.file} is ${numberWord(first.used)} ${unit}, and the limit is ${numberWord(max)}.`;
+        return `${fileName(first.file)} is ${numberWord(first.used)} ${unit}, and the limit is ${numberWord(max)}.`;
       }
       if (overCount(facts) > 1) {
         return `${overCount(facts)} files are over the limit of ${numberWord(max)} ${unit}.`;
       }
       const used = `${numberWord(facts.used ?? 0)} ${unit}`;
-      const [only, ...others] = facts.files;
-      if (only === undefined) return `The files hold ${used}, and the limit is ${numberWord(max)}.`;
-      if (others.length === 0) return `${only} holds ${used}, and the limit is ${numberWord(max)}.`;
-      return `${andList(facts.files)} hold ${used} together.`;
+      const files = filesWord(facts);
+      if (files.count === 0) return `The files hold ${used}, and the limit is ${numberWord(max)}.`;
+      if (files.count === 1)
+        return `${files.text} holds ${used}, and the limit is ${numberWord(max)}.`;
+      return `${files.text} hold ${used} together.`;
     }
     case "behind": {
       const pin = facts.behind[0];
@@ -131,7 +156,7 @@ export function failureDetail(row: Row, cell: Cell): string | null {
       const needs = atLeast === null ? "" : `, and the rule needs at least ${atLeast}`;
       return pin === undefined
         ? `A pin is older than the rule allows${needs}.`
-        : `${pin.file} line ${pin.line} pins ${pin.found}${needs}.`;
+        : `${fileName(pin.file)} line ${pin.line} pins ${pin.found}${needs}.`;
     }
     case "not_zero": {
       const age = facts.zero?.age_s ?? null;
@@ -187,7 +212,9 @@ export function measuredText(row: Row, cell: Cell): string {
       const unit = budgetUnit(row.checker).split(" ")[0] ?? "units";
       if (facts.over.length > 0 || cell.result === "over") {
         if (!perFile(row)) return `${numberWord(facts.used ?? 0)} ${unit}`;
-        const shown = facts.over.map((each) => `${each.file} ${numberWord(each.used)}`).join(", ");
+        const shown = facts.over
+          .map((each) => `${fileName(each.file)} ${numberWord(each.used)}`)
+          .join(", ");
         return `${counted(overCount(facts), "file")} over: ${shown}`;
       }
       const files = facts.files.length + facts.omitted.files;
@@ -197,14 +224,15 @@ export function measuredText(row: Row, cell: Cell): string {
     }
     case "version": {
       const pin = facts.behind[0];
-      if (pin !== undefined) return `${pin.file} pins ${pin.found}`;
+      if (pin !== undefined) return `${fileName(pin.file)} pins ${pin.found}`;
       // A report gives the version found only for a pin behind the minimum,
       // so a pin within it reads as at least that minimum, not its version.
       const atLeast = checkerField(row.checker, "at_least");
-      if (facts.files.length === 0) return "no pin found";
+      const files = filesWord(facts);
+      if (files.count === 0) return "no pin found";
       return atLeast === null
-        ? `reads ${andList(facts.files)}`
-        : `${andList(facts.files)} pins at least ${atLeast}`;
+        ? `reads ${files.text}`
+        : `${files.text} ${files.count === 1 ? "pins" : "pin"} at least ${atLeast}`;
     }
     case "zero": {
       const zero = facts.zero;

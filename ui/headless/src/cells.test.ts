@@ -38,9 +38,20 @@ const cell: Cell = {
 
 describe("the cells' sentences, as the artboards word them", () => {
   it("names the files a whole-repository budget counted", () => {
-    expect(failureDetail(row, cell)).toBe("/AGENTS.md and /CONTEXT.md hold 1,184 words together.");
+    expect(failureDetail(row, cell)).toBe("AGENTS.md and CONTEXT.md hold 1,184 words together.");
     const one = { ...cell, facts: { ...facts, files: ["/AGENTS.md"] } };
-    expect(failureDetail(row, one)).toBe("/AGENTS.md holds 1,184 words, and the limit is 1,000.");
+    expect(failureDetail(row, one)).toBe("AGENTS.md holds 1,184 words, and the limit is 1,000.");
+  });
+
+  it("names two files and counts the rest when the build left some out of the list", () => {
+    const files = Array.from({ length: 20 }, (_, at) => `/f${at}.md`);
+    const capped = {
+      ...cell,
+      facts: { ...facts, files, omitted: { ...facts.omitted, files: 30 } },
+    };
+    expect(failureDetail(row, capped)).toBe(
+      "f0.md, f1.md and 48 more files hold 1,184 words together.",
+    );
   });
 
   it("says a pin within a version rule is at least its minimum, because the report gives no version found", () => {
@@ -51,6 +62,11 @@ describe("the cells' sentences, as the artboards word them", () => {
       result: "within",
       facts: { ...facts, used: null, max: null, files: ["/rust-toolchain.toml"] },
     };
-    expect(measuredText(version, within)).toBe("/rust-toolchain.toml pins at least 1.99");
+    expect(measuredText(version, within)).toBe("rust-toolchain.toml pins at least 1.99");
+    const two = {
+      ...within,
+      facts: { ...within.facts, files: ["/rust-toolchain.toml", "/mise.toml"] },
+    };
+    expect(measuredText(version, two)).toBe("rust-toolchain.toml and mise.toml pin at least 1.99");
   });
 });

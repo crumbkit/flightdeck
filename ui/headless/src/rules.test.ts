@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { rulesAddress, rulesView } from "./rules.ts";
-import {
-  fixtureDocument,
-  reachingOnlyMissing,
-  withPassing,
-  withStaleReport,
-} from "./testDocuments.ts";
+import { fixtureDocument, withPassing, withStaleReport } from "./testDocuments.ts";
 
 const all = rulesAddress.parse("");
 
@@ -146,17 +141,17 @@ describe("rulesView's filters and sort, held in the address", () => {
     expect(view.tiles.find((tile) => tile.key === "stale")?.count).toBe(1);
   });
 
-  it("reads a rule that reaches only a repository with no report as stale, not current", () => {
-    const view = rulesView(reachingOnlyMissing("/rules/rust/file-size"), all);
+  it("reads a rule by its readable reports alone, so a repository with no report leaves it current", () => {
+    const passing = withPassing("owner/api", "/rules/rust/file-size");
+    const view = rulesView(passing, all);
     const size = view.rules.find((rule) => rule.id === "/rules/rust/file-size");
-    expect([size?.word, size?.caption]).toEqual(["stale", "owner/gone sent no report"]);
-    expect(view.tiles.find((tile) => tile.key === "current")?.count).toBe(0);
-    expect(view.tiles.find((tile) => tile.key === "stale")?.count).toBe(1);
+    expect(size?.word).toBe("current");
+    expect(size?.reached).not.toContain("owner/gone");
   });
 
-  it("says, as the signed note does, that a repository with no report makes a rule stale", () => {
+  it("says that a repository with no report changes no rule's state, and that an unreadable rule is in no tile", () => {
     expect(rulesView(fixtureDocument(), all).note).toBe(
-      "A measured rule fails when any repository's report fails it, and is stale when a repository it reaches has a stale report or none. Pattern, judged and written rules are stated: a report lists them and measures nothing.",
+      "A measured rule fails when any repository's report fails it, and is stale when a report that reaches it is stale. A repository that sent no report reaches no rule, so it changes no rule's state. A rule a report could not read is in no tile. Pattern, judged and written rules are stated: a report lists them and measures nothing.",
     );
   });
 });

@@ -192,6 +192,25 @@ function shortOf(name: string): string {
   return name.split("/").at(-1) ?? name;
 }
 
+/**
+ * Returns the short names a stale report's item gives its rules, such as
+ * "file size" for /rules/rust/file-size. Two rules that share a last segment
+ * are named by their whole path after /rules/ instead, such as "rust file size"
+ * and "python file size", so the item never names one rule twice. The
+ * document holds no display title, so a proper noun reads in lower case
+ * ("rust" where artboard 54 shows "Python"); a later title field replaces this.
+ */
+function staleNames(rules: readonly Row[]): string[] {
+  const words = (path: string) => path.replace(/^\/rules\//, "").replaceAll(/[-/]/g, " ");
+  const shorts = rules.map((rule) => shortName(rule.id));
+  return rules.map((rule, at) => {
+    const short = shorts[at] ?? rule.id;
+    return shorts.filter((each) => each === short).length > 1
+      ? words(rule.id)
+      : short.replaceAll("-", " ");
+  });
+}
+
 /** Returns the Stale list, oldest first, with a stale report's rules as one item for its repository. */
 function staleItems(document: ComplianceDocument, rows: readonly MatrixRow[]): CheckItem[] {
   const items: { item: CheckItem; age: number }[] = [];
@@ -232,7 +251,7 @@ function staleItems(document: ComplianceDocument, rows: readonly MatrixRow[]): C
         key: `report ${column.name}`,
         repositories: [column.name],
         name: counted(rules.length, "measured rule"),
-        detail: `Its report is ${days}, so the ${andList(rules.map((rule) => shortName(rule.id).replaceAll("-", " ")))} ${rules.length === 1 ? "rule" : "rules"} ${verb} stale.`,
+        detail: `Its report is ${days}, so the ${andList(staleNames(rules))} ${rules.length === 1 ? "rule" : "rules"} ${verb} stale.`,
         run: runLabel(column),
         rule: null,
       },

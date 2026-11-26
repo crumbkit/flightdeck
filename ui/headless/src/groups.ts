@@ -139,8 +139,6 @@ export interface GroupEntry {
   readonly expanded: boolean;
   /** The address's `group` after the reader presses the group's button: the group, or none when it is open. */
   readonly toggleTo: string;
-  /** The address that opens this group, or closes it when it is open. */
-  readonly toggle: string;
   readonly members: readonly MemberEntry[];
   /** How many repositories a control of the group drifts in. */
   readonly drifting: number;
@@ -193,7 +191,6 @@ export function groupEntries(document: ComplianceDocument, address: GroupsAddres
       word: controlWord(state),
       expanded,
       toggleTo: expanded ? NO_GROUP : group.id,
-      toggle: groupsAddress.format({ group: expanded ? NO_GROUP : group.id, rule: null }),
       members: members.map((row, at): MemberEntry => {
         const states = (memberStates[at] ?? []).flatMap((each) => (each === null ? [] : [each]));
         const memberState = rollUp(states, CONTROL_STATES) ?? "current";

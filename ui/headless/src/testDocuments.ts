@@ -151,21 +151,3 @@ export function withPassing(
   );
   return recount({ ...document, rows });
 }
-
-/** Returns the fixture with the rule `rule` absent from every repository that sent a report. */
-export function reachingOnlyMissing(rule: string): ComplianceDocument {
-  const document = fixtureDocument();
-  const rows = document.rows.map((row) =>
-    row.id === rule
-      ? {
-          ...row,
-          cells: row.cells.map((cell, at) =>
-            document.repositories[at]?.report === "no_report"
-              ? cell
-              : { ...cell, state: "absent" as const, result: null, facts: null },
-          ),
-        }
-      : row,
-  );
-  return recount({ ...document, rows });
-}

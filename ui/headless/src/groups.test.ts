@@ -51,7 +51,7 @@ describe("groupsView of the fixture (artboard 58)", () => {
 
   it("collapses the first group when the reader closes it, and opens no other in its place", () => {
     const rust = view.groups[0];
-    const closed = groupsView(fixtureDocument(), groupsAddress.parse(rust?.toggle ?? ""));
+    const closed = groupsView(fixtureDocument(), { group: rust?.toggleTo ?? null, rule: null });
     expect(closed.groups.map((group) => group.expanded)).toEqual([false, false]);
   });
 
@@ -60,15 +60,15 @@ describe("groupsView of the fixture (artboard 58)", () => {
       fixtureDocument(),
       groupsAddress.parse("?group=%2Frules%2Fgroups%2Fserver"),
     );
-    const closed = groupsView(
-      fixtureDocument(),
-      groupsAddress.parse(server.groups[1]?.toggle ?? ""),
-    );
+    const closed = groupsView(fixtureDocument(), {
+      group: server.groups[1]?.toggleTo ?? null,
+      rule: null,
+    });
     expect(closed.groups.map((group) => group.expanded)).toEqual([false, false]);
-    const reopened = groupsView(
-      fixtureDocument(),
-      groupsAddress.parse(closed.groups[1]?.toggle ?? ""),
-    );
+    const reopened = groupsView(fixtureDocument(), {
+      group: closed.groups[1]?.toggleTo ?? null,
+      rule: null,
+    });
     expect(reopened.groups.map((group) => group.expanded)).toEqual([false, true]);
   });
 

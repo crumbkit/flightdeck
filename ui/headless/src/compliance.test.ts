@@ -88,8 +88,8 @@ describe("complianceView of the fixture (artboards 46, 54 and 56)", () => {
   it("lists failures rules first, then suites, joining repositories that fail alike", () => {
     expect(view.failing.count).toBe(6);
     expect(view.failing.items.map((item) => [item.repositories, item.detail])).toEqual([
-      [["owner/api"], "/src/main.rs is 67 bytes, and the limit is 60."],
-      [["owner/api"], "/rust-toolchain.toml line 1 pins 1.90.0, and the rule needs at least 1.99."],
+      [["owner/api"], "src/main.rs is 67 bytes, and the limit is 60."],
+      [["owner/api"], "rust-toolchain.toml line 1 pins 1.90.0, and the rule needs at least 1.99."],
       [["owner/app", "owner/api", "owner/ci"], "The run 1 d ago reports remaining 2."],
       [["owner/api"], "The run at 0e7502e, 1 day ago, failed 1 case: RUST-7."],
     ]);
@@ -150,6 +150,17 @@ describe("complianceView's filter", () => {
 });
 
 describe("complianceView with stale and missing reports", () => {
+  it("names two stale rules that share a last segment by their paths, so neither name repeats", () => {
+    const stale = withStaleReport("owner/ci", 9);
+    const rows = stale.rows.map((row) =>
+      row.id === "/rules/toolchains/rust" ? { ...row, id: "/rules/python/file-size" } : row,
+    );
+    const view = complianceView({ ...stale, rows }, every);
+    expect(view.stale.items.map((item) => item.detail)).toEqual([
+      "Its report is 9 days old, so the rust file size and python file size rules are stale.",
+    ]);
+  });
+
   it("lists a stale report's rules once for its repository, and the report among the missing", () => {
     const view = complianceView(withStaleReport("owner/ci", 9), every);
     expect(view.headline).toBe(

@@ -22,12 +22,12 @@ describe("controlView of one rule (artboard 57)", () => {
         line.drift,
       ]),
     ).toEqual([
-      ["owner/api", "failing", "/rust-toolchain.toml pins 1.90.0", null, "1 h", "drifts"],
-      ["owner/app", "current", "/rust-toolchain.toml pins at least 1.99", null, "1 h", "drifts"],
+      ["owner/api", "failing", "rust-toolchain.toml pins 1.90.0", null, "1 h", "drifts"],
+      ["owner/app", "current", "rust-toolchain.toml pins at least 1.99", null, "1 h", "drifts"],
       [
         "owner/ci",
         "current",
-        "/rust-toolchain.toml pins at least 1.99",
+        "rust-toolchain.toml pins at least 1.99",
         "run #7",
         "59 min",
         "drifts",
@@ -58,7 +58,7 @@ describe("controlView of one rule (artboard 57)", () => {
     expect(view?.failing).toEqual({
       repository: "owner/api",
       word: "failing",
-      detail: "/rust-toolchain.toml line 1 pins 1.90.0, and the rule needs at least 1.99.",
+      detail: "rust-toolchain.toml line 1 pins 1.90.0, and the rule needs at least 1.99.",
       recheck: {
         argv: ["board", "rules", "report", "--path", "/repos/api"],
         hint: "Run it in a checkout of api, or re-run the controls job on main. The next read shows the new report.",
