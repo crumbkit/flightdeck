@@ -28,7 +28,7 @@ use std::process::{Command, Output, Stdio};
 use serde_json::Value;
 
 /// The token the tests give gh, which nothing flightdeck writes may hold.
-const TOKEN: &str = "gho_fixtureTokenThatMustNotLeak0123456789";
+const TOKEN: &str = "fixture-token-that-must-not-leak-0123456789";
 
 /// Returns the path of `relative` in the repository.
 fn here(relative: &str) -> PathBuf {

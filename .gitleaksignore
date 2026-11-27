@@ -1,0 +1,3 @@
+# A fake GitHub token that a test of compliance fetch held in its first commit;
+# no real credential. The test now uses a value that matches no rule.
+da10e7adad2be4d91e3720e2001edfae5f12dee4:tests/compliance_fetch.rs:github-oauth:31
