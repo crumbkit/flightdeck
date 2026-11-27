@@ -77,9 +77,13 @@ describe("parseDocument", () => {
     expect(parseDocument({ ...fixture, failures: [failure] }).title).toBe("Compliance");
   });
 
-  it("refuses a failure without a code at failures.0.code", () => {
-    const failure = { message: "owner/gone has no report", recovery: { kind: "retry" } };
-    expect(() => parseDocument({ ...fixture, failures: [failure] })).toThrow(/^failures\.0\.code/);
+  it("parses a document whose failure entries a newer build shaped differently", () => {
+    const failure = { message: "owner/gone has no report", recovery: { kind: "escalate" } };
+    expect(parseDocument({ ...fixture, failures: [failure, 5] }).title).toBe("Compliance");
+  });
+
+  it("refuses failures that are not a list at failures", () => {
+    expect(() => parseDocument({ ...fixture, failures: {} })).toThrow(/^failures/);
   });
 
   it("refuses a checker that is not an object or null at data.rows.0.checker", () => {

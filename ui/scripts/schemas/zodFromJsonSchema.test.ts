@@ -102,6 +102,70 @@ describe("zodFromJsonSchema", () => {
     ).toThrow("/properties/name: maxLength");
   });
 
+  it("refuses properties and required beside a oneOf, which would drop the required property", () => {
+    const schema = {
+      type: "object",
+      properties: { a: { type: "string" } },
+      required: ["a"],
+      oneOf: [{ const: "x" }, { type: "integer" }],
+    };
+    expect(() => generate(schema)).toThrow("/: type, properties, required beside oneOf");
+  });
+
+  it("refuses properties and required on a node with no type", () => {
+    const schema = { properties: { a: { type: "string" } }, required: ["a"] };
+    expect(() => generate(schema)).toThrow("/: properties, required without a type");
+  });
+
+  it("refuses a oneOf beside an anyOf, which would drop the anyOf", () => {
+    const schema = { oneOf: [{ type: "string" }], anyOf: [{ type: "integer" }] };
+    expect(() => generate(schema)).toThrow("/: anyOf beside oneOf");
+  });
+
+  it("refuses a pattern on an integer and a minimum on a string", () => {
+    expect(() => generate({ type: "integer", pattern: "^1$" })).toThrow(
+      "/: pattern beside type integer",
+    );
+    expect(() => generate({ type: "string", minimum: 0 })).toThrow("/: minimum beside type string");
+  });
+
+  it("refuses $defs below the root", () => {
+    const schema = {
+      type: "object",
+      properties: { a: { $defs: { Name: { type: "string" } }, type: "string" } },
+    };
+    expect(() => generate(schema)).toThrow("/properties/a: $defs");
+  });
+
+  it("refuses definitions that reference each other", () => {
+    const schema = {
+      $defs: {
+        A: { type: "array", items: { $ref: "#/$defs/B" } },
+        B: { type: "array", items: { $ref: "#/$defs/A" } },
+      },
+      $ref: "#/$defs/A",
+    };
+    expect(() => generate(schema)).toThrow("/$defs/A: the definitions reference each other");
+  });
+
+  it("refuses a $ref that names no definition or anchor", () => {
+    expect(() => generate({ $ref: "#/$defs/Missing" })).toThrow("/: $ref #/$defs/Missing");
+  });
+
+  it("refuses a keyword beside $ref", () => {
+    const schema = { $defs: { Name: { type: "string" } }, $ref: "#/$defs/Name", type: "object" };
+    expect(() => generate(schema)).toThrow("/: type beside $ref");
+  });
+
+  it("refuses additionalProperties beside properties", () => {
+    const schema = {
+      type: "object",
+      properties: { a: { type: "string" } },
+      additionalProperties: false,
+    };
+    expect(() => generate(schema)).toThrow("/: additionalProperties beside properties");
+  });
+
   it("admits the annotations description, title and format and writes the description as a doc comment", () => {
     const text = generate({
       $defs: {

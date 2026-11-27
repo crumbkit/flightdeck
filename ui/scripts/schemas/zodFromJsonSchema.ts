@@ -2,8 +2,12 @@
 // publishes, so the wire type keeps one home (BASE-21).
 //
 // BASE-32: no maintained generator reads flightdeck's schemas with the
-// workspace's TypeScript 7. This one translates only the keywords those
-// schemas use, listed in KEYWORDS, and refuses any other keyword with its
+// workspace's TypeScript 7. zod's own z.fromJSONSchema, which zod 4.6.7
+// exports, builds a schema at run time and returns an untyped ZodType, so it
+// cannot give the package its z.infer types and does not replace this file.
+// This one translates only the keywords those schemas use, listed in
+// KEYWORDS. It refuses any other keyword, and any keyword that the branch it
+// takes for a node does not read, such as `required` beside `oneOf`, with its
 // JSON pointer, so a new schema fails loudly here instead of losing a check.
 // It misses three things. `format` is skipped, so the integer ranges uint32
 // and uint64 are not enforced. `oneOf` is read as `anyOf`, which is exact
@@ -164,6 +168,15 @@ class Writer {
     }
     // Only the root's $defs are read, so definitions elsewhere would be lost.
     if (node.$defs !== undefined && pointer !== "") throw new UnsupportedSchema(pointer, "$defs");
+    // Each branch below reads some of the node's keywords. A keyword the
+    // chosen branch does not read would be lost, so it is refused here.
+    const branch = chosenBranch(node);
+    const unread = Object.keys(node).filter(
+      (key) => key !== "$defs" && !ANNOTATIONS.has(key) && !branch.reads.has(key),
+    );
+    if (unread.length > 0) {
+      throw new UnsupportedSchema(pointer, `${unread.join(", ")} ${branch.name}`);
+    }
     if (node.$ref !== undefined) return this.#reference(node, pointer, indent);
     if (node.const !== undefined) return literal(node.const, `${pointer}/const`);
     if (node.enum !== undefined) return stringEnum(node.enum, `${pointer}/enum`);
@@ -188,10 +201,6 @@ class Writer {
   #reference(node: Node, pointer: string, indent: string): string {
     const reference = node.$ref;
     if (!isString(reference)) throw new UnsupportedSchema(pointer, "$ref is not a string");
-    const others = Object.keys(node).filter(
-      (key) => key !== "$ref" && key !== "$defs" && !ANNOTATIONS.has(key),
-    );
-    if (others.length > 0) throw new UnsupportedSchema(pointer, `${others.join(", ")} beside $ref`);
     const definition = reference.match(/^#\/\$defs\/([A-Za-z_][A-Za-z0-9_]*)$/)?.[1];
     if (definition !== undefined && this.definitions.has(definition)) return `${definition}Schema`;
     const anchor = reference.match(/^#([A-Za-z_][A-Za-z0-9_.-]*)$/)?.[1];
@@ -246,9 +255,6 @@ class Writer {
     if (properties !== undefined) {
       if (!isNode(properties))
         throw new UnsupportedSchema(`${pointer}/properties`, "not an object");
-      if (additionalProperties !== undefined) {
-        throw new UnsupportedSchema(pointer, "additionalProperties beside properties");
-      }
       const required = Array.isArray(node.required) ? node.required.filter(isString) : [];
       const inner = `${indent}  `;
       const fields = Object.entries(properties).map(([key, value]) => {
@@ -275,6 +281,49 @@ class Writer {
     if (others.length > 0) throw new UnsupportedSchema(pointer, others.join(", "));
     return isString(value.pattern) ? `z.string()${pattern(value.pattern)}` : "z.string()";
   }
+}
+
+/** The branch of a node that #translate takes, and the keywords that branch reads. */
+interface Branch {
+  /** How a refusal names the branch, such as `beside $ref` or `without a type`. */
+  readonly name: string;
+  readonly reads: ReadonlySet<string>;
+}
+
+/** The keywords each JSON type reads, other than `type` itself. */
+function typeReads(kind: unknown, node: Node): string[] {
+  switch (kind) {
+    case "string":
+      return ["pattern"];
+    case "integer":
+    case "number":
+      return ["minimum"];
+    case "array":
+      return ["items"];
+    case "object":
+      return node.properties === undefined
+        ? ["additionalProperties", "propertyNames"]
+        : ["properties", "required"];
+    default:
+      return [];
+  }
+}
+
+function chosenBranch(node: Node): Branch {
+  const branch = (name: string, ...reads: string[]): Branch => ({ name, reads: new Set(reads) });
+  if (node.$ref !== undefined) return branch("beside $ref", "$ref");
+  if (node.const !== undefined) return branch("beside const", "const", "type");
+  if (node.enum !== undefined) return branch("beside enum", "enum", "type");
+  if (node.oneOf !== undefined) return branch("beside oneOf", "oneOf");
+  if (node.anyOf !== undefined) return branch("beside anyOf", "anyOf");
+  const type = node.type;
+  if (type === undefined) return branch("without a type");
+  const types = Array.isArray(type) ? type : [type];
+  if (node.properties !== undefined && types.includes("object")) {
+    return branch("beside properties", "type", ...types.flatMap((kind) => typeReads(kind, node)));
+  }
+  const name = `beside type ${types.map(String).join(", ")}`;
+  return branch(name, "type", ...types.flatMap((kind) => typeReads(kind, node)));
 }
 
 function definitionReferences(value: unknown): string[] {

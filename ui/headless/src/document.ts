@@ -89,7 +89,13 @@ const PageDocumentSchema = ComplianceDocumentSchema.extend({
 /** The compliance of every repository the build's config names. */
 export type ComplianceDocument = z.infer<typeof PageDocumentSchema>;
 
-const PageEnvelopeSchema = ComplianceEnvelopeSchema.extend({ data: PageDocumentSchema });
+// The pages never read `failures`, so the package does not check its entries.
+// A newer build whose failure entries carry a new recovery kind or label
+// field then still parses with an older package.
+const PageEnvelopeSchema = ComplianceEnvelopeSchema.extend({
+  data: PageDocumentSchema,
+  failures: z.array(z.unknown()),
+});
 
 /** The document did not parse: `path` names the first field that failed, such as `data.rows.0.section`. */
 export class InvalidDocument extends Error {
