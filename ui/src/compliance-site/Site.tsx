@@ -2,8 +2,9 @@
 // the page the hash names, all drawn from the document inlined in the file.
 // A document that is missing or fails the schema draws one line with its
 // code and nothing else.
-import { complianceAddress, complianceView } from "@crumbkit/flightdeck-headless/compliance";
+import { snapshotOf } from "@crumbkit/flightdeck-headless/snapshot";
 import type { ComplianceSource } from "@crumbkit/flightdeck-headless/source";
+import { shortMoment } from "@crumbkit/flightdeck-headless/words";
 import { useComplianceDocument } from "@crumbkit/flightdeck-react/useComplianceDocument";
 import { useMemo } from "react";
 import { CompliancePage } from "@/routes/compliance/CompliancePage";
@@ -11,16 +12,6 @@ import { OutLink } from "@/routes/compliance/parts";
 import { RepositoryPage } from "@/routes/compliance/RepositoryPage";
 import { RulesPage } from "@/routes/compliance/RulesPage";
 import { placeHash, usePlace } from "./address.ts";
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** Returns an RFC 3339 time as the top bar shows it, such as "25 Nov 2026, 06:00 UTC". */
-export function topBarTime(iso: string): string {
-  const at = new Date(iso);
-  const hours = String(at.getUTCHours()).padStart(2, "0");
-  const minutes = String(at.getUTCMinutes()).padStart(2, "0");
-  return `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()] ?? ""} ${at.getUTCFullYear()}, ${hours}:${minutes} UTC`;
-}
 
 /** Returns the code of `error`, or null when it has none. */
 function codeOf(error: unknown): string | null {
@@ -50,11 +41,7 @@ export function Site({ source }: { readonly source: ComplianceSource }) {
   const { document, error } = useComplianceDocument(source);
   const { place, navigate } = usePlace();
   // The note above every page, which the headless views share.
-  const snapshot = useMemo(
-    () =>
-      document === null ? null : complianceView(document, complianceAddress.parse("")).snapshot,
-    [document],
-  );
+  const snapshot = useMemo(() => (document === null ? null : snapshotOf(document)), [document]);
   if (error !== null) {
     return (
       <p className="cs-failure" role="alert">
@@ -81,7 +68,7 @@ export function Site({ source }: { readonly source: ComplianceSource }) {
           </nav>
         </div>
         <div className="cs-row cs-nowrap">
-          <span className="cs-cap">Snapshot of {topBarTime(document.built_at)}</span>
+          <span className="cs-cap">Snapshot of {shortMoment(document.built_at)}</span>
           <span className="cs-chip">read only</span>
         </div>
       </header>

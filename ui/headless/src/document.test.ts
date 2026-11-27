@@ -41,6 +41,24 @@ describe("parseDocument", () => {
     expect(() => parseDocument(wrong)).toThrow(/data\.rows\.0\.section/);
   });
 
+  it("refuses a time that is not an RFC 3339 time, naming its field", () => {
+    const builtAt = { ...fixture, data: { ...fixture.data, built_at: "yesterday" } };
+    expect(() => parseDocument(builtAt)).toThrow(/data\.built_at/);
+    const repositories = fixture.data.repositories.map((column, index) =>
+      index === 0 ? { ...column, generated: "25 Nov 2026", committed: "noon" } : column,
+    );
+    const generated = { ...fixture, data: { ...fixture.data, repositories } };
+    expect(() => parseDocument(generated)).toThrow(/data\.repositories\.0\.generated/);
+  });
+
+  it("reads a time with an offset or fractional seconds", () => {
+    const repositories = fixture.data.repositories.map((column, index) =>
+      index === 0 ? { ...column, committed: "2026-11-20T10:00:00.5+01:00" } : column,
+    );
+    const offset = { ...fixture, data: { ...fixture.data, repositories } };
+    expect(parseDocument(offset).repositories[0]?.committed).toBe("2026-11-20T10:00:00.5+01:00");
+  });
+
   it("refuses text that is not a document at all", () => {
     expect(() => parseDocument("not a document")).toThrow(InvalidDocument);
   });

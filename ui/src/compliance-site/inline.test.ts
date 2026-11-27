@@ -8,8 +8,14 @@ describe("inlining the Compliance site", () => {
     );
   });
 
-  it("writes a comment opener inside the code so the parser never leaves the script", () => {
-    expect(scriptText('html("<!--$")')).toBe('html("<\\!--$")');
+  it("refuses code that holds a comment opener, which could keep the script element open", () => {
+    expect(() => scriptText('html("<!--$")')).toThrow(/<!--/);
+  });
+
+  it("leaves code without a comment opener as it is, apart from closing script tags", () => {
+    expect(scriptText("const raw = String.raw`a<b`; /<!-/u.test(x);")).toBe(
+      "const raw = String.raw`a<b`; /<!-/u.test(x);",
+    );
   });
 
   it("writes a closing style tag inside the styles so it cannot end the element", () => {

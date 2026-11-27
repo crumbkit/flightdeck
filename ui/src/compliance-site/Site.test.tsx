@@ -2,9 +2,13 @@ import type { ComplianceSource } from "@crumbkit/flightdeck-headless/source";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { sampleJson } from "../../tests/fixtures/compliance/sample.ts";
+import {
+  REFUSAL_CODE,
+  refusedSampleJson,
+  sampleJson,
+} from "../../tests/fixtures/compliance/sample.ts";
 import { DOCUMENT_ID, inlineSource } from "./inlineSource.ts";
-import { Site, topBarTime } from "./Site.tsx";
+import { Site } from "./Site.tsx";
 
 /** Returns `value`, failing the test when it is missing. */
 function present<T>(value: T | undefined): T {
@@ -86,8 +90,9 @@ describe("the Compliance site", () => {
     ).toBeInTheDocument();
   });
 
-  it("names the snapshot's time in the top bar", () => {
-    expect(topBarTime("2026-11-25T06:00:00Z")).toBe("25 Nov 2026, 06:00 UTC");
+  it("names the snapshot's time in the top bar", async () => {
+    await drawAt("#/");
+    expect(screen.getByRole("banner")).toHaveTextContent("Snapshot of 25 Nov 2026, 06:00 UTC");
   });
 });
 
@@ -287,5 +292,33 @@ describe("the Rules page", () => {
       "href",
       "https://github.com/platform/data-pipeline/actions/runs/7000301",
     );
+  });
+});
+
+describe("a document with a refused report and an unknown checker", () => {
+  it("names a checker this build does not know as an unknown checker with its name", async () => {
+    await drawAt("#/", refusedSampleJson());
+    const row = within(matrix())
+      .getAllByRole("row")
+      .find((each) => each.textContent?.toLowerCase().includes("changelog"));
+    expect(within(present(row)).getAllByRole("cell")[1]).toHaveTextContent("unknown checker regex");
+  });
+
+  it("shows a refused report's code in its column and still draws the other columns", async () => {
+    await drawAt("#/", refusedSampleJson());
+    const head = within(matrix()).getByRole("link", { name: /^legacy-cron, invalid report/ });
+    expect(present(head.closest("th") ?? undefined)).toHaveTextContent("invalid_report");
+    const missing = screen.getByRole("region", { name: /Repositories without a current report/ });
+    expect(missing).toHaveTextContent("flightdeck::compliance::invalid_report");
+    const row = within(matrix())
+      .getAllByRole("row")
+      .find((each) => each.textContent?.includes("Python file stays"));
+    const cells = within(present(row)).getAllByRole("cell");
+    expect(cells.map((cell) => cell.textContent)).toContain(`not readable${REFUSAL_CODE}`);
+    const links = within(present(row))
+      .getAllByRole("link")
+      .map((link) => link.getAttribute("href"));
+    expect(links).toContain("#/repositories/payments-api?rule=%2Frules%2Fpython%2Ffile-size");
+    expect(links).toContain("#/repositories/data-pipeline?rule=%2Frules%2Fpython%2Ffile-size");
   });
 });

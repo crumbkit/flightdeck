@@ -11,13 +11,21 @@ export interface Inlined {
 }
 
 /**
- * Returns `code` as the text of a script element. A closing script tag or a
- * comment opener in the code, which a string can hold, would end the element
- * or change how the parser reads it, so each gets a backslash that a
- * JavaScript string reads as nothing.
+ * Returns `code` as the text of a script element. A closing script tag in
+ * the code, which a string can hold, would end the element, so it gets a
+ * backslash that a JavaScript string reads as nothing. A comment opener can
+ * make the parser read a later closing tag as text, and no escape keeps
+ * every place it can appear, such as a regular expression or a raw
+ * template, meaning the same, so the build refuses code that holds one and
+ * a person decides.
  */
 export function scriptText(code: string): string {
-  return code.replaceAll(/<\/(script)/gi, "<\\/$1").replaceAll("<!--", "<\\!--");
+  if (code.includes("<!--")) {
+    throw new Error(
+      "the compliance page's script holds <!--, which can keep its script element open; find the module that writes it",
+    );
+  }
+  return code.replaceAll(/<\/(script)/gi, "<\\/$1");
 }
 
 /** Returns `css` as the text of a style element, with each closing style tag escaped as a CSS string reads it. */

@@ -63,6 +63,15 @@ export function moment(iso: string): string {
   return `${hours}:${minutes} UTC on ${at.getUTCDate()} ${month} ${at.getUTCFullYear()}`;
 }
 
+/** Returns an RFC 3339 time in UTC as a short line names it, such as "25 Nov 2026, 06:00 UTC". */
+export function shortMoment(iso: string): string {
+  const at = new Date(iso);
+  const hours = String(at.getUTCHours()).padStart(2, "0");
+  const minutes = String(at.getUTCMinutes()).padStart(2, "0");
+  const month = (MONTHS[at.getUTCMonth()] ?? "").slice(0, 3);
+  return `${at.getUTCDate()} ${month} ${at.getUTCFullYear()}, ${hours}:${minutes} UTC`;
+}
+
 /** Returns a commit's first seven characters, as Git abbreviates it. */
 export function shortCommit(sha: string): string {
   return sha.slice(0, 7);
@@ -170,8 +179,11 @@ export function checkerWord(checker: Checker | null, long: boolean): string {
       const rubric = checkerField(checker, "rubric");
       return long && rubric !== null ? `judged · ${rubric}` : "judged";
     }
-    default:
+    case "pattern":
+    case "written":
       return kind;
+    default:
+      return `unknown checker ${kind}`;
   }
 }
 

@@ -98,14 +98,28 @@ for (const [name, engine] of [
   });
 }
 
-test("inside a frame with Flare's policy, the file draws with no violation and no request", async ({
-  page,
-}) => {
-  const html = readFileSync(builtByFlightdeck(), "utf8");
+/**
+ * Serves `html` as a Flare share inside a Flare host page at `page`, and
+ * returns the URLs the page requested and the policy violations any frame
+ * reported, each as "<directive> <blocked URI>". The listener is an init
+ * script, which Playwright runs in every frame before the frame's own code.
+ */
+async function servedAsShare(page: Page, html: string) {
   const host = "https://flare.test/";
   const share = "https://share.flare.test/view";
   const requests: string[] = [];
+  const violations: string[] = [];
   page.on("request", (request) => requests.push(request.url()));
+  page.on("console", (message) => {
+    const text = message.text();
+    if (text.startsWith("csp-violation ")) violations.push(text.slice("csp-violation ".length));
+  });
+  await page.addInitScript(() => {
+    document.addEventListener("securitypolicyviolation", (event) => {
+      // biome-ignore lint/suspicious/noConsole: the frame's console carries each violation to the test
+      console.info(`csp-violation ${event.effectiveDirective} ${event.blockedURI}`);
+    });
+  });
   await page.route("**/*", async (route) => {
     const url = route.request().url();
     if (url === host) {
@@ -124,11 +138,37 @@ test("inside a frame with Flare's policy, the file draws with no violation and n
     }
   });
   await page.goto(host);
-  const frame = page.frameLocator('iframe[title="share"]');
+  return { host, share, requests, violations, frame: page.frameLocator('iframe[title="share"]') };
+}
+
+test("inside a frame with Flare's policy, the file draws every page with no violation and no request", async ({
+  page,
+}) => {
+  const html = readFileSync(builtByFlightdeck(), "utf8");
+  const { host, share, requests, violations, frame } = await servedAsShare(page, html);
   await expect(frame.getByRole("heading", { level: 1 })).toContainText("checks fail");
   await frame.getByRole("link", { name: "Rules", exact: true }).click();
   await expect(frame.getByRole("heading", { level: 1 })).toContainText("rules reach");
+  await frame.getByRole("link", { name: "Compliance", exact: true }).click();
+  const matrix = frame.getByRole("region", { name: /Rules and checks by repository/ });
+  await matrix.getByRole("columnheader").nth(2).getByRole("link").click();
+  await expect(frame.getByRole("heading", { level: 1 })).toContainText("owner/app");
+  expect(violations).toEqual([]);
   expect(requests).toEqual([host, share]);
+});
+
+test("inside the same frame, a page that loads an image from the network reports the violation", async ({
+  page,
+  errors,
+}) => {
+  // The control for the test above: the listener sees what the policy blocks.
+  const html = `<!doctype html><title>control</title><h1>control</h1><img alt="" src="https://images.flare.test/a.png">`;
+  const { violations, frame } = await servedAsShare(page, html);
+  await expect(frame.getByRole("heading", { level: 1 })).toHaveText("control");
+  await expect.poll(() => violations).toEqual(["img-src https://images.flare.test/a.png"]);
+  // The browser also logs the violation as an error, which this test expects.
+  expect(errors.every((error) => error.includes("Content Security Policy"))).toBe(true);
+  errors.length = 0;
 });
 
 test("a filtered address reloads the same view", async ({ page }) => {

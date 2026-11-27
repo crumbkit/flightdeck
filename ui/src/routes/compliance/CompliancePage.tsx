@@ -33,6 +33,23 @@ function cellRule(row: MatrixRow, name: string): string {
   return row.rows.find((each) => each.id === own)?.id ?? row.rows[0]?.id ?? row.id;
 }
 
+/** Returns the last segment of a code, such as "invalid_report" for "flightdeck::compliance::invalid_report". */
+function codeName(code: string): string {
+  return code.split("::").at(-1) ?? code;
+}
+
+/**
+ * Returns the code of a cell that its report refused, such as a checker's
+ * failure, or null. A column with no report or an invalid one draws its
+ * cells as words, so this reads only the cells of a readable report.
+ */
+function refusalCode(row: MatrixRow, index: number, name: string): string | null {
+  const own = row.rows.find((each) => each.id === cellRule(row, name));
+  const cell = own?.cells[index];
+  if (cell === undefined || cell.state !== "not_readable") return null;
+  return cell.code;
+}
+
 /** One row of the matrix, with a cell for each repository the filters keep. */
 function MatrixLine({
   document,
@@ -75,14 +92,20 @@ function MatrixLine({
             </td>
           );
         }
+        const refused = refusalCode(row, index, column.name);
         return (
           <td key={cell.repository} className="cs-r">
             <a
               href={repositoryHash(column.name, cellRule(row, column.name))}
-              aria-label={cell.spoken}
+              aria-label={refused === null ? cell.spoken : `${cell.spoken}, ${refused}`}
             >
               <StateChip word={cell.word} />
             </a>
+            {refused === null ? null : (
+              <span className="cs-cap cs-mono" aria-hidden="true">
+                {refused}
+              </span>
+            )}
             {cell.caption === null ? null : (
               <span className="cs-cap" aria-hidden="true">
                 {cell.caption}
@@ -135,6 +158,9 @@ function MissingLine({
       <div>
         <RepositoryLink name={item.repository} /> · {item.word}
         <div className="cs-cap">{item.detail}</div>
+        {column?.report === "invalid_report" && column.code !== null ? (
+          <div className="cs-cap cs-mono">{column.code}</div>
+        ) : null}
       </div>
       {item.run === null ? null : <RunLink column={column} label={item.run} className="cs-cap" />}
     </div>
@@ -266,7 +292,14 @@ export function CompliancePage({ document, search, navigate }: PageProps) {
                         {head.name}
                       </a>
                       {missingReport ? (
-                        <StateChip word={head.caption} />
+                        <>
+                          <StateChip word={head.caption} />
+                          {column.report === "invalid_report" && column.code !== null ? (
+                            <span className="cs-cap cs-mono" title={column.code}>
+                              {codeName(column.code)}
+                            </span>
+                          ) : null}
+                        </>
                       ) : (
                         <span className="cs-cap">
                           <time
