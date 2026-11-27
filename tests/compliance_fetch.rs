@@ -116,13 +116,16 @@ impl Place {
     }
 
     /// Runs flightdeck with `args`, with the fake gh on `PATH` when `with_gh`
-    /// is true.
+    /// is true. Without it, `PATH` names only an empty directory, because a
+    /// CI runner installs a real gh in `/usr/bin`.
     fn flightdeck(&self, args: &[&str], with_gh: bool) -> Output {
         let state = self.root.path().join("state");
         let path = if with_gh {
             format!("{}:/usr/bin:/bin", here("tests/fixtures/gh/bin").display())
         } else {
-            "/usr/bin:/bin".to_owned()
+            let empty = self.root.path().join("empty-bin");
+            std::fs::create_dir_all(&empty).unwrap();
+            empty.display().to_string()
         };
         Command::new(env!("CARGO_BIN_EXE_flightdeck"))
             .args(args)
