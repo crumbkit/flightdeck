@@ -9,7 +9,10 @@
     "directory": "ui/headless"
   },
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./src/zod.ts",
+    "./dist/zod.js"
+  ],
   "files": [
     "dist"
   ],

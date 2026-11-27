@@ -145,6 +145,11 @@ jobs:
       - name: install
         run: pnpm install --frozen-lockfile
         working-directory: ui
+      # The generated zod schemas match the JSON Schema flightdeck publishes
+      # (BASE-21): it writes them again and fails when git shows a change.
+      - name: schemas
+        run: pnpm run schemas
+        working-directory: ui
       - name: lint
         run: pnpm run lint
         working-directory: ui
