@@ -296,7 +296,7 @@ describe("a repository's page", () => {
     expect(within(measured).getByText("pipeline/transform/joins.py")).toHaveClass("cs-mono");
   });
 
-  it("heads the failing panel's table with the budget's unit and names the files it reads from the root", async () => {
+  it("heads the failing panel's table with the budget's unit and sets the commit in the mono face", async () => {
     await drawAt("#/repositories/data-pipeline?rule=%2Frules%2Fpython%2Ffile-size");
     const detail = screen.getByRole("region", { name: /^Failing · A Python file/ });
     expect(within(detail).getByRole("columnheader", { name: "Bytes" })).toBeInTheDocument();
@@ -305,8 +305,6 @@ describe("a repository's page", () => {
       if (!(given instanceof HTMLElement)) throw new Error(`no value for ${term}`);
       return given;
     };
-    expect(value("Reads").textContent?.startsWith("/")).toBe(false);
-    expect(within(value("Reads")).getByText(/^pipeline\//)).toHaveClass("cs-mono");
     expect(within(value("Measured at")).getByText("7f20c4d")).toHaveClass("cs-mono");
   });
 
@@ -346,7 +344,7 @@ describe("the Rules page", () => {
     const user = userEvent.setup();
     await drawAt("#/rules");
     const table = () => screen.getByRole("region", { name: /^Rules · / });
-    expect(within(table()).getByRole("heading")).toHaveTextContent("Rules · 14");
+    expect(within(table()).getByRole("heading")).toHaveTextContent("Rules · 15");
     await user.click(screen.getByRole("button", { name: "obligation" }));
     expect(window.location.hash).toBe("#/rules?kind=obligation");
     expect(within(table()).getByRole("heading")).toHaveTextContent("Rules · 1");
@@ -378,7 +376,10 @@ describe("the Rules page", () => {
   });
 
   it("names what a pattern rule quotes beside its checker", async () => {
+    const user = userEvent.setup();
     await drawAt("#/rules");
+    const more = screen.queryByRole("button", { name: /^Show \d+ more/ });
+    if (more !== null) await user.click(more);
     const row = screen
       .getAllByRole("row")
       .find((each) => each.textContent?.includes("/rules/privacy/customer-names"));
@@ -424,5 +425,164 @@ describe("a document with a refused report and an unknown checker", () => {
       .map((link) => link.getAttribute("href"));
     expect(links).toContain("#/repositories/payments-api?rule=%2Frules%2Fpython%2Ffile-size");
     expect(links).toContain("#/repositories/data-pipeline?rule=%2Frules%2Fpython%2Ffile-size");
+  });
+});
+
+describe("the pages of a document with the fetch's runs (artboards 52, 54 and 55)", () => {
+  it("names the imposed set's repository and branch beside the build run", async () => {
+    await drawAt("#/");
+    const hero = screen.getByRole("note");
+    expect(hero).toHaveTextContent("platform-controls · main");
+  });
+
+  it("names the run of a repository whose newest run uploaded no report, and links to it", async () => {
+    await drawAt("#/");
+    const missing = screen.getByRole("region", { name: /Repositories without a current report/ });
+    expect(missing).toHaveTextContent(
+      "Main run #2310 finished without uploading a controls report, so its 5 rules have no state.",
+    );
+    expect(missing).toHaveTextContent(
+      "Its controls job runs daily and has not run on main since 16 November.",
+    );
+    expect(within(missing).getByRole("link", { name: "Run #2310" })).toHaveAttribute(
+      "href",
+      "https://github.com/platform/mobile-app/actions/runs/7002310",
+    );
+  });
+
+  it("gives the Rules page's report lines the run's note, and a rule only that repository reaches is stale", async () => {
+    await drawAt("#/rules");
+    const reports = screen.getByRole("region", { name: /Reports by repository/ });
+    const line = (name: string) =>
+      within(reports)
+        .getAllByRole("row")
+        .find((each) => each.textContent?.startsWith(name))?.textContent;
+    expect(line("mobile-app")).toBe(
+      "mobile-appmain run #2310 · finished without uploading a controls reporte19b04f–5no report",
+    );
+    expect(line("identity-service")).toContain(
+      "main run #77 · Its controls job runs daily, and the newest main run is 9 days old.",
+    );
+    const rules = screen.getByRole("region", { name: /^Rules · / });
+    const ios = within(rules)
+      .getAllByRole("row")
+      .find((each) => each.textContent?.includes("/rules/toolchains/ios-target"));
+    expect(ios).toHaveTextContent("stalemobile-app sent no report");
+  });
+
+  it("says how many commits the branch has had since the report's run, and what a rule applies to", async () => {
+    await drawAt("#/repositories/data-pipeline?rule=/rules/python/file-size");
+    expect(screen.getByText("3 commits on main since that run")).toBeVisible();
+    const applies = screen.getByText("Applies to").nextElementSibling;
+    expect(applies).toHaveTextContent("**/*.py");
+    expect(applies?.querySelector(".cs-mono")).toHaveTextContent("**/*.py");
+  });
+
+  it("says that the newest run of a repository with no report uploaded none", async () => {
+    await drawAt("#/repositories/mobile-app");
+    expect(
+      screen.getByText("Main run #2310 finished without uploading a controls report."),
+    ).toBeVisible();
+    const legend = screen.getByRole("region", { name: /How the states are read/ });
+    expect(legend).toHaveTextContent(
+      "The repository's newest main run uploaded no report, so its rules have no state.",
+    );
+  });
+});
+
+describe("the pages as the signed artboards 52, 54 and 55 order and word them", () => {
+  /** Returns the rules table's rows after its Show more button is pressed. */
+  async function allRules() {
+    const user = userEvent.setup();
+    await drawAt("#/rules");
+    const more = screen.queryByRole("button", { name: /^Show \d+ more/ });
+    if (more !== null) await user.click(more);
+    return within(screen.getByRole("region", { name: /^Rules · / }))
+      .getAllByRole("row")
+      .slice(1);
+  }
+
+  /** Returns the cells' text of the rules table's row of `id`. */
+  function ruleCells(rows: readonly HTMLElement[], id: string) {
+    const found = rows.find((each) => each.textContent?.includes(id));
+    return within(present(found))
+      .getAllByRole("cell")
+      .map((cell) => cell.textContent);
+  }
+
+  it("captions a current per-file budget with its largest file", async () => {
+    const rows = await allRules();
+    expect(ruleCells(rows, "/rules/docs/changelog-entry").at(-1)).toBe("currentlargest 212");
+  });
+
+  it("says all 8 of a rule that reaches every repository, one of which sent no report", async () => {
+    const rows = await allRules();
+    expect(ruleCells(rows, "/rules/agents/context-budget")[4]).toBe("all 8");
+  });
+
+  it("lists the stated rules pattern first, then judged, then written, then the obligation", async () => {
+    const ids = (await allRules()).map((row) => row.querySelector(".cs-sub2")?.textContent);
+    const at = (id: string) => ids.indexOf(id);
+    const order = [
+      "/rules/privacy/customer-names",
+      "/rules/containers/no-latest",
+      "/rules/writing/plain-pr",
+      "/rules/db/down-step",
+      "/rules/payments/v1-signer-owed",
+    ].map(at);
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it("lists the matrix's measured rules worst first: Agent context, Python file size, Node, Python, the iOS target, Terraform", async () => {
+    await drawAt("#/");
+    const names = matrixRowNames();
+    const order = [
+      "Agent context stays under 1,000 words",
+      "A Python file stays under 40 KB",
+      "Node is at least 22.12",
+      "Python is at least 3.12",
+      "The iOS deployment target is at least 17.0",
+      "Terraform is at least 1.9",
+    ].map((name) => names.indexOf(name));
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it("lists the failing rules with the newest report first", async () => {
+    await drawAt("#/");
+    const failing = screen.getByRole("region", { name: /^Failing · / });
+    const items = [...failing.querySelectorAll(".cs-item")].map(
+      (item) => item.textContent?.split(" · ")[0],
+    );
+    expect(items.slice(0, 3)).toEqual(["data-pipeline", "web-portal", "docs-site"]);
+  });
+
+  it("writes Python with its capital in a stale report's note", async () => {
+    await drawAt("#/");
+    const stale = screen.getByRole("region", { name: /^Stale checks/ });
+    expect(stale).toHaveTextContent(/Python rules are stale/);
+    expect(stale.textContent).not.toMatch(/python/);
+  });
+
+  it("names a version rule's checker as version alone in the measured rules table", async () => {
+    await drawAt("#/repositories/data-pipeline");
+    const measured = screen.getByRole("region", { name: /Rules measured at 7f20c4d · 3/ });
+    const checkers = within(measured)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => within(row).getAllByRole("cell")[1]?.textContent);
+    expect(checkers).toEqual([
+      "budget · bytes per file · max 40,960",
+      "budget · words · max 1,000",
+      "version",
+    ]);
+  });
+
+  it("gives the failing panel the rows Rule, Requirement, Purpose, Applies to and Measured at", async () => {
+    await drawAt("#/repositories/data-pipeline?rule=%2Frules%2Fpython%2Ffile-size");
+    const detail = screen.getByRole("region", { name: /^Failing · A Python file/ });
+    const terms = [...detail.querySelectorAll("dt")].map((term) => term.textContent);
+    expect(terms).toEqual(["Rule", "Requirement", "Purpose", "Applies to", "Measured at"]);
   });
 });

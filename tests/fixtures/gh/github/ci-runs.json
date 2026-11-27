@@ -1,0 +1,53 @@
+{
+ "total_count": 1,
+ "workflow_runs": [
+  {
+   "id": 9001,
+   "name": "CI",
+   "node_id": "WFR_kwLO",
+   "head_branch": "main",
+   "head_sha": "84016e5e4606dc0aace8eeebd07e2b7b0282c742",
+   "path": ".github/workflows/ci.yml",
+   "display_title": "Merge pull request",
+   "run_number": 7,
+   "event": "push",
+   "status": "completed",
+   "conclusion": "success",
+   "workflow_id": 101,
+   "check_suite_id": 1,
+   "url": "https://api.github.com/repos/owner/ci/actions/runs/9001",
+   "html_url": "https://github.com/owner/ci/actions/runs/9001",
+   "pull_requests": [],
+   "created_at": "2026-11-25T22:10:00Z",
+   "updated_at": "2026-11-25T22:10:00Z",
+   "run_attempt": 1,
+   "run_started_at": "2026-11-25T22:10:00Z",
+   "actor": {
+    "login": "a-person",
+    "id": 4242,
+    "type": "User"
+   },
+   "triggering_actor": {
+    "login": "a-person",
+    "id": 4242,
+    "type": "User"
+   },
+   "head_commit": {
+    "id": "84016e5e4606dc0aace8eeebd07e2b7b0282c742",
+    "message": "Merge pull request",
+    "author": {
+     "name": "A Person",
+     "email": "a.person@example.invalid"
+    }
+   },
+   "repository": {
+    "id": 1,
+    "full_name": "owner/ci"
+   },
+   "head_repository": {
+    "id": 1,
+    "full_name": "owner/ci"
+   }
+  }
+ ]
+}

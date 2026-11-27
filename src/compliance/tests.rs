@@ -6,7 +6,10 @@ use jiff::{SignedDuration, Timestamp};
 use serde_json::{Value, json};
 
 use super::config::{Config, ConfigProblem};
-use super::document::{self, Cell, ComplianceDocument, Inputs, ReportState, Row, Section};
+use super::document::{
+    self, Cell, ComplianceDocument, Inputs, NO_REPORT, Read, ReportState, Row, Section,
+};
+use super::fetch::record::{self as fetch_record, FetchRecord, FetchedRun};
 use super::report::{self, Report, RuleSource, Unread};
 use super::state::{self, CellState};
 
@@ -60,7 +63,13 @@ fn at_days(days: i64) -> Inputs {
 /// The document of the fixture config over `reports`, one for each of its
 /// four repositories, built with `inputs`.
 fn built(reports: [Result<Report, Unread>; 4], inputs: &Inputs) -> ComplianceDocument {
-    document::build(&Config::parse(CONFIG).unwrap(), &reports, inputs)
+    built_from(reports.map(Read::from), inputs)
+}
+
+/// The document of the fixture config over `reads`, each a report and the
+/// fetch record beside it, built with `inputs`.
+fn built_from(reads: [Read; 4], inputs: &Inputs) -> ComplianceDocument {
+    document::build(&Config::parse(CONFIG).unwrap(), &reads, inputs)
 }
 
 /// The document of the three fixture reports and no report for owner/gone,
@@ -805,4 +814,386 @@ fn an_every_hours_of_0_is_refused_at_its_line() {
         problem.message
     );
     assert_eq!(problem.line, Some(18), "{}", problem.message);
+}
+
+// What a fetch record adds to a column.
+
+/// A run of `repository`'s workflow on main, `id` and `number`, at `commit`,
+/// started at the fixture reports' time and uploading a report when
+/// `uploaded` is true.
+fn run(repository: &str, id: u64, number: u64, commit: &str, uploaded: bool) -> FetchedRun {
+    FetchedRun {
+        run_id: id,
+        run_number: number,
+        commit: commit.to_owned(),
+        branch: "main".to_owned(),
+        started_at: value(APP)["generated"].as_str().unwrap().to_owned(),
+        url: format!("https://github.com/{repository}/actions/runs/{id}"),
+        uploaded,
+    }
+}
+
+/// The fetch record of `repository` with its newest run and the run its
+/// report came from.
+fn fetched(
+    repository: &str,
+    newest: Option<FetchedRun>,
+    report: Option<FetchedRun>,
+    commits_since: Option<u64>,
+) -> FetchRecord {
+    FetchRecord {
+        schema: fetch_record::SCHEMA.to_owned(),
+        repository: repository.to_owned(),
+        fetched_at: value(APP)["generated"].as_str().unwrap().to_owned(),
+        workflow: "ci.yml".to_owned(),
+        branch: "main".to_owned(),
+        artifact: "rules-report".to_owned(),
+        newest_run: newest,
+        report_run: report,
+        commits_since,
+        commits_since_code: None,
+    }
+}
+
+/// The read of `report` with `record` beside it.
+fn with_record(report: Result<Report, Unread>, record: FetchRecord) -> Read {
+    Read {
+        report,
+        fetch: Ok(Some(record)),
+    }
+}
+
+/// owner/ci's commit, which its report and its GitHub run name.
+const CI_COMMIT: &str = "84016e5e4606dc0aace8eeebd07e2b7b0282c742";
+
+#[test]
+fn a_fetch_record_gives_its_column_the_newest_run_the_report_run_and_the_commits_since() {
+    let ci_run = run("owner/ci", 9001, 7, CI_COMMIT, true);
+    let record = fetched("owner/ci", Some(ci_run.clone()), Some(ci_run), Some(3));
+    let document = built_from(
+        [
+            missing().into(),
+            missing().into(),
+            with_record(read(&value(CI)), record),
+            missing().into(),
+        ],
+        &at_hours(5),
+    );
+    let ci = &document.repositories[2];
+    assert_eq!(ci.report, ReportState::Current);
+    let newest = ci.newest_run.as_ref().unwrap();
+    assert_eq!((newest.run_number, newest.uploaded), (7, true));
+    assert_eq!(newest.age_s, Some(5 * 3600));
+    assert_eq!(ci.report_run.as_ref().unwrap().run_id, 9001);
+    assert_eq!(
+        (ci.commits_since, ci.commits_since_code.as_deref()),
+        (Some(3), None)
+    );
+}
+
+#[test]
+fn a_report_from_a_run_older_than_the_newest_reads_no_report_and_its_rules_make_rows_that_read_no_report()
+ {
+    let mut app = value(APP);
+    let rules = app["rules"].as_array_mut().unwrap();
+    rules.retain(|rule| rule["id"] != "/rules/toolchains/rust");
+    let commit = "d4646834fbc9acd2642854b48b467cb5cf146570";
+    let record = fetched(
+        "owner/app",
+        Some(run("owner/app", 9102, 12, &"e".repeat(40), false)),
+        Some(run("owner/app", 9101, 11, commit, true)),
+        Some(2),
+    );
+    let document = built_from(
+        [
+            with_record(read(&app), record),
+            read(&value(API)).into(),
+            missing().into(),
+            missing().into(),
+        ],
+        &at_hours(1),
+    );
+    let column = &document.repositories[0];
+    assert_eq!(column.report, ReportState::NoReport);
+    assert_eq!(column.code.as_deref(), Some(NO_REPORT));
+    assert_eq!(column.newest_run.as_ref().unwrap().run_number, 12);
+    assert_eq!(column.report_run.as_ref().unwrap().run_number, 11);
+    assert_eq!(
+        column.commits_since, None,
+        "no report is shown, so none is counted"
+    );
+    assert_eq!(document.reports.no_report, 3);
+    // owner/app's own rule makes a row although its report is not read.
+    let own = cell(
+        row(
+            &document,
+            "/rules/app/handlers",
+            Some(RuleSource::Repository),
+        ),
+        "owner/app",
+    );
+    assert_eq!(
+        (own.state, own.code.as_deref()),
+        (CellState::NotReadable, Some(NO_REPORT))
+    );
+    assert_eq!(
+        rule_state(&document, "/rules/toolchains/rust", "owner/app"),
+        CellState::Absent,
+        "a rule the earlier report does not hold reads absent"
+    );
+}
+
+#[test]
+fn a_repository_whose_fetch_found_no_report_names_its_newest_run_and_makes_no_row() {
+    let record = fetched(
+        "owner/app",
+        Some(run("owner/app", 9102, 12, &"e".repeat(40), false)),
+        None,
+        None,
+    );
+    let document = built_from(
+        [
+            with_record(missing(), record),
+            missing().into(),
+            missing().into(),
+            missing().into(),
+        ],
+        &at_hours(1),
+    );
+    let column = &document.repositories[0];
+    assert_eq!(column.report, ReportState::NoReport);
+    assert_eq!(column.newest_run.as_ref().unwrap().run_number, 12);
+    assert!(document.rows.is_empty(), "{:?}", document.rows);
+}
+
+#[test]
+fn a_report_left_beside_a_fetch_record_that_found_none_is_not_read() {
+    let record = fetched(
+        "owner/app",
+        Some(run("owner/app", 9102, 12, &"e".repeat(40), false)),
+        None,
+        None,
+    );
+    let document = built_from(
+        [
+            with_record(read(&value(APP)), record),
+            missing().into(),
+            missing().into(),
+            missing().into(),
+        ],
+        &at_hours(1),
+    );
+    assert_eq!(document.repositories[0].report, ReportState::NoReport);
+    assert!(document.rows.is_empty(), "{:?}", document.rows);
+}
+
+#[test]
+fn a_fetch_record_with_a_field_of_the_wrong_type_is_an_invalid_report_at_that_field() {
+    let mut record = serde_json::to_value(fetched("owner/ci", None, None, None)).unwrap();
+    record["newest_run"] = json!({"run_id": "nine"});
+    let unread =
+        fetch_record::parse(&serde_json::to_vec(&record).unwrap(), "owner/ci").unwrap_err();
+    let Unread::Invalid { field, message } = &unread else {
+        panic!("{unread:?}");
+    };
+    assert_eq!(field.as_deref(), Some("newest_run.run_id"), "{message}");
+    let document = built_from(
+        [
+            missing().into(),
+            missing().into(),
+            Read {
+                report: read(&value(CI)),
+                fetch: Err(unread),
+            },
+            missing().into(),
+        ],
+        &at_hours(1),
+    );
+    let ci = &document.repositories[2];
+    assert_eq!(ci.report, ReportState::InvalidReport);
+    assert_eq!(ci.field.as_deref(), Some("newest_run.run_id"));
+    assert!(
+        ci.message.as_deref().unwrap().contains("fetch record"),
+        "{ci:?}"
+    );
+}
+
+#[test]
+fn a_fetch_record_whose_report_run_is_not_the_reports_own_run_is_an_invalid_report() {
+    let ci_run = run("owner/ci", 9005, 9, CI_COMMIT, true);
+    let record = fetched("owner/ci", Some(ci_run.clone()), Some(ci_run), Some(0));
+    let document = built_from(
+        [
+            missing().into(),
+            missing().into(),
+            with_record(read(&value(CI)), record),
+            missing().into(),
+        ],
+        &at_hours(1),
+    );
+    let ci = &document.repositories[2];
+    assert_eq!(ci.report, ReportState::InvalidReport);
+    assert_eq!(ci.field.as_deref(), Some("report_run.run_id"));
+}
+
+#[test]
+fn a_fetch_record_of_another_repository_is_refused_at_its_repository() {
+    let record = fetched("owner/app", None, None, None);
+    let bytes = serde_json::to_vec(&record).unwrap();
+    let Err(Unread::Invalid { field, .. }) = fetch_record::parse(&bytes, "owner/ci") else {
+        panic!("a record of owner/app read as owner/ci's");
+    };
+    assert_eq!(field.as_deref(), Some("repository"));
+}
+
+#[test]
+fn a_fetch_record_whose_run_address_is_not_on_github_is_refused_at_that_address() {
+    for (field, newest_url, report_url) in [
+        ("newest_run.url", "javascript:alert(1)", None),
+        (
+            "report_run.url",
+            "https://github.com/owner/ci/actions/runs/9001",
+            Some("http://github.com/owner/ci/actions/runs/9001"),
+        ),
+    ] {
+        let mut newest = run("owner/ci", 9001, 7, CI_COMMIT, true);
+        newest.url = newest_url.to_owned();
+        let mut report = run("owner/ci", 9001, 7, CI_COMMIT, true);
+        if let Some(url) = report_url {
+            report.url = url.to_owned();
+        }
+        let record = fetched("owner/ci", Some(newest), Some(report), Some(3));
+        let bytes = serde_json::to_vec(&record).unwrap();
+        let Err(Unread::Invalid { field: at, .. }) = fetch_record::parse(&bytes, "owner/ci") else {
+            panic!("a run address of {newest_url} was read");
+        };
+        assert_eq!(at.as_deref(), Some(field));
+    }
+    let good = run("owner/ci", 9001, 7, CI_COMMIT, true);
+    let record = fetched("owner/ci", Some(good.clone()), Some(good), Some(3));
+    assert!(fetch_record::parse(&serde_json::to_vec(&record).unwrap(), "owner/ci").is_ok());
+}
+
+#[test]
+fn a_config_whose_report_is_another_repositorys_fetch_record_is_refused_at_its_line() {
+    for (first, second) in [
+        ("owner/app", "owner/app.fetch"),
+        ("owner/App.fetch", "owner/app"),
+    ] {
+        let text = CONFIG.replace(
+            "[[repositories]]\nname = \"owner/app\"",
+            &format!(
+                "[[repositories]]\nname = \"{first}\"\n\n[[repositories]]\nname = \"{second}\""
+            ),
+        );
+        assert_ne!(text, CONFIG);
+        let problem = Config::parse(&text).unwrap_err();
+        assert!(
+            problem.message.contains("fetch record"),
+            "{}",
+            problem.message
+        );
+        assert!(problem.line.is_some());
+    }
+    let alone = CONFIG.replace("name = \"owner/app\"", "name = \"owner/app.fetch\"");
+    assert!(Config::parse(&alone).is_ok());
+}
+
+#[test]
+fn the_build_without_a_fetch_record_leaves_every_fetched_field_out() {
+    let document = fixtures();
+    let json = serde_json::to_value(&document).unwrap();
+    for column in json["repositories"].as_array().unwrap() {
+        for field in [
+            "newest_run",
+            "report_run",
+            "commits_since",
+            "commits_since_code",
+            "every_hours",
+        ] {
+            assert!(column.get(field).is_none(), "{field} in {column}");
+        }
+    }
+    assert!(json["imposed"].get("branch").is_none());
+    assert!(
+        json["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|row| row.get("paths").is_none())
+    );
+}
+
+#[test]
+fn rules_branch_names_the_branch_of_the_imposed_set() {
+    let inputs = Inputs {
+        rules_branch: Some("main".to_owned()),
+        ..at_hours(1)
+    };
+    let document = built([missing(), missing(), missing(), missing()], &inputs);
+    assert_eq!(document.imposed.branch.as_deref(), Some("main"));
+}
+
+#[test]
+fn a_rules_paths_copy_into_its_row() {
+    let mut app = value(APP);
+    for rule in app["rules"].as_array_mut().unwrap() {
+        if rule["id"] == "/rules/rust/file-size" {
+            rule["paths"] = json!(["**/*.rs"]);
+        }
+    }
+    let document = app_alone(&app, 0);
+    let file_size = row(
+        &document,
+        "/rules/rust/file-size",
+        Some(RuleSource::Imposed),
+    );
+    assert_eq!(
+        file_size.paths.as_deref(),
+        Some(&["**/*.rs".to_owned()][..])
+    );
+    let server = row(&document, "/rules/rust/server", Some(RuleSource::Imposed));
+    assert_eq!(server.paths, None);
+}
+
+#[test]
+fn a_sources_every_hours_reaches_its_repositorys_column_and_its_own_source_wins() {
+    let text = CONFIG
+        .replace("branch = \"main\"\n", "branch = \"main\"\nevery_hours = 6\n")
+        .replace(
+            "name = \"owner/ci\"\n",
+            "name = \"owner/ci\"\nsource = { kind = \"github-artifact\", workflow = \"controls.yml\", artifact = \"rules-report\", branch = \"main\", every_hours = 24 }\n",
+        );
+    let config = Config::parse(&text).unwrap();
+    let document = document::build(
+        &config,
+        &[
+            missing().into(),
+            missing().into(),
+            missing().into(),
+            missing().into(),
+        ],
+        &at_hours(1),
+    );
+    let hours: Vec<Option<u32>> = document
+        .repositories
+        .iter()
+        .map(|column| column.every_hours)
+        .collect();
+    assert_eq!(hours, [Some(6), Some(6), Some(24), None]);
+}
+
+#[test]
+fn a_sources_every_hours_of_0_is_refused_at_its_line() {
+    let text = CONFIG.replace(
+        "branch = \"main\"\n",
+        "branch = \"main\"\nevery_hours = 0\n",
+    );
+    let problem = Config::parse(&text).unwrap_err();
+    assert!(
+        problem.message.contains("every_hours"),
+        "{}",
+        problem.message
+    );
+    assert_eq!(problem.line, Some(12), "{}", problem.message);
 }

@@ -15,6 +15,7 @@ use crumbkit::tool::Failures;
 use crumbkit::{NoInput, Tool, ViewFlags};
 use crumbkit_skills::{Skill, skills_command};
 
+use crate::compliance::fetch::{COMPLIANCE_FETCH, COMPLIANCE_FETCH_RECORD};
 use crate::compliance::{COMPLIANCE_BUILD, COMPLIANCE_CONFIG};
 use crate::workspaces::{WORKSPACES_LIST, WORKSPACES_SHOW, WorkspaceName};
 
@@ -41,7 +42,7 @@ pub const TOOL: Tool = Tool::new()
     .failures(Failures::new().exits(&crate::open::FORCED_EXITS))
     .help(
     Help::new()
-        .file_formats(&[COMPLIANCE_CONFIG])
+        .file_formats(&[COMPLIANCE_CONFIG, COMPLIANCE_FETCH_RECORD])
         .root_verbs(
             &["open"],
             "flightdeck opens a page for a tool, and a tool is no resource of flightdeck's own.",
@@ -105,6 +106,14 @@ pub const TOOL: Tool = Tool::new()
                 ])
                 .effects(Effects::additive().idempotent())
                 .document(COMPLIANCE_BUILD),
+            Leaf::new(&["compliance", "fetch"])
+                .examples(&[Example::new(
+                    &["--config", "compliance.toml", "--reports", "reports"],
+                    "Write each repository's newest report from GitHub and the record of its runs, and print one line per repository, failed ones first",
+                )
+                .needs(&["gh"])])
+                .effects(Effects::additive().idempotent().open_world())
+                .document(COMPLIANCE_FETCH),
             Leaf::new(&["commands", "list"])
                 .examples(&[
                     Example::new(&[], "List every command"),
@@ -185,7 +194,7 @@ pub(crate) enum Resource {
         #[command(subcommand)]
         command: WorkspacesCommand,
     },
-    /// Build the compliance document from rules reports.
+    /// Fetch the repositories' rules reports and build the compliance document.
     Compliance {
         /// What to do with the reports.
         #[command(subcommand)]
@@ -264,6 +273,22 @@ pub(crate) struct WorkspacesShowArgs {
 pub(crate) enum ComplianceCommand {
     /// Join each repository's rules report into one compliance document.
     Build(ComplianceBuildArgs),
+    /// Download each repository's newest rules report from its GitHub runs.
+    Fetch(ComplianceFetchArgs),
+}
+
+/// The arguments of `flightdeck compliance fetch`.
+#[derive(Debug, Args)]
+pub(crate) struct ComplianceFetchArgs {
+    /// The flightdeck/compliance-config/v1 file, whose sources say where
+    /// each report comes from.
+    #[arg(long, value_name = "FILE")]
+    pub(crate) config: PathBuf,
+
+    /// The directory to write each report into, at <owner>/<repo>.json,
+    /// with its record at <owner>/<repo>.fetch.json.
+    #[arg(long, value_name = "DIR")]
+    pub(crate) reports: PathBuf,
 }
 
 /// The arguments of `flightdeck compliance build`.
@@ -293,6 +318,10 @@ pub(crate) struct ComplianceBuildArgs {
     /// The imposed set's current commit.
     #[arg(long, value_name = "SHA", value_parser = commit_id)]
     pub(crate) rules_commit: Option<String>,
+
+    /// The imposed set's branch, such as main.
+    #[arg(long, value_name = "NAME")]
+    pub(crate) rules_branch: Option<String>,
 
     /// The build's time, such as 2026-11-25T06:00:00Z; now when left out.
     #[arg(long, value_name = "TIME")]

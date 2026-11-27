@@ -8,6 +8,14 @@ import { filterRows, type RowTest, type Sort, sortRows } from "@crumbkit/ui/tabl
 import { cellCaption } from "./cells.ts";
 import type { Cell, ComplianceDocument, RepositoryColumn, Row } from "./document.ts";
 import { addedRules, type DriftState, driftItems, driftState, driftWord } from "./drift.ts";
+import {
+  NO_UPLOAD,
+  namedRun,
+  noUpload,
+  noUploadSentence,
+  staleSentence,
+  superseded,
+} from "./runs.ts";
 import { type Snapshot, snapshotOf } from "./snapshot.ts";
 import {
   ageWord,
@@ -15,6 +23,7 @@ import {
   checkKind,
   INVALID_REPORT,
   NO_REPORT,
+  numberWord,
   reportWord,
   rowName,
   shortCommit,
@@ -102,6 +111,17 @@ export interface ReportLine {
   readonly name: string;
   /** The CI run that made the report, such as "run #1184", or null for a local report. */
   readonly run: string | null;
+  /** The branch the run ran on, such as "main", or null when the build was not told it. */
+  readonly branch: string | null;
+  /** The run's page on GitHub, or null. */
+  readonly runUrl: string | null;
+  /**
+   * Beside the run: how often a stale report's job runs and how old its
+   * newest run is, or that the newest run uploaded no report; null otherwise.
+   */
+  readonly runNote: string | null;
+  /** The phone's line of the same: a full sentence, or null. */
+  readonly sentence: string | null;
   readonly commit: string | null;
   readonly age: string | null;
   /** How many rules its report holds, or null without a report. */
@@ -184,6 +204,15 @@ function readable(column: RepositoryColumn): boolean {
   return column.report === "current" || column.report === "stale";
 }
 
+/**
+ * Whether a column says which rules reach it: it has a report whose cells
+ * say something, or its newest run uploaded none and its cells read no
+ * report where an earlier run's report held the rule.
+ */
+function reaches(column: RepositoryColumn): boolean {
+  return readable(column) || superseded(column);
+}
+
 /** Returns the caption beside a failing or stale rule, from its first such cell. */
 function caption(row: Row, cell: Cell, column: RepositoryColumn): string | null {
   if (cell.state === "stale" && row.section !== "zero" && column.age_s !== null) {
@@ -195,6 +224,21 @@ function caption(row: Row, cell: Cell, column: RepositoryColumn): string | null 
   if (cell.result === "over" && !text.endsWith(" over")) return `${column.name} holds ${text}`;
   if (cell.result === "over") return `${column.name}: ${text.replace(/ over$/, "")} file over`;
   return `${column.name}: ${text}`;
+}
+
+/**
+ * Returns the caption beside a current budget rule: the most that one of its
+ * repositories uses, such as "largest 212", or null for another checker or
+ * a budget with no measure. A passing pin carries no version in the report,
+ * so a current version rule has no caption.
+ */
+function currentCaption(row: Row, cells: readonly { readonly cell: Cell }[]): string | null {
+  if (checkKind(row.checker) !== "budget") return null;
+  const used = cells.flatMap(({ cell }) => {
+    const value = cell.facts?.used ?? null;
+    return value === null ? [] : [value];
+  });
+  return used.length === 0 ? null : `largest ${numberWord(Math.max(...used))}`;
 }
 
 /** Returns the caption of a rule that a report lists and does not measure. */
@@ -212,22 +256,25 @@ function statedCaption(row: Row): string {
 /**
  * Returns a rule's entry. A column with no report says nothing of which
  * rules reach it, because the build marks its every row not readable, so
- * it counts in neither the rule's reach nor its state. The build makes a
- * row only from a rule a report that was read lists, so every rule reaches
- * at least one readable column.
+ * it counts in neither the rule's reach nor its state. A column whose
+ * newest run uploaded no report reaches the rules an earlier run's report
+ * held, and makes a measured rule stale when nothing worse holds. The build
+ * makes a row only from a rule a report lists, so every rule reaches at
+ * least one column.
  */
 function entry(document: ComplianceDocument, row: Row): RuleEntry {
   const name = rowName(row);
   const cells = document.repositories.flatMap((column, index) => {
     const cell = row.cells[index];
-    return cell === undefined || cell.state === "absent" || !readable(column)
+    return cell === undefined || cell.state === "absent" || !reaches(column)
       ? []
       : [{ column, cell }];
   });
   const reached = cells.map(({ column }) => column.name);
-  const withReport = document.repositories.filter(readable).length;
+  const withReport = document.repositories.filter(reaches).length;
   const failing = cells.find(({ cell }) => cell.state === "failing");
   const stale = cells.find(({ cell }) => cell.state === "stale");
+  const unsent = cells.find(({ column }) => superseded(column));
   const refused = cells.find(
     ({ cell }) =>
       cell.state === "not_readable" &&
@@ -243,6 +290,9 @@ function entry(document: ComplianceDocument, row: Row): RuleEntry {
   } else if (stale !== undefined) {
     state = "stale";
     text = caption(row, stale.cell, stale.column);
+  } else if (unsent !== undefined && row.section !== "written") {
+    state = "stale";
+    text = `${unsent.column.name} sent no report`;
   } else if (refused !== undefined) {
     state = "not_readable";
     text = refused.cell.code;
@@ -253,9 +303,13 @@ function entry(document: ComplianceDocument, row: Row): RuleEntry {
     state = "not_readable";
   } else {
     state = "current";
+    text = currentCaption(row, cells);
   }
+  const configured = document.repositories.length;
   let repositories: string;
-  if (reached.length === withReport && reached.length > 1) {
+  if (reached.length === configured && reached.length > 1) {
+    repositories = `all ${configured}`;
+  } else if (reached.length === withReport && reached.length > 1) {
     repositories = `all ${withReport} with a report`;
   } else if (reached.length <= 2) {
     repositories = reached.length === 0 ? "none with a report" : reached.join(", ");
@@ -301,7 +355,10 @@ function reportLine(
   column: RepositoryColumn,
   index: number,
 ): ReportLine {
-  const has = readable(column);
+  const has = reaches(column);
+  const run = namedRun(column);
+  const fresh = staleSentence(column);
+  const sha = column.commit ?? (noUpload(column) ? (run?.commit ?? null) : null);
   const rules = has
     ? document.rows.filter((row) => row.source !== null && row.cells[index]?.state !== "absent")
         .length
@@ -310,8 +367,12 @@ function reportLine(
   const word = reportWord(column.report);
   return {
     name: column.name,
-    run: column.source_run === null ? null : `run #${column.source_run.run_number}`,
-    commit: column.commit === null ? null : shortCommit(column.commit),
+    run: run === null ? null : `run #${run.number}`,
+    branch: run?.branch ?? null,
+    runUrl: run?.url ?? null,
+    runNote: noUpload(column) ? NO_UPLOAD : fresh,
+    sentence: noUploadSentence(column) ?? fresh,
+    commit: sha === null ? null : shortCommit(sha),
     age: column.age_s === null ? null : ageWord(column.age_s),
     rules,
     report: column.report,
@@ -356,9 +417,27 @@ export function rulesView(document: ComplianceDocument, address: RulesAddress): 
     direction: sort.direction,
   };
   const byName = { value: (rule: RuleEntry) => rule.name, direction: sort.direction };
+  // Between rules of one state, as artboard 52 lists its stated rules: by
+  // checker in the order of CHECKERS, standing rules before obligations, and
+  // the rule that reaches more repositories first.
+  const byChecker = {
+    value: (rule: RuleEntry) => {
+      const at = CHECKERS.findIndex((checker) => checker === rule.checkerKind);
+      return at === -1 ? CHECKERS.length : at;
+    },
+    direction: "ascending" as const,
+  };
+  const byKind = {
+    value: (rule: RuleEntry) => (rule.kind === "obligation" ? 1 : 0),
+    direction: "ascending" as const,
+  };
+  const byReach = {
+    value: (rule: RuleEntry) => -rule.reached.length,
+    direction: "ascending" as const,
+  };
   const rules = sortRows(
     filterRows(entries, tests),
-    sort.key === "state" ? [byState] : [byName],
+    sort.key === "state" ? [byState, byChecker, byKind, byReach] : [byName],
     (rule) => rule.name,
   );
   const failing = entries.filter((rule) => rule.state === "failing").length;
@@ -409,6 +488,6 @@ export function rulesView(document: ComplianceDocument, address: RulesAddress): 
       entries.map((rule) => rule.kind),
       KIND_MEANINGS,
     ),
-    note: "A measured rule fails when any repository's report fails it, and is stale when a report that reaches it is stale. A repository that sent no report reaches no rule, so it changes no rule's state. A rule a report could not read is in no tile. Pattern, judged and written rules are stated: a report lists them and measures nothing.",
+    note: "A measured rule fails when any repository's report fails it, and is stale when a repository it reaches has a stale report or none. A rule a report could not read is in no tile. Pattern, judged and written rules are stated: a report lists them and measures nothing.",
   };
 }

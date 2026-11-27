@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { CELL_STATES_WORST_FIRST, type ReportState } from "./document.ts";
 import {
   ageWord,
+  cadenceWord,
   cellWord,
   checkerWord,
+  dayWord,
   moment,
   mono,
   numberWord,
@@ -128,5 +130,25 @@ describe("phrases", () => {
       ".nvmrc line 1 pins 20.18.0.",
     );
     expect(phraseText([])).toBe("");
+  });
+});
+
+describe("cadenceWord", () => {
+  it("words a job's interval as hourly, daily, weekly, or every so many hours or days", () => {
+    expect([1, 6, 24, 48, 168, 30].map(cadenceWord)).toEqual([
+      "every hour",
+      "every 6 hours",
+      "daily",
+      "every 2 days",
+      "weekly",
+      "every 30 hours",
+    ]);
+  });
+});
+
+describe("dayWord", () => {
+  it("names a time's day and month in UTC, such as 16 November", () => {
+    expect(dayWord("2026-11-16T23:59:00Z")).toBe("16 November");
+    expect(dayWord("2026-11-16T23:59:00-02:00")).toBe("17 November");
   });
 });

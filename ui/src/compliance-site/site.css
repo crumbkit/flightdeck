@@ -466,9 +466,6 @@ tr:last-child td {
 .cs-plain:hover {
   text-decoration: underline;
 }
-.cs-plain[aria-pressed="true"] {
-  font-weight: 600;
-}
 
 .cs-ref {
   display: inline-flex;

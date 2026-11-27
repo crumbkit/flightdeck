@@ -42,6 +42,7 @@ fn document() -> compliance::ComplianceDocument {
         build_run: Some("Build run #412".to_owned()),
         build_url: None,
         rules_commit: None,
+        rules_branch: None,
     })
     .unwrap()
 }

@@ -6,6 +6,13 @@
 //! that a report does not hold reads absent in that column. A column whose
 //! report is missing or invalid reads that code in every cell, and the
 //! other columns still render.
+//!
+//! A fetch record beside a report names the repository's newest run, the
+//! run the report came from and the commits since. A report from a run
+//! older than the newest one reads `no_report`, with the newest run named:
+//! its rules still make rows, and each of its cells reads not readable with
+//! the code `flightdeck::compliance::no_report`. A fetch record that found
+//! no report leaves a report beside it unread.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -16,6 +23,7 @@ use serde::Serialize;
 
 use super::config::Config;
 use super::drift::Drift;
+use super::fetch::record::{FetchRecord, FetchedRun};
 use super::groups::{self, Group};
 use super::report::{
     Refused, Report, RuleFacts, RuleRow, RuleSource, SourceRun, SuiteRow, SuiteRun, Unread,
@@ -104,6 +112,10 @@ pub struct ImposedSet {
     /// The set's current commit, from `--rules-commit`; null when the build
     /// was not told it.
     pub commit: Option<String>,
+    /// The branch of the set's repository that the build read, from
+    /// `--rules-branch`; absent when the build was not told it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
 }
 
 /// How many cells read each state.
@@ -212,6 +224,71 @@ pub struct RepositoryColumn {
     pub refused: Vec<Refused>,
     /// How many of the column's rule and suite cells read each state.
     pub counts: StateCounts,
+    /// The newest finished run of the repository's workflow on its branch,
+    /// from the fetch record; absent without one, or when the workflow has
+    /// no run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub newest_run: Option<BranchRun>,
+    /// The run the report beside the fetch record came from; absent without
+    /// a fetch record, or when no run held a report.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub report_run: Option<BranchRun>,
+    /// Commits on the branch since the report's commit, from the fetch
+    /// record; absent when not counted, and for a column that reads no
+    /// report.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commits_since: Option<u64>,
+    /// Why a read report's `commits_since` is absent, such as
+    /// `flightdeck::compliance::compare_failed`; absent otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commits_since_code: Option<String>,
+    /// The hours between two runs of the repository's job, from its source
+    /// in the config; absent when the config names none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub every_hours: Option<u32>,
+}
+
+/// One finished run of a repository's workflow on its branch, as the fetch
+/// record names it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct BranchRun {
+    /// The run's id.
+    pub run_id: u64,
+    /// The run's number in its workflow.
+    pub run_number: u64,
+    /// The commit the run checked out.
+    pub commit: String,
+    /// The branch the run ran on.
+    pub branch: String,
+    /// When the run started, in UTC.
+    pub started_at: String,
+    /// The run's page on GitHub.
+    pub url: String,
+    /// Whether the run holds the report's artifact.
+    pub uploaded: bool,
+    /// Whole seconds from the run's start to the build; null when its time
+    /// cannot be read.
+    pub age_s: Option<u64>,
+}
+
+impl BranchRun {
+    /// The run `run` of a fetch record, with its age at `built_at`.
+    fn of(run: &FetchedRun, built_at: Timestamp) -> Self {
+        Self {
+            run_id: run.run_id,
+            run_number: run.run_number,
+            commit: run.commit.clone(),
+            branch: run.branch.clone(),
+            started_at: run.started_at.clone(),
+            url: run.url.clone(),
+            uploaded: run.uploaded,
+            age_s: run
+                .started_at
+                .parse::<Timestamp>()
+                .ok()
+                .map(|started| seconds_between(started, built_at)),
+        }
+    }
 }
 
 /// Which part of the matrix a row sits in.
@@ -258,6 +335,11 @@ pub struct Row {
     /// How many cases the suite lists, from the first report that holds
     /// it; null for a rule.
     pub cases: Option<u64>,
+    /// The globs of the files the rule applies to, such as `**/*.py`, from
+    /// the first report that gives them; absent for a suite and for a rule
+    /// no report gives them for.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paths: Option<Vec<String>>,
     /// The row's cell in each repository, in the order of the document's
     /// `repositories`.
     pub cells: Vec<Cell>,
@@ -318,6 +400,100 @@ pub(crate) struct Inputs {
     pub(crate) build_url: Option<String>,
     /// The imposed set's current commit, from `--rules-commit`.
     pub(crate) rules_commit: Option<String>,
+    /// The imposed set's branch, from `--rules-branch`.
+    pub(crate) rules_branch: Option<String>,
+}
+
+/// What the build read for one repository: its report, and the fetch
+/// record beside it.
+#[derive(Clone, Debug)]
+pub(crate) struct Read {
+    /// The report, or why there is none to read.
+    pub(crate) report: Result<Report, Unread>,
+    /// The fetch record, `None` when there is none, or why it cannot be
+    /// read.
+    pub(crate) fetch: Result<Option<FetchRecord>, Unread>,
+}
+
+impl From<Result<Report, Unread>> for Read {
+    /// A report with no fetch record beside it.
+    fn from(report: Result<Report, Unread>) -> Self {
+        Self {
+            report,
+            fetch: Ok(None),
+        }
+    }
+}
+
+/// What a column draws, once its report and fetch record are read together.
+#[derive(Clone, Copy, Debug)]
+enum Column<'a> {
+    /// The report, from the newest run when a fetch record names one.
+    Read(&'a Report),
+    /// A report from a run older than the newest run, which uploaded none.
+    /// Its rules make rows, and its cells read no report.
+    Superseded(&'a Report),
+    /// No report.
+    Missing,
+    /// A report or a fetch record the build cannot read.
+    Invalid {
+        field: Option<&'a str>,
+        message: &'a str,
+    },
+}
+
+impl<'a> Column<'a> {
+    /// Reads `read`'s report and fetch record together.
+    fn of(read: &'a Read) -> Self {
+        let record = match &read.fetch {
+            Err(Unread::Invalid { field, message }) => {
+                return Self::Invalid {
+                    field: field.as_deref(),
+                    message,
+                };
+            }
+            Err(Unread::Missing) | Ok(None) => None,
+            Ok(Some(record)) => Some(record),
+        };
+        let report = match &read.report {
+            Ok(report) => report,
+            Err(Unread::Missing) => return Self::Missing,
+            Err(Unread::Invalid { field, message }) => {
+                return Self::Invalid {
+                    field: field.as_deref(),
+                    message,
+                };
+            }
+        };
+        let Some(record) = record else {
+            return Self::Read(report);
+        };
+        let Some(report_run) = &record.report_run else {
+            // The fetch found no report and removes the old one after it
+            // writes the record, so a report still here is that old one.
+            return Self::Missing;
+        };
+        if let Some(own) = &report.source_run
+            && own.run_id != report_run.run_id
+        {
+            return Self::Invalid {
+                field: Some("report_run.run_id"),
+                message: "the fetch record names another run than the report beside it came from; fetch again",
+            };
+        }
+        match &record.newest_run {
+            Some(newest) if newest.run_id != report_run.run_id => Self::Superseded(report),
+            _ => Self::Read(report),
+        }
+    }
+
+    /// The report whose cells say something.
+    const fn readable(self) -> Option<&'a Report> {
+        match self {
+            Self::Read(report) => Some(report),
+            Self::Superseded(_) | Self::Missing | Self::Invalid { .. } => None,
+        }
+    }
 }
 
 /// Whole seconds from `earlier` to `later`, 0 when `earlier` is later.
@@ -348,34 +524,38 @@ fn section_of(checker: Option<&serde_json::Value>) -> Section {
     }
 }
 
-/// Builds the document from `config`, the result of reading each of its
-/// repositories' reports in the same order, and `inputs`.
-pub(crate) fn build(
-    config: &Config,
-    reports: &[Result<Report, Unread>],
-    inputs: &Inputs,
-) -> ComplianceDocument {
+/// Builds the document from `config`, what the build read for each of its
+/// repositories in the same order, and `inputs`.
+pub(crate) fn build(config: &Config, reads: &[Read], inputs: &Inputs) -> ComplianceDocument {
     let window_s = u64::from(config.stale_after_days).saturating_mul(DAY_S);
     let names: Vec<String> = config
         .repositories
         .iter()
         .map(|repository| repository.name.to_string())
         .collect();
-    let readable: Vec<Option<&Report>> =
-        reports.iter().map(|report| report.as_ref().ok()).collect();
+    let columns: Vec<Column<'_>> = reads.iter().map(Column::of).collect();
+    let readable: Vec<Option<&Report>> = columns.iter().map(|column| column.readable()).collect();
     // A row describes its rule as the first report that holds it gives it,
-    // so the reports on the current commit of the imposed set come first.
+    // so the reports on the current commit of the imposed set come first,
+    // and a superseded report comes last.
     let on_commit = |report: &&Report| {
         inputs.rules_commit.is_some()
             && report.board.rules_commit.as_deref() == inputs.rules_commit.as_deref()
     };
     let (current, others): (Vec<&Report>, Vec<&Report>) =
         readable.iter().flatten().copied().partition(on_commit);
+    let superseded = columns.iter().filter_map(|column| match column {
+        Column::Superseded(report) => Some(*report),
+        _ => None,
+    });
     let mut rows: BTreeMap<RowKey, Row> = BTreeMap::new();
-    for report in current.into_iter().chain(others) {
+    for report in current.into_iter().chain(others).chain(superseded) {
         for rule in &report.rules {
             let key = (rule.id.clone(), Some(rule.source));
             let row = rows.entry(key).or_insert_with(|| empty_rule_row(rule));
+            if row.paths.is_none() {
+                row.paths.clone_from(&rule.paths);
+            }
             for group in &rule.groups {
                 if !row.groups.contains(group) {
                     row.groups.push(group.clone());
@@ -393,8 +573,8 @@ pub(crate) fn build(
         row.groups.sort();
         row.cells = names
             .iter()
-            .zip(reports)
-            .map(|(name, report)| cell_of(row, name, report, inputs.built_at, window_s))
+            .zip(&columns)
+            .map(|(name, column)| cell_of(row, name, *column, inputs.built_at, window_s))
             .collect();
     }
     let groups = groups::roll_up(&names, &readable, &rows);
@@ -403,23 +583,40 @@ pub(crate) fn build(
     let repositories = config
         .repositories
         .iter()
-        .zip(reports)
+        .zip(columns.iter().zip(reads))
         .enumerate()
-        .map(|(column, (repository, report))| {
+        .map(|(index, (repository, (column, read)))| {
             let mut column_counts = StateCounts::default();
-            for cell in rows.iter().filter_map(|row| row.cells.get(column)) {
+            for cell in rows.iter().filter_map(|row| row.cells.get(index)) {
                 column_counts.add(cell.state);
                 counts.add(cell.state);
             }
-            let column = column_of(
+            let mut column = column_of(
                 repository.name.to_string(),
                 repository.group.clone(),
-                report,
+                *column,
                 config,
                 inputs,
                 window_s,
                 column_counts,
             );
+            column.every_hours = repository.every_hours;
+            if let Ok(Some(record)) = &read.fetch {
+                column.newest_run = record
+                    .newest_run
+                    .as_ref()
+                    .map(|run| BranchRun::of(run, inputs.built_at));
+                column.report_run = record
+                    .report_run
+                    .as_ref()
+                    .map(|run| BranchRun::of(run, inputs.built_at));
+                if matches!(column.report, ReportState::Current | ReportState::Stale) {
+                    column.commits_since = record.commits_since;
+                    column
+                        .commits_since_code
+                        .clone_from(&record.commits_since_code);
+                }
+            }
             match column.report {
                 ReportState::Current => report_counts.current += 1,
                 ReportState::Stale => report_counts.stale += 1,
@@ -451,6 +648,7 @@ pub(crate) fn build(
             from: config.imposed.from.clone(),
             root: config.imposed.root.clone(),
             commit: inputs.rules_commit.clone(),
+            branch: inputs.rules_branch.clone(),
         },
         counts,
         reports: report_counts,
@@ -474,6 +672,7 @@ fn empty_rule_row(rule: &RuleRow) -> Row {
         checker: rule.checker.clone(),
         groups: Vec::new(),
         cases: None,
+        paths: None,
         cells: Vec::new(),
     }
 }
@@ -491,25 +690,42 @@ fn empty_suite_row(suite: &SuiteRow) -> Row {
         checker: None,
         groups: Vec::new(),
         cases: suite.cases,
+        paths: None,
         cells: Vec::new(),
     }
 }
 
-/// Returns `row`'s cell in the column of `repository`, whose report is
-/// `report`, at `built_at` with a window of `window_s` seconds.
+/// Returns whether `report` holds the rule or suite of `row`.
+fn holds(report: &Report, row: &Row) -> bool {
+    if row.section == Section::Suite {
+        report.suites.iter().any(|suite| suite.id == row.id)
+    } else {
+        report
+            .rules
+            .iter()
+            .any(|rule| rule.id == row.id && Some(rule.source) == row.source)
+    }
+}
+
+/// Returns `row`'s cell in the column of `repository`, which draws
+/// `column`, at `built_at` with a window of `window_s` seconds.
 fn cell_of(
     row: &Row,
     repository: &str,
-    report: &Result<Report, Unread>,
+    column: Column<'_>,
     built_at: Timestamp,
     window_s: u64,
 ) -> Cell {
-    let report = match report {
-        Ok(report) => report,
-        Err(Unread::Missing) => {
+    let report = match column {
+        Column::Read(report) => report,
+        Column::Superseded(report) if holds(report, row) => {
             return Cell::coded(repository, CellState::NotReadable, Some(NO_REPORT));
         }
-        Err(Unread::Invalid { .. }) => {
+        Column::Superseded(_) => return Cell::absent(repository),
+        Column::Missing => {
+            return Cell::coded(repository, CellState::NotReadable, Some(NO_REPORT));
+        }
+        Column::Invalid { .. } => {
             return Cell::coded(repository, CellState::NotReadable, Some(INVALID_REPORT));
         }
     };
@@ -558,12 +774,12 @@ fn cell_of(
     }
 }
 
-/// Returns the column of the repository `name`, under `group`, whose
-/// report is `report`, with `counts` its cells' counts.
+/// Returns the column of the repository `name`, under `group`, which draws
+/// `report`, with `counts` its cells' counts.
 fn column_of(
     name: String,
     group: Option<String>,
-    report: &Result<Report, Unread>,
+    report: Column<'_>,
     config: &Config,
     inputs: &Inputs,
     window_s: u64,
@@ -588,18 +804,23 @@ fn column_of(
         drift: None,
         refused: Vec::new(),
         counts,
+        newest_run: None,
+        report_run: None,
+        commits_since: None,
+        commits_since_code: None,
+        every_hours: None,
     };
     match report {
-        Err(Unread::Missing) => {
+        Column::Missing | Column::Superseded(_) => {
             column.code = Some(NO_REPORT.to_owned());
         }
-        Err(Unread::Invalid { field, message }) => {
+        Column::Invalid { field, message } => {
             column.report = ReportState::InvalidReport;
             column.code = Some(INVALID_REPORT.to_owned());
-            column.field.clone_from(field);
-            column.message = Some(message.clone());
+            column.field = field.map(str::to_owned);
+            column.message = Some(message.to_owned());
         }
-        Ok(report) => {
+        Column::Read(report) => {
             let age_s = seconds_between(report.generated, inputs.built_at);
             column.report = if age_s > window_s {
                 ReportState::Stale

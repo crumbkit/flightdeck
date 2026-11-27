@@ -1,7 +1,7 @@
 // The note at the top of every snapshot page (artboards 54 to 56): when the
 // document was built, when the next build runs, and the run that built it.
 import type { ComplianceDocument } from "./document.ts";
-import { moment } from "./words.ts";
+import { moment, shortName } from "./words.ts";
 
 /** When the snapshot was built and by which run. */
 export interface Snapshot {
@@ -15,6 +15,12 @@ export interface Snapshot {
   readonly buildRun: { readonly label: string | null; readonly url: string | null } | null;
   /** The imposed set's origin, such as "owner/controls". */
   readonly from: string;
+  /**
+   * The imposed set's repository and branch beside the build run, such as
+   * "platform-controls · main", or its origin when the build was not told
+   * the branch.
+   */
+  readonly rules: string;
 }
 
 /** Returns the day of an RFC 3339 time in UTC, such as "2026-11-25". */
@@ -44,5 +50,9 @@ export function snapshotOf(document: ComplianceDocument): Snapshot {
     short: `Snapshot built at ${built}.${next === null ? "" : ` The next build is at ${next}.`}`,
     buildRun: document.build_run,
     from: document.imposed.from,
+    rules:
+      (document.imposed.branch ?? null) === null
+        ? document.imposed.from
+        : `${shortName(document.imposed.from)} · ${document.imposed.branch}`,
   };
 }

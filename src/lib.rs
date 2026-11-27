@@ -29,8 +29,9 @@ use starmap::Env as _;
 
 pub use crate::cli::{Cli, TOOL};
 use crate::cli::{
-    CommandsCommand, CompletionCommand, ComplianceBuildArgs, ComplianceCommand, EnvironmentVerb,
-    Resource, SKILL, SchemasCommand, SelfCommand, WorkspacesCommand,
+    CommandsCommand, CompletionCommand, ComplianceBuildArgs, ComplianceCommand,
+    ComplianceFetchArgs, EnvironmentVerb, Resource, SKILL, SchemasCommand, SelfCommand,
+    WorkspacesCommand,
 };
 use crate::environment::Environment;
 pub use crate::open::{ENVIRONMENT_INVALID, OpenError, SERVER_FAILED, TOOL_SEARCH_PATH};
@@ -75,6 +76,9 @@ where
             let result = compliance_build(&args);
             crumbkit::finish(run, compliance::COMPLIANCE_BUILD, result)
         }
+        Resource::Compliance {
+            command: ComplianceCommand::Fetch(args),
+        } => compliance_fetch(run, &args, vars),
         Resource::Commands {
             command: CommandsCommand::List(args),
         } => {
@@ -133,6 +137,7 @@ fn compliance_build(
         build_run: args.build_run.clone(),
         build_url: args.build_url.clone(),
         rules_commit: args.rules_commit.clone(),
+        rules_branch: args.rules_branch.clone(),
     };
     let mut document = compliance::build(&request)?;
     match &args.out {
@@ -143,6 +148,33 @@ fn compliance_build(
         }
         None => Ok(crumbkit::Prose::new(document)),
     }
+}
+
+/// Runs `flightdeck compliance fetch` with the gh found on the `PATH` of
+/// `vars`, and prints a line per repository.
+fn compliance_fetch(
+    mut run: crumbkit::Run,
+    args: &ComplianceFetchArgs,
+    vars: &[(OsString, OsString)],
+) -> ExitCode {
+    let environment = match Environment::from_vars(vars.iter().cloned()) {
+        Ok(environment) => environment,
+        Err(error) => {
+            return run.fail(
+                &mut crumbkit::Sink::standard(),
+                &OpenError::Environment(error),
+            );
+        }
+    };
+    let launch = open::launch_directory();
+    let request = compliance::FetchRequest {
+        config: args.config.clone(),
+        reports: args.reports.clone(),
+        gh: spawn::Program::at_launch("gh", launch.as_deref(), environment.path()),
+        fetched_at: jiff::Timestamp::now(),
+    };
+    let result = compliance::fetch(&request);
+    crumbkit::finish(run, compliance::fetch::COMPLIANCE_FETCH, result)
 }
 
 /// Runs `flightdeck workspaces list` or `show` against the mxv that

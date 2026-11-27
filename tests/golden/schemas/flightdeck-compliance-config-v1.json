@@ -108,7 +108,7 @@
           "type": "string"
         },
         "source": {
-          "description": "Where each repository's report comes from, unless the repository\nnames its own source. The build reads only the reports directory,\nso it checks the source's shape and `fetch` will read it.",
+          "description": "Where each repository's report comes from, unless the repository\nnames its own source. `flightdeck compliance fetch` reads it, and\nthe build reads only its `every_hours`.",
           "anyOf": [
             {
               "$ref": "#/$defs/Source"
@@ -202,7 +202,7 @@
       ]
     },
     "Source": {
-      "description": "Where a report or a suite's runs come from. The build reads only files;\n`flightdeck compliance fetch` will read the other kinds.",
+      "description": "Where a report comes from, which `flightdeck compliance fetch` reads.",
       "type": "object",
       "properties": {
         "artifact": {
@@ -221,12 +221,22 @@
           ],
           "default": null
         },
+        "every_hours": {
+          "description": "The hours between two runs of the repository's job that makes the\nreport, such as 24 for a daily job, which the pages word as \"runs\ndaily\".",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 1
+        },
         "kind": {
           "description": "`github-artifact`, `path` or `url`.",
           "$ref": "#/$defs/SourceKind"
         },
         "path": {
-          "description": "The report's path, for the `path` kind.",
+          "description": "The report's path, for the `path` kind, from the config's directory.",
           "type": [
             "string",
             "null"
@@ -234,7 +244,7 @@
           "default": null
         },
         "url": {
-          "description": "The report's address, for the `url` kind.",
+          "description": "The report's address, for the `url` kind, which `fetch` does not\nread yet.",
           "type": [
             "string",
             "null"
@@ -242,7 +252,7 @@
           "default": null
         },
         "workflow": {
-          "description": "The workflow file whose newest successful run holds the artifact,\nsuch as `ci.yml`.",
+          "description": "The workflow file whose newest finished run on the branch holds the\nartifact, such as `ci.yml`.",
           "type": [
             "string",
             "null"

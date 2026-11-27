@@ -77,7 +77,7 @@ export function Site({ source }: { readonly source: ComplianceSource }) {
           <div>{snapshot.sentence}</div>
           <div className="cs-row cs-nowrap">
             {run === null ? null : <BuildRun label={run.label} url={run.url} />}
-            <span className="cs-cap">{snapshot.from}</span>
+            <span className="cs-cap">{snapshot.rules}</span>
           </div>
         </div>
         {route.page === "compliance" ? (

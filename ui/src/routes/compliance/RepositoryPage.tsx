@@ -2,6 +2,8 @@
 // artboard 47): its measured rules, zero rules, suites and written rules,
 // the detail of the rule the address selects, how the states are read, and
 // where the report came from.
+
+import { namedRun } from "@crumbkit/flightdeck-headless/runs";
 import { ageWord, moment, shortCommit } from "@crumbkit/flightdeck-headless/words";
 import { useRepositoryCompliance } from "@crumbkit/flightdeck-react/useRepositoryCompliance";
 import { useMemo } from "react";
@@ -31,7 +33,7 @@ export function RepositoryPage({
     );
   }
   const commit = column.commit === null ? null : shortCommit(column.commit);
-  const run = column.source_run;
+  const run = namedRun(column);
   const selected = view.selected;
   return (
     <>
@@ -50,7 +52,8 @@ export function RepositoryPage({
               {run === null ? null : (
                 <>
                   {" "}
-                  from <RunLink column={column} label={`main run #${run.run_number}`} />
+                  from{" "}
+                  <RunLink column={column} label={`${run.branch ?? "main"} run #${run.number}`} />
                 </>
               )}
               {commit === null ? null : (
@@ -63,6 +66,7 @@ export function RepositoryPage({
               {column.age_s === null ? null : `, ${ageWord(column.age_s)} before the snapshot`}
             </span>
           )}
+          {view.commitsSince === null ? null : <span className="cs-cap">{view.commitsSince}</span>}
         </div>
       </div>
 

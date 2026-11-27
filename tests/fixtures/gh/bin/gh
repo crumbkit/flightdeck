@@ -1,0 +1,37 @@
+#!/bin/sh
+# A fake gh for flightdeck's compliance fetch tests. It appends its
+# arguments to $GH_LOG, then replays the answer that $GH_ANSWERS/answers.tsv
+# records for them. Each line of answers.tsv is the arguments, a tab, the
+# exit code, a tab and a file under $GH_ANSWERS: the file goes to standard
+# output when the code is 0 and to standard error otherwise, except that
+# `run download` copies it into its --dir, as gh unpacks an artifact. A
+# --dir=<path> argument is matched as --dir=DIR.
+set -eu
+printf '%s\n' "$*" >> "$GH_LOG"
+key=
+dir=
+for word in "$@"; do
+  case $word in
+    --dir=*)
+      dir=${word#--dir=}
+      word=--dir=DIR
+      ;;
+  esac
+  key="${key:+$key }$word"
+done
+tab=$(printf '\t')
+while IFS="$tab" read -r args code file; do
+  [ "$args" = "$key" ] || continue
+  if [ "$code" != 0 ]; then
+    cat "$GH_ANSWERS/$file" >&2
+    exit "$code"
+  fi
+  if [ -n "$dir" ]; then
+    cp "$GH_ANSWERS/$file" "$dir/"
+  else
+    cat "$GH_ANSWERS/$file"
+  fi
+  exit 0
+done < "$GH_ANSWERS/answers.tsv"
+echo "the fake gh has no answer for: $key" >&2
+exit 2

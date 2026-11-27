@@ -21,6 +21,9 @@ Options:
       --rules-commit <SHA>
           The imposed set's current commit
 
+      --rules-branch <NAME>
+          The imposed set's branch, such as main
+
       --built-at <TIME>
           The build's time, such as 2026-11-25T06:00:00Z; now when left out
 

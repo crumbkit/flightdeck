@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "flightdeck/compliance-fetch/v1",
+  "description": "The record beside a report that compliance fetch wrote: the newest run of the repository's workflow on its branch, the run the report came from and the commits on the branch since the report's commit.",
+  "$ref": "#/$defs/FetchRecord",
+  "$defs": {
+    "FetchRecord": {
+      "title": "flightdeck/compliance-fetch/v1",
+      "description": "What one fetch learned of a repository's runs on its branch.",
+      "type": "object",
+      "properties": {
+        "artifact": {
+          "description": "The artifact that holds the report, such as `rules-report`.",
+          "type": "string"
+        },
+        "branch": {
+          "description": "The branch whose runs the fetch listed, such as `main`.",
+          "type": "string"
+        },
+        "commits_since": {
+          "description": "Commits on the branch since the report's commit, as GitHub's compare\ncounts them; null when there is no report or they could not be\ncounted.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "commits_since_code": {
+          "description": "Why a report's `commits_since` is null:\n`flightdeck::compliance::no_commit` for a report that names no\ncommit, or `flightdeck::compliance::compare_failed` when GitHub\nrefused the compare. Null otherwise.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fetched_at": {
+          "description": "When the fetch ran, in UTC.",
+          "type": "string"
+        },
+        "newest_run": {
+          "description": "The newest finished run of the workflow on the branch; null when the\nworkflow has none.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FetchedRun"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "report_run": {
+          "description": "The run that the report beside the record came from, which is the\nnewest run or an earlier one; null when no listed run holds the\nartifact, and then no report is beside the record.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FetchedRun"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "repository": {
+          "description": "The repository, `owner/repo`.",
+          "type": "string"
+        },
+        "schema": {
+          "description": "`flightdeck/compliance-fetch/v1`.",
+          "type": "string"
+        },
+        "workflow": {
+          "description": "The workflow file whose runs the fetch listed, such as `ci.yml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "repository",
+        "fetched_at",
+        "workflow",
+        "branch",
+        "artifact"
+      ]
+    },
+    "FetchedRun": {
+      "description": "One finished run of a repository's workflow.",
+      "type": "object",
+      "properties": {
+        "branch": {
+          "description": "The branch the run ran on.",
+          "type": "string"
+        },
+        "commit": {
+          "description": "The commit the run checked out.",
+          "type": "string"
+        },
+        "run_id": {
+          "description": "The run's id.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "run_number": {
+          "description": "The run's number in its workflow.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "started_at": {
+          "description": "When the run started, in UTC.",
+          "type": "string"
+        },
+        "uploaded": {
+          "description": "Whether the run holds the report's artifact, unexpired.",
+          "type": "boolean"
+        },
+        "url": {
+          "description": "The run's page on GitHub.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "run_number",
+        "commit",
+        "branch",
+        "started_at",
+        "url",
+        "uploaded"
+      ]
+    }
+  }
+}

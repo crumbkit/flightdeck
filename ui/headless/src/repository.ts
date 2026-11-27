@@ -3,7 +3,7 @@
 // selects with its detail, the phone's single list and the legend of states.
 import { counted } from "@crumbkit/ui/a11y";
 import { defineAddress, id } from "@crumbkit/ui/address";
-import { fileName, measuredPhrase, measuredText } from "./cells.ts";
+import { measuredPhrase, measuredText } from "./cells.ts";
 import { runLabel } from "./compliance.ts";
 import {
   CELL_STATES_WORST_FIRST,
@@ -14,6 +14,7 @@ import {
   type Row,
 } from "./document.ts";
 import { suiteName } from "./matrix.ts";
+import { commitsSinceWords, namedRun, noUploadSentence } from "./runs.ts";
 import { type Snapshot, snapshotOf } from "./snapshot.ts";
 import {
   ageWord,
@@ -21,6 +22,7 @@ import {
   cellWord,
   checkerField,
   checkerWord,
+  checkKind,
   mono,
   type Phrase,
   phrase,
@@ -112,6 +114,8 @@ export interface RepositoryView {
   readonly name: string;
   readonly headline: string;
   readonly subtitle: string;
+  /** Beside the subtitle, such as "3 commits on main since that run"; null when the build was not told the count. */
+  readonly commitsSince: string | null;
   readonly snapshot: Snapshot;
   readonly measured: { readonly count: number; readonly rows: readonly RuleLine[] };
   readonly zero: { readonly count: number; readonly rows: readonly ZeroLine[] };
@@ -199,8 +203,11 @@ function headline(column: RepositoryColumn, reached: readonly Reached[]): string
 
 /** Returns the line under the headline, such as "Report from run #301 at 7f20c4d, 6 h before the snapshot". */
 function subtitle(column: RepositoryColumn): string {
-  if (column.generated === null) return "No report was read for this repository.";
-  const run = column.source_run === null ? "" : ` from run #${column.source_run.run_number}`;
+  const unsent = noUploadSentence(column);
+  if (column.generated === null) return unsent ?? "No report was read for this repository.";
+  const named = namedRun(column);
+  const branch = named?.branch === null || named?.branch === undefined ? "" : `${named.branch} `;
+  const run = named === null ? "" : ` from ${branch}run #${named.number}`;
   const at = column.commit === null ? "" : ` at ${shortCommit(column.commit)}`;
   const age = column.age_s === null ? "" : `, ${ageWord(column.age_s)} before the snapshot`;
   return `Report${run}${at}${age}`;
@@ -224,14 +231,12 @@ function detail(column: RepositoryColumn, reached: Reached): Detail {
     add("Run", cell.run === null ? ["no clean full run"] : [mono(cell.run.id)]);
     add("Result", [suiteResult(row, cell)]);
   } else {
-    const files = cell.facts?.files ?? [];
     add("Rule", [row.id]);
     add("Requirement", plain(row.requirement));
     add("Purpose", plain(row.purpose));
-    add("Checker", [checkerWord(row.checker, true)]);
     add(
-      "Reads",
-      phrase(...files.flatMap((file, at) => [at === 0 ? "" : ", ", mono(fileName(file))])),
+      "Applies to",
+      phrase(...(row.paths ?? []).flatMap((glob, at) => [at === 0 ? "" : ", ", mono(glob)])),
     );
     add("Capture", code(checkerField(row.checker, "capture")));
   }
@@ -277,8 +282,9 @@ function judgedBy(column: RepositoryColumn, suites: readonly Reached[]): string 
 }
 
 /** Returns the legend of the states the snapshot pages show, with the document's window. */
-function legend(document: ComplianceDocument): LegendEntry[] {
+function legend(document: ComplianceDocument, column: RepositoryColumn): LegendEntry[] {
   const days = counted(document.stale_after_days, "day");
+  const branch = (column.newest_run ?? column.report_run)?.branch ?? null;
   return [
     {
       word: "current",
@@ -295,7 +301,10 @@ function legend(document: ComplianceDocument): LegendEntry[] {
     },
     {
       word: "no report",
-      meaning: "No report was found for the repository, so its rules have no state.",
+      meaning:
+        branch === null
+          ? "No report was found for the repository, so its rules have no state."
+          : `The repository's newest ${branch} run uploaded no report, so its rules have no state.`,
     },
   ];
 }
@@ -319,7 +328,9 @@ export function repositoryView(
   const measured = worstFirst(of("measured")).map(
     (each): RuleLine => ({
       ...line(column, each),
-      checker: checkerWord(each.row.checker, true),
+      // Artboard 55 names a version rule's checker alone and a budget's with
+      // its limit, beside a measure that names the pinned version.
+      checker: checkerWord(each.row.checker, checkKind(each.row.checker) !== "version"),
       measured: measuredText(each.row, each.cell),
       measuredPhrase: measuredPhrase(each.row, each.cell),
     }),
@@ -367,6 +378,7 @@ export function repositoryView(
     name: column.name,
     headline: headline(column, readable ? reached : []),
     subtitle: subtitle(column),
+    commitsSince: readable ? commitsSinceWords(column) : null,
     snapshot: snapshotOf(document),
     measured: { count: measured.length, rows: measured },
     zero: { count: zero.length, rows: zero },
@@ -374,7 +386,7 @@ export function repositoryView(
     written: { count: written.length, rows: written, caption: judgedBy(column, of("suite")) },
     checks,
     selected: chosen === null ? null : detail(column, chosen),
-    legend: legend(document),
+    legend: legend(document, column),
     readFrom: `Read from ${column.name}'s report${run === null ? "" : ` of ${run.toLowerCase()}`}, as it stood at the snapshot.`,
   };
 }

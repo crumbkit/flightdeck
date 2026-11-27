@@ -7,6 +7,27 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `flightdeck compliance fetch --config FILE --reports DIR` downloads each
+  repository's newest rules report from its GitHub workflow runs through
+  `gh`, and writes `<owner>/<repo>.fetch.json` beside it, a
+  `flightdeck/compliance-fetch/v1` record of the newest run, the run the
+  report came from and the commits on the branch since. A repository whose
+  query fails gets a failed row, and the command exits with 1. Without gh
+  on `PATH` it fails with `flightdeck::compliance::no_gh` and writes
+  nothing.
+- `compliance build` reads those records. A repository whose newest run
+  uploaded no report reads `no_report`, and the document names its runs,
+  the commits since its report, how often its job runs (`every_hours` in a
+  source) and the paths each rule applies to. `--rules-branch NAME` names
+  the imposed set's branch.
+- `compliance.html` draws those facts as the signed artboards show: each
+  report's run sentence on the Rules page, the run of a repository whose
+  newest run sent no report, a rule only that repository reaches read as
+  stale, the imposed set's repository and branch beside the build run, the
+  commits since a report's run, and a rule's "Applies to" paths.
+
 ### Changed
 
 - `compliance.html` follows its signed mockups more closely. Suite names
@@ -20,6 +41,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   rule's checker names what it quotes. The Rules page lists no zero checker,
   a pin's Failing item names only the pin, and run links have no underline
   until hovered.
+- The compliance pages order and word more as their signed artboards do. The
+  matrix lists its measured rules worst first, and the Failing list gives
+  the newest report's failing rules first. The Rules page sorts rules of
+  one state by checker, then standing before obligation, then by reach,
+  says "all 8" of a rule that reaches every repository, and captions a
+  current budget with its largest measure. A stale note writes language
+  names such as Python with their capitals. A repository's page names a
+  version rule's checker alone, sets the selected rule in the regular
+  weight, and drops the Checker and Reads rows from the failing panel.
 
 ## [0.4.0] - 2026-11-27
 

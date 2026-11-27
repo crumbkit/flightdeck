@@ -26,7 +26,8 @@
     "./rules": "./src/rules.ts",
     "./control": "./src/control.ts",
     "./groups": "./src/groups.ts",
-    "./snapshot": "./src/snapshot.ts"
+    "./snapshot": "./src/snapshot.ts",
+    "./runs": "./src/runs.ts"
   },
   "publishConfig": {
     "exports": {
@@ -69,6 +70,10 @@
       "./snapshot": {
         "types": "./dist/snapshot.d.ts",
         "default": "./dist/snapshot.js"
+      },
+      "./runs": {
+        "types": "./dist/runs.d.ts",
+        "default": "./dist/runs.js"
       }
     }
   },

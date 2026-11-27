@@ -3,7 +3,14 @@
 // repository runs as its own copy, and a cell per repository.
 
 import { cellCaption } from "./cells.ts";
-import type { Cell, ComplianceDocument, RepositoryColumn, Row, Section } from "./document.ts";
+import {
+  CELL_STATES_WORST_FIRST,
+  type Cell,
+  type ComplianceDocument,
+  type RepositoryColumn,
+  type Row,
+  type Section,
+} from "./document.ts";
 import {
   ageWord,
   cellWord,
@@ -179,13 +186,26 @@ function suiteRows(document: ComplianceDocument, rows: readonly Row[]): MatrixRo
   return result;
 }
 
-/** Returns every row of the matrix, in the document's order of sections. */
+/** Returns the rank of a matrix row's worst cell, with an absent cell ranked last. */
+function worstRank(row: MatrixRow): number {
+  const ranks = row.cells.map((cell) => CELL_STATES_WORST_FIRST.indexOf(cell.state));
+  return Math.min(CELL_STATES_WORST_FIRST.length, ...ranks.filter((rank) => rank >= 0));
+}
+
+/**
+ * Returns every row of the matrix, in the document's order of sections. The
+ * measured rules list the worst first, as artboard 54 lists its failing
+ * rules above its stale ones and those above the current ones, and keep the
+ * document's order between rows of one state.
+ */
 export function matrixRows(document: ComplianceDocument): MatrixRow[] {
   const suites = document.rows.filter((row) => row.section === "suite");
   const rules = (section: Section) =>
     document.rows.filter((row) => row.section === section).map((row) => ruleRow(document, row));
+  const measured = rules("measured");
+  const ranks = new Map(measured.map((row) => [row.key, worstRank(row)]));
   return [
-    ...rules("measured"),
+    ...measured.sort((a, b) => (ranks.get(a.key) ?? 0) - (ranks.get(b.key) ?? 0)),
     ...rules("zero"),
     ...suiteRows(document, suites),
     ...rules("written"),
