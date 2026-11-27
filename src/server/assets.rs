@@ -22,7 +22,8 @@ impl Asset {
 }
 
 /// Every asset of the page: the files that `pnpm run build` writes to
-/// `ui/dist`, under fixed names. A test requests every file in that
+/// `ui/dist`, under fixed names, except compliance.html, which
+/// `compliance build --out` writes. A test requests every other file in that
 /// directory, so a built file missing here fails it.
 pub(super) const ALL: &[Asset] = &[
     Asset {

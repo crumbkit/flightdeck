@@ -817,6 +817,17 @@
             "$ref": "#/$defs/Row"
           }
         },
+        "site": {
+          "description": "The files that `--out` wrote, which only the printed document holds;\nabsent without `--out` and in `compliance.json`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SiteFiles"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "stale_after_days": {
           "description": "The most whole days since a report or a suite's run before it reads\nstale.",
           "type": "integer",
@@ -1556,6 +1567,39 @@
           "type": "string",
           "const": "written"
         }
+      ]
+    },
+    "SiteFiles": {
+      "description": "The files that `--out` wrote, as the printed document names them.",
+      "type": "object",
+      "properties": {
+        "document": {
+          "description": "The path of `compliance.json`.",
+          "type": "string"
+        },
+        "page": {
+          "description": "The path of `compliance.html`.",
+          "type": "string"
+        },
+        "page_bytes": {
+          "description": "How many bytes `compliance.html` holds.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "warnings": {
+          "description": "The codes of the warnings about the page, such as\n`flightdeck::compliance::over_flare_cap` for a page over Flare's\n4 MiB cap. A warning leaves the exit code at 0.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "document",
+        "page",
+        "page_bytes",
+        "warnings"
       ]
     },
     "SourceRun": {

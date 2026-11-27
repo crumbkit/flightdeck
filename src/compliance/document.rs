@@ -61,6 +61,25 @@ pub struct ComplianceDocument {
     pub rows: Vec<Row>,
     /// Each group of rules and its roll-up, by path.
     pub groups: Vec<Group>,
+    /// The files that `--out` wrote, which only the printed document holds;
+    /// absent without `--out` and in `compliance.json`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub site: Option<SiteFiles>,
+}
+
+/// The files that `--out` wrote, as the printed document names them.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct SiteFiles {
+    /// The path of `compliance.json`.
+    pub document: String,
+    /// The path of `compliance.html`.
+    pub page: String,
+    /// How many bytes `compliance.html` holds.
+    pub page_bytes: u64,
+    /// The codes of the warnings about the page, such as
+    /// `flightdeck::compliance::over_flare_cap` for a page over Flare's
+    /// 4 MiB cap. A warning leaves the exit code at 0.
+    pub warnings: Vec<String>,
 }
 
 /// The controls job's run that built the document.
@@ -438,6 +457,7 @@ pub(crate) fn build(
         repositories,
         rows,
         groups,
+        site: None,
     }
 }
 

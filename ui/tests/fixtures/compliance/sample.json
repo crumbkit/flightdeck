@@ -1,0 +1,2911 @@
+{
+  "schema": "flightdeck/compliance/v1",
+  "data": {
+    "title": "Compliance",
+    "built_at": "2026-11-25T06:00:00Z",
+    "next_build_at": "2026-11-26T06:00:00Z",
+    "stale_after_days": 7,
+    "build_run": {
+      "label": "Build run #412",
+      "url": "https://github.com/platform/platform-controls/actions/runs/9100412"
+    },
+    "imposed": {
+      "name": "platform-standard",
+      "from": "platform/platform-controls",
+      "root": "/rules",
+      "commit": "4be19a0c8b17a1cbce7be29a98881ff4af866c27"
+    },
+    "counts": {
+      "failing": 6,
+      "stale": 6,
+      "not_readable": 21,
+      "current": 18,
+      "written": 31,
+      "absent": 86
+    },
+    "reports": {
+      "current": 6,
+      "stale": 1,
+      "no_report": 1,
+      "invalid_report": 0
+    },
+    "repositories": [
+      {
+        "name": "payments-api",
+        "group": "Services",
+        "report": "current",
+        "code": null,
+        "field": null,
+        "message": null,
+        "generated": "2026-11-25T03:00:00Z",
+        "age_s": 10800,
+        "commit": "a3c9e219aa05d52a23f6185bb6961af37d0994ca",
+        "committed": null,
+        "uncommitted": false,
+        "board_version": "0.2.0",
+        "rules_from": "platform/platform-controls",
+        "rules_commit": "4be19a0c8b17a1cbce7be29a98881ff4af866c27",
+        "source_run": {
+          "repository": "platform/payments-api",
+          "run_id": 7001184,
+          "run_number": 1184,
+          "commit": "a3c9e219aa05d52a23f6185bb6961af37d0994ca"
+        },
+        "drift": {
+          "extra": [],
+          "differs": [],
+          "not_reached": [],
+          "other_set": false,
+          "behind": false
+        },
+        "refused": [],
+        "counts": {
+          "failing": 1,
+          "stale": 0,
+          "not_readable": 0,
+          "current": 4,
+          "written": 6,
+          "absent": 10
+        }
+      },
+      {
+        "name": "web-portal",
+        "group": "Apps",
+        "report": "current",
+        "code": null,
+        "field": null,
+        "message": null,
+        "generated": "2026-11-24T04:00:00Z",
+        "age_s": 93600,
+        "commit": "5d71b0a62e3481799b7757608e9670cff332b2b7",
+        "committed": null,
+        "uncommitted": false,
+        "board_version": "0.2.0",
+        "rules_from": "platform/platform-controls",
+        "rules_commit": "4be19a0c8b17a1cbce7be29a98881ff4af866c27",
+        "source_run": {
+          "repository": "platform/web-portal",
+          "run_id": 7000902,
+          "run_number": 902,
+          "commit": "5d71b0a62e3481799b7757608e9670cff332b2b7"
+        },
+        "drift": {
+          "extra": [],
+          "differs": [],
+          "not_reached": [],
+          "other_set": false,
+          "behind": false
+        },
+        "refused": [],
+        "counts": {
+          "failing": 1,
+          "stale": 0,
+          "not_readable": 0,
+          "current": 3,
+          "written": 4,
+          "absent": 13
+        }
+      },
+      {
+        "name": "billing-worker",
+        "group": "Services",
+        "report": "current",
+        "code": null,
+        "field": null,
+        "message": null,
+        "generated": "2026-11-23T04:00:00Z",
+        "age_s": 180000,
+        "commit": "08e6f3c86272db8248293909e8025c3be5c50c5c",
+        "committed": null,
+        "uncommitted": false,
+        "board_version": "0.2.0",
+        "rules_from": "platform/platform-controls",
+        "rules_commit": "4be19a0c8b17a1cbce7be29a98881ff4af866c27",
+        "source_run": {
+          "repository": "platform/billing-worker",
+          "run_id": 7000415,
+          "run_number": 415,
+          "commit": "08e6f3c86272db8248293909e8025c3be5c50c5c"
+        },
+        "drift": {
+          "extra": [],
+          "differs": [],
+          "not_reached": [],
+          "other_set": false,
+          "behind": false
+        },
+        "refused": [],
+        "counts": {
+          "failing": 1,
+          "stale": 0,
+          "not_readable": 0,
+          "current": 4,
+          "written": 5,
+          "absent": 11
+        }
+      },
+      {
+        "name": "identity-service",
+        "group": "Services",
+        "report": "stale",
+        "code": null,
+        "field": null,
+        "message": null,
+        "generated": "2026-11-16T05:00:00Z",
+        "age_s": 781200,
+        "commit": "c41a9d84557b9c8f30c4e9398687e03ace0136b0",
+        "committed": null,
+        "uncommitted": false,
+        "board_version": "0.2.0",
+        "rules_from": "platform/platform-controls",
+        "rules_commit": "4be19a0c8b17a1cbce7be29a98881ff4af866c27",
+        "source_run": {
+          "repository": "platform/identity-service",
+          "run_id": 7000077,
+          "run_number": 77,
+          "commit": "c41a9d84557b9c8f30c4e9398687e03ace0136b0"
+        },
+        "drift": {
+          "extra": [],
+          "differs": [],
+          "not_reached": [],
+          "other_set": false,
+          "behind": false
+        },
+        "refused": [],
+        "counts": {
+          "failing": 0,
+          "stale": 5,
+          "not_readable": 0,
+          "current": 0,
+          "written": 4,
+          "absent": 12
+        }
+      },
+      {
+        "name": "mobile-app",
+        "group": "Apps",
+        "report": "no_report",
+        "code": "flightdeck::compliance::no_report",
+        "field": null,
+        "message": null,
+        "generated": null,
+        "age_s": null,
+        "commit": null,
+        "committed": null,
+        "uncommitted": null,
+        "board_version": null,
+        "rules_from": null,
+        "rules_commit": null,
+        "source_run": null,
+        "drift": null,
+        "refused": [],
+        "counts": {
+          "failing": 0,
+          "stale": 0,
+          "not_readable": 21,
+          "current": 0,
+          "written": 0,
+          "absent": 0
+        }
+      },
+      {
+        "name": "infra-terraform",
+        "group": "Platform",
+        "report": "current",
+        "code": null,
+        "field": null,
+        "message": null,
+        "generated": "2026-11-24T00:00:00Z",
+        "age_s": 108000,
+        "commit": "9a0d7c3973de66af9f18a9dac788e31b3557c2ec",
+        "committed": null,
+        "uncommitted": false,
+        "board_version": "0.2.0",
+        "rules_from": "platform/platform-controls",
+        "rules_commit": "4be19a0c8b17a1cbce7be29a98881ff4af866c27",
+        "source_run": {
+          "repository": "platform/infra-terraform",
+          "run_id": 7000655,
+          "run_number": 655,
+          "commit": "9a0d7c3973de66af9f18a9dac788e31b3557c2ec"
+        },
+        "drift": {
+          "extra": [],
+          "differs": [],
+          "not_reached": [],
+          "other_set": false,
+          "behind": false
+        },
+        "refused": [],
+        "counts": {
+          "failing": 0,
+          "stale": 0,
+          "not_readable": 0,
+          "current": 3,
+          "written": 3,
+          "absent": 15
+        }
+      },
+      {
+        "name": "data-pipeline",
+        "group": "Platform",
+        "report": "current",
+        "code": null,
+        "field": null,
+        "message": null,
+        "generated": "2026-11-25T00:00:00Z",
+        "age_s": 21600,
+        "commit": "7f20c4d72b1d05c08a8e916201c6f7fc77df3f3e",
+        "committed": null,
+        "uncommitted": false,
+        "board_version": "0.2.0",
+        "rules_from": "platform/platform-controls",
+        "rules_commit": "4be19a0c8b17a1cbce7be29a98881ff4af866c27",
+        "source_run": {
+          "repository": "platform/data-pipeline",
+          "run_id": 7000301,
+          "run_number": 301,
+          "commit": "7f20c4d72b1d05c08a8e916201c6f7fc77df3f3e"
+        },
+        "drift": {
+          "extra": [],
+          "differs": [],
+          "not_reached": [],
+          "other_set": false,
+          "behind": false
+        },
+        "refused": [],
+        "counts": {
+          "failing": 2,
+          "stale": 0,
+          "not_readable": 0,
+          "current": 2,
+          "written": 6,
+          "absent": 11
+        }
+      },
+      {
+        "name": "docs-site",
+        "group": "Platform",
+        "report": "current",
+        "code": null,
+        "field": null,
+        "message": null,
+        "generated": "2026-11-21T05:00:00Z",
+        "age_s": 349200,
+        "commit": "2be5f903d72c008a267ef89e65d2707b0ab01d32",
+        "committed": null,
+        "uncommitted": false,
+        "board_version": "0.2.0",
+        "rules_from": "platform/platform-controls",
+        "rules_commit": "4be19a0c8b17a1cbce7be29a98881ff4af866c27",
+        "source_run": {
+          "repository": "platform/docs-site",
+          "run_id": 7000128,
+          "run_number": 128,
+          "commit": "2be5f903d72c008a267ef89e65d2707b0ab01d32"
+        },
+        "drift": {
+          "extra": [],
+          "differs": [],
+          "not_reached": [],
+          "other_set": false,
+          "behind": false
+        },
+        "refused": [],
+        "counts": {
+          "failing": 1,
+          "stale": 1,
+          "not_readable": 0,
+          "current": 2,
+          "written": 3,
+          "absent": 14
+        }
+      }
+    ],
+    "rows": [
+      {
+        "id": "/rules/agents/context-budget",
+        "section": "measured",
+        "source": "imposed",
+        "requirement": "Agent context stays under 1,000 words.",
+        "purpose": "An agent reads the whole context at the start of every session.",
+        "kind": "standing",
+        "show": "failing",
+        "checker": {
+          "check": "budget",
+          "max": 1000,
+          "unit": "words"
+        },
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": 688,
+              "max": 1000,
+              "files": ["/AGENTS.md", "/CLAUDE.md"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "failing",
+            "code": null,
+            "result": "over",
+            "facts": {
+              "used": 1212,
+              "max": 1000,
+              "files": ["/AGENTS.md", "/CLAUDE.md"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": 512,
+              "max": 1000,
+              "files": ["/AGENTS.md", "/CLAUDE.md"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "stale",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": 640,
+              "max": 1000,
+              "files": ["/AGENTS.md", "/CLAUDE.md"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": 301,
+              "max": 1000,
+              "files": ["/AGENTS.md", "/CLAUDE.md"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": 744,
+              "max": 1000,
+              "files": ["/AGENTS.md", "/CLAUDE.md"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": 420,
+              "max": 1000,
+              "files": ["/AGENTS.md", "/CLAUDE.md"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/docs/changelog-entry",
+        "section": "measured",
+        "source": "imposed",
+        "requirement": "A changelog entry stays under 300 words.",
+        "purpose": "A reader takes in what changed at a glance.",
+        "kind": "standing",
+        "show": "failing",
+        "checker": {
+          "check": "budget",
+          "max": 300,
+          "unit": "words",
+          "per": "file"
+        },
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": 188,
+              "max": 300,
+              "files": ["/CHANGELOG.md"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": 212,
+              "max": 300,
+              "files": ["/CHANGELOG.md"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/python/file-size",
+        "section": "measured",
+        "source": "imposed",
+        "requirement": "A Python file stays under 40 KB.",
+        "purpose": "A reviewer and an agent can read a smaller file whole.",
+        "kind": "standing",
+        "show": "failing",
+        "checker": {
+          "check": "budget",
+          "max": 40960,
+          "unit": "bytes",
+          "per": "file"
+        },
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": 31022,
+              "max": 40960,
+              "files": ["/src/app.py"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": 18870,
+              "max": 40960,
+              "files": ["/src/app.py"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "stale",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": 22410,
+              "max": 40960,
+              "files": ["/src/app.py"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "failing",
+            "code": null,
+            "result": "over",
+            "facts": {
+              "used": 46880,
+              "max": 40960,
+              "files": ["/pipeline/transform/joins.py"],
+              "over": [
+                {
+                  "file": "/pipeline/transform/joins.py",
+                  "used": 46880
+                }
+              ],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/toolchains/node",
+        "section": "measured",
+        "source": "imposed",
+        "requirement": "Node is at least 22.12.",
+        "purpose": "Every app runs a Node release that still gets fixes.",
+        "kind": "standing",
+        "show": "failing",
+        "checker": {
+          "check": "version",
+          "at_least": "22.12"
+        },
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": ["/.nvmrc"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "failing",
+            "code": null,
+            "result": "behind",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": ["/.nvmrc"],
+              "over": [],
+              "behind": [
+                {
+                  "file": "/.nvmrc",
+                  "line": 1,
+                  "found": "20.18.0"
+                }
+              ],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/toolchains/python",
+        "section": "measured",
+        "source": "imposed",
+        "requirement": "Python is at least 3.12.",
+        "purpose": "Every app runs a Python release that still gets fixes.",
+        "kind": "standing",
+        "show": "failing",
+        "checker": {
+          "check": "version",
+          "at_least": "3.12"
+        },
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": ["/.python-version"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": ["/.python-version"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "stale",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": ["/.python-version"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": ["/.python-version"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/toolchains/terraform",
+        "section": "measured",
+        "source": "imposed",
+        "requirement": "Terraform is at least 1.9.",
+        "purpose": "The infrastructure runs a Terraform release that still gets fixes.",
+        "kind": "standing",
+        "show": "failing",
+        "checker": {
+          "check": "version",
+          "at_least": "1.9"
+        },
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "current",
+            "code": null,
+            "result": "within",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": ["/versions.tf"],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/payments/v1-signer",
+        "section": "zero",
+        "source": "imposed",
+        "requirement": "No service still calls the v1 webhook signer.",
+        "purpose": "The v1 signer is removed once nothing calls it.",
+        "kind": "standing",
+        "show": "failing",
+        "checker": {
+          "check": "zero",
+          "suite": "/suites/v1-signer-callers",
+          "measures": ["remaining", "unknown"],
+          "within_days": 7
+        },
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "failing",
+            "code": null,
+            "result": "not_zero",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": {
+                "suite": "/suites/v1-signer-callers",
+                "run": "/suites/v1-signer-callers/runs/20261123T0600Z",
+                "age_s": 172800,
+                "measures": {
+                  "remaining": 2,
+                  "unknown": 0
+                }
+              }
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "failing",
+            "code": null,
+            "result": "not_zero",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": {
+                "suite": "/suites/v1-signer-callers",
+                "run": "/suites/v1-signer-callers/runs/20261123T0600Z",
+                "age_s": 172800,
+                "measures": {
+                  "remaining": 1,
+                  "unknown": 0
+                }
+              }
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "stale",
+            "code": null,
+            "result": "zero",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": {
+                "suite": "/suites/v1-signer-callers",
+                "run": "/suites/v1-signer-callers/runs/20261115T0600Z",
+                "age_s": 864000,
+                "measures": {
+                  "remaining": 0,
+                  "unknown": 0
+                }
+              }
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/suites/billing-worker-python-standard",
+        "section": "suite",
+        "source": null,
+        "requirement": null,
+        "purpose": null,
+        "kind": null,
+        "show": null,
+        "checker": null,
+        "groups": [],
+        "cases": 44,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "current",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": {
+              "id": "/suites/billing-worker-python-standard/runs/20261121T0500Z",
+              "finished": "2026-11-21T05:00:00Z",
+              "commit": "5c02e7b3ca2dfaa72b954d85c59635e32bacdf17",
+              "outcome": "pass",
+              "failed": [],
+              "commits_since": 3,
+              "commits_since_code": null
+            },
+            "age_s": 349200
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/suites/data-pipeline-python-standard",
+        "section": "suite",
+        "source": null,
+        "requirement": null,
+        "purpose": null,
+        "kind": null,
+        "show": null,
+        "checker": null,
+        "groups": [],
+        "cases": 44,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "failing",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": {
+              "id": "/suites/data-pipeline-python-standard/runs/20261124T0400Z",
+              "finished": "2026-11-24T04:00:00Z",
+              "commit": "7f20c4d72b1d05c08a8e916201c6f7fc77df3f3e",
+              "outcome": "fail",
+              "failed": [
+                {
+                  "case": "PY-07",
+                  "note": "pipeline/transform/joins.py has no test of an empty batch"
+                }
+              ],
+              "commits_since": 3,
+              "commits_since_code": null
+            },
+            "age_s": 93600
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/suites/docs-site-typescript-standard",
+        "section": "suite",
+        "source": null,
+        "requirement": null,
+        "purpose": null,
+        "kind": null,
+        "show": null,
+        "checker": null,
+        "groups": [],
+        "cases": 38,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "stale",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/suites/identity-service-python-standard",
+        "section": "suite",
+        "source": null,
+        "requirement": null,
+        "purpose": null,
+        "kind": null,
+        "show": null,
+        "checker": null,
+        "groups": [],
+        "cases": 44,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "stale",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": {
+              "id": "/suites/identity-service-python-standard/runs/20261113T0500Z",
+              "finished": "2026-11-13T05:00:00Z",
+              "commit": "b07e1d59d19d58f1ea0393297f1964be5efefc48",
+              "outcome": "pass",
+              "failed": [],
+              "commits_since": 19,
+              "commits_since_code": null
+            },
+            "age_s": 1040400
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/suites/infra-terraform-terraform-standard",
+        "section": "suite",
+        "source": null,
+        "requirement": null,
+        "purpose": null,
+        "kind": null,
+        "show": null,
+        "checker": null,
+        "groups": [],
+        "cases": 21,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "current",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": {
+              "id": "/suites/infra-terraform-terraform-standard/runs/20261120T0500Z",
+              "finished": "2026-11-20T05:00:00Z",
+              "commit": "9a0d7c3973de66af9f18a9dac788e31b3557c2ec",
+              "outcome": "pass",
+              "failed": [],
+              "commits_since": 2,
+              "commits_since_code": null
+            },
+            "age_s": 435600
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/suites/payments-api-python-standard",
+        "section": "suite",
+        "source": null,
+        "requirement": null,
+        "purpose": null,
+        "kind": null,
+        "show": null,
+        "checker": null,
+        "groups": [],
+        "cases": 44,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "current",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": {
+              "id": "/suites/payments-api-python-standard/runs/20261123T0500Z",
+              "finished": "2026-11-23T05:00:00Z",
+              "commit": "a3c9e219aa05d52a23f6185bb6961af37d0994ca",
+              "outcome": "pass",
+              "failed": [],
+              "commits_since": 6,
+              "commits_since_code": null
+            },
+            "age_s": 176400
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/suites/web-portal-typescript-standard",
+        "section": "suite",
+        "source": null,
+        "requirement": null,
+        "purpose": null,
+        "kind": null,
+        "show": null,
+        "checker": null,
+        "groups": [],
+        "cases": 38,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "current",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": {
+              "id": "/suites/web-portal-typescript-standard/runs/20261122T0500Z",
+              "finished": "2026-11-22T05:00:00Z",
+              "commit": "5d71b0a62e3481799b7757608e9670cff332b2b7",
+              "outcome": "pass",
+              "failed": [],
+              "commits_since": 8,
+              "commits_since_code": null
+            },
+            "age_s": 262800
+          },
+          {
+            "repository": "billing-worker",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/containers/no-latest",
+        "section": "written",
+        "source": "imposed",
+        "requirement": "No Dockerfile pulls a latest tag.",
+        "purpose": "A build pulls the image it was tested with.",
+        "kind": "standing",
+        "show": "edit",
+        "checker": {
+          "check": "pattern",
+          "file": "/rules/containers/no-latest.patterns"
+        },
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/data/job-owner",
+        "section": "written",
+        "source": "imposed",
+        "requirement": "A job that writes to the warehouse names its owner in its config.",
+        "purpose": "Someone answers for each table a job writes.",
+        "kind": "standing",
+        "show": "edit",
+        "checker": null,
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/db/down-step",
+        "section": "written",
+        "source": "imposed",
+        "requirement": "A schema migration has a down step.",
+        "purpose": "A release can be rolled back.",
+        "kind": "standing",
+        "show": "edit",
+        "checker": null,
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/payments/v1-signer-owed",
+        "section": "written",
+        "source": "imposed",
+        "requirement": "Remove the v1 webhook signer once every caller has moved.",
+        "purpose": "The old signer accepts a weaker key.",
+        "kind": "obligation",
+        "show": "start",
+        "checker": null,
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/privacy/customer-names",
+        "section": "written",
+        "source": "imposed",
+        "requirement": "No pull request body names a customer.",
+        "purpose": "A customer's name stays inside the company.",
+        "kind": "standing",
+        "show": "edit",
+        "checker": {
+          "check": "pattern",
+          "file": "/rules/privacy/customer-names.patterns"
+        },
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/tests/sentence-names",
+        "section": "written",
+        "source": "imposed",
+        "requirement": "Test names are sentences.",
+        "purpose": "A failing test says what broke.",
+        "kind": "standing",
+        "show": "edit",
+        "checker": null,
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/writing/plain-pr",
+        "section": "written",
+        "source": "imposed",
+        "requirement": "A pull request body reads plainly.",
+        "purpose": "A reviewer reads what changed in one pass.",
+        "kind": "standing",
+        "show": "edit",
+        "checker": {
+          "check": "judged",
+          "rubric": "/rubrics/plain.md"
+        },
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "written",
+            "code": null,
+            "result": "written",
+            "facts": {
+              "used": null,
+              "max": null,
+              "files": [],
+              "over": [],
+              "behind": [],
+              "omitted": {
+                "files": 0,
+                "over": 0,
+                "behind": 0
+              },
+              "zero": null
+            },
+            "run": null,
+            "age_s": null
+          }
+        ]
+      }
+    ],
+    "groups": []
+  },
+  "failures": []
+}

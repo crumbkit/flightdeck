@@ -166,6 +166,15 @@ importers:
 
   .:
     dependencies:
+      '@crumbkit/flightdeck-headless':
+        specifier: workspace:*
+        version: link:headless
+      '@crumbkit/flightdeck-react':
+        specifier: workspace:*
+        version: link:react
+      '@crumbkit/ui':
+        specifier: git+https://github.com/crumbkit/crumbkit-ui.git#v0.1.0
+        version: https://codeload.github.com/crumbkit/crumbkit-ui/tar.gz/b14fc90600bb4bbe96abf75295005dbc92eec779(react@19.3.1)
       '@tanstack/react-query':
         specifier: 5.104.5
         version: 5.104.5(@types/react@19.3.0)(react@19.3.1)

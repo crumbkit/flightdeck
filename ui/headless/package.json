@@ -22,7 +22,8 @@
     "./repository": "./src/repository.ts",
     "./rules": "./src/rules.ts",
     "./control": "./src/control.ts",
-    "./groups": "./src/groups.ts"
+    "./groups": "./src/groups.ts",
+    "./snapshot": "./src/snapshot.ts"
   },
   "publishConfig": {
     "exports": {
@@ -61,6 +62,10 @@
       "./groups": {
         "types": "./dist/groups.d.ts",
         "default": "./dist/groups.js"
+      },
+      "./snapshot": {
+        "types": "./dist/snapshot.d.ts",
+        "default": "./dist/snapshot.js"
       }
     }
   },

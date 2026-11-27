@@ -1,0 +1,237 @@
+<!doctype html>
+<!-- Signed artboard 55 (artifact version 1795565348-2156), one repository's snapshot, as the board stores it, with its web fonts swapped for system fonts and its canvas script removed. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>One repository snapshot</title>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:oklch(46% .15 230);text-decoration:none}a:hover{color:oklch(40% .15 230)}
+.fd{font-family:"IBM Plex Sans",system-ui,sans-serif;color:oklch(18% .015 240);background:oklch(97% .005 240);font-size:14px;line-height:1.45;display:flex;box-sizing:border-box}
+.fd *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.rail{width:216px;background:oklch(95.5% .005 240);border-right:1px solid oklch(86% .01 240);padding:20px 14px;display:flex;flex-direction:column;gap:22px}
+.brand{font-weight:600;font-size:15px;padding:0 8px}
+.lab{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:oklch(42% .015 240);margin-bottom:6px}
+.rail .lab{padding:0 8px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;justify-content:space-between;align-items:center;padding:10px 8px;border-radius:3px;color:oklch(18% .015 240)}
+.nav a.on{background:oklch(92% .04 230);color:oklch(30% .1 230);font-weight:500}
+.count{font-size:12px;color:oklch(42% .015 240)}
+.main{flex:1;padding:24px 32px;display:flex;flex-direction:column;gap:14px;min-width:0}
+h1{margin:0;font-size:22px;font-weight:600}
+.sub{color:oklch(42% .015 240)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid oklch(86% .01 240);border-radius:3px;padding:2px 8px;font-size:12px;background:oklch(99.5% .002 240);white-space:nowrap}
+.chip.blue{background:oklch(92% .04 230);border-color:oklch(92% .04 230);color:oklch(30% .1 230)}
+.chip.amber{background:oklch(94% .07 85);border-color:oklch(94% .07 85);color:oklch(36% .1 75)}
+.chip.red{background:oklch(94% .04 27);border-color:oklch(94% .04 27);color:oklch(42% .18 27)}
+.card{background:oklch(99.5% .002 240);border:1px solid oklch(86% .01 240);border-radius:3px;padding:14px 16px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.gauges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.g{background:oklch(99.5% .002 240);border:1px solid oklch(86% .01 240);border-radius:3px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.g.over{border-color:oklch(76% .15 80);background:oklch(97% .04 85)}
+.big{font:500 22px "JetBrains Mono",monospace}
+.track{height:8px;border-radius:2px;background:oklch(92% .006 240);position:relative;overflow:hidden}
+.fill{position:absolute;left:0;top:0;bottom:0;background:oklch(46% .15 230)}
+.fill.hot{background:oklch(76% .15 80)}
+.advice{border:1px solid oklch(46% .15 230);background:oklch(96% .02 230);border-radius:3px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.btn{background:oklch(46% .15 230);color:oklch(99.5% .002 240);border:0;border-radius:3px;padding:0 16px;height:44px;font:500 14px "IBM Plex Sans",sans-serif;white-space:nowrap}
+.ghost{background:oklch(99.5% .002 240);border:1px solid oklch(58% .012 240);border-radius:3px;padding:0 12px;height:44px;font:13px "IBM Plex Sans",sans-serif;color:oklch(18% .015 240);white-space:nowrap}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-weight:500;color:oklch(42% .015 240);font-size:12px;padding:4px 8px 6px 0;border-bottom:1px solid oklch(86% .01 240)}
+td{padding:5px 8px 5px 0;border-bottom:1px solid oklch(92% .006 240);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+.new{font-size:11px;color:oklch(30% .1 230);border:1px dashed oklch(46% .15 230);border-radius:3px;padding:1px 5px;margin-left:6px}
+h2{margin:0}
+.btn{height:32px;padding:0 14px}
+.ghost{height:32px;padding:0 12px}
+.card{display:flex;flex-direction:column;gap:8px}
+.cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.cols2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px}
+.chip.green{background:oklch(93% .05 150);border-color:oklch(93% .05 150);color:oklch(32% .1 150)}
+.dot{width:8px;height:8px;border-radius:50%;background:oklch(47% .12 150);display:inline-block}
+.cmp{position:relative;height:8px;width:120px;border-radius:2px;background:oklch(92% .006 240);display:inline-block;vertical-align:middle}
+.cmp b{position:absolute;left:0;top:0;bottom:0;background:oklch(46% .15 230);border-radius:2px 0 0 2px}
+.cmp b.hot{background:oklch(76% .15 80)}
+.cmp u{position:absolute;top:-3px;bottom:-3px;width:2px;background:oklch(18% .015 240);text-decoration:none}
+.cap{font-size:12px;color:oklch(42% .015 240)}
+.item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid oklch(92% .006 240)}
+.item:last-child{border-bottom:0}
+.item>div:first-child{min-width:0}
+/* Additions for the standards pages. Text stays at 12px or larger. */
+.lab,.new{font-size:12px}
+.seg{display:inline-flex;align-items:center;gap:4px}
+.seg button{height:32px;padding:0 10px;border:1px solid oklch(86% .01 240);background:oklch(99.5% .002 240);border-radius:3px;font:13px "IBM Plex Sans",sans-serif;color:oklch(18% .015 240);white-space:nowrap}
+.seg button.on{background:oklch(92% .04 230);border-color:oklch(92% .04 230);color:oklch(30% .1 230);font-weight:500}
+.mx th.r,.mx td.r{width:70px;text-align:center;padding-right:0}
+.mx td{padding-top:5px;padding-bottom:5px}
+.list{gap:0}
+.list .lab{margin-bottom:4px!important}
+.list .item{padding:6px 0}
+.dash{color:oklch(58% .012 240)}
+.split{display:inline-flex;height:8px;width:110px;border-radius:2px;overflow:hidden;background:oklch(88% .01 240);vertical-align:middle}
+.split b{background:oklch(46% .15 230)}
+</style>
+
+<style>
+/* Additions for the compliance pages. Text stays at 12px or larger. */
+.ref{display:inline-flex;align-items:center;border:1px solid oklch(86% .01 240);border-radius:3px;padding:1px 6px;font:12px "JetBrains Mono",monospace;background:oklch(95.5% .005 240);color:oklch(30% .015 240);white-space:nowrap}
+.addr{font:12px "JetBrains Mono",monospace;color:oklch(42% .015 240);white-space:nowrap}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tile{background:oklch(99.5% .002 240);border:1px solid oklch(86% .01 240);border-radius:3px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;color:oklch(18% .015 240)}
+.tile .big{font:500 22px "JetBrains Mono",monospace}
+.tile.on{border-color:oklch(46% .15 230);box-shadow:0 0 0 1px oklch(46% .15 230)}
+.mx th.r,.mx td.r{width:82px;text-align:center;padding-right:4px}
+.mx td.r .cap{display:block;margin-top:2px;white-space:nowrap}
+.mx tr.grp td{background:oklch(95.5% .005 240);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:oklch(42% .015 240);padding:5px 8px}
+.mx td.name{padding-left:8px}
+.kind{font-size:12px;color:oklch(42% .015 240)}
+.mono,.addr,.ref{font-variant-ligatures:none}
+.open{font-size:12px;color:oklch(36% .1 75);border:1px dashed oklch(62% .12 75);border-radius:3px;padding:1px 6px;white-space:nowrap}
+.head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:14px;align-items:start}
+.colm{display:flex;flex-direction:column;gap:14px;min-width:0}
+.num{font-family:"JetBrains Mono",monospace;font-size:12px;white-space:nowrap}
+dl.kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:4px 12px;margin:0;font-size:13px}
+dl.kv dt{color:oklch(42% .015 240)}
+dl.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.chip.state{min-width:58px;justify-content:center}
+</style>
+
+<style>
+/* Additions for the Rules page and the snapshot pages. Text stays at 12px or larger. */
+.dash{color:oklch(52% .012 240)}
+.chip.grey{background:oklch(93% .006 240);border-color:oklch(93% .006 240);color:oklch(36% .015 240)}
+.sub2{font:12px "JetBrains Mono",monospace;color:oklch(42% .015 240)}
+.rt td{padding-top:7px;padding-bottom:7px}
+.rt td .sub2{display:block;margin-top:1px;white-space:nowrap}
+.rt th.sort{color:oklch(30% .1 230)}
+.segs{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.seg button{font-size:13px}
+.repcell{display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2}
+.mx th.r .cap{display:block;font-weight:400;white-space:nowrap;margin-top:2px}
+.mx th.r .chip{margin-top:3px;font-weight:400}
+.page .mx th.r,.page .mx td.r{width:100px}
+.mx th.r a{white-space:nowrap;font-family:"JetBrains Mono",monospace;font-size:12px}
+.hero{background:oklch(93% .045 230);border-radius:3px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:18px;color:oklch(18% .015 240)}
+.hero .cap{color:oklch(36% .02 240)}
+.hero a{color:oklch(40% .15 230)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 32px;background:oklch(95.5% .005 240);border-bottom:1px solid oklch(86% .01 240)}
+.tabs{display:inline-flex;gap:4px}
+.tabs a{display:inline-flex;align-items:center;height:32px;padding:0 12px;border-radius:3px;color:oklch(18% .015 240)}
+.tabs a.on{background:oklch(92% .04 230);color:oklch(30% .1 230);font-weight:500}
+.page{display:flex;flex-direction:column;background:oklch(97% .005 240);font-family:"IBM Plex Sans",system-ui,sans-serif;color:oklch(18% .015 240);font-size:14px;line-height:1.45;box-sizing:border-box}
+.page *{box-sizing:border-box}
+.hero .ext{white-space:nowrap}
+.code{font:12px "JetBrains Mono",monospace;background:oklch(95.5% .005 240);border:1px solid oklch(90% .008 240);border-radius:3px;padding:8px 10px;color:oklch(24% .015 240)}
+.ext::after{content:" ↗"}
+/* Phone frames */
+.phones{display:flex;gap:40px;align-items:flex-start;padding:24px;background:oklch(97% .005 240);font-family:"IBM Plex Sans",system-ui,sans-serif}
+.ph{width:390px;background:oklch(97% .005 240);border:1px solid oklch(86% .01 240);border-radius:3px;display:flex;flex-direction:column;overflow:hidden;font-size:15px;color:oklch(18% .015 240)}
+.ph .bar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px 8px 16px;background:oklch(95.5% .005 240);border-bottom:1px solid oklch(86% .01 240);min-height:56px}
+.ph .body{padding:16px;display:flex;flex-direction:column;gap:12px}
+.ph h1{font-size:20px;line-height:1.3}
+.ph .tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ph .tile{min-height:52px}
+.ph .ghost,.ph .seg button,.ph .tabs a{height:44px;min-width:44px}
+.ph .item{padding:10px 0;align-items:flex-start}
+.ph .card{padding:12px 14px}
+.ph .cap{font-size:13px}
+.ph .lab{font-size:12px}
+.ph .hero{padding:12px 14px;flex-direction:column;align-items:flex-start;gap:6px}
+.frame-cap{font-size:13px;color:oklch(42% .015 240);margin:0 0 8px}
+</style>
+<style>
+/* The test's change to the signed artboard: the system's fonts, which the
+   Compliance site uses, in place of the web fonts the artboard loads. */
+*{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif!important}
+.mono,.mono *,.addr,.ref,.big,.num,.sub2,.code,.mx th.r a,.tile .big{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace!important}
+</style>
+</helmet>
+<div class="page" style="width: 1360px; height: 960px">
+<div class="top">
+<div class="row" style="flex-wrap: nowrap; gap: 18px"><span class="brand" style="padding:0">flightdeck</span><nav class="tabs" aria-label="Pages"><a class="on" href="ComplianceSnapshot.dc.html">Compliance</a><a href="#">Rules</a></nav></div>
+<div class="row" style="flex-wrap: nowrap"><span class="cap">Snapshot of 25 Nov 2026, 06:00 UTC</span><span class="chip">read only</span></div>
+</div>
+<div class="main" style="padding: 20px 32px">
+<div class="hero" role="note">
+<div>This page is a snapshot built at 06:00 UTC on 25 November 2026. It shows each repository's newest report at that time, and the next build is at 06:00 UTC tomorrow.</div>
+<div class="row" style="flex-wrap: nowrap"><a class="ext" href="#">Build run #412</a><span class="cap">platform-controls · main</span></div>
+</div>
+
+<div>
+<div class="sub"><a href="ComplianceSnapshot.dc.html">Compliance</a> / <span class="mono">data-pipeline</span></div>
+<h1>data-pipeline fails 1 rule and 1 audit</h1>
+<div class="row"><span class="cap">Report from <a class="ext" href="#">main run #301</a> at <span class="mono">7f20c4d</span>, 6 h before the snapshot</span><span class="cap">3 commits on main since that run</span></div>
+</div>
+
+<div class="grid">
+<div class="colm">
+
+<div class="card">
+<div class="head"><div class="lab" style="margin: 0">Rules measured at 7f20c4d · 3</div><span class="cap">From the repository's report</span></div>
+<table>
+<tr><th>Rule</th><th>Checker</th><th>Measured</th><th style="width:80px">State</th></tr>
+<tr><td>A Python file stays under 40 KB</td><td class="kind">budget · bytes per file · max 40,960</td><td class="cap">1 file over: <span class="mono">pipeline/transform/joins.py</span> 46,880</td><td><span class="chip state red">failing</span></td></tr>
+<tr><td>Agent context stays under 1,000 words</td><td class="kind">budget · words · max 1,000</td><td class="cap">744 words in 2 files</td><td><span class="chip state green">current</span></td></tr>
+<tr><td>Python is at least 3.12</td><td class="kind">version</td><td class="cap"><span class="mono">.python-version</span> pins 3.12.7</td><td><span class="chip state green">current</span></td></tr>
+</table>
+</div>
+
+<div class="card">
+<div class="head"><div class="lab" style="margin: 0">Suites · 1</div><span class="cap">Newest clean full run of each suite that names data-pipeline</span></div>
+<table>
+<tr><th>Suite</th><th>Run</th><th>Commits since</th><th>Result</th><th style="width:80px">State</th></tr>
+<tr><td class="mono" style="font-size:12px">/suites/data-pipeline-python-standard</td><td class="cap">1 d ago at <span class="mono">7f20c4d</span></td><td class="num">3</td><td class="cap">1 of 44 cases failed: PY-07</td><td><span class="chip state red">failing</span></td></tr>
+</table>
+</div>
+
+<div class="card">
+<div class="head"><div class="lab" style="margin: 0">Written rules · 3</div><span class="cap">Judged by the Python standard audit, 1 d ago</span></div>
+<div class="item"><div>A schema migration has a down step.</div><span class="kind">written</span></div>
+<div class="item"><div>A job that writes to the warehouse names its owner in its config.</div><span class="kind">written</span></div>
+<div class="item"><div>Test names are sentences.</div><span class="kind">written</span></div>
+</div>
+
+</div>
+<div class="colm">
+
+<div class="card">
+<div class="lab" style="margin: 0">Failing · A Python file stays under 40 KB</div>
+<dl class="kv">
+<dt>Rule</dt><dd><span class="ref">/rules/python/file-size</span></dd>
+<dt>Requirement</dt><dd>Keep each Python source file under 40 KB.</dd>
+<dt>Purpose</dt><dd>A reviewer and an agent can read a smaller file whole.</dd>
+<dt>Applies to</dt><dd class="mono" style="font-size:12px">**/*.py</dd>
+<dt>Measured at</dt><dd><span class="mono">7f20c4d</span>, in run #301</dd>
+</dl>
+<table>
+<tr><th>File over the limit</th><th style="text-align:right">Bytes</th></tr>
+<tr><td class="mono" style="font-size:12px">pipeline/transform/joins.py</td><td class="num" style="text-align:right">46,880</td></tr>
+</table>
+<div class="lab" style="margin: 4px 0 0">To check again</div>
+<div class="code">board rules check --path /repos/data-pipeline --json</div>
+<div class="cap">Run it in a checkout of data-pipeline, or re-run the controls job on main. The next snapshot shows the new report.</div>
+</div>
+
+<div class="card">
+<div class="lab" style="margin: 0">How the states are read</div>
+<div class="item"><div><span class="chip state green">current</span></div><div class="cap" style="flex:1">The rule is met in the newest report, or the suite's newest clean run passed within 7 days.</div></div>
+<div class="item"><div><span class="chip state amber">stale</span></div><div class="cap" style="flex:1">The newest report or clean run is older than 7 days, or no clean run exists.</div></div>
+<div class="item"><div><span class="chip state red">failing</span></div><div class="cap" style="flex:1">A budget is over, a pin is behind, a measure is not 0, or the newest run failed a case.</div></div>
+<div class="item"><div><span class="chip state grey">no report</span></div><div class="cap" style="flex:1">The repository's newest main run uploaded no report, so its rules have no state.</div></div>
+</div>
+
+</div>
+</div>
+
+<div class="cap">Read from data-pipeline's report of run #301, as it stood at the snapshot.</div>
+</div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -27,6 +27,9 @@ export type CellState = z.infer<typeof cellStateSchema>;
 /** Every cell state, worst first, as src/compliance/state.rs orders them. */
 export const CELL_STATES_WORST_FIRST: readonly CellState[] = cellStateSchema.options;
 
+/** An RFC 3339 time, such as "2026-11-25T06:00:00Z", with Z or an offset and any fraction of a second. */
+const timeSchema = z.iso.datetime({ offset: true });
+
 const stateCountsSchema = z.object({
   failing: z.number().int().nonnegative(),
   stale: z.number().int().nonnegative(),
@@ -77,10 +80,10 @@ const repositorySchema = z.object({
   code: z.string().nullable(),
   field: z.string().nullable(),
   message: z.string().nullable(),
-  generated: z.string().nullable(),
+  generated: timeSchema.nullable(),
   age_s: z.number().int().nonnegative().nullable(),
   commit: z.string().nullable(),
-  committed: z.string().nullable(),
+  committed: timeSchema.nullable(),
   uncommitted: z.boolean().nullable(),
   board_version: z.string().nullable(),
   rules_from: z.string().nullable(),
@@ -193,8 +196,8 @@ export type Group = z.infer<typeof groupSchema>;
 
 const dataSchema = z.object({
   title: z.string(),
-  built_at: z.string(),
-  next_build_at: z.string().nullable(),
+  built_at: timeSchema,
+  next_build_at: timeSchema.nullable(),
   stale_after_days: z.number().int().nonnegative(),
   build_run: z.object({ label: z.string().nullable(), url: z.string().nullable() }).nullable(),
   imposed: z.object({

@@ -88,6 +88,12 @@ What works today:
 - `flightdeck commands list`, `flightdeck schemas list` and
   `flightdeck schemas show`, crumbkit's own commands, describe flightdeck
   itself. [docs/commands.md](docs/commands.md) is the reference.
+- `flightdeck compliance build --out DIR` writes `compliance.json`, the
+  document that joins each repository's rules report, and
+  `compliance.html`, one file that draws it with no server: the Compliance
+  page, the Rules page and each repository's page. The file loads nothing
+  outside itself, so it opens from disk or as a Flare share.
+  [docs/compliance.md](docs/compliance.md) describes it.
 - The library's `model` module loads a crumbkit tool by name or path. It
   runs the tool's `--version`, `commands list`, `schemas list` and
   `schemas show` and joins them into a model of the tool's runnable
