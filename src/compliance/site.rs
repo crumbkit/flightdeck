@@ -14,8 +14,11 @@ pub const PAGE_FILE: &str = "compliance.html";
 /// written, with the warning [`OVER_FLARE_CAP`].
 pub const FLARE_CAP: u64 = 4 * 1024 * 1024;
 
-/// The code of the warning that a written page is over [`FLARE_CAP`].
-pub const OVER_FLARE_CAP: &str = "flightdeck::compliance::over_flare_cap";
+/// The code of the warning that a written page is over [`FLARE_CAP`]. The
+/// build still succeeds; the text output's note and the JSON output's
+/// `site.warnings` carry it.
+pub const OVER_FLARE_CAP: crumbkit::Code =
+    crumbkit::Code::from_spelling("flightdeck::compliance::over_flare_cap");
 
 /// The comment in the built page that the document replaces.
 pub const MARKER: &str = "<!--flightdeck:compliance-document-->";

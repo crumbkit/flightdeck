@@ -49,9 +49,18 @@ fn document() -> compliance::ComplianceDocument {
 /// Runs `flightdeck compliance build --out <out>` over the fixtures with
 /// `extra`.
 fn build_into(out: &Path, extra: &[&str]) -> Output {
+    build_with(
+        &here("tests/fixtures/compliance/compliance.toml"),
+        out,
+        extra,
+    )
+}
+
+/// Runs `flightdeck compliance build` with `config` and the fixture
+/// reports, writing into `out`, with `extra` arguments after the rest.
+fn build_with(config: &Path, out: &Path, extra: &[&str]) -> Output {
     let state = tempfile::tempdir().unwrap();
     let at = format!("{:.0}", built_at());
-    let config = here("tests/fixtures/compliance/compliance.toml");
     let reports = here("tests/fixtures/compliance/reports");
     Command::new(env!("CARGO_BIN_EXE_flightdeck"))
         .args([
@@ -161,7 +170,31 @@ fn the_build_names_both_files_and_the_pages_size() {
         )),
         "{stderr}"
     );
-    assert!(!stderr.contains(site::OVER_FLARE_CAP), "{stderr}");
+    assert!(!stderr.contains(site::OVER_FLARE_CAP.as_str()), "{stderr}");
+}
+
+#[test]
+fn the_json_output_names_both_files_the_pages_size_and_no_warning() {
+    let out = tempfile::tempdir().unwrap();
+    let output = build_into(out.path(), &["--json"]);
+    assert!(output.status.success(), "{output:?}");
+    let printed: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let size = std::fs::metadata(out.path().join("compliance.html"))
+        .unwrap()
+        .len();
+    assert_eq!(
+        printed["data"]["site"],
+        serde_json::json!({
+            "document": out.path().join("compliance.json").to_str().unwrap(),
+            "page": out.path().join("compliance.html").to_str().unwrap(),
+            "page_bytes": size,
+            "warnings": [],
+        })
+    );
+    let written: Value =
+        serde_json::from_slice(&std::fs::read(out.path().join("compliance.json")).unwrap())
+            .unwrap();
+    assert!(written["data"].get("site").is_none(), "{written}");
 }
 
 #[test]
@@ -221,7 +254,7 @@ fn a_page_with_the_marker_is_written_beside_compliance_json() {
     let written = compliance::write_out_with(out.path(), &document(), template.as_bytes()).unwrap();
     assert_eq!(written.page, out.path().join("compliance.html"));
     assert!(!written.over_flare_cap());
-    assert!(!written.note().contains(site::OVER_FLARE_CAP));
+    assert!(!written.note().contains(site::OVER_FLARE_CAP.as_str()));
 }
 
 #[test]
@@ -242,6 +275,16 @@ fn a_page_over_flares_cap_is_written_with_the_over_flare_cap_warning() {
         std::fs::metadata(&written.page).unwrap().len(),
         written.page_bytes
     );
+    // The printed document's `site` carries the same warning, so `--json`
+    // reports it too.
+    let mut printed = document();
+    printed.site = Some(written.files());
+    let json: Value = serde_json::from_slice(&printed.to_json()).unwrap();
+    assert_eq!(
+        json["data"]["site"]["warnings"],
+        serde_json::json!([site::OVER_FLARE_CAP.as_str()])
+    );
+    assert_eq!(json["data"]["site"]["page_bytes"], written.page_bytes);
 }
 
 #[test]

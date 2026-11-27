@@ -143,12 +143,19 @@ fn compliance_build_json_prints_the_sample_document_that_matches_its_published_s
 }
 
 #[test]
-fn out_writes_compliance_json_with_the_bytes_that_json_prints() {
+fn out_writes_compliance_json_with_the_document_that_json_prints() {
     let out = tempfile::tempdir().unwrap();
     let output = build(&["--json", "--out", out.path().to_str().unwrap()]);
     assert_exit(&output, 0);
-    let written = std::fs::read(out.path().join("compliance.json")).unwrap();
-    assert_eq!(written, output.stdout);
+    // The printed document also names the files it wrote, under `site`,
+    // which compliance.json leaves out.
+    let mut printed: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(printed["data"]["site"].is_object(), "{printed}");
+    printed["data"].as_object_mut().unwrap().remove("site");
+    let written: Value =
+        serde_json::from_slice(&std::fs::read(out.path().join("compliance.json")).unwrap())
+            .unwrap();
+    assert_eq!(written, printed);
     let mut names: Vec<_> = std::fs::read_dir(out.path())
         .unwrap()
         .map(|entry| entry.unwrap().file_name())

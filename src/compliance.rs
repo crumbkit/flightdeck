@@ -32,7 +32,7 @@ use crumbkit::{Code, Document, Failure, Prose};
 
 pub use self::document::{
     BuildRun, Cell, ComplianceDocument, INVALID_REPORT, ImposedSet, NO_REPORT, ReportCounts,
-    ReportState, RepositoryColumn, Row, Section, StateCounts,
+    ReportState, RepositoryColumn, Row, Section, SiteFiles, StateCounts,
 };
 pub use self::drift::Drift;
 pub use self::groups::{Group, GroupCell};
@@ -120,7 +120,7 @@ pub enum ComplianceError {
     /// only `compliance.json` was written.
     #[failure(
         code = NO_PAGE,
-        hint = "rebuild flightdeck after `pnpm run build` in ui/; compliance.json was written",
+        hint = "run `pnpm run build` in ui/, which writes the page with its marker, then build flightdeck again; compliance.json was written",
     )]
     NoPage,
 }
@@ -234,6 +234,31 @@ impl Written {
         self.page_bytes > site::FLARE_CAP
     }
 
+    /// Returns the codes of the warnings about the page.
+    #[must_use]
+    pub fn warnings(&self) -> Vec<Code<'static>> {
+        if self.over_flare_cap() {
+            vec![site::OVER_FLARE_CAP]
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Returns the files as the printed document's `site` names them.
+    #[must_use]
+    pub fn files(&self) -> SiteFiles {
+        SiteFiles {
+            document: self.document.display().to_string(),
+            page: self.page.display().to_string(),
+            page_bytes: self.page_bytes,
+            warnings: self
+                .warnings()
+                .iter()
+                .map(|code| code.as_str().to_owned())
+                .collect(),
+        }
+    }
+
     /// Returns the line that the text output prints after a build with
     /// `--out`: both files, the page's size and, for a page over Flare's
     /// cap, the warning.
@@ -248,7 +273,7 @@ impl Written {
         if self.over_flare_cap() {
             note.push_str(&format!(
                 ". Warning {}: {} is over Flare's 4 MiB cap, so publish it as a workflow artifact only",
-                site::OVER_FLARE_CAP,
+                site::OVER_FLARE_CAP.as_str(),
                 site::PAGE_FILE
             ));
         }

@@ -41,15 +41,22 @@
   ([packages.md](packages.md)).
 - `compliance build --out` puts the document in the embedded page, in a
   `<script type="application/json" id="compliance-document">` element, with
-  every `<` written as `<`.
-- A binary built without the page fails with
-  `flightdeck::compliance::no_page` after it writes `compliance.json`.
+  every `<` written as `\u003c`.
+- When the embedded page has no marker for the document, the command fails
+  with `flightdeck::compliance::no_page` after it writes `compliance.json`.
+- With `--json`, the printed document's `site` names both files, the page's
+  size and the codes of any warnings about the page.
 
 ## Size
 
 - Flare, the host that shares one HTML file, takes a file up to 4 MiB.
-- When `compliance.html` is over 4 MiB, the command still succeeds, and its
-  text output adds the warning `flightdeck::compliance::over_flare_cap`.
+- When `compliance.html` is over 4 MiB, the command reports the warning
+  `flightdeck::compliance::over_flare_cap` in its text output's note and in
+  `site.warnings`, and the warning leaves the exit code at 0.
+- flightdeck prints at most 1 MiB on standard output. A document too large
+  to print, which every document in a page over 4 MiB is in `--json`, fails
+  with `flightdeck::output::over_budget` after both files are written, and
+  no warning is printed.
   Publish that page as a workflow artifact only.
 - The empty page is held under 110 kB brotli by the `compliance page`
   budget in `ui/package.json`.
