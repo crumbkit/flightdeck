@@ -88,6 +88,10 @@ What works today:
 - `flightdeck commands list`, `flightdeck schemas list` and
   `flightdeck schemas show`, crumbkit's own commands, describe flightdeck
   itself. [docs/commands.md](docs/commands.md) is the reference.
+- `flightdeck compliance fetch --config FILE --reports DIR` downloads each
+  repository's newest rules report from its GitHub runs through `gh`, and
+  writes beside it a record of the newest run, the run the report came
+  from and the commits since.
 - `flightdeck compliance build --out DIR` writes `compliance.json`, the
   document that joins each repository's rules report, and
   `compliance.html`, one file that draws it with no server: the Compliance

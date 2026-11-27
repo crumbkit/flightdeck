@@ -1,20 +1,24 @@
 //! `flightdeck compliance build`: one compliance document from the
 //! `rules/report/v1` file that each repository's CI run publishes, and a
 //! config that names the repositories and the imposed rule set.
+//! `flightdeck compliance fetch` ([`fetch()`]) writes those files from
+//! GitHub.
 //!
 //! [`build`] reads the config, then the report of each repository at
-//! `<reports>/<owner>/<repo>.json`, and returns the
-//! `flightdeck/compliance/v1` document. A missing or invalid report gives
-//! its column a code, and the other columns still render. With `--out`,
+//! `<reports>/<owner>/<repo>.json` and the fetch record beside it, when
+//! there is one, and returns the `flightdeck/compliance/v1` document. A
+//! missing or invalid report gives its column a code, and the other columns
+//! still render. With `--out`,
 //! [`write_out`] writes the document to `<out>/compliance.json` through a
 //! temporary file that it renames only once the file is whole, so a failed
 //! write leaves the earlier file as it was.
 //!
-//! The command reads only files. It needs no Board, network or token.
+//! The build reads only files. It needs no Board, network or token.
 
 mod config;
 mod document;
 mod drift;
+pub mod fetch;
 mod groups;
 mod report;
 pub mod site;
@@ -35,6 +39,8 @@ pub use self::document::{
     ReportState, RepositoryColumn, Row, Section, SiteFiles, StateCounts,
 };
 pub use self::drift::Drift;
+pub use self::fetch::record::{FetchRecord, FetchedRun};
+pub use self::fetch::{FetchRequest, FetchRow, FetchState, fetch};
 pub use self::groups::{Group, GroupCell};
 pub use self::report::{
     Differs, FailedCase, FileOver, MeasureValue, Omitted, PinBehind, Refused, RuleFacts,
@@ -89,9 +95,11 @@ pub struct BuildRequest {
     pub build_url: Option<String>,
     /// The imposed set's current commit.
     pub rules_commit: Option<String>,
+    /// The branch of the imposed set's repository that the build reads.
+    pub rules_branch: Option<String>,
 }
 
-/// Why a compliance build gave no document.
+/// Why a compliance build or fetch gave no document.
 #[derive(Debug, Failure)]
 pub enum ComplianceError {
     /// The config cannot be read, is not TOML, or breaks the config's
@@ -123,6 +131,16 @@ pub enum ComplianceError {
         hint = "run `pnpm run build` in ui/, which writes the page with its marker, then build flightdeck again; compliance.json was written",
     )]
     NoPage,
+    /// gh, which the fetch reads GitHub through, does not start. Nothing
+    /// was written.
+    #[failure(
+        code = fetch::NO_GH,
+        hint = "install gh on PATH, give it a token with Actions read on each repository in GH_TOKEN, then fetch again; nothing was written",
+    )]
+    NoGh {
+        /// What failed.
+        message: String,
+    },
 }
 
 impl fmt::Display for ComplianceError {
@@ -141,6 +159,7 @@ impl fmt::Display for ComplianceError {
                 f,
                 "the page embedded in flightdeck has no place for the document, so only {OUT_FILE} was written"
             ),
+            Self::NoGh { message } => write!(f, "gh does not start: {message}"),
         }
     }
 }
@@ -155,26 +174,19 @@ impl std::error::Error for ComplianceError {}
 /// read or used. A report that is missing or invalid gives its column a
 /// code and is no error.
 pub fn build(request: &BuildRequest) -> Result<ComplianceDocument, ComplianceError> {
-    let text = std::fs::read_to_string(&request.config).map_err(|error| {
-        ComplianceError::ConfigInvalid {
-            line: None,
-            message: format!("the config cannot be read: {error}"),
-        }
-    })?;
-    let config =
-        config::Config::parse(&text).map_err(|problem| ComplianceError::ConfigInvalid {
-            line: problem.line,
-            message: problem.message,
-        })?;
-    let reports: Vec<_> = config
+    let config = read_config(&request.config)?;
+    let reads: Vec<_> = config
         .repositories
         .iter()
         .map(|repository| {
-            let path = request
-                .reports
-                .join(repository.name.owner())
-                .join(format!("{}.json", repository.name.repo()));
-            report::read(&path, &repository.name.to_string())
+            let name = repository.name.to_string();
+            let dir = request.reports.join(repository.name.owner());
+            let report = dir.join(format!("{}.json", repository.name.repo()));
+            let record = dir.join(format!("{}.fetch.json", repository.name.repo()));
+            document::Read {
+                report: report::read(&report, &name),
+                fetch: fetch::record::read(&record, &name),
+            }
         })
         .collect();
     let inputs = document::Inputs {
@@ -182,8 +194,26 @@ pub fn build(request: &BuildRequest) -> Result<ComplianceDocument, ComplianceErr
         build_run: request.build_run.clone(),
         build_url: request.build_url.clone(),
         rules_commit: request.rules_commit.clone(),
+        rules_branch: request.rules_branch.clone(),
     };
-    Ok(document::build(&config, &reports, &inputs))
+    Ok(document::build(&config, &reads, &inputs))
+}
+
+/// Reads the config at `path`.
+///
+/// # Errors
+///
+/// Returns [`ComplianceError::ConfigInvalid`] when the config cannot be
+/// read or used.
+fn read_config(path: &Path) -> Result<config::Config, ComplianceError> {
+    let text = std::fs::read_to_string(path).map_err(|error| ComplianceError::ConfigInvalid {
+        line: None,
+        message: format!("the config cannot be read: {error}"),
+    })?;
+    config::Config::parse(&text).map_err(|problem| ComplianceError::ConfigInvalid {
+        line: problem.line,
+        message: problem.message,
+    })
 }
 
 impl ComplianceDocument {

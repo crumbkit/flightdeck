@@ -1,8 +1,29 @@
-// What the three Compliance site pages share: a state's chip, the link to a
-// repository's page and the link to the CI run that made a report.
+// What the three Compliance site pages share: a state's chip, a sentence
+// with its paths and commits in the mono face, the link to a repository's
+// page and the link to the CI run that made a report.
 import type { RepositoryColumn } from "@crumbkit/flightdeck-headless/document";
+import { namedRun } from "@crumbkit/flightdeck-headless/runs";
+import type { Phrase } from "@crumbkit/flightdeck-headless/words";
 import type { ReactNode } from "react";
 import { placeHash } from "@/compliance-site/address";
+
+/** A sentence, with its paths, commits and measures in the mono face. */
+export function PhraseText({ phrase }: { readonly phrase: Phrase }) {
+  return (
+    <>
+      {phrase.map((piece, at) =>
+        typeof piece === "string" ? (
+          piece
+        ) : (
+          // biome-ignore lint/suspicious/noArrayIndexKey: a phrase's pieces never move, so their place is their key.
+          <span key={at} className="cs-mono">
+            {piece.mono}
+          </span>
+        ),
+      )}
+    </>
+  );
+}
 
 /** Returns the class of a state's chip, by the word it shows: the state's colour, or a quiet grey for any other word. */
 export function chipClass(word: string): string {
@@ -45,11 +66,13 @@ export function RepositoryLink({
   );
 }
 
-/** Returns the address of the GitHub Actions run that made a column's report, or null for a report from no CI run. */
+/**
+ * Returns the address of the GitHub Actions run a page names for a column:
+ * the newest run when it uploaded no report, or the run that made the
+ * report; null for a report from no CI run.
+ */
 export function runUrl(column: RepositoryColumn | undefined): string | null {
-  const run = column?.source_run ?? null;
-  if (run === null) return null;
-  return `https://github.com/${run.repository}/actions/runs/${run.run_id}`;
+  return column === undefined ? null : (namedRun(column)?.url ?? null);
 }
 
 /**
@@ -78,7 +101,7 @@ export function OutLink({
   );
 }
 
-/** The run that made a column's report, as a link when the report came from a CI run. */
+/** The run a page names for a column, as a link when it is a CI run. */
 export function RunLink({
   column,
   label,

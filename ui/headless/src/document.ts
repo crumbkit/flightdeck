@@ -4,6 +4,7 @@
 // (api/generated/compliance.ts), so the Rust types stay their one home. A
 // field the build adds later is dropped here until the pages read it.
 import {
+  type BranchRunSchema,
   type CellSchema,
   CellStateSchema,
   ComplianceDocumentSchema,
@@ -47,6 +48,9 @@ const PageRepositorySchema = RepositoryColumnSchema.extend({
   generated: timeSchema.nullable(),
   committed: timeSchema.nullable(),
 });
+
+/** One finished run of a repository's workflow on its branch, as the fetch names it. */
+export type BranchRun = z.infer<typeof BranchRunSchema>;
 
 /** One repository's column. */
 export type RepositoryColumn = z.infer<typeof PageRepositorySchema>;

@@ -58,10 +58,11 @@ a:hover {
   color: var(--primary-hover);
   text-decoration: underline;
 }
-/* A link inside a sentence is underlined, so it reads as a link without
-   its colour. */
-.cs-sub a,
-.cs-cap a {
+/* The breadcrumb's link keeps its underline, which artboard 55 drops: its
+   colour is 1.31:1 against the breadcrumb's grey, so without the underline
+   it fails WCAG 1.4.1 (axe's link-in-text-block). A run link needs none,
+   because its arrow tells it apart. */
+.cs-sub a {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -464,9 +465,6 @@ tr:last-child td {
 }
 .cs-plain:hover {
   text-decoration: underline;
-}
-.cs-plain[aria-pressed="true"] {
-  font-weight: 600;
 }
 
 .cs-ref {

@@ -40,10 +40,10 @@ pub(crate) struct ConfigFile {
     #[schemars(with = "Option<u32>", range(min = 1))]
     stale_after_days: Option<Spanned<u32>>,
     /// Where each repository's report comes from, unless the repository
-    /// names its own source. The build reads only the reports directory,
-    /// so it checks the source's shape and `fetch` will read it.
-    #[serde(default, rename = "source")]
-    _source: Option<Source>,
+    /// names its own source. `flightdeck compliance fetch` reads it, and
+    /// the build reads only its `every_hours`.
+    #[serde(default)]
+    source: Option<Source>,
     /// Where the suites' runs come from, which the build checks and does
     /// not read.
     #[serde(default, rename = "audits")]
@@ -60,29 +60,35 @@ pub(crate) struct ConfigFile {
     repositories: Vec<Spanned<RepositoryFile>>,
 }
 
-/// Where a report or a suite's runs come from. The build reads only files;
-/// `flightdeck compliance fetch` will read the other kinds.
+/// Where a report comes from, which `flightdeck compliance fetch` reads.
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Source {
     /// `github-artifact`, `path` or `url`.
-    kind: SourceKind,
-    /// The workflow file whose newest successful run holds the artifact,
-    /// such as `ci.yml`.
+    pub(crate) kind: SourceKind,
+    /// The workflow file whose newest finished run on the branch holds the
+    /// artifact, such as `ci.yml`.
     #[serde(default)]
-    workflow: Option<String>,
+    pub(crate) workflow: Option<String>,
     /// The artifact's name, such as `rules-report`.
     #[serde(default)]
-    artifact: Option<String>,
+    pub(crate) artifact: Option<String>,
     /// The branch whose runs count, such as `main`.
     #[serde(default)]
-    branch: Option<String>,
-    /// The report's path, for the `path` kind.
+    pub(crate) branch: Option<String>,
+    /// The report's path, for the `path` kind, from the config's directory.
     #[serde(default)]
-    path: Option<String>,
-    /// The report's address, for the `url` kind.
+    pub(crate) path: Option<String>,
+    /// The report's address, for the `url` kind, which `fetch` does not
+    /// read yet.
     #[serde(default)]
-    url: Option<String>,
+    pub(crate) url: Option<String>,
+    /// The hours between two runs of the repository's job that makes the
+    /// report, such as 24 for a daily job, which the pages word as "runs
+    /// daily".
+    #[serde(default)]
+    #[schemars(with = "Option<u32>", range(min = 1))]
+    every_hours: Option<Spanned<u32>>,
 }
 
 /// The kinds of place a report comes from.
@@ -158,8 +164,8 @@ struct RepositoryFile {
     group: Option<String>,
     /// Where this repository's report comes from, in place of the
     /// config's `[source]`.
-    #[serde(default, rename = "source")]
-    _source: Option<Source>,
+    #[serde(default)]
+    source: Option<Source>,
 }
 
 /// A config the build can use: every default applied and every repository
@@ -196,6 +202,10 @@ pub(crate) struct Repository {
     pub(crate) name: RepositoryName,
     /// The heading the pages show it under.
     pub(crate) group: Option<String>,
+    /// Where its report comes from: its own source, or else the config's.
+    pub(crate) source: Option<Source>,
+    /// The hours between two runs of its job, from that source.
+    pub(crate) every_hours: Option<u32>,
 }
 
 /// A repository's name, `owner/repo`, whose two parts are safe to join
@@ -259,8 +269,9 @@ impl Config {
     ///
     /// Returns a [`ConfigProblem`] when the text is not TOML, a key is
     /// unknown or of the wrong type, `schema` names another id, a
-    /// repository's name is not `owner/repo`, or a repository is named
-    /// twice.
+    /// repository's name is not `owner/repo`, a repository is named
+    /// twice, or one repository's report is another's fetch record, as for
+    /// `owner/app` and `owner/app.fetch`.
     pub(crate) fn parse(text: &str) -> Result<Self, ConfigProblem> {
         let file: ConfigFile = toml::from_str(text).map_err(|error| ConfigProblem {
             line: error.span().map(|span| line_of(text, span.start)),
@@ -296,6 +307,13 @@ impl Config {
             .as_ref()
             .map(|build| at_least_1(&build.every_hours, "[build] every_hours"))
             .transpose()?;
+        if let Some(hours) = file
+            .source
+            .as_ref()
+            .and_then(|source| source.every_hours.as_ref())
+        {
+            at_least_1(hours, "[source] every_hours")?;
+        }
         let mut seen = BTreeSet::new();
         let mut repositories = Vec::with_capacity(file.repositories.len());
         for spanned in file.repositories {
@@ -309,15 +327,42 @@ impl Config {
                 ),
             })?;
             // GitHub names differ only in case for one repository.
-            if !seen.insert(name.to_string().to_ascii_lowercase()) {
+            let lower = name.to_string().to_ascii_lowercase();
+            // The report of `<repo>.fetch` would be the fetch record of
+            // `<repo>`, at `<owner>/<repo>.fetch.json`.
+            let clash = lower
+                .strip_suffix(".fetch")
+                .filter(|stem| seen.contains(*stem))
+                .map(ToOwned::to_owned)
+                .or_else(|| {
+                    let with = format!("{lower}.fetch");
+                    seen.contains(&with).then_some(with)
+                });
+            if let Some(other) = clash {
+                return Err(ConfigProblem {
+                    line,
+                    message: format!(
+                        "repository {name} and repository {other} would share one file, because one's report is the other's fetch record"
+                    ),
+                });
+            }
+            if !seen.insert(lower) {
                 return Err(ConfigProblem {
                     line,
                     message: format!("repository {name} is named twice"),
                 });
             }
+            let source = repository.source.or_else(|| file.source.clone());
+            let every_hours = source
+                .as_ref()
+                .and_then(|source| source.every_hours.as_ref())
+                .map(|hours| at_least_1(hours, "every_hours"))
+                .transpose()?;
             repositories.push(Repository {
                 name,
                 group: repository.group,
+                source,
+                every_hours,
             });
         }
         Ok(Self {

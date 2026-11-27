@@ -11,6 +11,7 @@ codes that no start provokes:
   flightdeck::compliance::config_invalid: Only a config file that breaks its rules, or an --out directory that cannot be written, provokes it; tests/compliance.rs provokes it.
   flightdeck::compliance::out_failed: Only a config file that breaks its rules, or an --out directory that cannot be written, provokes it; tests/compliance.rs provokes it.
   flightdeck::compliance::no_page: Only a flightdeck whose embedded page lacks the document's marker provokes it; tests/compliance_site.rs provokes it with such a page.
+  flightdeck::compliance::no_gh: Only a PATH without gh provokes it, and a command line sets no variable; tests/compliance_fetch.rs provokes it.
   flightdeck::workspaces::mxv_missing: Only an mxv that fails, is missing or lacks the workspace provokes it, and a command line sets no variable; tests/workspaces.rs provokes it with a fake mxv.
   flightdeck::workspaces::mxv_failed: Only an mxv that fails, is missing or lacks the workspace provokes it, and a command line sets no variable; tests/workspaces.rs provokes it with a fake mxv.
   flightdeck::workspaces::not_found: Only an mxv that fails, is missing or lacks the workspace provokes it, and a command line sets no variable; tests/workspaces.rs provokes it with a fake mxv.

@@ -115,6 +115,11 @@ pub(crate) struct RuleRow {
     pub(crate) result: String,
     /// Why the result is `unreadable`, or null.
     pub(crate) code: Option<String>,
+    /// The globs of the files the rule applies to, from the repository's
+    /// root, such as `**/*.py`, or `None` when the report gives none, as a
+    /// Board before the field does not.
+    #[serde(default)]
+    pub(crate) paths: Option<Vec<String>>,
     /// The facts the rule's checker measured.
     #[serde(flatten)]
     pub(crate) facts: RuleFacts,

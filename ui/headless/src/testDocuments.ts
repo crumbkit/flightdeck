@@ -2,7 +2,13 @@
 // fresh copy, with the changes a test needs and the counts recomputed as the
 // build computes them.
 import fixture from "../../../tests/fixtures/compliance/compliance.json" with { type: "json" };
-import { type CellState, type ComplianceDocument, parseDocument } from "./document.ts";
+import {
+  type BranchRun,
+  type CellState,
+  type ComplianceDocument,
+  parseDocument,
+  type RepositoryColumn,
+} from "./document.ts";
 
 /** Returns a fresh copy of the fixture, parsed. */
 export function fixtureDocument(): ComplianceDocument {
@@ -115,9 +121,11 @@ export function withInvalidReport(repository: string, field: string): Compliance
   return recount({ ...document, repositories, rows });
 }
 
-/** Returns the fixture without the column of `name`. */
-export function withoutRepository(name: string): ComplianceDocument {
-  const document = fixtureDocument();
+/** Returns `document`, the fixture by default, without the column of `name`. */
+export function withoutRepository(
+  name: string,
+  document: ComplianceDocument = fixtureDocument(),
+): ComplianceDocument {
   const index = document.repositories.findIndex((column) => column.name === name);
   const repositories = document.repositories.filter((_, at) => at !== index);
   const rows = document.rows.map((row) => ({
@@ -150,4 +158,93 @@ export function withPassing(
       : row,
   );
   return recount({ ...document, rows });
+}
+
+/**
+ * Returns a run of `name`'s workflow on main, `number`, that started
+ * `ageS` seconds before the fixture's build, as a fetch record names it.
+ */
+export function branchRun(
+  name: string,
+  number: number,
+  ageS: number,
+  uploaded: boolean,
+  document: ComplianceDocument = fixtureDocument(),
+): BranchRun {
+  const started = new Date(new Date(document.built_at).getTime() - ageS * 1000);
+  const id = 9000 + number;
+  return {
+    run_id: id,
+    run_number: number,
+    commit: `${String(number).padStart(4, "0")}e19b04f7c2a95d18b3e06f4a1c87d25b9e3f0`,
+    branch: "main",
+    started_at: started.toISOString().replace(/\.\d{3}Z$/, "Z"),
+    url: `https://github.com/${name}/actions/runs/${id}`,
+    uploaded,
+    age_s: ageS,
+  };
+}
+
+/** Returns `document`, the fixture by default, with `fields` set on the column of `name`. */
+export function withColumn(
+  name: string,
+  fields: Partial<RepositoryColumn>,
+  document: ComplianceDocument = fixtureDocument(),
+): ComplianceDocument {
+  const repositories = document.repositories.map((column) =>
+    column.name === name ? { ...column, ...fields } : column,
+  );
+  return { ...document, repositories };
+}
+
+/**
+ * Returns `document`, the fixture by default, as a build writes it when the
+ * newest run of `name` uploaded no report and an earlier run's report is
+ * beside the fetch record: the column reads no report and names both runs,
+ * and each cell its report held reads no report.
+ */
+export function withSupersededReport(
+  name: string,
+  document: ComplianceDocument = fixtureDocument(),
+): ComplianceDocument {
+  const index = document.repositories.findIndex((column) => column.name === name);
+  const code = "flightdeck::compliance::no_report";
+  const repositories = document.repositories.map((column, at) =>
+    at === index
+      ? {
+          ...column,
+          report: "no_report" as const,
+          code,
+          generated: null,
+          age_s: null,
+          commit: null,
+          committed: null,
+          uncommitted: null,
+          board_version: null,
+          rules_from: null,
+          rules_commit: null,
+          source_run: null,
+          drift: null,
+          newest_run: branchRun(name, 12, 3 * 3600, false, document),
+          report_run: branchRun(name, 11, 2 * DAY, true, document),
+        }
+      : column,
+  );
+  const rows = document.rows.map((row) => ({
+    ...row,
+    cells: row.cells.map((cell, at) =>
+      at === index && cell.state !== "absent"
+        ? {
+            ...cell,
+            state: "not_readable" as const,
+            code,
+            result: null,
+            facts: null,
+            run: null,
+            age_s: null,
+          }
+        : cell,
+    ),
+  }));
+  return recount({ ...document, repositories, rows });
 }

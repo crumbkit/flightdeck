@@ -631,6 +631,63 @@
     "failures"
   ],
   "$defs": {
+    "BranchRun": {
+      "description": "One finished run of a repository's workflow on its branch, as the fetch\nrecord names it.",
+      "type": "object",
+      "properties": {
+        "age_s": {
+          "description": "Whole seconds from the run's start to the build; null when its time\ncannot be read.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "branch": {
+          "description": "The branch the run ran on.",
+          "type": "string"
+        },
+        "commit": {
+          "description": "The commit the run checked out.",
+          "type": "string"
+        },
+        "run_id": {
+          "description": "The run's id.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "run_number": {
+          "description": "The run's number in its workflow.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "started_at": {
+          "description": "When the run started, in UTC.",
+          "type": "string"
+        },
+        "uploaded": {
+          "description": "Whether the run holds the report's artifact.",
+          "type": "boolean"
+        },
+        "url": {
+          "description": "The run's page on GitHub.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "run_number",
+        "commit",
+        "branch",
+        "started_at",
+        "url",
+        "uploaded",
+        "age_s"
+      ]
+    },
     "BuildRun": {
       "description": "The controls job's run that built the document.",
       "type": "object",
@@ -1029,6 +1086,13 @@
       "description": "The imposed rule set, as the config names it.",
       "type": "object",
       "properties": {
+        "branch": {
+          "description": "The branch of the set's repository that the build read, from\n`--rules-branch`; absent when the build was not told it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "commit": {
           "description": "The set's current commit, from `--rules-commit`; null when the build\nwas not told it.",
           "type": [
@@ -1249,6 +1313,22 @@
             "null"
           ]
         },
+        "commits_since": {
+          "description": "Commits on the branch since the report's commit, from the fetch\nrecord; absent when not counted, and for a column that reads no\nreport.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "commits_since_code": {
+          "description": "Why a read report's `commits_since` is absent, such as\n`flightdeck::compliance::compare_failed`; absent otherwise.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "committed": {
           "description": "When that commit was made; null when unknown.",
           "type": [
@@ -1270,6 +1350,15 @@
               "type": "null"
             }
           ]
+        },
+        "every_hours": {
+          "description": "The hours between two runs of the repository's job, from its source\nin the config; absent when the config names none.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
         },
         "field": {
           "description": "The path of the field that made the report invalid, such as\n`rules[0].result`; null otherwise.",
@@ -1303,6 +1392,17 @@
           "description": "The repository's name, as the config gives it.",
           "type": "string"
         },
+        "newest_run": {
+          "description": "The newest finished run of the repository's workflow on its branch,\nfrom the fetch record; absent without one, or when the workflow has\nno run.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BranchRun"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "refused": {
           "description": "Each refusal and warning the report met, as it lists them.",
           "type": "array",
@@ -1313,6 +1413,17 @@
         "report": {
           "description": "What the repository's report reads as.",
           "$ref": "#/$defs/ReportState"
+        },
+        "report_run": {
+          "description": "The run the report beside the fetch record came from; absent without\na fetch record, or when no run held a report.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BranchRun"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "rules_commit": {
           "description": "The rules board's commit the report read.",
@@ -1408,6 +1519,16 @@
             "string",
             "null"
           ]
+        },
+        "paths": {
+          "description": "The globs of the files the rule applies to, such as `**/*.py`, from\nthe first report that gives them; absent for a suite and for a rule\nno report gives them for.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
         },
         "purpose": {
           "description": "Why the requirement exists; null as for `requirement`.",

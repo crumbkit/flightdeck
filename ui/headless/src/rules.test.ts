@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { rulesAddress, rulesView } from "./rules.ts";
-import { fixtureDocument, withPassing, withStaleReport } from "./testDocuments.ts";
+import { CHECKERS, rulesAddress, rulesView } from "./rules.ts";
+import {
+  branchRun,
+  fixtureDocument,
+  withColumn,
+  withoutRepository,
+  withPassing,
+  withStaleReport,
+  withSupersededReport,
+} from "./testDocuments.ts";
 
 const all = rulesAddress.parse("");
 
@@ -20,14 +28,14 @@ describe("rulesView of the fixture (artboards 52 and 53)", () => {
     ]);
   });
 
-  it("sorts the rules failing first, then by name", () => {
+  it("sorts the rules failing first, then by checker, then the rule that reaches more repositories first", () => {
     expect(view.rules.map((rule) => [rule.id, rule.word])).toEqual([
       ["/rules/rust/file-size", "failing"],
-      ["/rules/payments/v1-signer", "failing"],
       ["/rules/toolchains/rust", "failing"],
+      ["/rules/payments/v1-signer", "failing"],
       ["/rules/writing/plain", "not readable"],
-      ["/rules/app/handlers", "stated"],
       ["/rules/rust/server", "stated"],
+      ["/rules/app/handlers", "stated"],
     ]);
   });
 
@@ -82,11 +90,11 @@ describe("rulesView of the fixture (artboards 52 and 53)", () => {
     expect(view.reportsCurrent).toBe(3);
   });
 
-  it("counts the rules by checker, by when an agent is shown them and by kind", () => {
+  it("counts the rules by the five checkers the Rules artboard lists, by when an agent is shown them and by kind", () => {
+    expect(CHECKERS).toEqual(["budget", "version", "pattern", "judged", "written"]);
     expect(view.checkers.map((entry) => [entry.key, entry.count])).toEqual([
       ["budget", 1],
       ["version", 1],
-      ["zero", 1],
       ["judged", 1],
       ["written", 2],
     ]);
@@ -102,14 +110,31 @@ describe("rulesView's filters and sort, held in the address", () => {
   it("keeps only the rules of the chosen checker and state", () => {
     const view = rulesView(fixtureDocument(), rulesAddress.parse("?checker=written"));
     expect(view.rules.map((rule) => rule.id)).toEqual([
-      "/rules/app/handlers",
       "/rules/rust/server",
+      "/rules/app/handlers",
     ]);
     const notCurrent = rulesView(
       fixtureDocument(),
       rulesAddress.parse("?state=not_current&shown=edit"),
     );
     expect(notCurrent.rules.map((rule) => rule.id)).toEqual(["/rules/writing/plain"]);
+    expect(rulesAddress.parse("?checker=zero").checker).toBe("all");
+  });
+
+  it("names what a pattern rule quotes beside its checker", () => {
+    const document = fixtureDocument();
+    const rows = document.rows.map((row) =>
+      row.id === "/rules/rust/server"
+        ? {
+            ...row,
+            checker: { check: "pattern", file: "/rules/rust/server.patterns", quote: "match-only" },
+          }
+        : row,
+    );
+    const rule = rulesView({ ...document, rows }, all).rules.find(
+      (each) => each.id === "/rules/rust/server",
+    );
+    expect(rule?.checker).toBe("pattern · match-only");
   });
 
   it("sorts by name when asked, in either direction", () => {
@@ -149,9 +174,55 @@ describe("rulesView's filters and sort, held in the address", () => {
     expect(size?.reached).not.toContain("owner/gone");
   });
 
-  it("says that a repository with no report changes no rule's state, and that an unreadable rule is in no tile", () => {
+  it("says that a rule is stale when a repository it reaches has a stale report or none, and that an unreadable rule is in no tile", () => {
     expect(rulesView(fixtureDocument(), all).note).toBe(
-      "A measured rule fails when any repository's report fails it, and is stale when a report that reaches it is stale. A repository that sent no report reaches no rule, so it changes no rule's state. A rule a report could not read is in no tile. Pattern, judged and written rules are stated: a report lists them and measures nothing.",
+      "A measured rule fails when any repository's report fails it, and is stale when a repository it reaches has a stale report or none. A rule a report could not read is in no tile. Pattern, judged and written rules are stated: a report lists them and measures nothing.",
     );
+  });
+});
+
+describe("rulesView of a document with the fetch's runs (artboards 52 and 53)", () => {
+  const DAY = 86_400;
+
+  it("gives a stale report's source run the sentence of its job's interval and its newest run's age", () => {
+    const stale = withStaleReport("owner/ci", 9);
+    const document = withColumn(
+      "owner/ci",
+      { every_hours: 24, newest_run: branchRun("owner/ci", 7, 9 * DAY + 60, true, stale) },
+      stale,
+    );
+    const ci = rulesView(document, all).reports[2];
+    expect(ci).toMatchObject({ run: "run #7", branch: "main" });
+    expect(ci?.runNote).toBe("Its controls job runs daily, and the newest main run is 9 days old.");
+    expect(ci?.sentence).toBe(ci?.runNote);
+    const unpaced = withColumn("owner/ci", { every_hours: null }, document);
+    expect(rulesView(unpaced, all).reports[2]?.runNote).toBe("The newest main run is 9 days old.");
+  });
+
+  it("names the newest run, its commit and the earlier report's rules of a repository whose newest run uploaded none", () => {
+    const document = withSupersededReport("owner/app");
+    const app = rulesView(document, all).reports[0];
+    expect(app).toMatchObject({
+      run: "run #12",
+      commit: "0012e19",
+      age: null,
+      rules: 7,
+      word: "no report",
+      runUrl: "https://github.com/owner/app/actions/runs/9012",
+      runNote: "finished without uploading a controls report",
+      sentence: "Main run #12 finished without uploading a controls report.",
+    });
+  });
+
+  it("reads a rule that only a repository with an earlier report reaches as stale, because it sent no report", () => {
+    const alone = withoutRepository("owner/ci", withoutRepository("owner/api"));
+    const view = rulesView(withSupersededReport("owner/app", alone), all);
+    const size = view.rules.find((rule) => rule.id === "/rules/rust/file-size");
+    expect(size).toMatchObject({
+      word: "stale",
+      caption: "owner/app sent no report",
+      reached: ["owner/app"],
+    });
+    expect(view.rules.find((rule) => rule.id === "/rules/rust/server")?.word).toBe("stated");
   });
 });

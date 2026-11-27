@@ -7,7 +7,7 @@ Verbs
 
 Commands
   workspaces  Read the local mxv workspaces
-  compliance  Build the compliance document from rules reports
+  compliance  Fetch the repositories' rules reports and build the compliance document
   commands    Explore flightdeck's commands
   skills      Give coding agents flightdeck's skill
   completion  Set up flightdeck's completion in a shell

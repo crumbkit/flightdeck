@@ -13,15 +13,16 @@
       "name": "platform-standard",
       "from": "platform/platform-controls",
       "root": "/rules",
-      "commit": "4be19a0c8b17a1cbce7be29a98881ff4af866c27"
+      "commit": "4be19a0c8b17a1cbce7be29a98881ff4af866c27",
+      "branch": "main"
     },
     "counts": {
       "failing": 6,
       "stale": 6,
-      "not_readable": 21,
+      "not_readable": 6,
       "current": 18,
       "written": 31,
-      "absent": 86
+      "absent": 117
     },
     "reports": {
       "current": 6,
@@ -65,8 +66,30 @@
           "not_readable": 0,
           "current": 4,
           "written": 6,
-          "absent": 10
-        }
+          "absent": 12
+        },
+        "every_hours": 24,
+        "newest_run": {
+          "run_id": 7001184,
+          "run_number": 1184,
+          "commit": "a3c9e219aa05d52a23f6185bb6961af37d0994ca",
+          "branch": "main",
+          "started_at": "2026-11-25T02:55:00Z",
+          "url": "https://github.com/platform/payments-api/actions/runs/7001184",
+          "uploaded": true,
+          "age_s": 11100
+        },
+        "report_run": {
+          "run_id": 7001184,
+          "run_number": 1184,
+          "commit": "a3c9e219aa05d52a23f6185bb6961af37d0994ca",
+          "branch": "main",
+          "started_at": "2026-11-25T02:55:00Z",
+          "url": "https://github.com/platform/payments-api/actions/runs/7001184",
+          "uploaded": true,
+          "age_s": 11100
+        },
+        "commits_since": 2
       },
       {
         "name": "web-portal",
@@ -103,8 +126,30 @@
           "not_readable": 0,
           "current": 3,
           "written": 4,
-          "absent": 13
-        }
+          "absent": 15
+        },
+        "every_hours": 24,
+        "newest_run": {
+          "run_id": 7000902,
+          "run_number": 902,
+          "commit": "5d71b0a62e3481799b7757608e9670cff332b2b7",
+          "branch": "main",
+          "started_at": "2026-11-24T03:55:00Z",
+          "url": "https://github.com/platform/web-portal/actions/runs/7000902",
+          "uploaded": true,
+          "age_s": 93900
+        },
+        "report_run": {
+          "run_id": 7000902,
+          "run_number": 902,
+          "commit": "5d71b0a62e3481799b7757608e9670cff332b2b7",
+          "branch": "main",
+          "started_at": "2026-11-24T03:55:00Z",
+          "url": "https://github.com/platform/web-portal/actions/runs/7000902",
+          "uploaded": true,
+          "age_s": 93900
+        },
+        "commits_since": 5
       },
       {
         "name": "billing-worker",
@@ -141,8 +186,30 @@
           "not_readable": 0,
           "current": 4,
           "written": 5,
-          "absent": 11
-        }
+          "absent": 13
+        },
+        "every_hours": 24,
+        "newest_run": {
+          "run_id": 7000415,
+          "run_number": 415,
+          "commit": "08e6f3c86272db8248293909e8025c3be5c50c5c",
+          "branch": "main",
+          "started_at": "2026-11-23T03:55:00Z",
+          "url": "https://github.com/platform/billing-worker/actions/runs/7000415",
+          "uploaded": true,
+          "age_s": 180300
+        },
+        "report_run": {
+          "run_id": 7000415,
+          "run_number": 415,
+          "commit": "08e6f3c86272db8248293909e8025c3be5c50c5c",
+          "branch": "main",
+          "started_at": "2026-11-23T03:55:00Z",
+          "url": "https://github.com/platform/billing-worker/actions/runs/7000415",
+          "uploaded": true,
+          "age_s": 180300
+        },
+        "commits_since": 1
       },
       {
         "name": "identity-service",
@@ -179,8 +246,30 @@
           "not_readable": 0,
           "current": 0,
           "written": 4,
-          "absent": 12
-        }
+          "absent": 14
+        },
+        "every_hours": 24,
+        "newest_run": {
+          "run_id": 7000077,
+          "run_number": 77,
+          "commit": "c41a9d84557b9c8f30c4e9398687e03ace0136b0",
+          "branch": "main",
+          "started_at": "2026-11-16T04:55:00Z",
+          "url": "https://github.com/platform/identity-service/actions/runs/7000077",
+          "uploaded": true,
+          "age_s": 781500
+        },
+        "report_run": {
+          "run_id": 7000077,
+          "run_number": 77,
+          "commit": "c41a9d84557b9c8f30c4e9398687e03ace0136b0",
+          "branch": "main",
+          "started_at": "2026-11-16T04:55:00Z",
+          "url": "https://github.com/platform/identity-service/actions/runs/7000077",
+          "uploaded": true,
+          "age_s": 781500
+        },
+        "commits_since": 0
       },
       {
         "name": "mobile-app",
@@ -203,10 +292,31 @@
         "counts": {
           "failing": 0,
           "stale": 0,
-          "not_readable": 21,
+          "not_readable": 6,
           "current": 0,
           "written": 0,
-          "absent": 0
+          "absent": 17
+        },
+        "every_hours": 24,
+        "newest_run": {
+          "run_id": 7002310,
+          "run_number": 2310,
+          "commit": "e19b04f7c2a95d18b3e06f4a1c87d25b9e3f0a61",
+          "branch": "main",
+          "started_at": "2026-11-25T03:00:00Z",
+          "url": "https://github.com/platform/mobile-app/actions/runs/7002310",
+          "uploaded": false,
+          "age_s": 10800
+        },
+        "report_run": {
+          "run_id": 7002309,
+          "run_number": 2309,
+          "commit": "6b1f0e2d94c7a38515e0d2b9f4a6c13e8d7b5a20",
+          "branch": "main",
+          "started_at": "2026-11-23T06:00:00Z",
+          "url": "https://github.com/platform/mobile-app/actions/runs/7002309",
+          "uploaded": true,
+          "age_s": 172800
         }
       },
       {
@@ -244,8 +354,30 @@
           "not_readable": 0,
           "current": 3,
           "written": 3,
-          "absent": 15
-        }
+          "absent": 17
+        },
+        "every_hours": 24,
+        "newest_run": {
+          "run_id": 7000655,
+          "run_number": 655,
+          "commit": "9a0d7c3973de66af9f18a9dac788e31b3557c2ec",
+          "branch": "main",
+          "started_at": "2026-11-23T23:55:00Z",
+          "url": "https://github.com/platform/infra-terraform/actions/runs/7000655",
+          "uploaded": true,
+          "age_s": 108300
+        },
+        "report_run": {
+          "run_id": 7000655,
+          "run_number": 655,
+          "commit": "9a0d7c3973de66af9f18a9dac788e31b3557c2ec",
+          "branch": "main",
+          "started_at": "2026-11-23T23:55:00Z",
+          "url": "https://github.com/platform/infra-terraform/actions/runs/7000655",
+          "uploaded": true,
+          "age_s": 108300
+        },
+        "commits_since": 4
       },
       {
         "name": "data-pipeline",
@@ -282,8 +414,30 @@
           "not_readable": 0,
           "current": 2,
           "written": 6,
-          "absent": 11
-        }
+          "absent": 13
+        },
+        "every_hours": 24,
+        "newest_run": {
+          "run_id": 7000301,
+          "run_number": 301,
+          "commit": "7f20c4d72b1d05c08a8e916201c6f7fc77df3f3e",
+          "branch": "main",
+          "started_at": "2026-11-24T23:55:00Z",
+          "url": "https://github.com/platform/data-pipeline/actions/runs/7000301",
+          "uploaded": true,
+          "age_s": 21900
+        },
+        "report_run": {
+          "run_id": 7000301,
+          "run_number": 301,
+          "commit": "7f20c4d72b1d05c08a8e916201c6f7fc77df3f3e",
+          "branch": "main",
+          "started_at": "2026-11-24T23:55:00Z",
+          "url": "https://github.com/platform/data-pipeline/actions/runs/7000301",
+          "uploaded": true,
+          "age_s": 21900
+        },
+        "commits_since": 3
       },
       {
         "name": "docs-site",
@@ -320,8 +474,30 @@
           "not_readable": 0,
           "current": 2,
           "written": 3,
-          "absent": 14
-        }
+          "absent": 16
+        },
+        "every_hours": 24,
+        "newest_run": {
+          "run_id": 7000128,
+          "run_number": 128,
+          "commit": "2be5f903d72c008a267ef89e65d2707b0ab01d32",
+          "branch": "main",
+          "started_at": "2026-11-21T04:55:00Z",
+          "url": "https://github.com/platform/docs-site/actions/runs/7000128",
+          "uploaded": true,
+          "age_s": 349500
+        },
+        "report_run": {
+          "run_id": 7000128,
+          "run_number": 128,
+          "commit": "2be5f903d72c008a267ef89e65d2707b0ab01d32",
+          "branch": "main",
+          "started_at": "2026-11-21T04:55:00Z",
+          "url": "https://github.com/platform/docs-site/actions/runs/7000128",
+          "uploaded": true,
+          "age_s": 349500
+        },
+        "commits_since": 7
       }
     ],
     "rows": [
@@ -566,8 +742,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -630,6 +806,7 @@
         },
         "groups": [],
         "cases": null,
+        "paths": ["**/*.py"],
         "cells": [
           {
             "repository": "payments-api",
@@ -705,8 +882,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -744,6 +921,95 @@
               },
               "zero": null
             },
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/rules/toolchains/ios-target",
+        "section": "measured",
+        "source": "imposed",
+        "requirement": "The iOS deployment target is at least 17.0.",
+        "purpose": "Every app builds for an iOS release that still gets fixes.",
+        "kind": "standing",
+        "show": "failing",
+        "checker": {
+          "check": "version",
+          "at_least": "17.0"
+        },
+        "groups": [],
+        "cases": null,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
             "run": null,
             "age_s": null
           },
@@ -823,8 +1089,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -966,8 +1232,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -1067,8 +1333,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -1153,7 +1419,7 @@
                 "run": "/suites/v1-signer-callers/runs/20261123T0600Z",
                 "age_s": 172800,
                 "measures": {
-                  "remaining": 2,
+                  "remaining": 3,
                   "unknown": 0
                 }
               }
@@ -1191,7 +1457,7 @@
                 "run": "/suites/v1-signer-callers/runs/20261123T0600Z",
                 "age_s": 172800,
                 "measures": {
-                  "remaining": 1,
+                  "remaining": 3,
                   "unknown": 0
                 }
               }
@@ -1230,8 +1496,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -1324,8 +1590,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -1410,8 +1676,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -1509,8 +1775,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -1603,8 +1869,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -1689,8 +1955,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -1712,6 +1978,92 @@
               "commits_since_code": null
             },
             "age_s": 435600
+          },
+          {
+            "repository": "data-pipeline",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "docs-site",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          }
+        ]
+      },
+      {
+        "id": "/suites/mobile-app-typescript-standard",
+        "section": "suite",
+        "source": null,
+        "requirement": null,
+        "purpose": null,
+        "kind": null,
+        "show": null,
+        "checker": null,
+        "groups": [],
+        "cases": 38,
+        "cells": [
+          {
+            "repository": "payments-api",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "web-portal",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "billing-worker",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "identity-service",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "mobile-app",
+            "state": "not_readable",
+            "code": "flightdeck::compliance::no_report",
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
+          },
+          {
+            "repository": "infra-terraform",
+            "state": "absent",
+            "code": null,
+            "result": null,
+            "facts": null,
+            "run": null,
+            "age_s": null
           },
           {
             "repository": "data-pipeline",
@@ -1791,8 +2143,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -1885,8 +2237,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -2022,8 +2374,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -2120,8 +2472,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -2242,8 +2594,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -2352,8 +2704,8 @@
           },
           {
             "repository": "mobile-app",
-            "state": "not_readable",
-            "code": "flightdeck::compliance::no_report",
+            "state": "absent",
+            "code": null,
             "result": null,
             "facts": null,
             "run": null,
@@ -2398,7 +2750,8 @@
         "show": "edit",
         "checker": {
           "check": "pattern",
-          "file": "/rules/privacy/customer-names.patterns"
+          "file": "/rules/privacy/customer-names.patterns",
+          "quote": "match-only"
         },
         "groups": [],
         "cases": null,

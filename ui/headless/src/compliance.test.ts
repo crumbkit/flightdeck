@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { complianceAddress, complianceView } from "./compliance.ts";
+import { suiteName } from "./matrix.ts";
 import {
+  branchRun,
   fixtureDocument,
+  withColumn,
   withInvalidReport,
   withoutRepository,
   withStaleReport,
   withSuiteWithoutRun,
+  withSupersededReport,
 } from "./testDocuments.ts";
 
 const every = complianceAddress.parse("");
@@ -89,11 +93,20 @@ describe("complianceView of the fixture (artboards 46, 54 and 56)", () => {
     expect(view.failing.count).toBe(6);
     expect(view.failing.items.map((item) => [item.repositories, item.detail])).toEqual([
       [["owner/api"], "src/main.rs is 67 bytes, and the limit is 60."],
-      [["owner/api"], "rust-toolchain.toml line 1 pins 1.90.0, and the rule needs at least 1.99."],
-      [["owner/app", "owner/api", "owner/ci"], "The run 1 d ago reports remaining 2."],
+      [["owner/api"], "rust-toolchain.toml line 1 pins 1.90.0."],
+      [["owner/app", "owner/api", "owner/ci"], "The newest run reports remaining 2."],
       [["owner/api"], "The run at 0e7502e, 1 day ago, failed 1 case: RUST-7."],
     ]);
     expect(view.failing.items[2]?.run).toBeNull();
+  });
+
+  it("sets a failure's paths, commits and measures in the mono face", () => {
+    expect(view.failing.items.map((item) => item.phrase)).toEqual([
+      [{ mono: "src/main.rs" }, " is 67 bytes, and the limit is 60."],
+      [{ mono: "rust-toolchain.toml" }, " line 1 pins 1.90.0."],
+      ["The newest run reports ", { mono: "remaining 2" }, "."],
+      ["The run at ", { mono: "0e7502e" }, ", 1 day ago, failed 1 case: RUST-7."],
+    ]);
   });
 
   it("names the repositories without a current report", () => {
@@ -104,6 +117,7 @@ describe("complianceView of the fixture (artboards 46, 54 and 56)", () => {
         word: "no report",
         detail: "No report was found for it, so its rules and suites have no state.",
         run: null,
+        url: null,
       },
     ]);
   });
@@ -157,11 +171,11 @@ describe("complianceView with stale and missing reports", () => {
     );
     const view = complianceView({ ...stale, rows }, every);
     expect(view.stale.items.map((item) => item.detail)).toEqual([
-      "Its report is 9 days old, so the rust file size and python file size rules are stale.",
+      "Its report is 9 days old, so the Rust file size and Python file size rules are stale.",
     ]);
   });
 
-  it("lists a stale report's rules once for its repository, and the report among the missing", () => {
+  it("lists a stale report's rules once for its repository, and the report among the missing after those with none", () => {
     const view = complianceView(withStaleReport("owner/ci", 9), every);
     expect(view.headline).toBe(
       "6 checks fail in 3 repositories, 2 are stale, and 1 repository sent no report",
@@ -171,16 +185,16 @@ describe("complianceView with stale and missing reports", () => {
       [
         ["owner/ci"],
         "2 measured rules",
-        "Its report is 9 days old, so the file size and rust rules are stale.",
+        "Its report is 9 days old, so the file size and Rust rules are stale.",
       ],
     ]);
     expect(view.missing.items.map((item) => [item.repository, item.word, item.detail])).toEqual([
-      ["owner/ci", "report 9 d old", "Its newest report was made 9 days before the snapshot."],
       [
         "owner/gone",
         "no report",
         "No report was found for it, so its rules and suites have no state.",
       ],
+      ["owner/ci", "report 9 d old", "Its newest report was made 9 days before the snapshot."],
     ]);
     expect(view.columns[2]).toMatchObject({ caption: "report 9 d", stale: true });
   });
@@ -197,11 +211,106 @@ describe("complianceView with stale and missing reports", () => {
 
   it("says why a report is invalid", () => {
     const view = complianceView(withInvalidReport("owner/ci", "rules[0].result"), every);
-    expect(view.missing.items[0]).toMatchObject({
+    expect(view.missing.items.map((item) => item.repository)).toEqual(["owner/gone", "owner/ci"]);
+    expect(view.missing.items[1]).toMatchObject({
       repository: "owner/ci",
       word: "invalid report",
       detail: "Its report is not one this build reads, at rules[0].result: unknown variant.",
     });
     expect(view.columns[2]?.caption).toBe("invalid report");
+  });
+});
+
+describe("complianceView's failing zero rules", () => {
+  /** Returns the fixture with the zero rule's cell in `repository` reading `measures` from `run`. */
+  function withZeroRead(
+    repository: string,
+    measures: Record<string, number>,
+    run = "/suites/signer-callers/runs/20261124T1000Z",
+  ) {
+    const document = fixtureDocument();
+    const rows = document.rows.map((row) =>
+      row.section !== "zero"
+        ? row
+        : {
+            ...row,
+            cells: row.cells.map((cell) => {
+              const zero = cell.facts?.zero;
+              if (cell.repository !== repository || cell.facts == null || zero == null) return cell;
+              return { ...cell, facts: { ...cell.facts, zero: { ...zero, run, measures } } };
+            }),
+          },
+    );
+    return { ...document, rows };
+  }
+
+  const signer = (item: { readonly name: string }) => item.name.includes("v1 webhook signer");
+
+  it("gives a repository that read another run an item of its own", () => {
+    const older = "/suites/signer-callers/runs/20261120T1000Z";
+    const view = complianceView(withZeroRead("owner/ci", { remaining: 2 }, older), every);
+    expect(view.failing.items.filter(signer).map((item) => item.repositories)).toEqual([
+      ["owner/app", "owner/api"],
+      ["owner/ci"],
+    ]);
+  });
+});
+
+describe("suite names", () => {
+  it("writes a language's name with its capitals", () => {
+    expect(suiteName("typescript-standard")).toBe("TypeScript standard audit");
+    expect(suiteName("javascript-review")).toBe("JavaScript review audit");
+    expect(suiteName("rust-standard")).toBe("Rust standard audit");
+  });
+});
+
+describe("complianceView of a document with the fetch's runs (artboard 54)", () => {
+  const DAY = 86_400;
+
+  it("names the run of a repository whose newest run uploaded none, and how many of its rules have no state", () => {
+    const view = complianceView(withSupersededReport("owner/app"), every);
+    expect(view.missing.items[0]).toEqual({
+      key: "owner/app",
+      repository: "owner/app",
+      word: "no report",
+      detail:
+        "Main run #12 finished without uploading a controls report, so its 7 rules have no state.",
+      run: "Run #12",
+      url: "https://github.com/owner/app/actions/runs/9012",
+    });
+    expect(view.repositories[0]?.summary).toBe("no report · run #12 sent none");
+  });
+
+  it("says that the rules and suites of a repository whose runs never uploaded have no state", () => {
+    const document = withColumn("owner/gone", {
+      newest_run: branchRun("owner/gone", 3, 5 * DAY, false),
+    });
+    expect(complianceView(document, every).missing.items[0]?.detail).toBe(
+      "Main run #3 finished without uploading a controls report, so its rules and suites have no state.",
+    );
+  });
+
+  it("says how often a stale report's job runs and the day of its newest run", () => {
+    const stale = withStaleReport("owner/ci", 9);
+    const document = withColumn(
+      "owner/ci",
+      { every_hours: 24, newest_run: branchRun("owner/ci", 7, 9 * DAY + 60, true, stale) },
+      stale,
+    );
+    const ci = complianceView(document, every).missing.items.find(
+      (item) => item.repository === "owner/ci",
+    );
+    expect(ci).toMatchObject({
+      word: "report 9 d old",
+      detail: "Its controls job runs daily and has not run on main since 16 November.",
+      run: "Run #7",
+    });
+  });
+
+  it("names the imposed set's repository and branch when the build was told the branch", () => {
+    const document = fixtureDocument();
+    expect(complianceView(document, every).snapshot.rules).toBe("owner/controls");
+    const branched = { ...document, imposed: { ...document.imposed, branch: "main" } };
+    expect(complianceView(branched, every).snapshot.rules).toBe("controls · main");
   });
 });

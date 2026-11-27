@@ -2,12 +2,14 @@
 // artboard 47): its measured rules, zero rules, suites and written rules,
 // the detail of the rule the address selects, how the states are read, and
 // where the report came from.
+
+import { namedRun } from "@crumbkit/flightdeck-headless/runs";
 import { ageWord, moment, shortCommit } from "@crumbkit/flightdeck-headless/words";
 import { useRepositoryCompliance } from "@crumbkit/flightdeck-react/useRepositoryCompliance";
 import { useMemo } from "react";
 import { placeHash } from "@/compliance-site/address";
 import type { PageProps } from "./CompliancePage.tsx";
-import { RunLink, StateChip } from "./parts.tsx";
+import { PhraseText, RunLink, StateChip } from "./parts.tsx";
 
 /** The repository page of `name` in `document`. */
 export function RepositoryPage({
@@ -31,7 +33,7 @@ export function RepositoryPage({
     );
   }
   const commit = column.commit === null ? null : shortCommit(column.commit);
-  const run = column.source_run;
+  const run = namedRun(column);
   const selected = view.selected;
   return (
     <>
@@ -50,7 +52,8 @@ export function RepositoryPage({
               {run === null ? null : (
                 <>
                   {" "}
-                  from <RunLink column={column} label={`main run #${run.run_number}`} />
+                  from{" "}
+                  <RunLink column={column} label={`${run.branch ?? "main"} run #${run.number}`} />
                 </>
               )}
               {commit === null ? null : (
@@ -63,6 +66,7 @@ export function RepositoryPage({
               {column.age_s === null ? null : `, ${ageWord(column.age_s)} before the snapshot`}
             </span>
           )}
+          {view.commitsSince === null ? null : <span className="cs-cap">{view.commitsSince}</span>}
         </div>
       </div>
 
@@ -96,7 +100,9 @@ export function RepositoryPage({
                         </button>
                       </td>
                       <td className="cs-kind">{line.checker}</td>
-                      <td className="cs-cap">{line.measured}</td>
+                      <td className="cs-cap">
+                        <PhraseText phrase={line.measuredPhrase} />
+                      </td>
                       <td>
                         <StateChip word={line.word} />
                       </td>
@@ -137,7 +143,9 @@ export function RepositoryPage({
                       <td className="cs-mono" style={{ fontSize: 12 }}>
                         {line.suite}
                       </td>
-                      <td className="cs-cap">{line.measured}</td>
+                      <td className="cs-cap">
+                        <PhraseText phrase={line.measuredPhrase} />
+                      </td>
                       <td>
                         <StateChip word={line.word} />
                       </td>
@@ -201,7 +209,7 @@ export function RepositoryPage({
                 <h2 className="cs-lab" id="written-heading">
                   Written rules · {view.written.count}
                 </h2>
-                <span className="cs-cap">Judged by an audit</span>
+                <span className="cs-cap">{view.written.caption}</span>
               </div>
               {view.written.rows.map((line) => (
                 <div className="cs-item" key={line.key}>
@@ -225,7 +233,7 @@ export function RepositoryPage({
                       {field.term === "Rule" || field.term === "Suite" ? (
                         <span className="cs-ref">{field.value}</span>
                       ) : (
-                        field.value
+                        <PhraseText phrase={field.phrase} />
                       )}
                     </dd>
                   </div>
@@ -237,7 +245,7 @@ export function RepositoryPage({
                     <tr>
                       <th scope="col">File over the limit</th>
                       <th scope="col" style={{ textAlign: "right" }}>
-                        Used
+                        {selected.overHeader}
                       </th>
                     </tr>
                   </thead>

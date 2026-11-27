@@ -167,7 +167,10 @@ export function RulesPage({ document, search, navigate }: PageProps) {
                     {report.run === null ? (
                       <span className="cs-dash">–</span>
                     ) : (
-                      <RunLink column={column} label={`main ${report.run}`} />
+                      <RunLink column={column} label={`${report.branch ?? "main"} ${report.run}`} />
+                    )}
+                    {report.runNote === null ? null : (
+                      <span className="cs-cap"> · {report.runNote}</span>
                     )}
                   </td>
                   <td>

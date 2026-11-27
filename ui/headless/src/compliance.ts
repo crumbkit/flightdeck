@@ -5,11 +5,20 @@
 // document is the page address's Show filter.
 import { counted } from "@crumbkit/ui/a11y";
 import { defineAddress, oneOf } from "@crumbkit/ui/address";
-import { failureDetail, staleAge, staleDetail } from "./cells.ts";
-import type { ComplianceDocument, RepositoryColumn, Row } from "./document.ts";
+import { failurePhrase, staleAge, stalePhrase } from "./cells.ts";
+import type { Cell, ComplianceDocument, RepositoryColumn, Row } from "./document.ts";
 import { type ColumnHead, columnHeads, type MatrixRow, matrixRows } from "./matrix.ts";
+import { NO_UPLOAD, namedRun, notRunSentence, noUpload, runName, superseded } from "./runs.ts";
 import { type Snapshot, snapshotOf } from "./snapshot.ts";
-import { ageWord, andList, daysWord, shortName } from "./words.ts";
+import {
+  ageWord,
+  andList,
+  daysWord,
+  type Phrase,
+  phraseText,
+  properWords,
+  shortName,
+} from "./words.ts";
 
 /** The Compliance page's address: `?show=not_current` keeps only rows with a cell that is not current. */
 export const complianceAddress = defineAddress({
@@ -51,6 +60,8 @@ export interface CheckItem {
   /** The rule's or suite's name, or for a stale report the number of its rules. */
   readonly name: string;
   readonly detail: string;
+  /** The detail with its paths, commits and measures marked for the mono face. */
+  readonly phrase: Phrase;
   /** The run that reported it, such as "Run #301", or null when the report came from no CI run. */
   readonly run: string | null;
   /** The rule's or suite's path the item opens on its repository's page, or null. */
@@ -65,6 +76,8 @@ export interface MissingItem {
   readonly word: string;
   readonly detail: string;
   readonly run: string | null;
+  /** The run's page on GitHub, or null. */
+  readonly url: string | null;
 }
 
 /** One repository's line in the phone's list. */
@@ -109,8 +122,13 @@ const HEADINGS: Readonly<Record<MatrixSection["key"], string>> = {
 
 /** Returns the run that made a column's report, such as "Run #301", or null. */
 export function runLabel(column: RepositoryColumn | undefined): string | null {
-  const run = column?.source_run ?? null;
-  return run === null ? null : `Run #${run.run_number}`;
+  const run = column === undefined ? null : namedRun(column);
+  return run === null ? null : `Run #${run.number}`;
+}
+
+/** Returns the page on GitHub of the run a column names, or null. */
+function runUrl(column: RepositoryColumn): string | null {
+  return namedRun(column)?.url ?? null;
 }
 
 /** Whether a row holds a cell that is not current, so the Not current filter keeps it. */
@@ -141,24 +159,45 @@ function headline(document: ComplianceDocument): string {
   return parts.length === 1 ? last : `${parts.slice(0, -1).join(", ")}, and ${last}`;
 }
 
-/** Returns the Failing list: one item per row and sentence, rules first, then suites. */
+/**
+ * Returns what groups a failing cell with others of its row in one Failing
+ * item: a zero rule's cells that read one suite run share an item, as
+ * artboard 54's v1 webhook signer item does, and any other cells share one
+ * when they share a sentence. The build copies a run's measures into each
+ * repository that reads it, so the item says the first cell's measures.
+ */
+function failingGroup(cell: Cell, said: Phrase): string {
+  const run = cell.result === "not_zero" ? (cell.facts?.zero?.run ?? null) : null;
+  return run === null ? `sentence ${phraseText(said)}` : `run ${run}`;
+}
+
+/**
+ * Returns the Failing list: one item per row and group, measured rules
+ * first, then zero rules, then suites. The measured rules' items list the
+ * newest report first, as artboard 54 lists data-pipeline's 6 h report before
+ * web-portal's 1 d one, and keep the matrix's order between equal ages.
+ */
 function failingItems(document: ComplianceDocument, rows: readonly MatrixRow[]): CheckItem[] {
-  const items: CheckItem[] = [];
+  const ranked: { item: CheckItem; section: number; age: number }[] = [];
+  const sections = ["measured", "zero", "suite"];
   for (const row of rows) {
-    const bySentence = new Map<
+    const groups = new Map<
       string,
-      { repositories: string[]; rule: string; run: string | null }
+      { repositories: string[]; said: Phrase; rule: string; run: string | null }
     >();
     document.repositories.forEach((column, index) => {
       const source = sourceRow(row, column);
       const cell = source?.cells[index];
       if (source === undefined || cell === undefined) return;
-      const detail = failureDetail(source, cell);
-      if (detail === null) return;
-      const entry = bySentence.get(detail);
+      // The rule's name beside the sentence says a pin's minimum (artboard 54).
+      const said = failurePhrase(source, cell, false);
+      if (said === null) return;
+      const key = failingGroup(cell, said);
+      const entry = groups.get(key);
       if (entry === undefined) {
-        bySentence.set(detail, {
+        groups.set(key, {
           repositories: [column.name],
+          said,
           rule: source.id,
           run: runLabel(column),
         });
@@ -166,18 +205,25 @@ function failingItems(document: ComplianceDocument, rows: readonly MatrixRow[]):
         entry.repositories.push(column.name);
       }
     });
-    for (const [detail, entry] of bySentence) {
-      items.push({
-        key: `${row.key} ${entry.repositories.join(",")}`,
-        repositories: entry.repositories,
-        name: row.name,
-        detail,
-        run: entry.run,
-        rule: entry.rule,
+    for (const entry of groups.values()) {
+      const first = document.repositories.find((column) => column.name === entry.repositories[0]);
+      const section = sections.indexOf(row.section);
+      ranked.push({
+        section: section === -1 ? sections.length : section,
+        age: row.section === "measured" ? (first?.age_s ?? Number.POSITIVE_INFINITY) : 0,
+        item: {
+          key: `${row.key} ${entry.repositories.join(",")}`,
+          repositories: entry.repositories,
+          name: row.name,
+          detail: phraseText(entry.said),
+          phrase: entry.said,
+          run: entry.run,
+          rule: entry.rule,
+        },
       });
     }
   }
-  return items;
+  return ranked.sort((a, b) => a.section - b.section || a.age - b.age).map((entry) => entry.item);
 }
 
 /** Returns the document row a matrix row's cell in `column` comes from. */
@@ -195,19 +241,20 @@ function shortOf(name: string): string {
 /**
  * Returns the short names a stale report's item gives its rules, such as
  * "file size" for /rules/rust/file-size. Two rules that share a last segment
- * are named by their whole path after /rules/ instead, such as "rust file size"
- * and "python file size", so the item never names one rule twice. The
- * document holds no display title, so a proper noun reads in lower case
- * ("rust" where artboard 54 shows "Python"); a later title field replaces this.
+ * are named by their whole path after /rules/ instead, such as "Rust file size"
+ * and "Python file size", so the item never names one rule twice. A word that
+ * names a language or a tool takes its capitals, as artboard 54's "Python".
  */
 function staleNames(rules: readonly Row[]): string[] {
   const words = (path: string) => path.replace(/^\/rules\//, "").replaceAll(/[-/]/g, " ");
   const shorts = rules.map((rule) => shortName(rule.id));
   return rules.map((rule, at) => {
     const short = shorts[at] ?? rule.id;
-    return shorts.filter((each) => each === short).length > 1
-      ? words(rule.id)
-      : short.replaceAll("-", " ");
+    return properWords(
+      shorts.filter((each) => each === short).length > 1
+        ? words(rule.id)
+        : short.replaceAll("-", " "),
+    );
   });
 }
 
@@ -220,8 +267,8 @@ function staleItems(document: ComplianceDocument, rows: readonly MatrixRow[]): C
       const source = sourceRow(row, column);
       const cell = source?.cells[index];
       if (source === undefined || cell === undefined || cell.state !== "stale") return;
-      const detail = staleDetail(source, cell);
-      if (detail === null) {
+      const said = stalePhrase(source, cell);
+      if (said === null) {
         const list = staleRules.get(index);
         if (list === undefined) staleRules.set(index, [source]);
         else list.push(source);
@@ -233,7 +280,8 @@ function staleItems(document: ComplianceDocument, rows: readonly MatrixRow[]): C
           key: `${row.key} ${column.name}`,
           repositories: [column.name],
           name: row.name,
-          detail,
+          detail: phraseText(said),
+          phrase: said,
           run: runLabel(column),
           rule: source.id,
         },
@@ -245,13 +293,15 @@ function staleItems(document: ComplianceDocument, rows: readonly MatrixRow[]): C
     if (column === undefined) continue;
     const days = column.age_s === null ? "old" : `${daysWord(column.age_s)} old`;
     const verb = rules.length === 1 ? "is" : "are";
+    const detail = `Its report is ${days}, so the ${andList(staleNames(rules))} ${rules.length === 1 ? "rule" : "rules"} ${verb} stale.`;
     items.push({
       age: column.age_s ?? Number.POSITIVE_INFINITY,
       item: {
         key: `report ${column.name}`,
         repositories: [column.name],
         name: counted(rules.length, "measured rule"),
-        detail: `Its report is ${days}, so the ${andList(staleNames(rules))} ${rules.length === 1 ? "rule" : "rules"} ${verb} stale.`,
+        detail,
+        phrase: [detail],
         run: runLabel(column),
         rule: null,
       },
@@ -260,13 +310,46 @@ function staleItems(document: ComplianceDocument, rows: readonly MatrixRow[]): C
   return items.sort((a, b) => b.age - a.age).map((entry) => entry.item);
 }
 
-/** Returns the repositories whose report is stale, missing or invalid. */
+/** The order of the repositories without a current report: those with none first, as artboard 54 lists them. */
+const MISSING_ORDER: readonly RepositoryColumn["report"][] = [
+  "no_report",
+  "invalid_report",
+  "stale",
+];
+
+/** Returns the repositories whose report is missing, invalid or stale, in that order and otherwise in the document's. */
 function missingItems(document: ComplianceDocument): MissingItem[] {
-  return document.repositories.flatMap((column) => missingItem(column));
+  return MISSING_ORDER.flatMap((report) =>
+    document.repositories.flatMap((column, index) =>
+      column.report === report ? missingItem(document, column, index) : [],
+    ),
+  );
+}
+
+/** Returns why a repository with no report has none, such as "Main run #2310 finished without uploading a controls report, so its 14 rules have no state.". */
+function noReportDetail(
+  document: ComplianceDocument,
+  column: RepositoryColumn,
+  index: number,
+): string {
+  const run = namedRun(column);
+  if (run === null || !noUpload(column)) {
+    return "No report was found for it, so its rules and suites have no state.";
+  }
+  const without = `${runName(run)} ${NO_UPLOAD}`;
+  if (!superseded(column)) return `${without}, so its rules and suites have no state.`;
+  const rules = document.rows.filter(
+    (row) => row.source !== null && (row.cells[index]?.state ?? "absent") !== "absent",
+  ).length;
+  return `${without}, so its ${counted(rules, "rule")} ${rules === 1 ? "has" : "have"} no state.`;
 }
 
 /** Returns the item of a repository whose report is stale, missing or invalid, in a list of at most one. */
-function missingItem(column: RepositoryColumn): MissingItem[] {
+function missingItem(
+  document: ComplianceDocument,
+  column: RepositoryColumn,
+  index: number,
+): MissingItem[] {
   switch (column.report) {
     case "current":
       return [];
@@ -277,8 +360,11 @@ function missingItem(column: RepositoryColumn): MissingItem[] {
           key: column.name,
           repository: column.name,
           word: `report ${ageWord(age)} old`,
-          detail: `Its newest report was made ${daysWord(age)} before the snapshot.`,
+          detail:
+            notRunSentence(column) ??
+            `Its newest report was made ${daysWord(age)} before the snapshot.`,
           run: runLabel(column),
+          url: runUrl(column),
         },
       ];
     }
@@ -288,8 +374,9 @@ function missingItem(column: RepositoryColumn): MissingItem[] {
           key: column.name,
           repository: column.name,
           word: "no report",
-          detail: "No report was found for it, so its rules and suites have no state.",
-          run: null,
+          detail: noReportDetail(document, column, index),
+          run: noUpload(column) ? runLabel(column) : null,
+          url: noUpload(column) ? runUrl(column) : null,
         },
       ];
     case "invalid_report": {
@@ -302,6 +389,7 @@ function missingItem(column: RepositoryColumn): MissingItem[] {
           word: "invalid report",
           detail: `Its report is not one this build reads${at}${why}.`,
           run: null,
+          url: null,
         },
       ];
     }
@@ -319,8 +407,9 @@ function summaries(
     let summary: string;
     let word: string;
     if (column.report === "no_report" || column.report === "invalid_report") {
-      summary = head?.caption ?? "no report";
-      word = summary;
+      word = head?.caption ?? "no report";
+      const run = namedRun(column);
+      summary = run !== null && noUpload(column) ? `${word} · run #${run.number} sent none` : word;
     } else {
       const parts = [
         ...(failing > 0 ? [`${failing} failing`] : []),

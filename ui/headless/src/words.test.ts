@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import { CELL_STATES_WORST_FIRST, type ReportState } from "./document.ts";
 import {
   ageWord,
+  cadenceWord,
   cellWord,
   checkerWord,
+  dayWord,
   moment,
+  mono,
   numberWord,
+  phraseText,
   reportWord,
   rowName,
   shortCommit,
@@ -86,8 +90,15 @@ describe("checkerWord", () => {
     expect(checkerWord(null, true)).toBe("written");
   });
 
+  it("adds what a pattern quotes in the long form, as the Rules page shows it", () => {
+    expect(checkerWord({ check: "pattern", quote: "match-only" }, true)).toBe(
+      "pattern · match-only",
+    );
+  });
+
   it("names a pattern as itself and a checker it does not know as an unknown checker", () => {
     expect(checkerWord({ check: "pattern" }, true)).toBe("pattern");
+    expect(checkerWord({ check: "pattern", quote: "match-only" }, false)).toBe("pattern");
     expect(checkerWord({ check: "regex" }, false)).toBe("unknown checker regex");
   });
 });
@@ -110,5 +121,34 @@ describe("shortMoment", () => {
   it("names a time by its day, short month, year and UTC time", () => {
     expect(shortMoment("2026-11-25T06:00:00Z")).toBe("25 Nov 2026, 06:00 UTC");
     expect(shortMoment("2026-09-03T23:05:00+01:00")).toBe("3 Sep 2026, 22:05 UTC");
+  });
+});
+
+describe("phrases", () => {
+  it("reads a phrase as one string, with its mono pieces as plain text", () => {
+    expect(phraseText([mono(".nvmrc"), " line 1 pins 20.18.0."])).toBe(
+      ".nvmrc line 1 pins 20.18.0.",
+    );
+    expect(phraseText([])).toBe("");
+  });
+});
+
+describe("cadenceWord", () => {
+  it("words a job's interval as hourly, daily, weekly, or every so many hours or days", () => {
+    expect([1, 6, 24, 48, 168, 30].map(cadenceWord)).toEqual([
+      "every hour",
+      "every 6 hours",
+      "daily",
+      "every 2 days",
+      "weekly",
+      "every 30 hours",
+    ]);
+  });
+});
+
+describe("dayWord", () => {
+  it("names a time's day and month in UTC, such as 16 November", () => {
+    expect(dayWord("2026-11-16T23:59:00Z")).toBe("16 November");
+    expect(dayWord("2026-11-16T23:59:00-02:00")).toBe("17 November");
   });
 });

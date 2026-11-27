@@ -1,0 +1,22 @@
+--version	0	version.txt
+api --method GET repos/owner/ci/actions/workflows/ci.yml/runs -f branch=main -f status=completed -f per_page=10	0	ci-runs.json
+api --method GET repos/owner/ci/actions/runs/9001/artifacts -f name=rules-report	0	uploaded.json
+run download 9001 --repo=owner/ci --name=rules-report --dir=DIR	0	../../compliance/reports/owner/ci.json
+api repos/owner/ci/compare/84016e5e4606dc0aace8eeebd07e2b7b0282c742...main --jq .ahead_by	0	three.txt
+api --method GET repos/owner/app/actions/workflows/ci.yml/runs -f branch=main -f status=completed -f per_page=10	0	app-runs.json
+api --method GET repos/owner/app/actions/runs/9102/artifacts -f name=rules-report	0	none.json
+api --method GET repos/owner/app/actions/runs/9101/artifacts -f name=rules-report	0	uploaded.json
+run download 9101 --repo=owner/app --name=rules-report --dir=DIR	0	../../compliance/reports/owner/app.json
+api repos/owner/app/compare/d4646834fbc9acd2642854b48b467cb5cf146570...main --jq .ahead_by	1	not-found.txt
+api --method GET repos/owner/api/actions/workflows/ci.yml/runs -f branch=main -f status=completed -f per_page=10	0	api-runs.json
+api --method GET repos/owner/api/actions/runs/9201/artifacts -f name=rules-report	0	expired.json
+api --method GET repos/owner/gone/actions/workflows/ci.yml/runs -f branch=main -f status=completed -f per_page=10	1	not-found.txt
+api --method GET repos/owner/bad/actions/workflows/ci.yml/runs -f branch=main -f status=completed -f per_page=10	0	bad-runs.json
+api --method GET repos/owner/bad/actions/runs/9301/artifacts -f name=rules-report	0	uploaded.json
+run download 9301 --repo=owner/bad --name=rules-report --dir=DIR	0	../../compliance/reports/owner/ci.json
+api --method GET repos/owner/app/actions/runs/9105/artifacts -f name=rules-report	0	uploaded.json
+api --method GET repos/owner/app/actions/runs/9104/artifacts -f name=rules-report	0	uploaded.json
+api --method GET repos/owner/app/actions/runs/9103/artifacts -f name=rules-report	0	uploaded.json
+run download 9105 --repo=owner/app --name=rules-report --dir=DIR	0	../../compliance/reports/owner/ci.json
+run download 9104 --repo=owner/app --name=rules-report --dir=DIR	0	../../compliance/reports/owner/ci.json
+run download 9103 --repo=owner/app --name=rules-report --dir=DIR	0	../../compliance/reports/owner/ci.json

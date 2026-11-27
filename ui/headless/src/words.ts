@@ -63,6 +63,25 @@ export function moment(iso: string): string {
   return `${hours}:${minutes} UTC on ${at.getUTCDate()} ${month} ${at.getUTCFullYear()}`;
 }
 
+/** Returns an RFC 3339 time's day and month in UTC, such as "16 November". */
+export function dayWord(iso: string): string {
+  const at = new Date(iso);
+  return `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()] ?? ""}`;
+}
+
+/**
+ * Returns how often a job runs, from its interval in hours: "every hour",
+ * "every 6 hours", "daily", "every 2 days", "weekly", or "every 30 hours"
+ * for an interval that is not whole days.
+ */
+export function cadenceWord(hours: number): string {
+  if (hours === 1) return "every hour";
+  if (hours === 24) return "daily";
+  if (hours === 168) return "weekly";
+  if (hours % 24 === 0) return `every ${hours / 24} days`;
+  return `every ${hours} hours`;
+}
+
 /** Returns an RFC 3339 time in UTC as a short line names it, such as "25 Nov 2026, 06:00 UTC". */
 export function shortMoment(iso: string): string {
   const at = new Date(iso);
@@ -81,6 +100,25 @@ export function shortCommit(sha: string): string {
 export function shortName(path: string): string {
   const parts = path.split("/").filter((part) => part !== "");
   return parts.at(-1) ?? path;
+}
+
+/** The words a path writes in lower case that a sentence spells with capitals, as names of languages and tools. */
+const PROPER: Readonly<Record<string, string>> = {
+  typescript: "TypeScript",
+  javascript: "JavaScript",
+  python: "Python",
+  rust: "Rust",
+  node: "Node",
+  terraform: "Terraform",
+  ios: "iOS",
+};
+
+/** Returns `words` with each word that names a language or a tool spelled as people write it, such as "Python". */
+export function properWords(words: string): string {
+  return words
+    .split(" ")
+    .map((word) => PROPER[word] ?? word)
+    .join(" ");
 }
 
 /** Returns a rule's name for people: its requirement without the full stop, or its path. */
@@ -179,12 +217,59 @@ export function checkerWord(checker: Checker | null, long: boolean): string {
       const rubric = checkerField(checker, "rubric");
       return long && rubric !== null ? `judged · ${rubric}` : "judged";
     }
-    case "pattern":
+    case "pattern": {
+      const quote = checkerField(checker, "quote");
+      return long && quote !== null ? `pattern · ${quote}` : "pattern";
+    }
     case "written":
       return kind;
     default:
       return `unknown checker ${kind}`;
   }
+}
+
+/**
+ * A piece of a sentence: plain words, or a path, commit or measure that the
+ * pages set in the mono face, as the artboards do inside notes.
+ */
+export type Piece = string | { readonly mono: string };
+
+/** A sentence in pieces, which a page draws with its mono pieces in the mono face. */
+export type Phrase = readonly Piece[];
+
+/** Returns a piece the pages set in the mono face. */
+export function mono(text: string): Piece {
+  return { mono: text };
+}
+
+/** Returns pieces and phrases as one phrase, with neighbouring words joined and empty words dropped. */
+export function phrase(...parts: readonly (Piece | Phrase)[]): Phrase {
+  const out: Piece[] = [];
+  const flat = parts.flatMap((part): readonly Piece[] =>
+    typeof part === "string" || "mono" in part ? [part] : part,
+  );
+  for (const piece of flat) {
+    const last = out.at(-1);
+    if (piece === "") continue;
+    if (typeof piece === "string" && typeof last === "string") out[out.length - 1] = last + piece;
+    else out.push(piece);
+  }
+  return out;
+}
+
+/** Returns a phrase as one string, for a screen reader and for a page that draws it in one face. */
+export function phraseText(phrase: Phrase): string {
+  return phrase.map((piece) => (typeof piece === "string" ? piece : piece.mono)).join("");
+}
+
+/** Joins phrases as a sentence joins names: "a", "a and b", "a, b and c". */
+export function andPhrase(phrases: readonly Phrase[]): Phrase {
+  return phrase(
+    ...phrases.flatMap((each, at) => {
+      if (at === 0) return [each];
+      return [at === phrases.length - 1 ? " and " : ", ", each];
+    }),
+  );
 }
 
 /** Joins names as a sentence does: "a", "a and b", "a, b and c". */
