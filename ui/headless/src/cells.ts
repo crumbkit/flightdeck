@@ -23,7 +23,7 @@ import {
 } from "./words.ts";
 
 /** What a zero rule's run measured, by measure. */
-export type Measures = NonNullable<RuleFacts["zero"]>["measures"];
+type Measures = NonNullable<RuleFacts["zero"]>["measures"];
 
 /** Returns how many files a budget found over its limit, with those the report left out. */
 function overCount(facts: RuleFacts): number {
@@ -69,7 +69,7 @@ function measuresPhrase(measures: Measures): Phrase {
 }
 
 /** Returns the sentence of a zero rule whose newest run measured `measures`, not all 0. */
-export function notZeroPhrase(measures: Measures): Phrase {
+function notZeroPhrase(measures: Measures): Phrase {
   return phrase("The newest run reports ", measuresPhrase(measures), ".");
 }
 
@@ -130,8 +130,14 @@ export function cellCaption(row: Row, cell: Cell, column: RepositoryColumn): str
   }
 }
 
-/** Returns the sentence that says why a failing cell fails, with its paths, commits and measures in the mono face, or null for any other cell. */
-export function failurePhrase(row: Row, cell: Cell): Phrase | null {
+/**
+ * Returns the sentence that says why a failing cell fails, with its paths,
+ * commits and measures in the mono face, or null for any other cell. A pin
+ * behind its rule names the rule's minimum unless `minimum` is false, as in
+ * the Compliance page's Failing list, where the rule's name beside it says
+ * the minimum (artboard 54).
+ */
+export function failurePhrase(row: Row, cell: Cell, minimum = true): Phrase | null {
   if (cell.state !== "failing") return null;
   if (row.section === "suite") {
     const run = cell.run;
@@ -165,15 +171,12 @@ export function failurePhrase(row: Row, cell: Cell): Phrase | null {
       return phrase(files.text, ` hold ${used} together.`);
     }
     case "behind": {
-      // The rule's name says its minimum, as artboard 54's Node item does, so
-      // the sentence says only what the file pins.
       const pin = facts.behind[0];
-      if (pin !== undefined) {
-        return phrase(mono(fileName(pin.file)), ` line ${pin.line} pins ${pin.found}.`);
-      }
       const atLeast = checkerField(row.checker, "at_least");
-      const needs = atLeast === null ? "" : `, and the rule needs at least ${atLeast}`;
-      return [`A pin is older than the rule allows${needs}.`];
+      const needs = atLeast === null || !minimum ? "" : `, and the rule needs at least ${atLeast}`;
+      return pin === undefined
+        ? [`A pin is older than the rule allows${needs}.`]
+        : phrase(mono(fileName(pin.file)), ` line ${pin.line} pins ${pin.found}${needs}.`);
     }
     case "not_zero":
       return notZeroPhrase(facts.zero?.measures ?? {});

@@ -365,11 +365,11 @@ describe("the Rules page", () => {
     expect(names).not.toContain("/rules/toolchains/terraform");
   });
 
-  it("lists the five checkers of the signed Rules artboard in its filter and its Checkers card", async () => {
+  it("lists the five checkers of the signed Rules artboard in its Checker chips and its Checkers card", async () => {
     await drawAt("#/rules");
-    const filter = screen.getByRole("group", { name: "Checker" });
+    const chips = screen.getByRole("group", { name: "Checker" });
     expect(
-      within(filter)
+      within(chips)
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual(["All", "budget", "version", "pattern", "judged", "written"]);

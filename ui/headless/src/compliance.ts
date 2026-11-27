@@ -5,7 +5,7 @@
 // document is the page address's Show filter.
 import { counted } from "@crumbkit/ui/a11y";
 import { defineAddress, oneOf } from "@crumbkit/ui/address";
-import { failurePhrase, type Measures, notZeroPhrase, staleAge, stalePhrase } from "./cells.ts";
+import { failurePhrase, staleAge, stalePhrase } from "./cells.ts";
 import type { Cell, ComplianceDocument, RepositoryColumn, Row } from "./document.ts";
 import { type ColumnHead, columnHeads, type MatrixRow, matrixRows } from "./matrix.ts";
 import { type Snapshot, snapshotOf } from "./snapshot.ts";
@@ -147,34 +147,12 @@ function headline(document: ComplianceDocument): string {
  * Returns what groups a failing cell with others of its row in one Failing
  * item: a zero rule's cells that read one suite run share an item, as
  * artboard 54's v1 webhook signer item does, and any other cells share one
- * when they share a sentence.
+ * when they share a sentence. The build copies a run's measures into each
+ * repository that reads it, so the item says the first cell's measures.
  */
 function failingGroup(cell: Cell, said: Phrase): string {
   const run = cell.result === "not_zero" ? (cell.facts?.zero?.run ?? null) : null;
   return run === null ? `sentence ${phraseText(said)}` : `run ${run}`;
-}
-
-/**
- * Returns the measures of one suite run that several repositories read. The
- * build copies the run's measures into each repository it reaches, so
- * measures that agree are the run's own. A report that splits the run's
- * counts by repository gives each its share, and the item adds them.
- */
-function runMeasures(cells: readonly Cell[]): Measures {
-  const each = cells.map((cell) => cell.facts?.zero?.measures ?? {});
-  const first = each[0] ?? {};
-  const same = each.every((measures) => JSON.stringify(measures) === JSON.stringify(first));
-  if (same) return first;
-  const sum: Record<string, number | string | boolean | null> = {};
-  for (const name of Object.keys(first)) {
-    const values = each.map((measures) => measures[name]);
-    const numbers = values.filter((value) => typeof value === "number");
-    sum[name] =
-      numbers.length === values.length
-        ? numbers.reduce((total, value) => total + value, 0)
-        : (first[name] ?? null);
-  }
-  return sum;
 }
 
 /** Returns the Failing list: one item per row and group, rules first, then suites. */
@@ -183,37 +161,35 @@ function failingItems(document: ComplianceDocument, rows: readonly MatrixRow[]):
   for (const row of rows) {
     const groups = new Map<
       string,
-      { repositories: string[]; cells: Cell[]; said: Phrase; rule: string; run: string | null }
+      { repositories: string[]; said: Phrase; rule: string; run: string | null }
     >();
     document.repositories.forEach((column, index) => {
       const source = sourceRow(row, column);
       const cell = source?.cells[index];
       if (source === undefined || cell === undefined) return;
-      const said = failurePhrase(source, cell);
+      // The rule's name beside the sentence says a pin's minimum (artboard 54).
+      const said = failurePhrase(source, cell, false);
       if (said === null) return;
       const key = failingGroup(cell, said);
       const entry = groups.get(key);
       if (entry === undefined) {
         groups.set(key, {
           repositories: [column.name],
-          cells: [cell],
           said,
           rule: source.id,
           run: runLabel(column),
         });
       } else {
         entry.repositories.push(column.name);
-        entry.cells.push(cell);
       }
     });
-    for (const [key, entry] of groups) {
-      const said = key.startsWith("run ") ? notZeroPhrase(runMeasures(entry.cells)) : entry.said;
+    for (const entry of groups.values()) {
       items.push({
         key: `${row.key} ${entry.repositories.join(",")}`,
         repositories: entry.repositories,
         name: row.name,
-        detail: phraseText(said),
-        phrase: said,
+        detail: phraseText(entry.said),
+        phrase: entry.said,
         run: entry.run,
         rule: entry.rule,
       });

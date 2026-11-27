@@ -242,13 +242,6 @@ describe("complianceView's failing zero rules", () => {
 
   const signer = (item: { readonly name: string }) => item.name.includes("v1 webhook signer");
 
-  it("gives one item for the repositories that fail on one run, adding the counts each holds", () => {
-    const view = complianceView(withZeroRead("owner/api", { remaining: 1 }), every);
-    expect(
-      view.failing.items.filter(signer).map((item) => [item.repositories, item.detail]),
-    ).toEqual([[["owner/app", "owner/api", "owner/ci"], "The newest run reports remaining 5."]]);
-  });
-
   it("gives a repository that read another run an item of its own", () => {
     const older = "/suites/signer-callers/runs/20261120T1000Z";
     const view = complianceView(withZeroRead("owner/ci", { remaining: 2 }, older), every);

@@ -21,7 +21,7 @@ import {
 } from "./words.ts";
 
 /**
- * The checkers the Checker filter and the Checkers card list, in the order
+ * The checkers the Checker chips and the Checkers card list, in the order
  * the signed Rules artboard (52) lists them. A zero rule reads a suite's
  * run, and the matrix and a repository's page show it in a section of its
  * own, so the Rules page lists it under All alone.

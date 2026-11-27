@@ -58,7 +58,7 @@ describe("controlView of one rule (artboard 57)", () => {
     expect(view?.failing).toEqual({
       repository: "owner/api",
       word: "failing",
-      detail: "rust-toolchain.toml line 1 pins 1.90.0.",
+      detail: "rust-toolchain.toml line 1 pins 1.90.0, and the rule needs at least 1.99.",
       recheck: {
         argv: ["board", "rules", "report", "--path", "/repos/api"],
         hint: "Run it in a checkout of api, or re-run the controls job on main. The next read shows the new report.",

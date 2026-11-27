@@ -76,7 +76,7 @@ describe("the cells' sentences, as the artboards word them", () => {
     expect(measuredText(version, two)).toBe("rust-toolchain.toml and mise.toml pin at least 1.99");
   });
 
-  it("says what a pin behind its rule pins, and leaves the minimum to the rule's name", () => {
+  it("says what a pin behind its rule pins and the rule's minimum, or only the pin where the rule's name says the minimum", () => {
     const version: Row = { ...row, checker: { check: "version", at_least: "22.12" } };
     const behind = {
       ...cell,
@@ -89,7 +89,13 @@ describe("the cells' sentences, as the artboards word them", () => {
         behind: [{ file: "/.nvmrc", line: 1, found: "20.18.0" }],
       },
     };
-    expect(failureDetail(version, behind)).toBe(".nvmrc line 1 pins 20.18.0.");
+    expect(failureDetail(version, behind)).toBe(
+      ".nvmrc line 1 pins 20.18.0, and the rule needs at least 22.12.",
+    );
+    expect(failurePhrase(version, behind, false)).toEqual([
+      { mono: ".nvmrc" },
+      " line 1 pins 20.18.0.",
+    ]);
   });
 });
 
