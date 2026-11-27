@@ -517,7 +517,12 @@ fn the_first_load_size_counts_every_file_that_the_page_loads_before_it_runs() {
 #[test]
 fn every_built_file_of_the_page_is_served_with_its_bytes_and_its_media_type() {
     let root = ui_dist();
-    let files = files_under(&root, &root);
+    // compliance.html is the Compliance site, which `compliance build --out`
+    // writes to disk and the server does not serve.
+    let files: Vec<_> = files_under(&root, &root)
+        .into_iter()
+        .filter(|file| file.as_os_str() != "compliance.html")
+        .collect();
     assert!(files.len() >= 3, "ui/dist holds {files:?}");
     serving(Setup::shelf(), |page| {
         for file in &files {

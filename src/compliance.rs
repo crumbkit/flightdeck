@@ -17,6 +17,7 @@ mod document;
 mod drift;
 mod groups;
 mod report;
+pub mod site;
 mod state;
 
 #[cfg(test)]
@@ -48,7 +49,11 @@ pub const CONFIG_INVALID: Code = Code::from_spelling("flightdeck::compliance::co
 /// into.
 pub const OUT_FAILED: Code = Code::from_spelling("flightdeck::compliance::out_failed");
 
-/// The name of the file that `--out` writes.
+/// The code of a binary whose embedded page has no place for the
+/// document, so `--out` writes only `compliance.json`.
+pub const NO_PAGE: Code = Code::from_spelling("flightdeck::compliance::no_page");
+
+/// The name of the document that `--out` writes.
 pub const OUT_FILE: &str = "compliance.json";
 
 /// The document that `flightdeck compliance build` prints.
@@ -105,12 +110,19 @@ pub enum ComplianceError {
     /// The document cannot be written into the `--out` directory.
     #[failure(
         code = OUT_FAILED,
-        hint = "create the directory or make it writable, then build again; an earlier compliance.json there is unchanged",
+        hint = "create the directory or make it writable, then build again; the earlier file that failed to be replaced is unchanged",
     )]
     OutFailed {
         /// What failed.
         message: String,
     },
+    /// The page embedded in the binary has no place for the document, so
+    /// only `compliance.json` was written.
+    #[failure(
+        code = NO_PAGE,
+        hint = "rebuild flightdeck after `pnpm run build` in ui/; compliance.json was written",
+    )]
+    NoPage,
 }
 
 impl fmt::Display for ComplianceError {
@@ -124,7 +136,11 @@ impl fmt::Display for ComplianceError {
                 line: None,
                 message,
             } => write!(f, "the config is invalid: {message}"),
-            Self::OutFailed { message } => write!(f, "cannot write {OUT_FILE}: {message}"),
+            Self::OutFailed { message } => write!(f, "cannot write the site: {message}"),
+            Self::NoPage => write!(
+                f,
+                "the page embedded in flightdeck has no place for the document, so only {OUT_FILE} was written"
+            ),
         }
     }
 }
@@ -200,26 +216,96 @@ impl ComplianceDocument {
     }
 }
 
-/// Writes `document` to `compliance.json` in `out`, through a temporary
-/// file in `out` that is renamed over the old file only once it is whole.
+/// The files that [`write_out`] wrote.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Written {
+    /// The path of `compliance.json`.
+    pub document: PathBuf,
+    /// The path of `compliance.html`.
+    pub page: PathBuf,
+    /// How many bytes `compliance.html` holds.
+    pub page_bytes: u64,
+}
+
+impl Written {
+    /// Whether the page is over the most bytes a Flare share holds.
+    #[must_use]
+    pub const fn over_flare_cap(&self) -> bool {
+        self.page_bytes > site::FLARE_CAP
+    }
+
+    /// Returns the line that the text output prints after a build with
+    /// `--out`: both files, the page's size and, for a page over Flare's
+    /// cap, the warning.
+    #[must_use]
+    pub fn note(&self) -> String {
+        let mut note = format!(
+            "Wrote {} and {}, {} bytes",
+            self.document.display(),
+            self.page.display(),
+            self.page_bytes
+        );
+        if self.over_flare_cap() {
+            note.push_str(&format!(
+                ". Warning {}: {} is over Flare's 4 MiB cap, so publish it as a workflow artifact only",
+                site::OVER_FLARE_CAP,
+                site::PAGE_FILE
+            ));
+        }
+        note
+    }
+}
+
+/// Writes `document` to `compliance.json` in `out`, then the page that
+/// draws it, built from the page embedded in the binary, to
+/// `compliance.html`. Each goes through a temporary file in `out` that is
+/// renamed over the old file only once it is whole.
 ///
 /// # Errors
 ///
-/// Returns [`ComplianceError::OutFailed`] when `out` is missing or the
-/// file cannot be written or renamed. The earlier `compliance.json` is
-/// then unchanged.
-pub fn write_out(out: &Path, document: &ComplianceDocument) -> Result<PathBuf, ComplianceError> {
+/// Returns [`ComplianceError::OutFailed`] when `out` is missing or a file
+/// cannot be written or renamed; the file that failed is then unchanged.
+/// Returns [`ComplianceError::NoPage`] when the embedded page has no place
+/// for the document, after `compliance.json` is written.
+pub fn write_out(out: &Path, document: &ComplianceDocument) -> Result<Written, ComplianceError> {
+    write_out_with(out, document, site::BUNDLE)
+}
+
+/// Writes as [`write_out`] does, with `template` in place of the page
+/// embedded in the binary.
+///
+/// # Errors
+///
+/// As [`write_out`].
+pub fn write_out_with(
+    out: &Path,
+    document: &ComplianceDocument,
+    template: &[u8],
+) -> Result<Written, ComplianceError> {
+    let json = document.to_json();
+    let document_path = write_file(out, OUT_FILE, &json)?;
+    let page = site::page(template, &json).ok_or(ComplianceError::NoPage)?;
+    let page_path = write_file(out, site::PAGE_FILE, &page)?;
+    Ok(Written {
+        document: document_path,
+        page: page_path,
+        page_bytes: u64::try_from(page.len()).unwrap_or(u64::MAX),
+    })
+}
+
+/// Writes `bytes` to `name` in `out` through a temporary file that is
+/// renamed over the old file only once it is whole.
+fn write_file(out: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, ComplianceError> {
     let failed = |error: std::io::Error| ComplianceError::OutFailed {
-        message: format!("{}: {error}", out.display()),
+        message: format!("{}: {error}", out.join(name).display()),
     };
     let mut temporary = tempfile::Builder::new()
         .prefix(".compliance-")
-        .suffix(".json")
         .tempfile_in(out)
         .map_err(failed)?;
-    temporary.write_all(&document.to_json()).map_err(failed)?;
+    temporary.write_all(bytes).map_err(failed)?;
     temporary.as_file().sync_all().map_err(failed)?;
-    let path = out.join(OUT_FILE);
+    let path = out.join(name);
     temporary
         .persist(&path)
         .map_err(|error| failed(error.error))?;

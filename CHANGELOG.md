@@ -7,6 +7,18 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `flightdeck compliance build --out DIR` also writes `compliance.html`, a
+  page that draws the compliance document with no server. It holds its
+  script, styles and document in the one file and requests nothing else, so
+  it opens from disk in Chromium and Safari and inside a Flare share. It
+  shows the Compliance page, the Rules page and each repository's page, and
+  keeps filters and the selected rule in the address. A page over Flare's
+  4 MiB cap adds the warning `flightdeck::compliance::over_flare_cap` to the
+  text output. A binary built without the page fails with
+  `flightdeck::compliance::no_page` after it writes `compliance.json`.
+
 ## [0.3.0] - 2026-11-26
 
 ### Added

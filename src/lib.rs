@@ -120,7 +120,8 @@ where
 }
 
 /// Runs `flightdeck compliance build`: builds the document, and with
-/// `--out` writes it, naming the file it wrote in the text output's note.
+/// `--out` writes it and the page that draws it, naming both files and the
+/// page's size in the text output's note.
 fn compliance_build(
     args: &ComplianceBuildArgs,
 ) -> Result<crumbkit::Prose<compliance::ComplianceDocument>, compliance::ComplianceError> {
@@ -135,8 +136,8 @@ fn compliance_build(
     let document = compliance::build(&request)?;
     match &args.out {
         Some(out) => {
-            let path = compliance::write_out(out, &document)?;
-            Ok(crumbkit::Prose::new(document).note(format!("Wrote {}", path.display())))
+            let written = compliance::write_out(out, &document)?;
+            Ok(crumbkit::Prose::new(document).note(written.note()))
         }
         None => Ok(crumbkit::Prose::new(document)),
     }

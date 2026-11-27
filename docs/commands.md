@@ -138,7 +138,7 @@ Join each repository's rules report into one compliance document
 
 - `--config <FILE>`: The flightdeck/compliance-config/v1 file. Required.
 - `--reports <DIR>`: The directory of the reports, one at \<owner\>/\<repo\>.json each. Required.
-- `--out <DIR>`: Also write \<DIR\>/compliance.json
+- `--out <DIR>`: Also write \<DIR\>/compliance.json and \<DIR\>/compliance.html, the page that draws it with no server
 - `--build-run <LABEL>`: The label of the run that builds the pages
 - `--build-url <URL>`: The address of that run
 - `--rules-commit <SHA>`: The imposed set's current commit
@@ -152,7 +152,7 @@ Print one line per repository with its report's time and its failing, stale and 
 flightdeck compliance build --config compliance.toml --reports reports
 ```
 
-Write site/compliance.json for the pages and print the same document.
+Write site/compliance.json and site/compliance.html, the page that draws it, and print the document.
 
 ```sh
 flightdeck compliance build --config compliance.toml --reports reports --out site --build-run 'Build run #412' --json
