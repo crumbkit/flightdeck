@@ -10,12 +10,15 @@
     "typecheck": "tsc && pnpm --recursive --filter './*' run typecheck",
     "knip": "knip",
     "test": "vitest run && pnpm --recursive --filter './*' run test",
-    "build": "vite build",
+    "build": "vite build && vite build --mode compliance",
     "bundle": "test -z \"$(git status --porcelain --untracked-files=all --ignored -- dist | tee /dev/stderr)\"",
     "size": "size-limit",
     "acceptance": "playwright test"
   },
   "dependencies": {
+    "@crumbkit/flightdeck-headless": "workspace:*",
+    "@crumbkit/flightdeck-react": "workspace:*",
+    "@crumbkit/ui": "git+https://github.com/crumbkit/crumbkit-ui.git#v0.1.0",
     "@tanstack/react-query": "5.104.5",
     "class-variance-authority": "0.7.1",
     "cn": "0.5.0",
@@ -64,9 +67,17 @@
     {
       "name": "every file",
       "path": [
-        "dist/**/*"
+        "dist/**/*",
+        "!dist/compliance.html"
       ],
       "limit": "264 kB"
+    },
+    {
+      "name": "compliance page",
+      "path": [
+        "dist/compliance.html"
+      ],
+      "limit": "110 kB"
     }
   ]
 }

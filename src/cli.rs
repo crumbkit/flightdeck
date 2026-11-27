@@ -99,7 +99,7 @@ pub const TOOL: Tool = Tool::new()
                             "Build run #412",
                             "--json",
                         ],
-                        "Write site/compliance.json for the pages and print the same document",
+                        "Write site/compliance.json and site/compliance.html, the page that draws it, and print the document",
                     )
                     .needs(&["reports"]),
                 ])
@@ -277,7 +277,8 @@ pub(crate) struct ComplianceBuildArgs {
     #[arg(long, value_name = "DIR")]
     pub(crate) reports: PathBuf,
 
-    /// Also write <DIR>/compliance.json.
+    /// Also write <DIR>/compliance.json and <DIR>/compliance.html, the page
+    /// that draws it with no server.
     #[arg(long, value_name = "DIR")]
     pub(crate) out: Option<PathBuf>,
 

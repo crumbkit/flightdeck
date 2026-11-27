@@ -3,7 +3,8 @@
   "ignoreExportsUsedInFile": true,
   "workspaces": {
     ".": {
-      "project": ["src/**/*.{ts,tsx,css}", "tests/**/*.ts"]
+      "project": ["src/**/*.{ts,tsx,css}", "tests/**/*.ts"],
+      "entry": ["src/compliance-site/main.tsx"]
     },
     "headless": {
       "project": ["src/**/*.ts", "*.ts"]

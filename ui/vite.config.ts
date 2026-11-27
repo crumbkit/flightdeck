@@ -1,9 +1,13 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { complianceSite } from "./src/compliance-site/inline.ts";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  // `vite build --mode compliance` builds compliance.html, the Compliance
+  // site, as one file with its script and styles inside it; the plugin
+  // leaves every other build as it is.
+  plugins: [react(), tailwindcss(), complianceSite()],
   // Vite resolves the "@/" paths that tsconfig.json declares.
   resolve: { tsconfigPaths: true },
   build: {

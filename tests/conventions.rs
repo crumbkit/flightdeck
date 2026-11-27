@@ -50,6 +50,9 @@ const NAME_FROM_PAGE: &str = "Only the page's route returns it; the command line
 /// the test sets up.
 const NEEDS_FILES: &str = "Only a config file that breaks its rules, or an --out directory that cannot be written, provokes it; tests/compliance.rs provokes it.";
 
+/// The reason that no command line provokes the code of a missing page.
+const NEEDS_TEMPLATE: &str = "Only a flightdeck whose embedded page lacks the document's marker provokes it; tests/compliance_site.rs provokes it with such a page.";
+
 /// The codes that the recovery check provokes with no command line.
 const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
     Unprovoked::new(
@@ -70,6 +73,7 @@ const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
     ),
     Unprovoked::new(crumbkit_flightdeck::compliance::CONFIG_INVALID, NEEDS_FILES),
     Unprovoked::new(crumbkit_flightdeck::compliance::OUT_FAILED, NEEDS_FILES),
+    Unprovoked::new(crumbkit_flightdeck::compliance::NO_PAGE, NEEDS_TEMPLATE),
     Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_MISSING, NEEDS_MXV),
     Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_FAILED, NEEDS_MXV),
     Unprovoked::new(
@@ -110,6 +114,7 @@ const UNTWINNED: &[Unprovoked<'_>] = &[
     ),
     Unprovoked::new(crumbkit_flightdeck::compliance::CONFIG_INVALID, NEEDS_FILES),
     Unprovoked::new(crumbkit_flightdeck::compliance::OUT_FAILED, NEEDS_FILES),
+    Unprovoked::new(crumbkit_flightdeck::compliance::NO_PAGE, NEEDS_TEMPLATE),
     Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_MISSING, NEEDS_MXV),
     Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_FAILED, NEEDS_MXV),
     Unprovoked::new(

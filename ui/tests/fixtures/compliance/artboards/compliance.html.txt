@@ -1,0 +1,225 @@
+<!doctype html>
+<!-- Signed artboard 54 (artifact version 1795565348-2156), the Compliance snapshot, as the board stores it, with its web fonts swapped for system fonts and its canvas script removed. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Compliance snapshot</title>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:oklch(46% .15 230);text-decoration:none}a:hover{color:oklch(40% .15 230)}
+.fd{font-family:"IBM Plex Sans",system-ui,sans-serif;color:oklch(18% .015 240);background:oklch(97% .005 240);font-size:14px;line-height:1.45;display:flex;box-sizing:border-box}
+.fd *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.rail{width:216px;background:oklch(95.5% .005 240);border-right:1px solid oklch(86% .01 240);padding:20px 14px;display:flex;flex-direction:column;gap:22px}
+.brand{font-weight:600;font-size:15px;padding:0 8px}
+.lab{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:oklch(42% .015 240);margin-bottom:6px}
+.rail .lab{padding:0 8px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;justify-content:space-between;align-items:center;padding:10px 8px;border-radius:3px;color:oklch(18% .015 240)}
+.nav a.on{background:oklch(92% .04 230);color:oklch(30% .1 230);font-weight:500}
+.count{font-size:12px;color:oklch(42% .015 240)}
+.main{flex:1;padding:24px 32px;display:flex;flex-direction:column;gap:14px;min-width:0}
+h1{margin:0;font-size:22px;font-weight:600}
+.sub{color:oklch(42% .015 240)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid oklch(86% .01 240);border-radius:3px;padding:2px 8px;font-size:12px;background:oklch(99.5% .002 240);white-space:nowrap}
+.chip.blue{background:oklch(92% .04 230);border-color:oklch(92% .04 230);color:oklch(30% .1 230)}
+.chip.amber{background:oklch(94% .07 85);border-color:oklch(94% .07 85);color:oklch(36% .1 75)}
+.chip.red{background:oklch(94% .04 27);border-color:oklch(94% .04 27);color:oklch(42% .18 27)}
+.card{background:oklch(99.5% .002 240);border:1px solid oklch(86% .01 240);border-radius:3px;padding:14px 16px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.gauges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.g{background:oklch(99.5% .002 240);border:1px solid oklch(86% .01 240);border-radius:3px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.g.over{border-color:oklch(76% .15 80);background:oklch(97% .04 85)}
+.big{font:500 22px "JetBrains Mono",monospace}
+.track{height:8px;border-radius:2px;background:oklch(92% .006 240);position:relative;overflow:hidden}
+.fill{position:absolute;left:0;top:0;bottom:0;background:oklch(46% .15 230)}
+.fill.hot{background:oklch(76% .15 80)}
+.advice{border:1px solid oklch(46% .15 230);background:oklch(96% .02 230);border-radius:3px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.btn{background:oklch(46% .15 230);color:oklch(99.5% .002 240);border:0;border-radius:3px;padding:0 16px;height:44px;font:500 14px "IBM Plex Sans",sans-serif;white-space:nowrap}
+.ghost{background:oklch(99.5% .002 240);border:1px solid oklch(58% .012 240);border-radius:3px;padding:0 12px;height:44px;font:13px "IBM Plex Sans",sans-serif;color:oklch(18% .015 240);white-space:nowrap}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-weight:500;color:oklch(42% .015 240);font-size:12px;padding:4px 8px 6px 0;border-bottom:1px solid oklch(86% .01 240)}
+td{padding:5px 8px 5px 0;border-bottom:1px solid oklch(92% .006 240);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+.new{font-size:11px;color:oklch(30% .1 230);border:1px dashed oklch(46% .15 230);border-radius:3px;padding:1px 5px;margin-left:6px}
+h2{margin:0}
+.btn{height:32px;padding:0 14px}
+.ghost{height:32px;padding:0 12px}
+.card{display:flex;flex-direction:column;gap:8px}
+.cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.cols2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px}
+.chip.green{background:oklch(93% .05 150);border-color:oklch(93% .05 150);color:oklch(32% .1 150)}
+.dot{width:8px;height:8px;border-radius:50%;background:oklch(47% .12 150);display:inline-block}
+.cmp{position:relative;height:8px;width:120px;border-radius:2px;background:oklch(92% .006 240);display:inline-block;vertical-align:middle}
+.cmp b{position:absolute;left:0;top:0;bottom:0;background:oklch(46% .15 230);border-radius:2px 0 0 2px}
+.cmp b.hot{background:oklch(76% .15 80)}
+.cmp u{position:absolute;top:-3px;bottom:-3px;width:2px;background:oklch(18% .015 240);text-decoration:none}
+.cap{font-size:12px;color:oklch(42% .015 240)}
+.item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid oklch(92% .006 240)}
+.item:last-child{border-bottom:0}
+.item>div:first-child{min-width:0}
+/* Additions for the standards pages. Text stays at 12px or larger. */
+.lab,.new{font-size:12px}
+.seg{display:inline-flex;align-items:center;gap:4px}
+.seg button{height:32px;padding:0 10px;border:1px solid oklch(86% .01 240);background:oklch(99.5% .002 240);border-radius:3px;font:13px "IBM Plex Sans",sans-serif;color:oklch(18% .015 240);white-space:nowrap}
+.seg button.on{background:oklch(92% .04 230);border-color:oklch(92% .04 230);color:oklch(30% .1 230);font-weight:500}
+.mx th.r,.mx td.r{width:70px;text-align:center;padding-right:0}
+.mx td{padding-top:5px;padding-bottom:5px}
+.list{gap:0}
+.list .lab{margin-bottom:4px!important}
+.list .item{padding:6px 0}
+.dash{color:oklch(58% .012 240)}
+.split{display:inline-flex;height:8px;width:110px;border-radius:2px;overflow:hidden;background:oklch(88% .01 240);vertical-align:middle}
+.split b{background:oklch(46% .15 230)}
+</style>
+
+<style>
+/* Additions for the compliance pages. Text stays at 12px or larger. */
+.ref{display:inline-flex;align-items:center;border:1px solid oklch(86% .01 240);border-radius:3px;padding:1px 6px;font:12px "JetBrains Mono",monospace;background:oklch(95.5% .005 240);color:oklch(30% .015 240);white-space:nowrap}
+.addr{font:12px "JetBrains Mono",monospace;color:oklch(42% .015 240);white-space:nowrap}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tile{background:oklch(99.5% .002 240);border:1px solid oklch(86% .01 240);border-radius:3px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;color:oklch(18% .015 240)}
+.tile .big{font:500 22px "JetBrains Mono",monospace}
+.tile.on{border-color:oklch(46% .15 230);box-shadow:0 0 0 1px oklch(46% .15 230)}
+.mx th.r,.mx td.r{width:82px;text-align:center;padding-right:4px}
+.mx td.r .cap{display:block;margin-top:2px;white-space:nowrap}
+.mx tr.grp td{background:oklch(95.5% .005 240);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:oklch(42% .015 240);padding:5px 8px}
+.mx td.name{padding-left:8px}
+.kind{font-size:12px;color:oklch(42% .015 240)}
+.mono,.addr,.ref{font-variant-ligatures:none}
+.open{font-size:12px;color:oklch(36% .1 75);border:1px dashed oklch(62% .12 75);border-radius:3px;padding:1px 6px;white-space:nowrap}
+.head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:14px;align-items:start}
+.colm{display:flex;flex-direction:column;gap:14px;min-width:0}
+.num{font-family:"JetBrains Mono",monospace;font-size:12px;white-space:nowrap}
+dl.kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:4px 12px;margin:0;font-size:13px}
+dl.kv dt{color:oklch(42% .015 240)}
+dl.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.chip.state{min-width:58px;justify-content:center}
+</style>
+
+<style>
+/* Additions for the Rules page and the snapshot pages. Text stays at 12px or larger. */
+.dash{color:oklch(52% .012 240)}
+.chip.grey{background:oklch(93% .006 240);border-color:oklch(93% .006 240);color:oklch(36% .015 240)}
+.sub2{font:12px "JetBrains Mono",monospace;color:oklch(42% .015 240)}
+.rt td{padding-top:7px;padding-bottom:7px}
+.rt td .sub2{display:block;margin-top:1px;white-space:nowrap}
+.rt th.sort{color:oklch(30% .1 230)}
+.segs{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.seg button{font-size:13px}
+.repcell{display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2}
+.mx th.r .cap{display:block;font-weight:400;white-space:nowrap;margin-top:2px}
+.mx th.r .chip{margin-top:3px;font-weight:400}
+.page .mx th.r,.page .mx td.r{width:100px}
+.mx th.r a{white-space:nowrap;font-family:"JetBrains Mono",monospace;font-size:12px}
+.hero{background:oklch(93% .045 230);border-radius:3px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:18px;color:oklch(18% .015 240)}
+.hero .cap{color:oklch(36% .02 240)}
+.hero a{color:oklch(40% .15 230)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 32px;background:oklch(95.5% .005 240);border-bottom:1px solid oklch(86% .01 240)}
+.tabs{display:inline-flex;gap:4px}
+.tabs a{display:inline-flex;align-items:center;height:32px;padding:0 12px;border-radius:3px;color:oklch(18% .015 240)}
+.tabs a.on{background:oklch(92% .04 230);color:oklch(30% .1 230);font-weight:500}
+.page{display:flex;flex-direction:column;background:oklch(97% .005 240);font-family:"IBM Plex Sans",system-ui,sans-serif;color:oklch(18% .015 240);font-size:14px;line-height:1.45;box-sizing:border-box}
+.page *{box-sizing:border-box}
+.hero .ext{white-space:nowrap}
+.code{font:12px "JetBrains Mono",monospace;background:oklch(95.5% .005 240);border:1px solid oklch(90% .008 240);border-radius:3px;padding:8px 10px;color:oklch(24% .015 240)}
+.ext::after{content:" ↗"}
+/* Phone frames */
+.phones{display:flex;gap:40px;align-items:flex-start;padding:24px;background:oklch(97% .005 240);font-family:"IBM Plex Sans",system-ui,sans-serif}
+.ph{width:390px;background:oklch(97% .005 240);border:1px solid oklch(86% .01 240);border-radius:3px;display:flex;flex-direction:column;overflow:hidden;font-size:15px;color:oklch(18% .015 240)}
+.ph .bar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px 8px 16px;background:oklch(95.5% .005 240);border-bottom:1px solid oklch(86% .01 240);min-height:56px}
+.ph .body{padding:16px;display:flex;flex-direction:column;gap:12px}
+.ph h1{font-size:20px;line-height:1.3}
+.ph .tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ph .tile{min-height:52px}
+.ph .ghost,.ph .seg button,.ph .tabs a{height:44px;min-width:44px}
+.ph .item{padding:10px 0;align-items:flex-start}
+.ph .card{padding:12px 14px}
+.ph .cap{font-size:13px}
+.ph .lab{font-size:12px}
+.ph .hero{padding:12px 14px;flex-direction:column;align-items:flex-start;gap:6px}
+.frame-cap{font-size:13px;color:oklch(42% .015 240);margin:0 0 8px}
+</style>
+<style>
+/* The test's change to the signed artboard: the system's fonts, which the
+   Compliance site uses, in place of the web fonts the artboard loads. */
+*{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif!important}
+.mono,.mono *,.addr,.ref,.big,.num,.sub2,.code,.mx th.r a,.tile .big{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace!important}
+</style>
+</helmet>
+<div class="page" style="width: 1360px; height: 1620px">
+<div class="top">
+<div class="row" style="flex-wrap: nowrap; gap: 18px"><span class="brand" style="padding:0">flightdeck</span><nav class="tabs" aria-label="Pages"><a class="on" href="ComplianceSnapshot.dc.html">Compliance</a><a href="#">Rules</a></nav></div>
+<div class="row" style="flex-wrap: nowrap"><span class="cap">Snapshot of 25 Nov 2026, 06:00 UTC</span><span class="chip">read only</span></div>
+</div>
+<div class="main" style="padding: 20px 32px">
+<div class="hero" role="note">
+<div>This page is a snapshot built at 06:00 UTC on 25 November 2026. It shows each repository's newest report at that time, and the next build is at 06:00 UTC tomorrow.</div>
+<div class="row" style="flex-wrap: nowrap"><a class="ext" href="#">Build run #412</a><span class="cap">platform-controls · main</span></div>
+</div>
+
+<div>
+<div class="sub">Compliance</div>
+<h1>6 checks fail in 5 repositories, 5 are stale, and 1 repository sent no report</h1>
+</div>
+
+<div class="row" style="justify-content: space-between; flex-wrap: nowrap">
+<div class="row" style="flex-wrap: nowrap"><span class="cap">Show</span><div class="seg"><button class="on" type="button">Every state</button><button type="button">Not current</button></div><span class="cap">Filters run in the page, and they change nothing.</span></div>
+<span class="open">open: the Project filter waits on question 5</span>
+</div>
+
+<div class="tiles">
+<a class="tile" href="#failing"><span>Failing</span><span class="row"><span class="big">6</span><span class="chip red">failing</span></span></a>
+<a class="tile" href="#stale"><span>Stale</span><span class="row"><span class="big">5</span><span class="chip amber">stale</span></span></a>
+<a class="tile" href="#current"><span>Current</span><span class="row"><span class="big">17</span><span class="chip green">current</span></span></a>
+<a class="tile" href="#missing"><span>No report</span><span class="row"><span class="big">1</span><span class="chip grey">no report</span></span></a>
+</div>
+
+<div class="card">
+<div class="head"><div class="lab" style="margin: 0">Rules and checks by repository · 8 repositories</div><span class="cap">Under each name: the age of its newest report at the snapshot. Under a suite's state: run age · commits since.</span></div>
+<table class="mx">
+<thead><tr><th style="padding-left:8px">Rule or check</th><th style="width:196px">Checker</th><th class="r"><a href="ComplianceRepoSnapshot.dc.html">payments-api</a><span class="cap">report 3 h</span></th><th class="r"><a href="ComplianceRepoSnapshot.dc.html">web-portal</a><span class="cap">report 1 d</span></th><th class="r"><a href="ComplianceRepoSnapshot.dc.html">billing-worker</a><span class="cap">report 2 d</span></th><th class="r"><a href="ComplianceRepoSnapshot.dc.html">identity-service</a><span class="cap">report 9 d</span><span class="chip amber">stale</span></th><th class="r"><a href="ComplianceRepoSnapshot.dc.html">mobile-app</a><span class="chip grey">no report</span></th><th class="r"><a href="ComplianceRepoSnapshot.dc.html">infra-terraform</a><span class="cap">report 1 d</span></th><th class="r"><a href="ComplianceRepoSnapshot.dc.html">data-pipeline</a><span class="cap">report 6 h</span></th><th class="r"><a href="ComplianceRepoSnapshot.dc.html">docs-site</a><span class="cap">report 4 d</span></th></tr></thead>
+<tbody>
+<tr class="grp"><td colspan="10">Rules measured in each repository's report</td></tr><tr><td class="name">Agent context stays under 1,000 words</td><td class="kind">budget · words</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a></td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state red">failing</span></a><span class="cap">1,212</span></td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a></td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state amber">stale</span></a><span class="cap">9 d</span></td><td class="r"><span class="cap">no report</span></td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a></td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a></td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a></td></tr><tr><td class="name">A Python file stays under 40 KB</td><td class="kind">budget · bytes per file</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a></td><td class="r dash">–</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a></td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state amber">stale</span></a><span class="cap">9 d</span></td><td class="r dash">–</td><td class="r dash">–</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state red">failing</span></a><span class="cap">1 over</span></td><td class="r dash">–</td></tr><tr><td class="name">Node is at least 22.12</td><td class="kind">version</td><td class="r dash">–</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a></td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state red">failing</span></a><span class="cap">20.18.0</span></td></tr><tr><td class="name">Python is at least 3.12</td><td class="kind">version</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a></td><td class="r dash">–</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a></td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state amber">stale</span></a><span class="cap">9 d</span></td><td class="r dash">–</td><td class="r dash">–</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a></td><td class="r dash">–</td></tr><tr><td class="name">The iOS deployment target is at least 17.0</td><td class="kind">version</td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td><td class="r"><span class="cap">no report</span></td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td></tr><tr><td class="name">Terraform is at least 1.9</td><td class="kind">version</td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a></td><td class="r dash">–</td><td class="r dash">–</td></tr><tr class="grp"><td colspan="10">Zero rules, read from a suite's newest run</td></tr><tr><td class="name">No service still calls the v1 webhook signer</td><td class="kind">zero · within 7 d</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state red">failing</span></a><span class="cap">2 left</span></td><td class="r dash">–</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state red">failing</span></a><span class="cap">1 left</span></td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a></td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td></tr><tr class="grp"><td colspan="10">Suites, from each newest clean full run</td></tr><tr><td class="name">Python standard audit</td><td class="kind"><span class="mono" style="font-size:12px">&lt;repo&gt;-python-standard</span></td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a><span class="cap">2 d · +6</span></td><td class="r dash">–</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a><span class="cap">4 d · +3</span></td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state amber">stale</span></a><span class="cap">12 d · +19</span></td><td class="r dash">–</td><td class="r dash">–</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state red">failing</span></a><span class="cap">1 d · +3</span></td><td class="r dash">–</td></tr><tr><td class="name">TypeScript standard audit</td><td class="kind"><span class="mono" style="font-size:12px">&lt;repo&gt;-typescript-standard</span></td><td class="r dash">–</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a><span class="cap">3 d · +8</span></td><td class="r dash">–</td><td class="r dash">–</td><td class="r"><span class="cap">no report</span></td><td class="r dash">–</td><td class="r dash">–</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state amber">stale</span></a><span class="cap">no run</span></td></tr><tr><td class="name">Terraform standard audit</td><td class="kind"><span class="mono" style="font-size:12px">&lt;repo&gt;-terraform-standard</span></td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td><td class="r dash">–</td><td class="r"><a href="ComplianceRepoSnapshot.dc.html"><span class="chip state green">current</span></a><span class="cap">5 d · +2</span></td><td class="r dash">–</td><td class="r dash">–</td></tr>
+<tr class="grp"><td colspan="10">Written rules, judged by an audit</td></tr>
+<tr><td class="name" colspan="2"><button class="ghost" type="button" aria-expanded="false">Show 15 written rules ▸</button></td><td colspan="8" class="cap">These rules have no checker, so no cell gets a state of its own.</td></tr>
+</tbody>
+</table>
+<div class="row"><span class="cap">Stale means a repository's newest report, or a suite's newest clean full run, is older than 7 days. The window is written in the snapshot's document.</span></div>
+</div>
+
+<div class="cols2" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr)">
+<div class="card list" id="failing">
+<div class="head"><div class="lab" style="margin: 0">Failing · 6</div><span class="cap">Each links to the run that reported it</span></div>
+<div class="item"><div><a class="mono" href="ComplianceRepoSnapshot.dc.html">data-pipeline</a> · A Python file stays under 40 KB<div class="cap"><span class="mono">pipeline/transform/joins.py</span> is 46,880 bytes, and the limit is 40,960.</div></div><a class="cap ext" href="#">Run #301</a></div>
+<div class="item"><div><a class="mono" href="ComplianceRepoSnapshot.dc.html">web-portal</a> · Agent context stays under 1,000 words<div class="cap"><span class="mono">AGENTS.md</span> and <span class="mono">CLAUDE.md</span> hold 1,212 words together.</div></div><a class="cap ext" href="#">Run #902</a></div>
+<div class="item"><div><a class="mono" href="ComplianceRepoSnapshot.dc.html">docs-site</a> · Node is at least 22.12<div class="cap"><span class="mono">.nvmrc</span> line 1 pins 20.18.0.</div></div><a class="cap ext" href="#">Run #128</a></div>
+<div class="item"><div><a class="mono" href="ComplianceRepoSnapshot.dc.html">payments-api</a>, <a class="mono" href="ComplianceRepoSnapshot.dc.html">billing-worker</a> · No service still calls the v1 webhook signer<div class="cap">The newest run reports <span class="mono">remaining 3</span> and <span class="mono">unknown 0</span>.</div></div><a class="cap ext" href="#">Run #1184</a></div>
+<div class="item"><div><a class="mono" href="ComplianceRepoSnapshot.dc.html">data-pipeline</a> · Python standard audit<div class="cap">The run at <span class="mono">7f20c4d</span>, 1 day ago, failed 1 case: PY-07.</div></div><a class="cap ext" href="#">Run #301</a></div>
+</div>
+<div class="colm">
+<div class="card list" id="missing">
+<div class="head"><div class="lab" style="margin: 0">Repositories without a current report · 2</div></div>
+<div class="item"><div><a class="mono" href="ComplianceRepoSnapshot.dc.html">mobile-app</a> · no report<div class="cap">Main run #2310 finished without uploading a controls report, so its 14 rules have no state.</div></div><a class="cap ext" href="#">Run #2310</a></div>
+<div class="item"><div><a class="mono" href="ComplianceRepoSnapshot.dc.html">identity-service</a> · report 9 d old<div class="cap">Its controls job runs daily and has not run on main since 16 November.</div></div><a class="cap ext" href="#">Run #77</a></div>
+</div>
+<div class="card list" id="stale">
+<div class="head"><div class="lab" style="margin: 0">Stale checks · 5</div><span class="cap">Oldest first</span></div>
+<div class="item"><div><a class="mono" href="ComplianceRepoSnapshot.dc.html">docs-site</a> · TypeScript standard audit<div class="cap">The suite <span class="mono">/suites/docs-site-typescript-standard</span> has no clean full run yet.</div></div></div>
+<div class="item"><div><a class="mono" href="ComplianceRepoSnapshot.dc.html">identity-service</a> · Python standard audit<div class="cap">Last clean run 12 days ago at <span class="mono">b07e1d5</span>, with 19 commits since.</div></div></div>
+<div class="item"><div><a class="mono" href="ComplianceRepoSnapshot.dc.html">identity-service</a> · 3 measured rules<div class="cap">Its report is 9 days old, so the file size, Python and agent context rules are stale.</div></div></div>
+</div>
+</div>
+</div>
+
+<div class="cap">Built from <span class="mono">controls.toml</span> in <span class="mono">platform-controls</span> at <span class="mono">4be19a0</span>. The snapshot is <span class="mono">index.html</span> and <span class="mono">compliance.json</span>; the host's single sign-on decides who can open them.</div>
+</div>
+</div>
+</x-dc>
+</body>
+</html>
