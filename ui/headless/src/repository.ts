@@ -3,7 +3,7 @@
 // selects with its detail, the phone's single list and the legend of states.
 import { counted } from "@crumbkit/ui/a11y";
 import { defineAddress, id } from "@crumbkit/ui/address";
-import { fileName, measuredPhrase, measuredText } from "./cells.ts";
+import { measuredPhrase, measuredText } from "./cells.ts";
 import { runLabel } from "./compliance.ts";
 import {
   CELL_STATES_WORST_FIRST,
@@ -22,6 +22,7 @@ import {
   cellWord,
   checkerField,
   checkerWord,
+  checkKind,
   mono,
   type Phrase,
   phrase,
@@ -230,18 +231,12 @@ function detail(column: RepositoryColumn, reached: Reached): Detail {
     add("Run", cell.run === null ? ["no clean full run"] : [mono(cell.run.id)]);
     add("Result", [suiteResult(row, cell)]);
   } else {
-    const files = cell.facts?.files ?? [];
     add("Rule", [row.id]);
     add("Requirement", plain(row.requirement));
     add("Purpose", plain(row.purpose));
     add(
       "Applies to",
       phrase(...(row.paths ?? []).flatMap((glob, at) => [at === 0 ? "" : ", ", mono(glob)])),
-    );
-    add("Checker", [checkerWord(row.checker, true)]);
-    add(
-      "Reads",
-      phrase(...files.flatMap((file, at) => [at === 0 ? "" : ", ", mono(fileName(file))])),
     );
     add("Capture", code(checkerField(row.checker, "capture")));
   }
@@ -333,7 +328,9 @@ export function repositoryView(
   const measured = worstFirst(of("measured")).map(
     (each): RuleLine => ({
       ...line(column, each),
-      checker: checkerWord(each.row.checker, true),
+      // Artboard 55 names a version rule's checker alone and a budget's with
+      // its limit, beside a measure that names the pinned version.
+      checker: checkerWord(each.row.checker, checkKind(each.row.checker) !== "version"),
       measured: measuredText(each.row, each.cell),
       measuredPhrase: measuredPhrase(each.row, each.cell),
     }),

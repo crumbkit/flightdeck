@@ -102,6 +102,25 @@ export function shortName(path: string): string {
   return parts.at(-1) ?? path;
 }
 
+/** The words a path writes in lower case that a sentence spells with capitals, as names of languages and tools. */
+const PROPER: Readonly<Record<string, string>> = {
+  typescript: "TypeScript",
+  javascript: "JavaScript",
+  python: "Python",
+  rust: "Rust",
+  node: "Node",
+  terraform: "Terraform",
+  ios: "iOS",
+};
+
+/** Returns `words` with each word that names a language or a tool spelled as people write it, such as "Python". */
+export function properWords(words: string): string {
+  return words
+    .split(" ")
+    .map((word) => PROPER[word] ?? word)
+    .join(" ");
+}
+
 /** Returns a rule's name for people: its requirement without the full stop, or its path. */
 export function rowName(row: { readonly id: string; readonly requirement: string | null }): string {
   if (row.requirement === null || row.requirement.trim() === "") return row.id;

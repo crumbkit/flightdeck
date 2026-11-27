@@ -10,7 +10,15 @@ import type { Cell, ComplianceDocument, RepositoryColumn, Row } from "./document
 import { type ColumnHead, columnHeads, type MatrixRow, matrixRows } from "./matrix.ts";
 import { NO_UPLOAD, namedRun, notRunSentence, noUpload, runName, superseded } from "./runs.ts";
 import { type Snapshot, snapshotOf } from "./snapshot.ts";
-import { ageWord, andList, daysWord, type Phrase, phraseText, shortName } from "./words.ts";
+import {
+  ageWord,
+  andList,
+  daysWord,
+  type Phrase,
+  phraseText,
+  properWords,
+  shortName,
+} from "./words.ts";
 
 /** The Compliance page's address: `?show=not_current` keeps only rows with a cell that is not current. */
 export const complianceAddress = defineAddress({
@@ -163,9 +171,15 @@ function failingGroup(cell: Cell, said: Phrase): string {
   return run === null ? `sentence ${phraseText(said)}` : `run ${run}`;
 }
 
-/** Returns the Failing list: one item per row and group, rules first, then suites. */
+/**
+ * Returns the Failing list: one item per row and group, measured rules
+ * first, then zero rules, then suites. The measured rules' items list the
+ * newest report first, as artboard 54 lists data-pipeline's 6 h report before
+ * web-portal's 1 d one, and keep the matrix's order between equal ages.
+ */
 function failingItems(document: ComplianceDocument, rows: readonly MatrixRow[]): CheckItem[] {
-  const items: CheckItem[] = [];
+  const ranked: { item: CheckItem; section: number; age: number }[] = [];
+  const sections = ["measured", "zero", "suite"];
   for (const row of rows) {
     const groups = new Map<
       string,
@@ -192,18 +206,24 @@ function failingItems(document: ComplianceDocument, rows: readonly MatrixRow[]):
       }
     });
     for (const entry of groups.values()) {
-      items.push({
-        key: `${row.key} ${entry.repositories.join(",")}`,
-        repositories: entry.repositories,
-        name: row.name,
-        detail: phraseText(entry.said),
-        phrase: entry.said,
-        run: entry.run,
-        rule: entry.rule,
+      const first = document.repositories.find((column) => column.name === entry.repositories[0]);
+      const section = sections.indexOf(row.section);
+      ranked.push({
+        section: section === -1 ? sections.length : section,
+        age: row.section === "measured" ? (first?.age_s ?? Number.POSITIVE_INFINITY) : 0,
+        item: {
+          key: `${row.key} ${entry.repositories.join(",")}`,
+          repositories: entry.repositories,
+          name: row.name,
+          detail: phraseText(entry.said),
+          phrase: entry.said,
+          run: entry.run,
+          rule: entry.rule,
+        },
       });
     }
   }
-  return items;
+  return ranked.sort((a, b) => a.section - b.section || a.age - b.age).map((entry) => entry.item);
 }
 
 /** Returns the document row a matrix row's cell in `column` comes from. */
@@ -221,19 +241,20 @@ function shortOf(name: string): string {
 /**
  * Returns the short names a stale report's item gives its rules, such as
  * "file size" for /rules/rust/file-size. Two rules that share a last segment
- * are named by their whole path after /rules/ instead, such as "rust file size"
- * and "python file size", so the item never names one rule twice. The
- * document holds no display title, so a proper noun reads in lower case
- * ("rust" where artboard 54 shows "Python"); a later title field replaces this.
+ * are named by their whole path after /rules/ instead, such as "Rust file size"
+ * and "Python file size", so the item never names one rule twice. A word that
+ * names a language or a tool takes its capitals, as artboard 54's "Python".
  */
 function staleNames(rules: readonly Row[]): string[] {
   const words = (path: string) => path.replace(/^\/rules\//, "").replaceAll(/[-/]/g, " ");
   const shorts = rules.map((rule) => shortName(rule.id));
   return rules.map((rule, at) => {
     const short = shorts[at] ?? rule.id;
-    return shorts.filter((each) => each === short).length > 1
-      ? words(rule.id)
-      : short.replaceAll("-", " ");
+    return properWords(
+      shorts.filter((each) => each === short).length > 1
+        ? words(rule.id)
+        : short.replaceAll("-", " "),
+    );
   });
 }
 

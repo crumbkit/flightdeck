@@ -41,6 +41,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   rule's checker names what it quotes. The Rules page lists no zero checker,
   a pin's Failing item names only the pin, and run links have no underline
   until hovered.
+- The compliance pages order and word more as their signed artboards do. The
+  matrix lists its measured rules worst first, and the Failing list gives
+  the newest report's failing rules first. The Rules page sorts rules of
+  one state by checker, then standing before obligation, then by reach,
+  says "all 8" of a rule that reaches every repository, and captions a
+  current budget with its largest measure. A stale note writes language
+  names such as Python with their capitals. A repository's page names a
+  version rule's checker alone, sets the selected rule in the regular
+  weight, and drops the Checker and Reads rows from the failing panel.
 
 ## [0.4.0] - 2026-11-27
 

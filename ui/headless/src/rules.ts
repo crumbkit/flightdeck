@@ -23,6 +23,7 @@ import {
   checkKind,
   INVALID_REPORT,
   NO_REPORT,
+  numberWord,
   reportWord,
   rowName,
   shortCommit,
@@ -225,6 +226,21 @@ function caption(row: Row, cell: Cell, column: RepositoryColumn): string | null 
   return `${column.name}: ${text}`;
 }
 
+/**
+ * Returns the caption beside a current budget rule: the most that one of its
+ * repositories uses, such as "largest 212", or null for another checker or
+ * a budget with no measure. A passing pin carries no version in the report,
+ * so a current version rule has no caption.
+ */
+function currentCaption(row: Row, cells: readonly { readonly cell: Cell }[]): string | null {
+  if (checkKind(row.checker) !== "budget") return null;
+  const used = cells.flatMap(({ cell }) => {
+    const value = cell.facts?.used ?? null;
+    return value === null ? [] : [value];
+  });
+  return used.length === 0 ? null : `largest ${numberWord(Math.max(...used))}`;
+}
+
 /** Returns the caption of a rule that a report lists and does not measure. */
 function statedCaption(row: Row): string {
   switch (checkKind(row.checker)) {
@@ -287,9 +303,13 @@ function entry(document: ComplianceDocument, row: Row): RuleEntry {
     state = "not_readable";
   } else {
     state = "current";
+    text = currentCaption(row, cells);
   }
+  const configured = document.repositories.length;
   let repositories: string;
-  if (reached.length === withReport && reached.length > 1) {
+  if (reached.length === configured && reached.length > 1) {
+    repositories = `all ${configured}`;
+  } else if (reached.length === withReport && reached.length > 1) {
     repositories = `all ${withReport} with a report`;
   } else if (reached.length <= 2) {
     repositories = reached.length === 0 ? "none with a report" : reached.join(", ");
@@ -397,9 +417,27 @@ export function rulesView(document: ComplianceDocument, address: RulesAddress): 
     direction: sort.direction,
   };
   const byName = { value: (rule: RuleEntry) => rule.name, direction: sort.direction };
+  // Between rules of one state, as artboard 52 lists its stated rules: by
+  // checker in the order of CHECKERS, standing rules before obligations, and
+  // the rule that reaches more repositories first.
+  const byChecker = {
+    value: (rule: RuleEntry) => {
+      const at = CHECKERS.findIndex((checker) => checker === rule.checkerKind);
+      return at === -1 ? CHECKERS.length : at;
+    },
+    direction: "ascending" as const,
+  };
+  const byKind = {
+    value: (rule: RuleEntry) => (rule.kind === "obligation" ? 1 : 0),
+    direction: "ascending" as const,
+  };
+  const byReach = {
+    value: (rule: RuleEntry) => -rule.reached.length,
+    direction: "ascending" as const,
+  };
   const rules = sortRows(
     filterRows(entries, tests),
-    sort.key === "state" ? [byState] : [byName],
+    sort.key === "state" ? [byState, byChecker, byKind, byReach] : [byName],
     (rule) => rule.name,
   );
   const failing = entries.filter((rule) => rule.state === "failing").length;

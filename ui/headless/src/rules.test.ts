@@ -28,14 +28,14 @@ describe("rulesView of the fixture (artboards 52 and 53)", () => {
     ]);
   });
 
-  it("sorts the rules failing first, then by name", () => {
+  it("sorts the rules failing first, then by checker, then the rule that reaches more repositories first", () => {
     expect(view.rules.map((rule) => [rule.id, rule.word])).toEqual([
       ["/rules/rust/file-size", "failing"],
-      ["/rules/payments/v1-signer", "failing"],
       ["/rules/toolchains/rust", "failing"],
+      ["/rules/payments/v1-signer", "failing"],
       ["/rules/writing/plain", "not readable"],
-      ["/rules/app/handlers", "stated"],
       ["/rules/rust/server", "stated"],
+      ["/rules/app/handlers", "stated"],
     ]);
   });
 
@@ -110,8 +110,8 @@ describe("rulesView's filters and sort, held in the address", () => {
   it("keeps only the rules of the chosen checker and state", () => {
     const view = rulesView(fixtureDocument(), rulesAddress.parse("?checker=written"));
     expect(view.rules.map((rule) => rule.id)).toEqual([
-      "/rules/app/handlers",
       "/rules/rust/server",
+      "/rules/app/handlers",
     ]);
     const notCurrent = rulesView(
       fixtureDocument(),

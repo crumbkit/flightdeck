@@ -171,7 +171,7 @@ describe("complianceView with stale and missing reports", () => {
     );
     const view = complianceView({ ...stale, rows }, every);
     expect(view.stale.items.map((item) => item.detail)).toEqual([
-      "Its report is 9 days old, so the rust file size and python file size rules are stale.",
+      "Its report is 9 days old, so the Rust file size and Python file size rules are stale.",
     ]);
   });
 
@@ -185,7 +185,7 @@ describe("complianceView with stale and missing reports", () => {
       [
         ["owner/ci"],
         "2 measured rules",
-        "Its report is 9 days old, so the file size and rust rules are stale.",
+        "Its report is 9 days old, so the file size and Rust rules are stale.",
       ],
     ]);
     expect(view.missing.items.map((item) => [item.repository, item.word, item.detail])).toEqual([

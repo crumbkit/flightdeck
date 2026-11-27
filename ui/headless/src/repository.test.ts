@@ -22,7 +22,7 @@ describe("repositoryView of one repository (artboards 47, 55 and 56)", () => {
     );
   });
 
-  it("lists the measured rules with their long checker and what they measured", () => {
+  it("lists the measured rules with a budget's long checker, a version rule's short one, and what they measured", () => {
     expect(
       view?.measured.rows.map((row) => [row.name, row.checker, row.measured, row.word]),
     ).toEqual([
@@ -32,12 +32,7 @@ describe("repositoryView of one repository (artboards 47, 55 and 56)", () => {
         "1 file over: src/main.rs 67",
         "failing",
       ],
-      [
-        "Pin Rust 1.99 or later",
-        "version · at least 1.99",
-        "rust-toolchain.toml pins 1.90.0",
-        "failing",
-      ],
+      ["Pin Rust 1.99 or later", "version", "rust-toolchain.toml pins 1.90.0", "failing"],
     ]);
   });
 
@@ -61,10 +56,11 @@ describe("repositoryView of one repository (artboards 47, 55 and 56)", () => {
     expect(view?.written.caption).toBe("Judged by the Rust standard audit, 1 d ago");
   });
 
-  it("heads the failing panel's table with the budget's unit and names the files it reads from the root", () => {
+  it("heads the failing panel's table with the budget's unit and gives it no Checker or Reads row", () => {
     expect(view?.selected?.overHeader).toBe("Bytes");
-    const reads = view?.selected?.fields.find((field) => field.term === "Reads");
-    expect(reads?.value.startsWith("/")).toBe(false);
+    const terms = view?.selected?.fields.map((field) => field.term);
+    expect(terms).not.toContain("Reads");
+    expect(terms).not.toContain("Checker");
     const measuredAt = view?.selected?.fields.find((field) => field.term === "Measured at");
     expect(measuredAt?.phrase).toEqual([{ mono: "2d9c956" }]);
   });

@@ -214,6 +214,18 @@ test("the report's run link draws with no underline until hovered, as artboard 5
   await expect(crumb).toHaveCSS("text-decoration-line", "underline");
 });
 
+test("the selected failing rule in the measured rules table keeps the regular weight, as artboard 55 draws it", async ({
+  page,
+}) => {
+  await page.goto(`${pathToFileURL(sample).href}#/repositories/data-pipeline`);
+  const measured = page.getByRole("region", { name: /Rules measured at/ });
+  const selected = measured.getByRole("button", { name: "A Python file stays under 40 KB" });
+  await expect(selected).toHaveAttribute("aria-pressed", "true");
+  const other = measured.getByRole("button", { name: "Python is at least 3.12" });
+  const weight = await other.evaluate((element) => getComputedStyle(element).fontWeight);
+  await expect(selected).toHaveCSS("font-weight", weight);
+});
+
 /**
  * Returns the share of pixels that differ between two PNG screenshots, over
  * the area both cover: a pixel differs when a channel is more than 48 of 255
