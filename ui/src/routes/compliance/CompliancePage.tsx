@@ -17,7 +17,7 @@ import { counted } from "@crumbkit/ui/a11y";
 import { Fragment, useMemo } from "react";
 import { joinSearch, sharedSource } from "@/compliance-site/address";
 import { type Filters, filtersAddress, groupsOf, shownColumns, shownRows } from "./filters.ts";
-import { RepositoryLink, RunLink, repositoryHash, StateChip } from "./parts.tsx";
+import { PhraseText, RepositoryLink, RunLink, repositoryHash, StateChip } from "./parts.tsx";
 
 /** What every page of the site is given: the document and its page's query. */
 export interface PageProps {
@@ -137,7 +137,9 @@ function CheckLine({
           </Fragment>
         ))}{" "}
         · {item.name}
-        <div className="cs-cap">{item.detail}</div>
+        <div className="cs-cap">
+          <PhraseText phrase={item.phrase} />
+        </div>
       </div>
       {item.run === null ? null : <RunLink column={column} label={item.run} className="cs-cap" />}
     </div>

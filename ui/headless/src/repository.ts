@@ -3,7 +3,7 @@
 // selects with its detail, the phone's single list and the legend of states.
 import { counted } from "@crumbkit/ui/a11y";
 import { defineAddress, id } from "@crumbkit/ui/address";
-import { measuredText } from "./cells.ts";
+import { fileName, measuredPhrase, measuredText } from "./cells.ts";
 import { runLabel } from "./compliance.ts";
 import {
   CELL_STATES_WORST_FIRST,
@@ -17,9 +17,14 @@ import { suiteName } from "./matrix.ts";
 import { type Snapshot, snapshotOf } from "./snapshot.ts";
 import {
   ageWord,
+  andList,
   cellWord,
   checkerField,
   checkerWord,
+  mono,
+  type Phrase,
+  phrase,
+  phraseText,
   rowName,
   shortCommit,
   shortName,
@@ -47,12 +52,16 @@ interface Line {
 export interface RuleLine extends Line {
   readonly checker: string;
   readonly measured: string;
+  /** What it measured, with its paths marked for the mono face. */
+  readonly measuredPhrase: Phrase;
 }
 
 /** A zero rule's line: the suite it reads and that suite's newest run. */
 export interface ZeroLine extends Line {
   readonly suite: string;
   readonly measured: string;
+  /** What it measured, with its measures marked for the mono face. */
+  readonly measuredPhrase: Phrase;
 }
 
 /** A suite's line: its newest clean full run and what it found. */
@@ -74,8 +83,15 @@ export interface Detail {
   /** The panel's heading, such as "Failing · A Rust file stays under 48 KB". */
   readonly label: string;
   readonly word: string;
-  readonly fields: readonly { readonly term: string; readonly value: string }[];
+  /** Each field's term and value, with the value's paths and commits marked for the mono face in `phrase`. */
+  readonly fields: readonly {
+    readonly term: string;
+    readonly value: string;
+    readonly phrase: Phrase;
+  }[];
   readonly over: readonly { readonly file: string; readonly used: number }[];
+  /** The heading of the column of what each file over the limit holds: the budget's unit, such as "Bytes". */
+  readonly overHeader: string;
   readonly behind: readonly {
     readonly file: string;
     readonly line: number;
@@ -100,7 +116,12 @@ export interface RepositoryView {
   readonly measured: { readonly count: number; readonly rows: readonly RuleLine[] };
   readonly zero: { readonly count: number; readonly rows: readonly ZeroLine[] };
   readonly suites: { readonly count: number; readonly rows: readonly SuiteLine[] };
-  readonly written: { readonly count: number; readonly rows: readonly Line[] };
+  readonly written: {
+    readonly count: number;
+    readonly rows: readonly Line[];
+    /** Who judges them, such as "Judged by the Python standard audit, 1 d ago". */
+    readonly caption: string;
+  };
   readonly checks: readonly CheckLine[];
   readonly selected: Detail | null;
   readonly legend: readonly LegendEntry[];
@@ -191,26 +212,34 @@ function detail(column: RepositoryColumn, reached: Reached): Detail {
   const name = line(column, reached).name;
   const word = cellWord(cell.state, cell.code);
   const label = `${word.charAt(0).toUpperCase()}${word.slice(1)} · ${name}`;
-  const fields: { term: string; value: string }[] = [];
-  const add = (term: string, value: string | null) => {
-    if (value !== null && value !== "") fields.push({ term, value });
+  const fields: { term: string; value: string; phrase: Phrase }[] = [];
+  const add = (term: string, value: Phrase | null) => {
+    const text = value === null ? "" : phraseText(value);
+    if (value !== null && text !== "") fields.push({ term, value: text, phrase: value });
   };
+  const plain = (value: string | null) => (value === null ? null : [value]);
+  const code = (value: string | null) => (value === null ? null : [mono(value)]);
   if (row.section === "suite") {
-    add("Suite", row.id);
-    add("Run", cell.run?.id ?? "no clean full run");
-    add("Result", suiteResult(row, cell));
+    add("Suite", [row.id]);
+    add("Run", cell.run === null ? ["no clean full run"] : [mono(cell.run.id)]);
+    add("Result", [suiteResult(row, cell)]);
   } else {
-    add("Rule", row.id);
-    add("Requirement", row.requirement);
-    add("Purpose", row.purpose);
-    add("Checker", checkerWord(row.checker, true));
-    add("Reads", cell.facts?.files.join(", ") ?? null);
-    add("Capture", checkerField(row.checker, "capture"));
+    const files = cell.facts?.files ?? [];
+    add("Rule", [row.id]);
+    add("Requirement", plain(row.requirement));
+    add("Purpose", plain(row.purpose));
+    add("Checker", [checkerWord(row.checker, true)]);
+    add(
+      "Reads",
+      phrase(...files.flatMap((file, at) => [at === 0 ? "" : ", ", mono(fileName(file))])),
+    );
+    add("Capture", code(checkerField(row.checker, "capture")));
   }
   const commit = column.commit === null ? null : shortCommit(column.commit);
   const run = column.source_run === null ? "" : `, in run #${column.source_run.run_number}`;
-  add("Measured at", commit === null ? null : `${commit}${run}`);
+  add("Measured at", commit === null ? null : phrase(mono(commit), run));
   const short = shortName(column.name);
+  const unit = checkerField(row.checker, "unit");
   return {
     key: line(column, reached).key,
     id: row.id,
@@ -218,12 +247,33 @@ function detail(column: RepositoryColumn, reached: Reached): Detail {
     word,
     fields,
     over: cell.facts?.over ?? [],
+    overHeader: unit === null ? "Used" : `${unit.charAt(0).toUpperCase()}${unit.slice(1)}`,
     behind: cell.facts?.behind ?? [],
     recheck: {
       argv: ["board", "rules", "report", "--path", `/repos/${short}`],
       hint: `Run it in a checkout of ${short}, or re-run the controls job on main. The next snapshot shows the new report.`,
     },
   };
+}
+
+/** Returns `reached` with its worst states first and in the document's order otherwise, as artboard 55's measured table lists them. */
+function worstFirst(reached: readonly Reached[]): Reached[] {
+  const rank = (each: Reached) => CELL_STATES_WORST_FIRST.indexOf(each.cell.state);
+  return [...reached].sort((a, b) => rank(a) - rank(b));
+}
+
+/**
+ * Returns who judges a repository's written rules: the audits its suites
+ * run, such as "Judged by the Python standard audit, 1 d ago", with the run's
+ * age when there is one suite.
+ */
+function judgedBy(column: RepositoryColumn, suites: readonly Reached[]): string {
+  const names = suites.map(({ row }) => `the ${suiteTitle(row.id, column.name)}`);
+  const only = suites.length === 1 ? suites[0] : undefined;
+  if (only === undefined)
+    return names.length === 0 ? "Judged by an audit" : `Judged by ${andList(names)}`;
+  const age = only.cell.run === null ? null : only.cell.age_s;
+  return `Judged by ${names[0] ?? ""}${age === null ? "" : `, ${ageWord(age)} ago`}`;
 }
 
 /** Returns the legend of the states the snapshot pages show, with the document's window. */
@@ -266,11 +316,12 @@ export function repositoryView(
   const readable = column.report === "current" || column.report === "stale";
   const of = (section: Row["section"]) =>
     readable ? reached.filter(({ row }) => row.section === section) : [];
-  const measured = of("measured").map(
+  const measured = worstFirst(of("measured")).map(
     (each): RuleLine => ({
       ...line(column, each),
       checker: checkerWord(each.row.checker, true),
       measured: measuredText(each.row, each.cell),
+      measuredPhrase: measuredPhrase(each.row, each.cell),
     }),
   );
   const zero = of("zero").map(
@@ -278,6 +329,7 @@ export function repositoryView(
       ...line(column, each),
       suite: each.cell.facts?.zero?.suite ?? checkerField(each.row.checker, "suite") ?? "–",
       measured: measuredText(each.row, each.cell),
+      measuredPhrase: measuredPhrase(each.row, each.cell),
     }),
   );
   const suites = of("suite").map(
@@ -319,7 +371,7 @@ export function repositoryView(
     measured: { count: measured.length, rows: measured },
     zero: { count: zero.length, rows: zero },
     suites: { count: suites.length, rows: suites },
-    written: { count: written.length, rows: written },
+    written: { count: written.length, rows: written, caption: judgedBy(column, of("suite")) },
     checks,
     selected: chosen === null ? null : detail(column, chosen),
     legend: legend(document),

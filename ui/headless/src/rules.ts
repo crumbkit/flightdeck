@@ -20,8 +20,13 @@ import {
   shortCommit,
 } from "./words.ts";
 
-/** The checkers a rule can have, in the order the page lists them. */
-export const CHECKERS = ["budget", "version", "zero", "pattern", "judged", "written"] as const;
+/**
+ * The checkers the Checker filter and the Checkers card list, in the order
+ * the signed Rules artboard (52) lists them. A zero rule reads a suite's
+ * run, and the matrix and a repository's page show it in a section of its
+ * own, so the Rules page lists it under All alone.
+ */
+export const CHECKERS = ["budget", "version", "pattern", "judged", "written"] as const;
 
 /** When an agent is shown a rule, in the order the page lists them. */
 export const SHOWN = ["start", "edit", "failing"] as const;
@@ -158,7 +163,6 @@ export interface RulesView {
 const CHECKER_MEANINGS: Readonly<Record<(typeof CHECKERS)[number], string>> = {
   budget: "Words or bytes in the files, against a max",
   version: "Every pinned version is at least a minimum",
-  zero: "A suite's newest run measures 0",
   pattern: "Text must not match a file of expressions",
   judged: "A model reads text against a rubric",
   written: "No checker; an audit judges the rule",

@@ -198,6 +198,51 @@ describe("the Compliance page", () => {
     expect(container.querySelector("img")).toBeNull();
   });
 
+  it("writes TypeScript with its capitals in the matrix and the stale list", async () => {
+    await drawAt("#/");
+    expect(within(matrix()).getByText("TypeScript standard audit")).toBeInTheDocument();
+    const stale = screen.getByRole("region", { name: /^Stale checks/ });
+    expect(within(stale).getByText(/TypeScript standard audit/)).toBeInTheDocument();
+    expect(screen.queryByText(/Typescript/)).toBeNull();
+  });
+
+  it("gives a zero rule that fails in two repositories one Failing item naming both", async () => {
+    await drawAt("#/");
+    const failing = screen.getByRole("region", { name: /^Failing · / });
+    const items = [...failing.querySelectorAll(".cs-item")].map((item) => item.textContent);
+    expect(items.filter((text) => text?.includes("v1 webhook signer"))).toEqual([
+      "payments-api, billing-worker · No service still calls the v1 webhook signerThe newest run reports remaining 3 and unknown 0.Run #1184",
+    ]);
+  });
+
+  it("says what a pin behind the rule pins, with its file in the mono face", async () => {
+    await drawAt("#/");
+    const failing = screen.getByRole("region", { name: /^Failing · / });
+    const note = within(failing).getByText(/line 1 pins 20\.18\.0/);
+    expect(note.textContent).toBe(".nvmrc line 1 pins 20.18.0.");
+    expect(within(note).getByText(".nvmrc")).toHaveClass("cs-mono");
+  });
+
+  it("sets the paths, commits and measures in the lists' notes in the mono face", async () => {
+    await drawAt("#/");
+    const failing = screen.getByRole("region", { name: /^Failing · / });
+    for (const text of ["pipeline/transform/joins.py", "AGENTS.md", "remaining 3", "7f20c4d"]) {
+      expect(within(failing).getByText(text)).toHaveClass("cs-mono");
+    }
+    const stale = screen.getByRole("region", { name: /^Stale checks/ });
+    expect(within(stale).getByText("/suites/docs-site-typescript-standard")).toHaveClass("cs-mono");
+  });
+
+  it("lists a repository with no report before one whose report is stale", async () => {
+    await drawAt("#/");
+    const missing = screen.getByRole("region", { name: /Repositories without a current report/ });
+    const names = within(missing)
+      .getAllByRole("link")
+      .filter((link) => link.classList.contains("cs-mono"))
+      .map((link) => link.textContent);
+    expect(names).toEqual(["mobile-app", "identity-service"]);
+  });
+
   it("links each cell to its repository's page with its rule selected", async () => {
     const user = userEvent.setup();
     await drawAt("#/");
@@ -224,12 +269,51 @@ describe("a repository's page", () => {
       "Report from main run #301 at 7f20c4d, made at 00:00 UTC on 25 November 2026, 6 h before the snapshot",
     );
     const measured = screen.getByRole("region", { name: /Rules measured at 7f20c4d · 3/ });
-    expect(within(measured).getByText(/1 file over: pipeline\/transform\/joins\.py 46,880/));
+    expect(
+      within(measured)
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent),
+    ).toContain("1 file over: pipeline/transform/joins.py 46,880");
     const detail = screen.getByRole("region", { name: /^Failing · A Python file/ });
     expect(within(detail).getByText("/rules/python/file-size")).toBeInTheDocument();
     expect(
       within(detail).getByText("board rules report --path /repos/data-pipeline"),
     ).toBeInTheDocument();
+  });
+
+  it("lists the failing rule first and sets the paths it measured in the mono face", async () => {
+    await drawAt("#/repositories/data-pipeline");
+    const measured = screen.getByRole("region", { name: /Rules measured at 7f20c4d · 3/ });
+    const names = within(measured)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => within(row).getAllByRole("cell")[0]?.textContent);
+    expect(names).toEqual([
+      "A Python file stays under 40 KB",
+      "Agent context stays under 1,000 words",
+      "Python is at least 3.12",
+    ]);
+    expect(within(measured).getByText("pipeline/transform/joins.py")).toHaveClass("cs-mono");
+  });
+
+  it("heads the failing panel's table with the budget's unit and names the files it reads from the root", async () => {
+    await drawAt("#/repositories/data-pipeline?rule=%2Frules%2Fpython%2Ffile-size");
+    const detail = screen.getByRole("region", { name: /^Failing · A Python file/ });
+    expect(within(detail).getByRole("columnheader", { name: "Bytes" })).toBeInTheDocument();
+    const value = (term: string) => {
+      const given = within(detail).getByText(term).nextElementSibling;
+      if (!(given instanceof HTMLElement)) throw new Error(`no value for ${term}`);
+      return given;
+    };
+    expect(value("Reads").textContent?.startsWith("/")).toBe(false);
+    expect(within(value("Reads")).getByText(/^pipeline\//)).toHaveClass("cs-mono");
+    expect(within(value("Measured at")).getByText("7f20c4d")).toHaveClass("cs-mono");
+  });
+
+  it("names the audit that judges the written rules and the age of its run", async () => {
+    await drawAt("#/repositories/data-pipeline");
+    const written = screen.getByRole("region", { name: /^Written rules · / });
+    expect(within(written).getByText("Judged by the Python standard audit, 1 d ago")).toBeVisible();
   });
 
   it("moves to another rule's detail when its name is pressed", async () => {
@@ -279,6 +363,26 @@ describe("the Rules page", () => {
       .map((row) => row.querySelector(".cs-sub2")?.textContent);
     expect(names).toContain("/rules/python/file-size");
     expect(names).not.toContain("/rules/toolchains/terraform");
+  });
+
+  it("lists the five checkers of the signed Rules artboard in its filter and its Checkers card", async () => {
+    await drawAt("#/rules");
+    const filter = screen.getByRole("group", { name: "Checker" });
+    expect(
+      within(filter)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["All", "budget", "version", "pattern", "judged", "written"]);
+    const card = screen.getByRole("region", { name: /^Checkers/ });
+    expect(within(card).queryByText("zero")).toBeNull();
+  });
+
+  it("names what a pattern rule quotes beside its checker", async () => {
+    await drawAt("#/rules");
+    const row = screen
+      .getAllByRole("row")
+      .find((each) => each.textContent?.includes("/rules/privacy/customer-names"));
+    expect(within(present(row)).getByText("pattern · match-only")).toBeInTheDocument();
   });
 
   it("lists each repository's report with its run, commit and age", async () => {

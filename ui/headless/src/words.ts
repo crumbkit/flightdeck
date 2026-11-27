@@ -179,12 +179,59 @@ export function checkerWord(checker: Checker | null, long: boolean): string {
       const rubric = checkerField(checker, "rubric");
       return long && rubric !== null ? `judged · ${rubric}` : "judged";
     }
-    case "pattern":
+    case "pattern": {
+      const quote = checkerField(checker, "quote");
+      return long && quote !== null ? `pattern · ${quote}` : "pattern";
+    }
     case "written":
       return kind;
     default:
       return `unknown checker ${kind}`;
   }
+}
+
+/**
+ * A piece of a sentence: plain words, or a path, commit or measure that the
+ * pages set in the mono face, as the artboards do inside notes.
+ */
+export type Piece = string | { readonly mono: string };
+
+/** A sentence in pieces, which a page draws with its mono pieces in the mono face. */
+export type Phrase = readonly Piece[];
+
+/** Returns a piece the pages set in the mono face. */
+export function mono(text: string): Piece {
+  return { mono: text };
+}
+
+/** Returns pieces and phrases as one phrase, with neighbouring words joined and empty words dropped. */
+export function phrase(...parts: readonly (Piece | Phrase)[]): Phrase {
+  const out: Piece[] = [];
+  const flat = parts.flatMap((part): readonly Piece[] =>
+    typeof part === "string" || "mono" in part ? [part] : part,
+  );
+  for (const piece of flat) {
+    const last = out.at(-1);
+    if (piece === "") continue;
+    if (typeof piece === "string" && typeof last === "string") out[out.length - 1] = last + piece;
+    else out.push(piece);
+  }
+  return out;
+}
+
+/** Returns a phrase as one string, for a screen reader and for a page that draws it in one face. */
+export function phraseText(phrase: Phrase): string {
+  return phrase.map((piece) => (typeof piece === "string" ? piece : piece.mono)).join("");
+}
+
+/** Joins phrases as a sentence joins names: "a", "a and b", "a, b and c". */
+export function andPhrase(phrases: readonly Phrase[]): Phrase {
+  return phrase(
+    ...phrases.flatMap((each, at) => {
+      if (at === 0) return [each];
+      return [at === phrases.length - 1 ? " and " : ", ", each];
+    }),
+  );
 }
 
 /** Joins names as a sentence does: "a", "a and b", "a, b and c". */

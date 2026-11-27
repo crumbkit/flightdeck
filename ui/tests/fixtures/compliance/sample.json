@@ -2398,7 +2398,8 @@
         "show": "edit",
         "checker": {
           "check": "pattern",
-          "file": "/rules/privacy/customer-names.patterns"
+          "file": "/rules/privacy/customer-names.patterns",
+          "quote": "match-only"
         },
         "groups": [],
         "cases": null,

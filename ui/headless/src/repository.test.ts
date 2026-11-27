@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { repositoryAddress, repositoryView } from "./repository.ts";
-import { fixtureDocument, withStaleReport } from "./testDocuments.ts";
+import { fixtureDocument, withPassing, withStaleReport } from "./testDocuments.ts";
 
 const none = repositoryAddress.parse("");
 
@@ -32,6 +32,34 @@ describe("repositoryView of one repository (artboards 47, 55 and 56)", () => {
         "failing",
       ],
     ]);
+  });
+
+  it("lists a failing measured rule before those that pass, keeping the document's order otherwise", () => {
+    const passing = withPassing("owner/api", "/rules/rust/file-size");
+    const api = repositoryView(passing, "owner/api", none);
+    expect(api?.measured.rows.map((row) => [row.name, row.word])).toEqual([
+      ["Pin Rust 1.99 or later", "failing"],
+      ["Keep each Rust file under 60 bytes", "current"],
+    ]);
+  });
+
+  it("sets the paths it measured in the mono face", () => {
+    expect(view?.measured.rows.map((row) => row.measuredPhrase)).toEqual([
+      ["1 file over: ", { mono: "src/main.rs" }, " 67"],
+      [{ mono: "rust-toolchain.toml" }, " pins 1.90.0"],
+    ]);
+  });
+
+  it("names the suite that judges its written rules and the age of that suite's run", () => {
+    expect(view?.written.caption).toBe("Judged by the Rust standard audit, 1 d ago");
+  });
+
+  it("heads the failing panel's table with the budget's unit and names the files it reads from the root", () => {
+    expect(view?.selected?.overHeader).toBe("Bytes");
+    const reads = view?.selected?.fields.find((field) => field.term === "Reads");
+    expect(reads?.value.startsWith("/")).toBe(false);
+    const measuredAt = view?.selected?.fields.find((field) => field.term === "Measured at");
+    expect(measuredAt?.phrase).toEqual([{ mono: "2d9c956" }]);
   });
 
   it("lists the zero rules with their suite and newest run", () => {
