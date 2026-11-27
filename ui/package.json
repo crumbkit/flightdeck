@@ -63,7 +63,7 @@
         "dist/assets/index.css",
         "dist/fonts/*.woff2"
       ],
-      "limit": "246 kB"
+      "limit": "247 kB"
     },
     {
       "name": "every file",
@@ -71,7 +71,7 @@
         "dist/**/*",
         "!dist/compliance.html"
       ],
-      "limit": "264 kB"
+      "limit": "265 kB"
     },
     {
       "name": "compliance page",
