@@ -1,7 +1,8 @@
 # The release. It runs the tests on Linux, macOS and Windows and the
-# advisory check, builds `flightdeck` for macOS, Linux and Windows, checks
-# that each binary prints the release's version, and attaches the archives to
-# a GitHub release with SHA256SUMS, each with a build provenance attestation.
+# advisory checks of the Rust crates and of ui/'s npm packages, builds
+# `flightdeck` for macOS, Linux and Windows, checks that each binary prints
+# the release's version, and attaches the archives to a GitHub release with
+# SHA256SUMS, each with a build provenance attestation.
 # It also packs @crumbkit/flightdeck-headless and @crumbkit/flightdeck-react
 # at that version and checks that they install.
 #
@@ -119,8 +120,10 @@ jobs:
             exit 1
           fi
 
-  # BASE-29: a release waits for the advisory check, so it ships no
-  # dependency with a known security advisory.
+  # BASE-29 and the TypeScript standards' BASE-17: the release and the npm
+  # publish wait for both advisory checks, so neither the binaries, which
+  # embed ui/, nor the packages ship a dependency with a known security
+  # advisory.
   advisories:
     needs: version
     runs-on: ubuntu-24.04
@@ -139,6 +142,22 @@ jobs:
           fallback: none
       - name: advisories
         run: cargo deny --locked check advisories
+      # pnpm audit reads ui's lockfile, which covers the page, headless and
+      # react, asks the npm registry for advisories against every package in
+      # it, and fails on any advisory of any severity, because no advisory is
+      # ignored and no audit level is set. pnpm/action-setup installs the
+      # pnpm that `packageManager` names, and setup-node the Node that
+      # .node-version names, with no cache.
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: ui/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: ui/.node-version
+          package-manager-cache: false
+      - name: page advisories
+        working-directory: ui
+        run: pnpm audit
 
   # The tests on Linux, macOS and Windows, because the pull-request lane runs
   # every test on Linux and the Unix-only tests on no other system, and
@@ -311,10 +330,11 @@ jobs:
   # that order, so a refused attestation publishes nothing and a refused
   # publish of the core attaches nothing. A run again after a failure skips
   # a package version that npmjs already holds, because a published version
-  # never changes.
+  # never changes. It names the advisory checks itself, so it waits for them
+  # even if the release job stops waiting for them.
   publish:
     if: needs.version.outputs.publish == 'true'
-    needs: [version, packages, release]
+    needs: [version, advisories, packages, release]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
