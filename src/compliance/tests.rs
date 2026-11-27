@@ -1047,6 +1047,59 @@ fn a_fetch_record_of_another_repository_is_refused_at_its_repository() {
 }
 
 #[test]
+fn a_fetch_record_whose_run_address_is_not_on_github_is_refused_at_that_address() {
+    for (field, newest_url, report_url) in [
+        ("newest_run.url", "javascript:alert(1)", None),
+        (
+            "report_run.url",
+            "https://github.com/owner/ci/actions/runs/9001",
+            Some("http://github.com/owner/ci/actions/runs/9001"),
+        ),
+    ] {
+        let mut newest = run("owner/ci", 9001, 7, CI_COMMIT, true);
+        newest.url = newest_url.to_owned();
+        let mut report = run("owner/ci", 9001, 7, CI_COMMIT, true);
+        if let Some(url) = report_url {
+            report.url = url.to_owned();
+        }
+        let record = fetched("owner/ci", Some(newest), Some(report), Some(3));
+        let bytes = serde_json::to_vec(&record).unwrap();
+        let Err(Unread::Invalid { field: at, .. }) = fetch_record::parse(&bytes, "owner/ci") else {
+            panic!("a run address of {newest_url} was read");
+        };
+        assert_eq!(at.as_deref(), Some(field));
+    }
+    let good = run("owner/ci", 9001, 7, CI_COMMIT, true);
+    let record = fetched("owner/ci", Some(good.clone()), Some(good), Some(3));
+    assert!(fetch_record::parse(&serde_json::to_vec(&record).unwrap(), "owner/ci").is_ok());
+}
+
+#[test]
+fn a_config_whose_report_is_another_repositorys_fetch_record_is_refused_at_its_line() {
+    for (first, second) in [
+        ("owner/app", "owner/app.fetch"),
+        ("owner/App.fetch", "owner/app"),
+    ] {
+        let text = CONFIG.replace(
+            "[[repositories]]\nname = \"owner/app\"",
+            &format!(
+                "[[repositories]]\nname = \"{first}\"\n\n[[repositories]]\nname = \"{second}\""
+            ),
+        );
+        assert_ne!(text, CONFIG);
+        let problem = Config::parse(&text).unwrap_err();
+        assert!(
+            problem.message.contains("fetch record"),
+            "{}",
+            problem.message
+        );
+        assert!(problem.line.is_some());
+    }
+    let alone = CONFIG.replace("name = \"owner/app\"", "name = \"owner/app.fetch\"");
+    assert!(Config::parse(&alone).is_ok());
+}
+
+#[test]
 fn the_build_without_a_fetch_record_leaves_every_fetched_field_out() {
     let document = fixtures();
     let json = serde_json::to_value(&document).unwrap();

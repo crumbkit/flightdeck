@@ -127,7 +127,7 @@
           "const": "copied"
         },
         {
-          "description": "Nothing was written, and the repository's old files are as they\nwere.",
+          "description": "Nothing was written, and the repository's old files are as they\nwere. The one exception is a fetch whose new report is in place when\nwriting its record fails and moving the old report back fails too.",
           "type": "string",
           "const": "failed"
         }

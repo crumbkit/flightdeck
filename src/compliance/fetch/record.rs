@@ -18,6 +18,10 @@ use crate::compliance::report::Unread;
 /// The id that a record's `schema` holds.
 pub(crate) const SCHEMA: &str = "flightdeck/compliance-fetch/v1";
 
+/// The start of every run's address that a record may hold: a page on
+/// GitHub, which the pages link to.
+pub(crate) const RUN_URL_PREFIX: &str = "https://github.com/";
+
 /// The most bytes of a record that the build reads. A record is under a
 /// kilobyte.
 const RECORD_LIMIT: u64 = 1024 * 1024;
@@ -112,7 +116,8 @@ pub(crate) fn read(path: &Path, expected: &str) -> Result<Option<FetchRecord>, U
 ///
 /// Returns [`Unread::Invalid`], whose message starts "the fetch record",
 /// when the bytes are not JSON, a field is missing or of the wrong type,
-/// `schema` names another id, or the record names another repository.
+/// `schema` names another id, the record names another repository, or a
+/// run's `url` does not start with [`RUN_URL_PREFIX`].
 pub(crate) fn parse(bytes: &[u8], expected: &str) -> Result<FetchRecord, Unread> {
     let mut deserializer = serde_json::Deserializer::from_slice(bytes);
     let record: FetchRecord =
@@ -140,6 +145,22 @@ pub(crate) fn parse(bytes: &[u8], expected: &str) -> Result<FetchRecord, Unread>
                 record.repository
             ),
         });
+    }
+    for (field, run) in [
+        ("newest_run.url", record.newest_run.as_ref()),
+        ("report_run.url", record.report_run.as_ref()),
+    ] {
+        if let Some(run) = run
+            && !run.url.starts_with(RUN_URL_PREFIX)
+        {
+            return Err(Unread::Invalid {
+                field: Some(field.to_owned()),
+                message: format!(
+                    "the fetch record's {field} is {:?}, which is not a page under {RUN_URL_PREFIX}",
+                    run.url
+                ),
+            });
+        }
     }
     Ok(record)
 }

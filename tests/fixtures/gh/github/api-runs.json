@@ -43,6 +43,10 @@
    "repository": {
     "id": 1,
     "full_name": "owner/api"
+   },
+   "head_repository": {
+    "id": 1,
+    "full_name": "owner/api"
    }
   }
  ]

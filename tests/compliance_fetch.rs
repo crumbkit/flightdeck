@@ -7,11 +7,13 @@
 //! - owner/ci, whose newest run (#7) uploaded its report, which is
 //!   `tests/fixtures/compliance/reports/owner/ci.json`, with 3 commits on
 //!   main since;
-//! - owner/app, whose newest run (#12) uploaded nothing and whose earlier
-//!   run (#11) uploaded owner/app's fixture report, and whose compare GitHub
-//!   refuses;
+//! - owner/app, whose three newest runs (#15, #14 and #13) ran code from a
+//!   fork or for a pull request and uploaded a report, whose next run (#12)
+//!   uploaded nothing and whose earlier run (#11) uploaded owner/app's
+//!   fixture report, and whose compare GitHub refuses;
 //! - owner/api, whose one run's artifact has expired;
-//! - owner/gone, whose runs GitHub refuses with HTTP 404.
+//! - owner/gone, whose runs GitHub refuses with HTTP 404;
+//! - owner/bad, whose one run's address is not a GitHub page.
 //!
 //! The fake gh is a shell script, so these tests run on Unix alone.
 
@@ -491,4 +493,98 @@ fn a_build_over_the_fetched_reports_names_each_columns_runs_and_the_rules_branch
         .map(|error| format!("{error} at {}", error.instance_path()))
         .collect();
     assert!(problems.is_empty(), "{problems:#?}");
+}
+
+/// The config of `CONFIG` with only its first `count` repositories.
+fn first_repositories(count: usize) -> String {
+    CONFIG
+        .split("[[repositories]]")
+        .take(count + 1)
+        .collect::<Vec<_>>()
+        .join("[[repositories]]")
+}
+
+#[test]
+fn fetch_passes_over_runs_from_a_fork_or_for_a_pull_request_for_the_report_and_the_newest_run() {
+    let place = Place::new(CONFIG);
+    let output = place.fetch(true);
+    assert_exit(&output, 1);
+    let record = place.json("owner/app.fetch.json");
+    assert_eq!(record["newest_run"]["run_number"], 12, "{record}");
+    assert_eq!(record["report_run"]["run_number"], 11, "{record}");
+    assert_eq!(
+        std::fs::read(place.report("owner/app.json")).unwrap(),
+        fixture_report("app")
+    );
+    let log = place.gh_log();
+    for run in ["9103", "9104", "9105"] {
+        assert!(!log.contains(&format!("runs/{run}/")), "{log}");
+        assert!(!log.contains(&format!("download {run} ")), "{log}");
+    }
+    assert!(log.contains("runs/9102/artifacts"), "{log}");
+}
+
+#[test]
+fn a_run_whose_address_is_not_a_github_page_fails_its_row_and_writes_nothing() {
+    let place = Place::new(&CONFIG.replace("name = \"owner/ci\"", "name = \"owner/bad\""));
+    let output = place.fetch(true);
+    assert_exit(&output, 1);
+    let rows = rows(&output);
+    let bad = row(&rows, "owner/bad");
+    assert_eq!(bad["state"], "failed");
+    assert_eq!(bad["code"], "flightdeck::compliance::gh_failed");
+    assert!(
+        bad["message"]
+            .as_str()
+            .unwrap()
+            .contains("https://github.com/"),
+        "{bad}"
+    );
+    assert!(!place.report("owner/bad.json").exists());
+    assert!(!place.report("owner/bad.fetch.json").exists());
+}
+
+#[test]
+fn a_record_that_cannot_be_written_puts_the_old_report_back() {
+    let place = Place::new(&first_repositories(1));
+    place.seed("owner/ci.json", "old report\n");
+    // A directory where the record goes, which no file can be renamed over.
+    place.seed("owner/ci.fetch.json/held", "a file\n");
+    let output = place.fetch(true);
+    assert_exit(&output, 1);
+    let rows = rows(&output);
+    let ci = row(&rows, "owner/ci");
+    assert_eq!(ci["state"], "failed", "{ci}");
+    assert_eq!(ci["code"], "flightdeck::compliance::write_failed", "{ci}");
+    assert_eq!(
+        std::fs::read_to_string(place.report("owner/ci.json")).unwrap(),
+        "old report\n"
+    );
+    assert!(place.report("owner/ci.fetch.json/held").exists());
+}
+
+#[test]
+fn a_record_that_cannot_be_written_leaves_no_report_where_there_was_none() {
+    let place = Place::new(&first_repositories(1));
+    place.seed("owner/ci.fetch.json/held", "a file\n");
+    let output = place.fetch(true);
+    assert_exit(&output, 1);
+    assert!(!place.report("owner/ci.json").exists());
+}
+
+#[test]
+fn fetch_removes_the_temporary_files_a_killed_fetch_left_in_an_owners_directory() {
+    let place = Place::new(&first_repositories(1));
+    place.seed("owner/.fetch-AbC123/rules-report.json", "half a report\n");
+    place.seed("owner/.fetch-XyZ789", "half a record\n");
+    place.seed("owner/keep.json", "another file\n");
+    let output = place.fetch(true);
+    assert_exit(&output, 0);
+    let left: Vec<String> = std::fs::read_dir(place.report("owner"))
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|name| name.starts_with(".fetch-"))
+        .collect();
+    assert!(left.is_empty(), "{left:?}");
+    assert!(place.report("owner/keep.json").exists());
 }

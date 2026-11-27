@@ -27,8 +27,10 @@
 //!   group of its own on Unix, or in a job object on Windows, and stops the
 //!   whole group or ends the job when the child exits or its deadline
 //!   passes, and only then reaps it. A query of the API only reads. A
-//!   download writes only into a temporary directory that the fetch
-//!   removes, so a stopped child leaves no partial report.
+//!   download writes only into a `.fetch-*` temporary directory in the
+//!   owner's directory, so a stopped child leaves no partial report. The
+//!   fetch removes that directory when it ends, and a later fetch removes
+//!   one that a killed fetch left.
 
 use std::ffi::OsString;
 use std::path::PathBuf;

@@ -10,6 +10,13 @@
   - It lists the newest 10 finished runs of the source's `workflow` on its
     `branch`, and takes the report from the newest run that holds an
     unexpired artifact named `artifact`. The artifact must hold one file.
+  - It passes over a run of a `pull_request` or `pull_request_target`
+    event, and over a run whose code came from another repository, such
+    as a fork's branch that is also named `main`. Such a run is neither
+    the report's run nor the newest run.
+  - It refuses a run whose address is not a page under
+    `https://github.com/`, and the build reads a record holding such an
+    address as `invalid_report`.
   - It writes the report to `<DIR>/<owner>/<repo>.json`, and a
     `flightdeck/compliance-fetch/v1` record to
     `<DIR>/<owner>/<repo>.fetch.json`. The record names the newest run,
@@ -18,10 +25,15 @@
   - When no listed run holds the artifact, it writes the record and
     removes any older report, so the build reads no report for it.
   - A failed query of GitHub fails that repository's row and leaves its
-    files as they were.
+    files as they were. When the record cannot be written, the fetch puts
+    the old report back.
+  - A fetch first removes the `.fetch-*` temporary files and directories
+    that a killed fetch left in the owner's directory.
 - For a `path` source, it copies the file at that path, relative to the
   config's directory, and removes any record beside the report. A `url`
   source fails its row.
+- The config may not list both `<owner>/<repo>` and `<owner>/<repo>.fetch`,
+  because the report of the second is the record of the first.
 - It prints one row per repository, with the failed rows first. A failed
   row makes the command exit with 1. When any source is `github-artifact`
   and `gh` does not start, the command fails with
@@ -37,7 +49,10 @@
     gains the `paths` its rule applies to.
   - `compliance build --rules-branch <NAME>` writes the imposed set's
     branch as `imposed.branch`.
-  - A build with no records writes none of these fields.
+  - A build with no fetch records writes no `newest_run`, `report_run`,
+    `commits_since` or `commits_since_code`. It writes `every_hours`,
+    `imposed.branch` and `paths` only when the config, the
+    `--rules-branch` flag or a report gives them.
 
 ## The files the build writes
 

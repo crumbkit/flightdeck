@@ -12,11 +12,20 @@
 //! reads its own token. A `path` source is copied, and a `url` source is
 //! refused.
 //!
+//! The fetch passes over a run whose code came from another repository, such
+//! as a fork's pull request whose branch is also named main, and over every
+//! `pull_request` and `pull_request_target` run, so only the repository's
+//! own code can supply its report or be its newest run.
+//!
 //! Each file is written to a temporary file and renamed into place, the
 //! report before its record, so a crash never leaves a record that names a
-//! report the directory does not hold. When no run holds the artifact, the
-//! old report is removed only after the new record is written. A repository
-//! that fails keeps its old files, and the others are still written.
+//! report the directory does not hold. The old report is first moved into
+//! the fetch's temporary directory, and it is put back when the record
+//! cannot be written. When no run holds the artifact, the old report is
+//! removed only after the new record is written. A repository that fails
+//! keeps its old files, and the others are still written. A fetch first
+//! removes the `.fetch-*` temporary files and directories that a killed
+//! fetch left in the owner's directory.
 
 pub(crate) mod record;
 
@@ -28,7 +37,7 @@ use crumbkit::{Code, Document, Problem, Row};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use self::record::{FetchRecord, FetchedRun};
+use self::record::{FetchRecord, FetchedRun, RUN_URL_PREFIX};
 use super::ComplianceError;
 use super::config::{Repository, RepositoryName, Source, SourceKind};
 use crate::spawn::{Exit, GhQuery, Program, SpawnError, Stdout, branch_name, plain_name, run_gh};
@@ -73,6 +82,14 @@ pub const COMPARE_FAILED: Code = Code::from_spelling("flightdeck::compliance::co
 
 /// The most bytes of a report that the fetch copies, as the build reads.
 const REPORT_LIMIT: u64 = 16 * 1024 * 1024;
+
+/// The prefix of the temporary files and directories the fetch writes in
+/// an owner's directory.
+const TEMPORARY_PREFIX: &str = ".fetch-";
+
+/// The events whose runs check out code a pull request proposes, which may
+/// come from a fork, so the fetch never takes their report.
+const PULL_REQUEST_EVENTS: &[&str] = &["pull_request", "pull_request_target"];
 
 /// The most characters of gh's standard error that a row's message keeps.
 const MESSAGE_LIMIT: usize = 300;
@@ -123,7 +140,8 @@ pub enum FetchState {
     /// The `path` source's file was copied.
     Copied,
     /// Nothing was written, and the repository's old files are as they
-    /// were.
+    /// were. The one exception is a fetch whose new report is in place when
+    /// writing its record fails and moving the old report back fails too.
     Failed,
 }
 
@@ -318,9 +336,32 @@ impl Place {
         }
     }
 
-    /// Creates the owner's directory.
+    /// Creates the owner's directory, and removes the temporary files and
+    /// directories that a killed fetch left in it.
     fn create(&self) -> Result<(), Failed> {
-        std::fs::create_dir_all(&self.dir).map_err(|error| write_failed(&self.dir, &error))
+        std::fs::create_dir_all(&self.dir).map_err(|error| write_failed(&self.dir, &error))?;
+        let entries =
+            std::fs::read_dir(&self.dir).map_err(|error| write_failed(&self.dir, &error))?;
+        for entry in entries {
+            let entry = entry.map_err(|error| write_failed(&self.dir, &error))?;
+            if !entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with(TEMPORARY_PREFIX)
+            {
+                continue;
+            }
+            let path = entry.path();
+            // A symbolic link is removed as a file, so nothing outside the
+            // owner's directory is touched.
+            let removed = if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                std::fs::remove_dir_all(&path)
+            } else {
+                std::fs::remove_file(&path)
+            };
+            removed.map_err(|error| write_failed(&path, &error))?;
+        }
+        Ok(())
     }
 }
 
@@ -416,6 +457,26 @@ struct RunJson {
     run_started_at: Option<String>,
     created_at: String,
     html_url: String,
+    event: String,
+    head_repository: Option<HeadRepository>,
+}
+
+/// The repository whose code a run checked out.
+#[derive(Deserialize)]
+struct HeadRepository {
+    full_name: String,
+}
+
+impl RunJson {
+    /// Whether the run checked out `repository`'s own code for an event
+    /// other than a pull request, so its report is the repository's.
+    fn own(&self, repository: &str) -> bool {
+        !PULL_REQUEST_EVENTS.contains(&self.event.as_str())
+            && self
+                .head_repository
+                .as_ref()
+                .is_some_and(|head| head.full_name.eq_ignore_ascii_case(repository))
+    }
 }
 
 /// GitHub's page of a workflow's runs.
@@ -530,7 +591,16 @@ fn from_github(
     )?;
     let mut newest: Option<FetchedRun> = None;
     let mut report: Option<FetchedRun> = None;
-    for run in &runs.workflow_runs {
+    for run in runs.workflow_runs.iter().filter(|run| run.own(&repository)) {
+        if !run.html_url.starts_with(RUN_URL_PREFIX) {
+            return Err(Failed::new(
+                GH_FAILED,
+                format!(
+                    "gh printed run {} whose address {:?} is not a page under {RUN_URL_PREFIX}",
+                    run.id, run.html_url
+                ),
+            ));
+        }
         let artifacts: ArtifactsJson = parsed(
             &ask(
                 gh,
@@ -592,9 +662,7 @@ fn from_github(
                 Err(_) => record.commits_since_code = Some(COMPARE_FAILED.as_str().to_owned()),
             },
         }
-        std::fs::rename(&downloaded.path, &place.report)
-            .map_err(|error| write_failed(&place.report, &error))?;
-        write_record(place, &record)?;
+        replace_report(place, &downloaded, &record)?;
     } else {
         write_record(place, &record)?;
         remove(&place.report)?;
@@ -621,8 +689,9 @@ struct Downloaded {
     path: PathBuf,
     bytes: Vec<u8>,
     // The directory is removed when this is dropped, after the report is
-    // renamed out of it.
-    _dir: tempfile::TempDir,
+    // renamed out of it. It also holds the old report while the record is
+    // written.
+    dir: tempfile::TempDir,
 }
 
 /// Downloads `run_id`'s artifact into a temporary directory in the owner's
@@ -636,7 +705,7 @@ fn download(
     artifact: &str,
 ) -> Result<Downloaded, Failed> {
     let dir = tempfile::Builder::new()
-        .prefix(".fetch-")
+        .prefix(TEMPORARY_PREFIX)
         .tempdir_in(&place.dir)
         .map_err(|error| write_failed(&place.dir, &error))?;
     ask(
@@ -676,7 +745,7 @@ fn download(
     Ok(Downloaded {
         path: path.clone(),
         bytes,
-        _dir: dir,
+        dir,
     })
 }
 
@@ -711,6 +780,43 @@ fn commits_since(
         .map_err(|_| Failed::new(GH_FAILED, "gh printed a count that is not a number"))
 }
 
+/// Moves the downloaded report into place, then writes `record`. The old
+/// report waits in the download's temporary directory, and when the record
+/// cannot be written it is put back, or the new report is removed when
+/// there was none, so a failed repository keeps its old files.
+fn replace_report(
+    place: &Place,
+    downloaded: &Downloaded,
+    record: &FetchRecord,
+) -> Result<(), Failed> {
+    let old = downloaded.dir.path().join("old-report");
+    let had_old = match std::fs::rename(&place.report, &old) {
+        Ok(()) => true,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+        Err(error) => return Err(write_failed(&place.report, &error)),
+    };
+    let put_back = || {
+        if had_old {
+            std::fs::rename(&old, &place.report)
+        } else {
+            std::fs::remove_file(&place.report)
+        }
+    };
+    if let Err(error) = std::fs::rename(&downloaded.path, &place.report) {
+        // The new report is not in place, so only the old one moves back.
+        if had_old {
+            let _ = std::fs::rename(&old, &place.report);
+        }
+        return Err(write_failed(&place.report, &error));
+    }
+    write_record(place, record).inspect_err(|_| {
+        // When putting the old report back fails too, the row still says the
+        // record failed, and the build reads the new report with the old
+        // record, whose report_run differs, as an invalid report.
+        let _ = put_back();
+    })
+}
+
 /// Writes `record` to its place through a temporary file.
 fn write_record(place: &Place, record: &FetchRecord) -> Result<(), Failed> {
     // serde_json fails only on a map key that is not a string, and the
@@ -725,7 +831,7 @@ fn write_record(place: &Place, record: &FetchRecord) -> Result<(), Failed> {
 fn write_file(dir: &Path, path: &Path, bytes: &[u8]) -> Result<(), Failed> {
     let failed = |error: std::io::Error| write_failed(path, &error);
     let mut temporary = tempfile::Builder::new()
-        .prefix(".fetch-")
+        .prefix(TEMPORARY_PREFIX)
         .tempfile_in(dir)
         .map_err(failed)?;
     temporary.write_all(bytes).map_err(failed)?;

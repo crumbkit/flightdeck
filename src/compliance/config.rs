@@ -269,8 +269,9 @@ impl Config {
     ///
     /// Returns a [`ConfigProblem`] when the text is not TOML, a key is
     /// unknown or of the wrong type, `schema` names another id, a
-    /// repository's name is not `owner/repo`, or a repository is named
-    /// twice.
+    /// repository's name is not `owner/repo`, a repository is named
+    /// twice, or one repository's report is another's fetch record, as for
+    /// `owner/app` and `owner/app.fetch`.
     pub(crate) fn parse(text: &str) -> Result<Self, ConfigProblem> {
         let file: ConfigFile = toml::from_str(text).map_err(|error| ConfigProblem {
             line: error.span().map(|span| line_of(text, span.start)),
@@ -326,7 +327,26 @@ impl Config {
                 ),
             })?;
             // GitHub names differ only in case for one repository.
-            if !seen.insert(name.to_string().to_ascii_lowercase()) {
+            let lower = name.to_string().to_ascii_lowercase();
+            // The report of `<repo>.fetch` would be the fetch record of
+            // `<repo>`, at `<owner>/<repo>.fetch.json`.
+            let clash = lower
+                .strip_suffix(".fetch")
+                .filter(|stem| seen.contains(*stem))
+                .map(ToOwned::to_owned)
+                .or_else(|| {
+                    let with = format!("{lower}.fetch");
+                    seen.contains(&with).then_some(with)
+                });
+            if let Some(other) = clash {
+                return Err(ConfigProblem {
+                    line,
+                    message: format!(
+                        "repository {name} and repository {other} would share one file, because one's report is the other's fetch record"
+                    ),
+                });
+            }
+            if !seen.insert(lower) {
                 return Err(ConfigProblem {
                     line,
                     message: format!("repository {name} is named twice"),

@@ -43,6 +43,10 @@
    "repository": {
     "id": 1,
     "full_name": "owner/ci"
+   },
+   "head_repository": {
+    "id": 1,
+    "full_name": "owner/ci"
    }
   }
  ]
