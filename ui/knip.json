@@ -4,7 +4,8 @@
   "ignoreIssues": { "headless/src/api/generated/**": ["exports", "types"] },
   "workspaces": {
     ".": {
-      "project": ["src/**/*.{ts,tsx,css}", "tests/**/*.ts", "scripts/**/*.ts"]
+      "project": ["src/**/*.{ts,tsx,css}", "tests/**/*.ts", "scripts/**/*.ts"],
+      "entry": ["src/compliance-site/main.tsx"]
     },
     "headless": {
       "project": ["src/**/*.ts", "*.ts"]

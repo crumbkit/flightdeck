@@ -9,6 +9,7 @@ import {
   reportWord,
   rowName,
   shortCommit,
+  shortMoment,
   shortName,
   spokenState,
 } from "./words.ts";
@@ -84,6 +85,11 @@ describe("checkerWord", () => {
     );
     expect(checkerWord(null, true)).toBe("written");
   });
+
+  it("names a pattern as itself and a checker it does not know as an unknown checker", () => {
+    expect(checkerWord({ check: "pattern" }, true)).toBe("pattern");
+    expect(checkerWord({ check: "regex" }, false)).toBe("unknown checker regex");
+  });
 });
 
 describe("names", () => {
@@ -97,5 +103,12 @@ describe("names", () => {
     expect(shortCommit("d4646834fbc9acd2642854b48b467cb5cf146570")).toBe("d464683");
     expect(shortName("/rules/rust/file-size")).toBe("file-size");
     expect(shortName("owner/app")).toBe("app");
+  });
+});
+
+describe("shortMoment", () => {
+  it("names a time by its day, short month, year and UTC time", () => {
+    expect(shortMoment("2026-11-25T06:00:00Z")).toBe("25 Nov 2026, 06:00 UTC");
+    expect(shortMoment("2026-09-03T23:05:00+01:00")).toBe("3 Sep 2026, 22:05 UTC");
   });
 });

@@ -10,7 +10,7 @@ Options:
           The directory of the reports, one at <owner>/<repo>.json each
 
       --out <DIR>
-          Also write <DIR>/compliance.json
+          Also write <DIR>/compliance.json and <DIR>/compliance.html, the page that draws it with no server
 
       --build-run <LABEL>
           The label of the run that builds the pages
@@ -38,6 +38,6 @@ Examples:
           Print one line per repository with its report's time and its failing, stale and drift counts
 
   flightdeck compliance build --config compliance.toml --reports reports --out site --build-run 'Build run #412' --json
-          Write site/compliance.json for the pages and print the same document
+          Write site/compliance.json and site/compliance.html, the page that draws it, and print the document
 
 Effects: additive, idempotent, closed-world.

@@ -205,6 +205,14 @@ export const RowSchema = z.object({
   source: RuleSourceSchema.nullable(),
 });
 
+/** The files that `--out` wrote, as the printed document names them. */
+export const SiteFilesSchema = z.object({
+  document: z.string(),
+  page: z.string(),
+  page_bytes: z.number().int().nonnegative(),
+  warnings: z.array(z.string()),
+});
+
 /** The compliance of every repository the config names, as the pages draw
  * it. */
 export const ComplianceDocumentSchema = z.object({
@@ -217,6 +225,7 @@ export const ComplianceDocumentSchema = z.object({
   reports: ReportCountsSchema,
   repositories: z.array(RepositoryColumnSchema),
   rows: z.array(RowSchema),
+  site: SiteFilesSchema.nullable().optional(),
   stale_after_days: z.number().int().nonnegative(),
   title: z.string(),
 });

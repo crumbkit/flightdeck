@@ -11,7 +11,7 @@ import {
   type DriftSchema,
   type GroupSchema,
   type ReportStateSchema,
-  type RepositoryColumnSchema,
+  RepositoryColumnSchema,
   RowSchema,
   type RuleFactsSchema,
   type SectionSchema,
@@ -29,6 +29,11 @@ export type CellState = z.infer<typeof CellStateSchema>;
 /** Every cell state, worst first, as src/compliance/state.rs orders them. */
 export const CELL_STATES_WORST_FIRST: readonly CellState[] = CellStateSchema.options;
 
+// The published schema types a time as a plain string. The pages compute ages
+// from these times, so the package checks each one is an RFC 3339 time.
+/** An RFC 3339 time, such as "2026-11-25T06:00:00Z", with Z or an offset and any fraction of a second. */
+const timeSchema = z.iso.datetime({ offset: true });
+
 /** How many cells read each state. */
 export type StateCounts = z.infer<typeof StateCountsSchema>;
 
@@ -38,8 +43,13 @@ export type ReportState = z.infer<typeof ReportStateSchema>;
 /** Where one repository differs from the imposed rule set. */
 export type Drift = z.infer<typeof DriftSchema>;
 
+const PageRepositorySchema = RepositoryColumnSchema.extend({
+  generated: timeSchema.nullable(),
+  committed: timeSchema.nullable(),
+});
+
 /** One repository's column. */
-export type RepositoryColumn = z.infer<typeof RepositoryColumnSchema>;
+export type RepositoryColumn = z.infer<typeof PageRepositorySchema>;
 
 /** Which part of the matrix a row sits in. */
 export type Section = z.infer<typeof SectionSchema>;
@@ -69,7 +79,12 @@ export type Row = z.infer<typeof PageRowSchema>;
 /** One group of rules and its roll-up in each repository. */
 export type Group = z.infer<typeof GroupSchema>;
 
-const PageDocumentSchema = ComplianceDocumentSchema.extend({ rows: z.array(PageRowSchema) });
+const PageDocumentSchema = ComplianceDocumentSchema.extend({
+  built_at: timeSchema,
+  next_build_at: timeSchema.nullable(),
+  repositories: z.array(PageRepositorySchema),
+  rows: z.array(PageRowSchema),
+});
 
 /** The compliance of every repository the build's config names. */
 export type ComplianceDocument = z.infer<typeof PageDocumentSchema>;
