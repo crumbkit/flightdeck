@@ -19,8 +19,11 @@
 - A deliberate shortcut gets a `RUST-10:` comment that says what it handles,
   what it misses and what replaces it.
 - The page lives in `ui/`. Before you push a change there, run `pnpm run
-  lint`, `typecheck`, `knip`, `test`, `build`, `size` and `acceptance` in
-  `ui/`, and commit the rebuilt `ui/dist`.
+  schemas`, `lint`, `typecheck`, `knip`, `test`, `build`, `size` and
+  `acceptance` in `ui/`, and commit the rebuilt `ui/dist`.
+- `ui/headless/src/api/generated/` is written by `pnpm run schemas` from
+  the JSON Schemas under `tests/golden/schemas/`. After a change to those
+  golden files, run it and commit the result; never edit the files by hand.
 - `pnpm run acceptance` starts `target/debug/flightdeck` with the shelf
   under `target/test-tools/bin`, so build flightdeck and install the test
   tools first.

@@ -1,9 +1,10 @@
 {
   "$schema": "https://unpkg.com/knip@6.43.0/schema.json",
   "ignoreExportsUsedInFile": true,
+  "ignoreIssues": { "headless/src/api/generated/**": ["exports", "types"] },
   "workspaces": {
     ".": {
-      "project": ["src/**/*.{ts,tsx,css}", "tests/**/*.ts"],
+      "project": ["src/**/*.{ts,tsx,css}", "tests/**/*.ts", "scripts/**/*.ts"],
       "entry": ["src/compliance-site/main.tsx"]
     },
     "headless": {

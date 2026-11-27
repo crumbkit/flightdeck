@@ -1,229 +1,99 @@
 // The `flightdeck/compliance/v1` document that `flightdeck compliance build`
-// writes to compliance.json, as a zod schema and the types it parses to. The
-// fields mirror src/compliance/document.rs; a field the build adds later is
-// dropped here until the pages read it.
-import { z } from "zod";
-
-// zod compiles fast parsers with `new Function` when the page allows it, and
-// its probe for that permission breaks a Content-Security-Policy that forbids
-// eval (EMB-6). The setting applies before any schema below is built.
-z.config({ jitless: true });
+// writes to compliance.json, as the zod schemas and the types they parse to.
+// The schemas are generated from the JSON Schema that flightdeck publishes
+// (api/generated/compliance.ts), so the Rust types stay their one home. A
+// field the build adds later is dropped here until the pages read it.
+import {
+  type CellSchema,
+  CellStateSchema,
+  ComplianceDocumentSchema,
+  ComplianceEnvelopeSchema,
+  type DriftSchema,
+  type GroupSchema,
+  type ReportStateSchema,
+  RepositoryColumnSchema,
+  RowSchema,
+  type RuleFactsSchema,
+  type SectionSchema,
+  type StateCountsSchema,
+  type SuiteRunSchema,
+} from "./api/generated/compliance.ts";
+import { z } from "./zod.ts";
 
 /** The schema name the document's envelope carries. */
-export const SCHEMA = "flightdeck/compliance/v1";
-
-const cellStateSchema = z.enum([
-  "failing",
-  "stale",
-  "not_readable",
-  "current",
-  "written",
-  "absent",
-]);
+export const SCHEMA = ComplianceEnvelopeSchema.shape.schema.value;
 
 /** What one cell reads, as the build spells it. */
-export type CellState = z.infer<typeof cellStateSchema>;
+export type CellState = z.infer<typeof CellStateSchema>;
 
 /** Every cell state, worst first, as src/compliance/state.rs orders them. */
-export const CELL_STATES_WORST_FIRST: readonly CellState[] = cellStateSchema.options;
+export const CELL_STATES_WORST_FIRST: readonly CellState[] = CellStateSchema.options;
 
+// The published schema types a time as a plain string. The pages compute ages
+// from these times, so the package checks each one is an RFC 3339 time.
 /** An RFC 3339 time, such as "2026-11-25T06:00:00Z", with Z or an offset and any fraction of a second. */
 const timeSchema = z.iso.datetime({ offset: true });
 
-const stateCountsSchema = z.object({
-  failing: z.number().int().nonnegative(),
-  stale: z.number().int().nonnegative(),
-  not_readable: z.number().int().nonnegative(),
-  current: z.number().int().nonnegative(),
-  written: z.number().int().nonnegative(),
-  absent: z.number().int().nonnegative(),
-});
-
 /** How many cells read each state. */
-export type StateCounts = z.infer<typeof stateCountsSchema>;
-
-const reportStateSchema = z.enum(["current", "stale", "no_report", "invalid_report"]);
+export type StateCounts = z.infer<typeof StateCountsSchema>;
 
 /** What a repository's report reads as. */
-export type ReportState = z.infer<typeof reportStateSchema>;
-
-const sourceRunSchema = z.object({
-  repository: z.string(),
-  run_id: z.number().int(),
-  run_number: z.number().int(),
-  commit: z.string(),
-});
-
-const differsSchema = z.object({ id: z.string(), fields: z.array(z.string()) });
-
-const driftSchema = z.object({
-  extra: z.array(z.string()),
-  differs: z.array(differsSchema),
-  not_reached: z.array(z.string()),
-  other_set: z.boolean(),
-  behind: z.boolean().nullable(),
-});
+export type ReportState = z.infer<typeof ReportStateSchema>;
 
 /** Where one repository differs from the imposed rule set. */
-export type Drift = z.infer<typeof driftSchema>;
+export type Drift = z.infer<typeof DriftSchema>;
 
-const refusedSchema = z.object({
-  code: z.string(),
-  rules: z.array(z.string()),
-  message: z.string(),
-});
-
-const repositorySchema = z.object({
-  name: z.string(),
-  group: z.string().nullable(),
-  report: reportStateSchema,
-  code: z.string().nullable(),
-  field: z.string().nullable(),
-  message: z.string().nullable(),
+const PageRepositorySchema = RepositoryColumnSchema.extend({
   generated: timeSchema.nullable(),
-  age_s: z.number().int().nonnegative().nullable(),
-  commit: z.string().nullable(),
   committed: timeSchema.nullable(),
-  uncommitted: z.boolean().nullable(),
-  board_version: z.string().nullable(),
-  rules_from: z.string().nullable(),
-  rules_commit: z.string().nullable(),
-  source_run: sourceRunSchema.nullable(),
-  drift: driftSchema.nullable(),
-  refused: z.array(refusedSchema),
-  counts: stateCountsSchema,
 });
 
 /** One repository's column. */
-export type RepositoryColumn = z.infer<typeof repositorySchema>;
-
-const sectionSchema = z.enum(["measured", "zero", "suite", "written"]);
+export type RepositoryColumn = z.infer<typeof PageRepositorySchema>;
 
 /** Which part of the matrix a row sits in. */
-export type Section = z.infer<typeof sectionSchema>;
-
-const measureValueSchema = z.union([z.number(), z.string(), z.boolean()]);
-
-const zeroReadSchema = z.object({
-  suite: z.string(),
-  run: z.string().nullable(),
-  age_s: z.number().int().nonnegative().nullable(),
-  measures: z.record(z.string(), measureValueSchema.nullable()),
-});
-
-const factsSchema = z.object({
-  used: z.number().int().nonnegative().nullable(),
-  max: z.number().int().nonnegative().nullable(),
-  files: z.array(z.string()),
-  over: z.array(z.object({ file: z.string(), used: z.number().int().nonnegative() })),
-  behind: z.array(
-    z.object({ file: z.string(), line: z.number().int().positive(), found: z.string() }),
-  ),
-  omitted: z.object({
-    files: z.number().int().nonnegative(),
-    over: z.number().int().nonnegative(),
-    behind: z.number().int().nonnegative(),
-  }),
-  zero: zeroReadSchema.nullable(),
-});
+export type Section = z.infer<typeof SectionSchema>;
 
 /** What a rule's checker measured in one repository. */
-export type RuleFacts = z.infer<typeof factsSchema>;
-
-const suiteRunSchema = z.object({
-  id: z.string(),
-  finished: z.string().nullable(),
-  commit: z.string().nullable(),
-  outcome: z.string(),
-  failed: z.array(z.object({ case: z.string(), note: z.string().nullable() })),
-  commits_since: z.number().int().nonnegative().nullable(),
-  commits_since_code: z.string().nullable(),
-});
+export type RuleFacts = z.infer<typeof RuleFactsSchema>;
 
 /** A suite's newest qualifying run. */
-export type SuiteRun = z.infer<typeof suiteRunSchema>;
-
-const cellSchema = z.object({
-  repository: z.string(),
-  state: cellStateSchema,
-  code: z.string().nullable(),
-  result: z.string().nullable(),
-  facts: factsSchema.nullable(),
-  run: suiteRunSchema.nullable(),
-  age_s: z.number().int().nonnegative().nullable(),
-});
+export type SuiteRun = z.infer<typeof SuiteRunSchema>;
 
 /** One rule's or suite's cell in one repository. */
-export type Cell = z.infer<typeof cellSchema>;
+export type Cell = z.infer<typeof CellSchema>;
 
-const checkerSchema = z.record(z.string(), z.unknown());
+// The published schema lets a checker be any JSON value, because the build
+// copies it from a report as it is. The pages read its fields by name, so
+// the package admits only an object or null, as it always has.
+const CheckerSchema = z.record(z.string(), z.unknown());
 
 /** What a program checks, as the report gives it, such as `{ check: "budget", max: 60 }`. */
-export type Checker = z.infer<typeof checkerSchema>;
+export type Checker = z.infer<typeof CheckerSchema>;
 
-const rowSchema = z.object({
-  id: z.string(),
-  section: sectionSchema,
-  source: z.enum(["imposed", "repository"]).nullable(),
-  requirement: z.string().nullable(),
-  purpose: z.string().nullable(),
-  kind: z.string().nullable(),
-  show: z.string().nullable(),
-  checker: checkerSchema.nullable(),
-  groups: z.array(z.string()),
-  cases: z.number().int().nonnegative().nullable(),
-  cells: z.array(cellSchema),
-});
+const PageRowSchema = RowSchema.extend({ checker: CheckerSchema.nullable() });
 
 /** One rule or suite and its cell in each repository. */
-export type Row = z.infer<typeof rowSchema>;
-
-const groupSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  members: z.array(z.string()),
-  cells: z.array(
-    z.object({
-      repository: z.string(),
-      state: cellStateSchema,
-      counts: z.record(z.string(), z.number().int().nonnegative()).nullable(),
-    }),
-  ),
-});
+export type Row = z.infer<typeof PageRowSchema>;
 
 /** One group of rules and its roll-up in each repository. */
-export type Group = z.infer<typeof groupSchema>;
+export type Group = z.infer<typeof GroupSchema>;
 
-const dataSchema = z.object({
-  title: z.string(),
+const PageDocumentSchema = ComplianceDocumentSchema.extend({
   built_at: timeSchema,
   next_build_at: timeSchema.nullable(),
-  stale_after_days: z.number().int().nonnegative(),
-  build_run: z.object({ label: z.string().nullable(), url: z.string().nullable() }).nullable(),
-  imposed: z.object({
-    name: z.string(),
-    from: z.string(),
-    root: z.string(),
-    commit: z.string().nullable(),
-  }),
-  counts: stateCountsSchema,
-  reports: z.object({
-    current: z.number().int().nonnegative(),
-    stale: z.number().int().nonnegative(),
-    no_report: z.number().int().nonnegative(),
-    invalid_report: z.number().int().nonnegative(),
-  }),
-  repositories: z.array(repositorySchema),
-  rows: z.array(rowSchema),
-  groups: z.array(groupSchema),
+  repositories: z.array(PageRepositorySchema),
+  rows: z.array(PageRowSchema),
 });
 
 /** The compliance of every repository the build's config names. */
-export type ComplianceDocument = z.infer<typeof dataSchema>;
+export type ComplianceDocument = z.infer<typeof PageDocumentSchema>;
 
-const envelopeSchema = z.object({
-  schema: z.literal(SCHEMA),
-  data: dataSchema,
+// The pages never read `failures`, so the package does not check its entries.
+// A newer build whose failure entries carry a new recovery kind or label
+// field then still parses with an older package.
+const PageEnvelopeSchema = ComplianceEnvelopeSchema.extend({
+  data: PageDocumentSchema,
   failures: z.array(z.unknown()),
 });
 
@@ -246,7 +116,7 @@ export class InvalidDocument extends Error {
  * never renders half a document.
  */
 export function parseDocument(json: unknown): ComplianceDocument {
-  const parsed = envelopeSchema.safeParse(json);
+  const parsed = PageEnvelopeSchema.safeParse(json);
   if (parsed.success) return parsed.data.data;
   const issue = parsed.error.issues[0];
   const path = issue === undefined ? "" : issue.path.map(String).join(".");
