@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { complianceAddress, complianceView } from "./compliance.ts";
+import { suiteName } from "./matrix.ts";
 import {
   fixtureDocument,
   withInvalidReport,
@@ -89,11 +90,20 @@ describe("complianceView of the fixture (artboards 46, 54 and 56)", () => {
     expect(view.failing.count).toBe(6);
     expect(view.failing.items.map((item) => [item.repositories, item.detail])).toEqual([
       [["owner/api"], "src/main.rs is 67 bytes, and the limit is 60."],
-      [["owner/api"], "rust-toolchain.toml line 1 pins 1.90.0, and the rule needs at least 1.99."],
-      [["owner/app", "owner/api", "owner/ci"], "The run 1 d ago reports remaining 2."],
+      [["owner/api"], "rust-toolchain.toml line 1 pins 1.90.0."],
+      [["owner/app", "owner/api", "owner/ci"], "The newest run reports remaining 2."],
       [["owner/api"], "The run at 0e7502e, 1 day ago, failed 1 case: RUST-7."],
     ]);
     expect(view.failing.items[2]?.run).toBeNull();
+  });
+
+  it("sets a failure's paths, commits and measures in the mono face", () => {
+    expect(view.failing.items.map((item) => item.phrase)).toEqual([
+      [{ mono: "src/main.rs" }, " is 67 bytes, and the limit is 60."],
+      [{ mono: "rust-toolchain.toml" }, " line 1 pins 1.90.0."],
+      ["The newest run reports ", { mono: "remaining 2" }, "."],
+      ["The run at ", { mono: "0e7502e" }, ", 1 day ago, failed 1 case: RUST-7."],
+    ]);
   });
 
   it("names the repositories without a current report", () => {
@@ -161,7 +171,7 @@ describe("complianceView with stale and missing reports", () => {
     ]);
   });
 
-  it("lists a stale report's rules once for its repository, and the report among the missing", () => {
+  it("lists a stale report's rules once for its repository, and the report among the missing after those with none", () => {
     const view = complianceView(withStaleReport("owner/ci", 9), every);
     expect(view.headline).toBe(
       "6 checks fail in 3 repositories, 2 are stale, and 1 repository sent no report",
@@ -175,12 +185,12 @@ describe("complianceView with stale and missing reports", () => {
       ],
     ]);
     expect(view.missing.items.map((item) => [item.repository, item.word, item.detail])).toEqual([
-      ["owner/ci", "report 9 d old", "Its newest report was made 9 days before the snapshot."],
       [
         "owner/gone",
         "no report",
         "No report was found for it, so its rules and suites have no state.",
       ],
+      ["owner/ci", "report 9 d old", "Its newest report was made 9 days before the snapshot."],
     ]);
     expect(view.columns[2]).toMatchObject({ caption: "report 9 d", stale: true });
   });
@@ -197,11 +207,55 @@ describe("complianceView with stale and missing reports", () => {
 
   it("says why a report is invalid", () => {
     const view = complianceView(withInvalidReport("owner/ci", "rules[0].result"), every);
-    expect(view.missing.items[0]).toMatchObject({
+    expect(view.missing.items.map((item) => item.repository)).toEqual(["owner/gone", "owner/ci"]);
+    expect(view.missing.items[1]).toMatchObject({
       repository: "owner/ci",
       word: "invalid report",
       detail: "Its report is not one this build reads, at rules[0].result: unknown variant.",
     });
     expect(view.columns[2]?.caption).toBe("invalid report");
+  });
+});
+
+describe("complianceView's failing zero rules", () => {
+  /** Returns the fixture with the zero rule's cell in `repository` reading `measures` from `run`. */
+  function withZeroRead(
+    repository: string,
+    measures: Record<string, number>,
+    run = "/suites/signer-callers/runs/20261124T1000Z",
+  ) {
+    const document = fixtureDocument();
+    const rows = document.rows.map((row) =>
+      row.section !== "zero"
+        ? row
+        : {
+            ...row,
+            cells: row.cells.map((cell) => {
+              const zero = cell.facts?.zero;
+              if (cell.repository !== repository || cell.facts == null || zero == null) return cell;
+              return { ...cell, facts: { ...cell.facts, zero: { ...zero, run, measures } } };
+            }),
+          },
+    );
+    return { ...document, rows };
+  }
+
+  const signer = (item: { readonly name: string }) => item.name.includes("v1 webhook signer");
+
+  it("gives a repository that read another run an item of its own", () => {
+    const older = "/suites/signer-callers/runs/20261120T1000Z";
+    const view = complianceView(withZeroRead("owner/ci", { remaining: 2 }, older), every);
+    expect(view.failing.items.filter(signer).map((item) => item.repositories)).toEqual([
+      ["owner/app", "owner/api"],
+      ["owner/ci"],
+    ]);
+  });
+});
+
+describe("suite names", () => {
+  it("writes a language's name with its capitals", () => {
+    expect(suiteName("typescript-standard")).toBe("TypeScript standard audit");
+    expect(suiteName("javascript-review")).toBe("JavaScript review audit");
+    expect(suiteName("rust-standard")).toBe("Rust standard audit");
   });
 });

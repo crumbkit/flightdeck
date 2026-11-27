@@ -1153,7 +1153,7 @@
                 "run": "/suites/v1-signer-callers/runs/20261123T0600Z",
                 "age_s": 172800,
                 "measures": {
-                  "remaining": 2,
+                  "remaining": 3,
                   "unknown": 0
                 }
               }
@@ -1191,7 +1191,7 @@
                 "run": "/suites/v1-signer-callers/runs/20261123T0600Z",
                 "age_s": 172800,
                 "measures": {
-                  "remaining": 1,
+                  "remaining": 3,
                   "unknown": 0
                 }
               }
@@ -2398,7 +2398,8 @@
         "show": "edit",
         "checker": {
           "check": "pattern",
-          "file": "/rules/privacy/customer-names.patterns"
+          "file": "/rules/privacy/customer-names.patterns",
+          "quote": "match-only"
         },
         "groups": [],
         "cases": null,

@@ -202,6 +202,18 @@ for (const [label, hash] of [
   });
 }
 
+test("the report's run link draws with no underline until hovered, as artboard 55 draws it, and the breadcrumb keeps its underline", async ({
+  page,
+}) => {
+  await page.goto(`${pathToFileURL(sample).href}#/repositories/data-pipeline`);
+  const run = page.getByRole("link", { name: "main run #301" });
+  await expect(run).toHaveCSS("text-decoration-line", "none");
+  await run.hover();
+  await expect(run).toHaveCSS("text-decoration-line", "underline");
+  const crumb = page.locator(".cs-sub").getByRole("link", { name: "Compliance" });
+  await expect(crumb).toHaveCSS("text-decoration-line", "underline");
+});
+
 /**
  * Returns the share of pixels that differ between two PNG screenshots, over
  * the area both cover: a pixel differs when a channel is more than 48 of 255

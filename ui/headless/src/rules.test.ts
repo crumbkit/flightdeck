@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rulesAddress, rulesView } from "./rules.ts";
+import { CHECKERS, rulesAddress, rulesView } from "./rules.ts";
 import { fixtureDocument, withPassing, withStaleReport } from "./testDocuments.ts";
 
 const all = rulesAddress.parse("");
@@ -82,11 +82,11 @@ describe("rulesView of the fixture (artboards 52 and 53)", () => {
     expect(view.reportsCurrent).toBe(3);
   });
 
-  it("counts the rules by checker, by when an agent is shown them and by kind", () => {
+  it("counts the rules by the five checkers the Rules artboard lists, by when an agent is shown them and by kind", () => {
+    expect(CHECKERS).toEqual(["budget", "version", "pattern", "judged", "written"]);
     expect(view.checkers.map((entry) => [entry.key, entry.count])).toEqual([
       ["budget", 1],
       ["version", 1],
-      ["zero", 1],
       ["judged", 1],
       ["written", 2],
     ]);
@@ -110,6 +110,23 @@ describe("rulesView's filters and sort, held in the address", () => {
       rulesAddress.parse("?state=not_current&shown=edit"),
     );
     expect(notCurrent.rules.map((rule) => rule.id)).toEqual(["/rules/writing/plain"]);
+    expect(rulesAddress.parse("?checker=zero").checker).toBe("all");
+  });
+
+  it("names what a pattern rule quotes beside its checker", () => {
+    const document = fixtureDocument();
+    const rows = document.rows.map((row) =>
+      row.id === "/rules/rust/server"
+        ? {
+            ...row,
+            checker: { check: "pattern", file: "/rules/rust/server.patterns", quote: "match-only" },
+          }
+        : row,
+    );
+    const rule = rulesView({ ...document, rows }, all).rules.find(
+      (each) => each.id === "/rules/rust/server",
+    );
+    expect(rule?.checker).toBe("pattern · match-only");
   });
 
   it("sorts by name when asked, in either direction", () => {

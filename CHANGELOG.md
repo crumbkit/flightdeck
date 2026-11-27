@@ -7,6 +7,20 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- `compliance.html` follows its signed mockups more closely. Suite names
+  write TypeScript and JavaScript with their capitals. A zero rule that fails
+  in several repositories on one suite run gives one Failing item naming
+  them all. A repository's failing measured rule comes first, and
+  repositories with no report come before stale ones. Paths, commits and
+  measures in notes are set in the mono face. The failing panel heads its
+  table with the budget's unit and names files without a leading slash. A
+  repository's written rules name the audit that judges them. A pattern
+  rule's checker names what it quotes. The Rules page lists no zero checker,
+  a pin's Failing item names only the pin, and run links have no underline
+  until hovered.
+
 ## [0.4.0] - 2026-11-27
 
 ### Added

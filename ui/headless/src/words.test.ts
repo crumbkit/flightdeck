@@ -5,7 +5,9 @@ import {
   cellWord,
   checkerWord,
   moment,
+  mono,
   numberWord,
+  phraseText,
   reportWord,
   rowName,
   shortCommit,
@@ -86,8 +88,15 @@ describe("checkerWord", () => {
     expect(checkerWord(null, true)).toBe("written");
   });
 
+  it("adds what a pattern quotes in the long form, as the Rules page shows it", () => {
+    expect(checkerWord({ check: "pattern", quote: "match-only" }, true)).toBe(
+      "pattern · match-only",
+    );
+  });
+
   it("names a pattern as itself and a checker it does not know as an unknown checker", () => {
     expect(checkerWord({ check: "pattern" }, true)).toBe("pattern");
+    expect(checkerWord({ check: "pattern", quote: "match-only" }, false)).toBe("pattern");
     expect(checkerWord({ check: "regex" }, false)).toBe("unknown checker regex");
   });
 });
@@ -110,5 +119,14 @@ describe("shortMoment", () => {
   it("names a time by its day, short month, year and UTC time", () => {
     expect(shortMoment("2026-11-25T06:00:00Z")).toBe("25 Nov 2026, 06:00 UTC");
     expect(shortMoment("2026-09-03T23:05:00+01:00")).toBe("3 Sep 2026, 22:05 UTC");
+  });
+});
+
+describe("phrases", () => {
+  it("reads a phrase as one string, with its mono pieces as plain text", () => {
+    expect(phraseText([mono(".nvmrc"), " line 1 pins 20.18.0."])).toBe(
+      ".nvmrc line 1 pins 20.18.0.",
+    );
+    expect(phraseText([])).toBe("");
   });
 });

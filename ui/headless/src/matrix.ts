@@ -68,13 +68,18 @@ export function columnHeads(document: ComplianceDocument): ColumnHead[] {
   });
 }
 
-/** Returns a suite's name for people from the rest of its path, such as "Rust standard audit" from "rust-standard". */
+/** The words a suite's path writes in lower case that a name for people spells with other capitals. */
+const SPELLED: Readonly<Record<string, string>> = {
+  typescript: "TypeScript",
+  javascript: "JavaScript",
+};
+
+/** Returns a suite's name for people from the rest of its path, such as "TypeScript standard audit" from "typescript-standard". */
 export function suiteName(rest: string): string {
   const words = rest.split("-").filter((word) => word !== "");
   const first = words[0] ?? rest;
-  return [`${first.charAt(0).toUpperCase()}${first.slice(1)}`, ...words.slice(1), "audit"].join(
-    " ",
-  );
+  const spelled = SPELLED[first] ?? `${first.charAt(0).toUpperCase()}${first.slice(1)}`;
+  return [spelled, ...words.slice(1), "audit"].join(" ");
 }
 
 /** Returns the matrix cell of `cell`, in `row`, in `column`. */
