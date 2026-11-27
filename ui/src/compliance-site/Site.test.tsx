@@ -346,7 +346,7 @@ describe("the Rules page", () => {
     const user = userEvent.setup();
     await drawAt("#/rules");
     const table = () => screen.getByRole("region", { name: /^Rules · / });
-    expect(within(table()).getByRole("heading")).toHaveTextContent("Rules · 14");
+    expect(within(table()).getByRole("heading")).toHaveTextContent("Rules · 15");
     await user.click(screen.getByRole("button", { name: "obligation" }));
     expect(window.location.hash).toBe("#/rules?kind=obligation");
     expect(within(table()).getByRole("heading")).toHaveTextContent("Rules · 1");
@@ -378,7 +378,10 @@ describe("the Rules page", () => {
   });
 
   it("names what a pattern rule quotes beside its checker", async () => {
+    const user = userEvent.setup();
     await drawAt("#/rules");
+    const more = screen.queryByRole("button", { name: /^Show \d+ more/ });
+    if (more !== null) await user.click(more);
     const row = screen
       .getAllByRole("row")
       .find((each) => each.textContent?.includes("/rules/privacy/customer-names"));
@@ -424,5 +427,67 @@ describe("a document with a refused report and an unknown checker", () => {
       .map((link) => link.getAttribute("href"));
     expect(links).toContain("#/repositories/payments-api?rule=%2Frules%2Fpython%2Ffile-size");
     expect(links).toContain("#/repositories/data-pipeline?rule=%2Frules%2Fpython%2Ffile-size");
+  });
+});
+
+describe("the pages of a document with the fetch's runs (artboards 52, 54 and 55)", () => {
+  it("names the imposed set's repository and branch beside the build run", async () => {
+    await drawAt("#/");
+    const hero = screen.getByRole("note");
+    expect(hero).toHaveTextContent("platform-controls · main");
+  });
+
+  it("names the run of a repository whose newest run uploaded no report, and links to it", async () => {
+    await drawAt("#/");
+    const missing = screen.getByRole("region", { name: /Repositories without a current report/ });
+    expect(missing).toHaveTextContent(
+      "Main run #2310 finished without uploading a controls report, so its 5 rules have no state.",
+    );
+    expect(missing).toHaveTextContent(
+      "Its controls job runs daily and has not run on main since 16 November.",
+    );
+    expect(within(missing).getByRole("link", { name: "Run #2310" })).toHaveAttribute(
+      "href",
+      "https://github.com/platform/mobile-app/actions/runs/7002310",
+    );
+  });
+
+  it("gives the Rules page's report lines the run's note, and a rule only that repository reaches is stale", async () => {
+    await drawAt("#/rules");
+    const reports = screen.getByRole("region", { name: /Reports by repository/ });
+    const line = (name: string) =>
+      within(reports)
+        .getAllByRole("row")
+        .find((each) => each.textContent?.startsWith(name))?.textContent;
+    expect(line("mobile-app")).toBe(
+      "mobile-appmain run #2310 · finished without uploading a controls reporte19b04f–5no report",
+    );
+    expect(line("identity-service")).toContain(
+      "main run #77 · Its controls job runs daily, and the newest main run is 9 days old.",
+    );
+    const rules = screen.getByRole("region", { name: /^Rules · / });
+    const ios = within(rules)
+      .getAllByRole("row")
+      .find((each) => each.textContent?.includes("/rules/toolchains/ios-target"));
+    expect(ios).toHaveTextContent("stalemobile-app sent no report");
+  });
+
+  it("says how many commits the branch has had since the report's run, and what a rule applies to", async () => {
+    await drawAt("#/repositories/data-pipeline?rule=/rules/python/file-size");
+    expect(screen.getByText("3 commits on main since that run")).toBeVisible();
+    const applies = screen.getByText("Applies to").nextElementSibling;
+    expect(applies).toHaveTextContent("**/*.py");
+    expect(applies?.querySelector(".cs-mono")).toHaveTextContent("**/*.py");
+  });
+
+  it("says that the newest run of a repository with no report uploaded none", async () => {
+    await drawAt("#/repositories/mobile-app");
+    expect(
+      screen.getByText("Main run #2310 finished without uploading a controls report."),
+    ).toBeVisible();
+    const legend = screen.getByRole("region", { name: /How the states are read/ });
+    expect(legend).toHaveTextContent(
+      "The repository's newest main run uploaded no report, so its rules have no state.",
+    );
   });
 });

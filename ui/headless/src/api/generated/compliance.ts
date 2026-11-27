@@ -3,6 +3,19 @@
 // Change the source and run `pnpm run schemas` in ui/ to write it again.
 import { z } from "../../zod.ts";
 
+/** One finished run of a repository's workflow on its branch, as the fetch
+ * record names it. */
+export const BranchRunSchema = z.object({
+  age_s: z.number().int().nonnegative().nullable(),
+  branch: z.string(),
+  commit: z.string(),
+  run_id: z.number().int().nonnegative(),
+  run_number: z.number().int().nonnegative(),
+  started_at: z.string(),
+  uploaded: z.boolean(),
+  url: z.string(),
+});
+
 /** The controls job's run that built the document. */
 export const BuildRunSchema = z.object({
   label: z.string().nullable(),
@@ -113,6 +126,7 @@ export const GroupSchema = z.object({
 
 /** The imposed rule set, as the config names it. */
 export const ImposedSetSchema = z.object({
+  branch: z.string().nullable().optional(),
   commit: z.string().nullable(),
   from: z.string(),
   name: z.string(),
@@ -167,16 +181,21 @@ export const RepositoryColumnSchema = z.object({
   board_version: z.string().nullable(),
   code: z.string().nullable(),
   commit: z.string().nullable(),
+  commits_since: z.number().int().nonnegative().nullable().optional(),
+  commits_since_code: z.string().nullable().optional(),
   committed: z.string().nullable(),
   counts: StateCountsSchema,
   drift: DriftSchema.nullable(),
+  every_hours: z.number().int().nonnegative().nullable().optional(),
   field: z.string().nullable(),
   generated: z.string().nullable(),
   group: z.string().nullable(),
   message: z.string().nullable(),
   name: z.string(),
+  newest_run: BranchRunSchema.nullable().optional(),
   refused: z.array(RefusedSchema),
   report: ReportStateSchema,
+  report_run: BranchRunSchema.nullable().optional(),
   rules_commit: z.string().nullable(),
   rules_from: z.string().nullable(),
   source_run: SourceRunSchema.nullable(),
@@ -198,6 +217,7 @@ export const RowSchema = z.object({
   groups: z.array(z.string()),
   id: z.string(),
   kind: z.string().nullable(),
+  paths: z.array(z.string()).nullable().optional(),
   purpose: z.string().nullable(),
   requirement: z.string().nullable(),
   section: SectionSchema,

@@ -1,5 +1,46 @@
 # The Compliance site
 
+## Fetching the reports
+
+- `flightdeck compliance fetch --config <FILE> --reports <DIR>` downloads
+  each repository's newest rules report before the build runs.
+- For a repository whose source is `github-artifact`, it runs `gh`, found
+  on `PATH`, with the token gh already holds. flightdeck never reads,
+  prints or passes a token.
+  - It lists the newest 10 finished runs of the source's `workflow` on its
+    `branch`, and takes the report from the newest run that holds an
+    unexpired artifact named `artifact`. The artifact must hold one file.
+  - It writes the report to `<DIR>/<owner>/<repo>.json`, and a
+    `flightdeck/compliance-fetch/v1` record to
+    `<DIR>/<owner>/<repo>.fetch.json`. The record names the newest run,
+    the run the report came from, and the commits on the branch since the
+    report's commit, which `gh api .../compare` counts.
+  - When no listed run holds the artifact, it writes the record and
+    removes any older report, so the build reads no report for it.
+  - A failed query of GitHub fails that repository's row and leaves its
+    files as they were.
+- For a `path` source, it copies the file at that path, relative to the
+  config's directory, and removes any record beside the report. A `url`
+  source fails its row.
+- It prints one row per repository, with the failed rows first. A failed
+  row makes the command exit with 1. When any source is `github-artifact`
+  and `gh` does not start, the command fails with
+  `flightdeck::compliance::no_gh` and writes nothing.
+- A source may set `every_hours`, how often its controls job runs. The
+  pages use it in sentences such as "Its controls job runs daily".
+- The build reads each record beside its report:
+  - A record whose newest run uploaded no report makes the repository read
+    `no_report`. Its cells read `no_report` where the earlier run's report
+    held the rule, so the Rules page counts those rules as stale.
+  - The document's columns gain `newest_run`, `report_run`,
+    `commits_since`, `commits_since_code` and `every_hours`, and each row
+    gains the `paths` its rule applies to.
+  - `compliance build --rules-branch <NAME>` writes the imposed set's
+    branch as `imposed.branch`.
+  - A build with no records writes none of these fields.
+
+## The files the build writes
+
 `flightdeck compliance build --out <DIR>` writes two files:
 
 - `compliance.json`: the `flightdeck/compliance/v1` document.
@@ -19,9 +60,11 @@
     without a current report and stale checks.
   - `#/rules`: the Rules page. It shows each repository's report with its
     run, commit and age, and the rules table with its Kind, Checker, Shown
-    and State chips.
+    and State chips. A stale report's run says how often its controls job
+    runs and how old its newest run is. A repository whose newest run
+    uploaded no report names that run and its commit.
   - `#/repositories/<name>`: one repository's page. It shows its report,
-    its measured rules, its rules with nothing to measure, its suites, its
+    the commits on the branch since the report's run, its measured rules, its rules with nothing to measure, its suites, its
     written rules, the detail of the selected rule and a legend.
 - Filters, the sort and the selected rule live in the address, so a reload
   or a shared link opens the same view.

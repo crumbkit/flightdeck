@@ -2,6 +2,7 @@
 // with its paths and commits in the mono face, the link to a repository's
 // page and the link to the CI run that made a report.
 import type { RepositoryColumn } from "@crumbkit/flightdeck-headless/document";
+import { namedRun } from "@crumbkit/flightdeck-headless/runs";
 import type { Phrase } from "@crumbkit/flightdeck-headless/words";
 import type { ReactNode } from "react";
 import { placeHash } from "@/compliance-site/address";
@@ -65,11 +66,13 @@ export function RepositoryLink({
   );
 }
 
-/** Returns the address of the GitHub Actions run that made a column's report, or null for a report from no CI run. */
+/**
+ * Returns the address of the GitHub Actions run a page names for a column:
+ * the newest run when it uploaded no report, or the run that made the
+ * report; null for a report from no CI run.
+ */
 export function runUrl(column: RepositoryColumn | undefined): string | null {
-  const run = column?.source_run ?? null;
-  if (run === null) return null;
-  return `https://github.com/${run.repository}/actions/runs/${run.run_id}`;
+  return column === undefined ? null : (namedRun(column)?.url ?? null);
 }
 
 /**
@@ -98,7 +101,7 @@ export function OutLink({
   );
 }
 
-/** The run that made a column's report, as a link when the report came from a CI run. */
+/** The run a page names for a column, as a link when it is a CI run. */
 export function RunLink({
   column,
   label,

@@ -1,0 +1,15 @@
+Download each repository's newest rules report from its GitHub runs
+
+Usage: flightdeck compliance fetch [OPTIONS] --config <FILE> --reports <DIR>
+
+Options:
+      --config <FILE>  The flightdeck/compliance-config/v1 file, whose sources say where each report comes from
+      --reports <DIR>  The directory to write each report into, at <owner>/<repo>.json, with its record at <owner>/<repo>.fetch.json
+  -h, --help           Print help (see more with '--help')
+
+Examples:
+  flightdeck compliance fetch --config compliance.toml --reports reports
+
+Effects: additive, idempotent, open-world.
+Global flags: --json, --fields <FIELD>, --long, --full, --no-input. `flightdeck compliance fetch --help` describes them.
+Next: flightdeck compliance fetch --help explains each column.

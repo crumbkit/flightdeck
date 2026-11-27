@@ -1,0 +1,49 @@
+{
+ "total_count": 1,
+ "workflow_runs": [
+  {
+   "id": 9201,
+   "name": "CI",
+   "node_id": "WFR_kwLO",
+   "head_branch": "main",
+   "head_sha": "2d9c956e0385c14bd4c6f9a749944d669d4872ea",
+   "path": ".github/workflows/ci.yml",
+   "display_title": "Merge pull request",
+   "run_number": 3,
+   "event": "push",
+   "status": "completed",
+   "conclusion": "success",
+   "workflow_id": 101,
+   "check_suite_id": 1,
+   "url": "https://api.github.com/repos/owner/api/actions/runs/9201",
+   "html_url": "https://github.com/owner/api/actions/runs/9201",
+   "pull_requests": [],
+   "created_at": "2026-08-20T06:00:00Z",
+   "updated_at": "2026-08-20T06:00:00Z",
+   "run_attempt": 1,
+   "run_started_at": "2026-08-20T06:00:00Z",
+   "actor": {
+    "login": "a-person",
+    "id": 4242,
+    "type": "User"
+   },
+   "triggering_actor": {
+    "login": "a-person",
+    "id": 4242,
+    "type": "User"
+   },
+   "head_commit": {
+    "id": "2d9c956e0385c14bd4c6f9a749944d669d4872ea",
+    "message": "Merge pull request",
+    "author": {
+     "name": "A Person",
+     "email": "a.person@example.invalid"
+    }
+   },
+   "repository": {
+    "id": 1,
+    "full_name": "owner/api"
+   }
+  }
+ ]
+}

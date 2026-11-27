@@ -1,9 +1,10 @@
-Build the compliance document from rules reports
+Fetch the repositories' rules reports and build the compliance document
 
 Usage: flightdeck compliance [OPTIONS] <COMMAND>
 
 Commands:
   build  Join each repository's rules report into one compliance document
+  fetch  Download each repository's newest rules report from its GitHub runs
 
 Options:
       --json

@@ -63,6 +63,25 @@ export function moment(iso: string): string {
   return `${hours}:${minutes} UTC on ${at.getUTCDate()} ${month} ${at.getUTCFullYear()}`;
 }
 
+/** Returns an RFC 3339 time's day and month in UTC, such as "16 November". */
+export function dayWord(iso: string): string {
+  const at = new Date(iso);
+  return `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()] ?? ""}`;
+}
+
+/**
+ * Returns how often a job runs, from its interval in hours: "every hour",
+ * "every 6 hours", "daily", "every 2 days", "weekly", or "every 30 hours"
+ * for an interval that is not whole days.
+ */
+export function cadenceWord(hours: number): string {
+  if (hours === 1) return "every hour";
+  if (hours === 24) return "daily";
+  if (hours === 168) return "weekly";
+  if (hours % 24 === 0) return `every ${hours / 24} days`;
+  return `every ${hours} hours`;
+}
+
 /** Returns an RFC 3339 time in UTC as a short line names it, such as "25 Nov 2026, 06:00 UTC". */
 export function shortMoment(iso: string): string {
   const at = new Date(iso);

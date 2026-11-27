@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "flightdeck/compliance-fetched/v1",
+  "description": "Each repository the config names, failed ones first, with what the fetch wrote for it: its newest run, the run its report came from and the commits since, or why it failed.",
+  "type": "object",
+  "properties": {
+    "cut": {
+      "description": "Present when the output budget cut the result short, so data holds only its first rows.",
+      "type": "object",
+      "properties": {
+        "budget": {
+          "description": "The most bytes that the run printed on standard output.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "code": {
+          "description": "The over-budget code.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "budget"
+      ]
+    },
+    "data": {
+      "description": "The rows, in order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/FetchRow"
+      }
+    },
+    "dry_run": {
+      "description": "Present, and true, when the run was a dry run that changed nothing.",
+      "const": true
+    },
+    "schema": {
+      "description": "The id of this document.",
+      "const": "flightdeck/compliance-fetched/v1"
+    }
+  },
+  "required": [
+    "schema",
+    "data"
+  ],
+  "$defs": {
+    "FetchRow": {
+      "description": "One repository's line in what `flightdeck compliance fetch` prints.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "description": "Why the repository failed, or why its commits since are null.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "commits_since": {
+          "description": "Commits on the branch since the report's commit; null when not\ncounted.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "message": {
+          "description": "What gh or the file system said, for people; null when nothing\nfailed.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "newest_run": {
+          "description": "The number of the newest finished run on the branch; null when the\nworkflow has none or the fetch failed.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "report_run": {
+          "description": "The number of the run the written report came from; null when none\nholds the artifact.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "repository": {
+          "description": "The repository, `owner/repo`.",
+          "type": "string"
+        },
+        "state": {
+          "description": "`fetched`, `no_report`, `copied` or `failed`.",
+          "$ref": "#/$defs/FetchState"
+        }
+      },
+      "required": [
+        "repository",
+        "state",
+        "newest_run",
+        "report_run",
+        "commits_since",
+        "code"
+      ]
+    },
+    "FetchState": {
+      "description": "What the fetch did for one repository.",
+      "oneOf": [
+        {
+          "description": "The newest run uploaded its report, which the fetch wrote.",
+          "type": "string",
+          "const": "fetched"
+        },
+        {
+          "description": "The newest run uploaded no report. The fetch wrote an earlier run's\nreport when one holds it, or else removed the old report.",
+          "type": "string",
+          "const": "no_report"
+        },
+        {
+          "description": "The `path` source's file was copied.",
+          "type": "string",
+          "const": "copied"
+        },
+        {
+          "description": "Nothing was written, and the repository's old files are as they\nwere.",
+          "type": "string",
+          "const": "failed"
+        }
+      ]
+    }
+  }
+}

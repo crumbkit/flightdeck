@@ -96,6 +96,16 @@
       "declaration": "example-precondition",
       "applies_to": "flightdeck compliance build --config compliance.toml --reports reports --out site --build-run 'Build run #412' --json",
       "declares": "The example runs only in a test run that provides reports."
+    },
+    {
+      "declaration": "document-name",
+      "applies_to": "flightdeck compliance fetch",
+      "declares": "The command prints flightdeck/compliance-fetched/v1, where its path gives the name compliance-fetch."
+    },
+    {
+      "declaration": "example-precondition",
+      "applies_to": "flightdeck compliance fetch --config compliance.toml --reports reports",
+      "declares": "The example runs only in a test run that provides gh."
     }
   ]
 }

@@ -10,7 +10,7 @@ Start a local web page for a crumbkit tool
 
 - [`flightdeck open`](#flightdeck-open): Open a local web page of the mxv workspaces and a tool's commands
 - [`flightdeck workspaces`](#flightdeck-workspaces): Read the local mxv workspaces
-- [`flightdeck compliance`](#flightdeck-compliance): Build the compliance document from rules reports
+- [`flightdeck compliance`](#flightdeck-compliance): Fetch the repositories' rules reports and build the compliance document
 - [`flightdeck commands`](#flightdeck-commands): Explore flightdeck's commands
 - [`flightdeck skills`](#flightdeck-skills): Give coding agents flightdeck's skill
 - [`flightdeck completion`](#flightdeck-completion): Set up flightdeck's completion in a shell
@@ -124,11 +124,12 @@ Effects: read-only, closed-world.
 
 ## `flightdeck compliance`
 
-Build the compliance document from rules reports
+Fetch the repositories' rules reports and build the compliance document
 
 ### Commands
 
 - [`flightdeck compliance build`](#flightdeck-compliance-build): Join each repository's rules report into one compliance document
+- [`flightdeck compliance fetch`](#flightdeck-compliance-fetch): Download each repository's newest rules report from its GitHub runs
 
 ## `flightdeck compliance build`
 
@@ -142,6 +143,7 @@ Join each repository's rules report into one compliance document
 - `--build-run <LABEL>`: The label of the run that builds the pages
 - `--build-url <URL>`: The address of that run
 - `--rules-commit <SHA>`: The imposed set's current commit
+- `--rules-branch <NAME>`: The imposed set's branch, such as main
 - `--built-at <TIME>`: The build's time, such as 2026-11-25T06:00:00Z; now when left out
 
 ### Examples
@@ -159,6 +161,38 @@ flightdeck compliance build --config compliance.toml --reports reports --out sit
 ```
 
 Effects: additive, idempotent, closed-world.
+
+## `flightdeck compliance fetch`
+
+Download each repository's newest rules report from its GitHub runs
+
+### Arguments
+
+- `--config <FILE>`: The flightdeck/compliance-config/v1 file, whose sources say where each report comes from. Required.
+- `--reports <DIR>`: The directory to write each report into, at \<owner\>/\<repo\>.json, with its record at \<owner\>/\<repo\>.fetch.json. Required.
+
+### Examples
+
+Write each repository's newest report from GitHub and the record of its runs, and print one line per repository, failed ones first.
+
+```sh
+flightdeck compliance fetch --config compliance.toml --reports reports
+```
+
+### Columns
+
+- `repository`: The repository, `owner/repo`.
+- `state`: `fetched`, `no_report`, `copied` or `failed`.
+- `newest_run`: The number of the newest finished run on the branch; null when the workflow has none or the fetch failed.
+- `report_run`: The number of the run the written report came from; null when none holds the artifact.
+- `commits_since`: Commits on the branch since the report's commit; null when not counted.
+- `code`: Why the repository failed, or why its commits since are null.
+
+### Columns that `--long` adds
+
+- `message`: What gh or the file system said, for people; null when nothing failed.
+
+Effects: additive, idempotent, open-world.
 
 ## `flightdeck commands`
 

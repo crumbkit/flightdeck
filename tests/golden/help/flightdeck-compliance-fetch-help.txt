@@ -1,0 +1,45 @@
+Download each repository's newest rules report from its GitHub runs
+
+Usage: flightdeck compliance fetch [OPTIONS] --config <FILE> --reports <DIR>
+
+Options:
+      --config <FILE>
+          The flightdeck/compliance-config/v1 file, whose sources say where each report comes from
+
+      --reports <DIR>
+          The directory to write each report into, at <owner>/<repo>.json, with its record at <owner>/<repo>.fetch.json
+
+      --json
+          Print the result as a JSON document. The default prints text.
+
+      --fields <FIELD>
+          Print only these comma-separated fields, in this order. The default prints the compact columns.
+
+      --long
+          Add the long columns after the compact ones. The default prints only the compact columns.
+
+      --full
+          With --json, print every field of every row. The default prints only the fields of the columns.
+
+      --no-input
+          Fail instead of asking a question
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Examples:
+  flightdeck compliance fetch --config compliance.toml --reports reports
+          Write each repository's newest report from GitHub and the record of its runs, and print one line per repository, failed ones first
+
+Columns:
+  repository     The repository, `owner/repo`.
+  state          `fetched`, `no_report`, `copied` or `failed`.
+  newest_run     The number of the newest finished run on the branch; null when the workflow has none or the fetch failed.
+  report_run     The number of the run the written report came from; null when none holds the artifact.
+  commits_since  Commits on the branch since the report's commit; null when not counted.
+  code           Why the repository failed, or why its commits since are null.
+
+Columns that --long adds:
+  message  What gh or the file system said, for people; null when nothing failed.
+
+Effects: additive, idempotent, open-world.

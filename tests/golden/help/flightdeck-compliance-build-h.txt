@@ -3,14 +3,15 @@ Join each repository's rules report into one compliance document
 Usage: flightdeck compliance build [OPTIONS] --config <FILE> --reports <DIR>
 
 Options:
-      --config <FILE>       The flightdeck/compliance-config/v1 file
-      --reports <DIR>       The directory of the reports, one at <owner>/<repo>.json each
-      --out <DIR>           Also write <DIR>/compliance.json and <DIR>/compliance.html, the page that draws it with no server
-      --build-run <LABEL>   The label of the run that builds the pages
-      --build-url <URL>     The address of that run
-      --rules-commit <SHA>  The imposed set's current commit
-      --built-at <TIME>     The build's time, such as 2026-11-25T06:00:00Z; now when left out
-  -h, --help                Print help (see more with '--help')
+      --config <FILE>        The flightdeck/compliance-config/v1 file
+      --reports <DIR>        The directory of the reports, one at <owner>/<repo>.json each
+      --out <DIR>            Also write <DIR>/compliance.json and <DIR>/compliance.html, the page that draws it with no server
+      --build-run <LABEL>    The label of the run that builds the pages
+      --build-url <URL>      The address of that run
+      --rules-commit <SHA>   The imposed set's current commit
+      --rules-branch <NAME>  The imposed set's branch, such as main
+      --built-at <TIME>      The build's time, such as 2026-11-25T06:00:00Z; now when left out
+  -h, --help                 Print help (see more with '--help')
 
 Examples:
   flightdeck compliance build --config compliance.toml --reports reports

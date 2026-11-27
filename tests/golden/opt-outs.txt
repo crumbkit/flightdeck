@@ -19,7 +19,7 @@ path-budget/command: flightdeck skills print
   Reason: Its output is the whole skill, which crumbkit-skills prints, and the root's page lists every resource.
   Cost: An agent that finds and runs the command can read 200 bytes more than the default, about 50 tokens.
 
-flightdeck has 10 declarations.
+flightdeck has 12 declarations.
 
 root-verbs: flightdeck open
   Declares: Each command sits directly under the root as a verb, and root help lists it under the heading Verbs.
@@ -51,3 +51,9 @@ example-precondition: flightdeck compliance build --config compliance.toml --rep
 
 example-precondition: flightdeck compliance build --config compliance.toml --reports reports --out site --build-run 'Build run #412' --json
   Declares: The example runs only in a test run that provides reports.
+
+document-name: flightdeck compliance fetch
+  Declares: The command prints flightdeck/compliance-fetched/v1, where its path gives the name compliance-fetch.
+
+example-precondition: flightdeck compliance fetch --config compliance.toml --reports reports
+  Declares: The example runs only in a test run that provides gh.

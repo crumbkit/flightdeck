@@ -53,6 +53,9 @@ const NEEDS_FILES: &str = "Only a config file that breaks its rules, or an --out
 /// The reason that no command line provokes the code of a missing page.
 const NEEDS_TEMPLATE: &str = "Only a flightdeck whose embedded page lacks the document's marker provokes it; tests/compliance_site.rs provokes it with such a page.";
 
+/// The reason that no command line provokes the code of a missing gh.
+const NEEDS_NO_GH: &str = "Only a PATH without gh provokes it, and a command line sets no variable; tests/compliance_fetch.rs provokes it.";
+
 /// The codes that the recovery check provokes with no command line.
 const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
     Unprovoked::new(
@@ -74,6 +77,7 @@ const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
     Unprovoked::new(crumbkit_flightdeck::compliance::CONFIG_INVALID, NEEDS_FILES),
     Unprovoked::new(crumbkit_flightdeck::compliance::OUT_FAILED, NEEDS_FILES),
     Unprovoked::new(crumbkit_flightdeck::compliance::NO_PAGE, NEEDS_TEMPLATE),
+    Unprovoked::new(crumbkit_flightdeck::compliance::fetch::NO_GH, NEEDS_NO_GH),
     Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_MISSING, NEEDS_MXV),
     Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_FAILED, NEEDS_MXV),
     Unprovoked::new(
@@ -115,6 +119,7 @@ const UNTWINNED: &[Unprovoked<'_>] = &[
     Unprovoked::new(crumbkit_flightdeck::compliance::CONFIG_INVALID, NEEDS_FILES),
     Unprovoked::new(crumbkit_flightdeck::compliance::OUT_FAILED, NEEDS_FILES),
     Unprovoked::new(crumbkit_flightdeck::compliance::NO_PAGE, NEEDS_TEMPLATE),
+    Unprovoked::new(crumbkit_flightdeck::compliance::fetch::NO_GH, NEEDS_NO_GH),
     Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_MISSING, NEEDS_MXV),
     Unprovoked::new(crumbkit_flightdeck::workspaces::MXV_FAILED, NEEDS_MXV),
     Unprovoked::new(
@@ -159,10 +164,10 @@ const TWINS: Twins<'_> = Twins::lists(EXAMPLES, CODES).unprovoked(UNTWINNED);
 /// Everything the checks read, which `conventions!` expands to one test for
 /// each check. The grammar check needs no verb besides crumbkit's own,
 /// because `open` is a root verb of the tool record, and it accepts the
-/// verbs of the `completion` commands and `compliance build`.
+/// verbs of the `completion` commands and `compliance build` and `fetch`.
 const SUITE: Suite<'_> = Suite::new(|| (Cli::command(), TOOL))
     .allow(ALLOW)
-    .verbs(&["install", "check", "print", "build"])
+    .verbs(&["install", "check", "print", "build", "fetch"])
     .path_budgets(PATH_BUDGETS)
     .examples(EXAMPLES)
     .recoveries(RECOVERIES)

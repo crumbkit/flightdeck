@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import { complianceAddress, complianceView } from "./compliance.ts";
 import { suiteName } from "./matrix.ts";
 import {
+  branchRun,
   fixtureDocument,
+  withColumn,
   withInvalidReport,
   withoutRepository,
   withStaleReport,
   withSuiteWithoutRun,
+  withSupersededReport,
 } from "./testDocuments.ts";
 
 const every = complianceAddress.parse("");
@@ -114,6 +117,7 @@ describe("complianceView of the fixture (artboards 46, 54 and 56)", () => {
         word: "no report",
         detail: "No report was found for it, so its rules and suites have no state.",
         run: null,
+        url: null,
       },
     ]);
   });
@@ -257,5 +261,56 @@ describe("suite names", () => {
     expect(suiteName("typescript-standard")).toBe("TypeScript standard audit");
     expect(suiteName("javascript-review")).toBe("JavaScript review audit");
     expect(suiteName("rust-standard")).toBe("Rust standard audit");
+  });
+});
+
+describe("complianceView of a document with the fetch's runs (artboard 54)", () => {
+  const DAY = 86_400;
+
+  it("names the run of a repository whose newest run uploaded none, and how many of its rules have no state", () => {
+    const view = complianceView(withSupersededReport("owner/app"), every);
+    expect(view.missing.items[0]).toEqual({
+      key: "owner/app",
+      repository: "owner/app",
+      word: "no report",
+      detail:
+        "Main run #12 finished without uploading a controls report, so its 7 rules have no state.",
+      run: "Run #12",
+      url: "https://github.com/owner/app/actions/runs/9012",
+    });
+    expect(view.repositories[0]?.summary).toBe("no report · run #12 sent none");
+  });
+
+  it("says that the rules and suites of a repository whose runs never uploaded have no state", () => {
+    const document = withColumn("owner/gone", {
+      newest_run: branchRun("owner/gone", 3, 5 * DAY, false),
+    });
+    expect(complianceView(document, every).missing.items[0]?.detail).toBe(
+      "Main run #3 finished without uploading a controls report, so its rules and suites have no state.",
+    );
+  });
+
+  it("says how often a stale report's job runs and the day of its newest run", () => {
+    const stale = withStaleReport("owner/ci", 9);
+    const document = withColumn(
+      "owner/ci",
+      { every_hours: 24, newest_run: branchRun("owner/ci", 7, 9 * DAY + 60, true, stale) },
+      stale,
+    );
+    const ci = complianceView(document, every).missing.items.find(
+      (item) => item.repository === "owner/ci",
+    );
+    expect(ci).toMatchObject({
+      word: "report 9 d old",
+      detail: "Its controls job runs daily and has not run on main since 16 November.",
+      run: "Run #7",
+    });
+  });
+
+  it("names the imposed set's repository and branch when the build was told the branch", () => {
+    const document = fixtureDocument();
+    expect(complianceView(document, every).snapshot.rules).toBe("owner/controls");
+    const branched = { ...document, imposed: { ...document.imposed, branch: "main" } };
+    expect(complianceView(branched, every).snapshot.rules).toBe("controls · main");
   });
 });

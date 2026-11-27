@@ -43,6 +43,9 @@ export function refusedSampleJson(): unknown {
     code: "flightdeck::compliance::invalid_report",
     field: "rules[0].result",
     message: "unknown variant `sideways`",
+    newest_run: null,
+    report_run: null,
+    commits_since: null,
   });
   data.reports.invalid_report += 1;
   for (const row of data.rows) {
