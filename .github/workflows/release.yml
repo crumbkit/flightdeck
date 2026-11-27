@@ -1,7 +1,8 @@
 # The release. It runs the tests on Linux, macOS and Windows and the
-# advisory checks of the Rust crates and of ui/'s npm packages, builds `flightdeck` for macOS, Linux and Windows, checks
-# that each binary prints the release's version, and attaches the archives to
-# a GitHub release with SHA256SUMS, each with a build provenance attestation.
+# advisory checks of the Rust crates and of ui/'s npm packages, builds
+# `flightdeck` for macOS, Linux and Windows, checks that each binary prints
+# the release's version, and attaches the archives to a GitHub release with
+# SHA256SUMS, each with a build provenance attestation.
 # It also packs @crumbkit/flightdeck-headless and @crumbkit/flightdeck-react
 # at that version and checks that they install.
 #
@@ -143,10 +144,10 @@ jobs:
         run: cargo deny --locked check advisories
       # pnpm audit reads ui's lockfile, which covers the page, headless and
       # react, asks the npm registry for advisories against every package in
-      # it, and fails on any advisory that pnpm-workspace.yaml does not list
-      # in auditConfig.ignoreGhsas. pnpm/action-setup installs the pnpm that
-      # `packageManager` names, and setup-node the Node that .node-version
-      # names, with no cache.
+      # it, and fails on any advisory of any severity, because no advisory is
+      # ignored and no audit level is set. pnpm/action-setup installs the
+      # pnpm that `packageManager` names, and setup-node the Node that
+      # .node-version names, with no cache.
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: ui/package.json
