@@ -59,15 +59,17 @@ source = "inherited"
 
 [variables.XDG_DATA_HOME]
 purpose = "The directory under which `flightdeck plugin install` writes board/plugins/flightdeck, where Board finds its plugins."
-type = "path"
+# The type is string because starmap withholds only text; withheld keeps the
+# person's home directory out of `flightdeck self environment list`.
+type = "string"
 unset = "optional"
 effect = "When unset or relative, flightdeck uses .local/share under HOME, as Board does."
-show = "shown"
+show = "withheld"
 source = "inherited"
 
 [variables.HOME]
 purpose = "The home directory, under whose .local/share `flightdeck plugin install` writes the plugin when XDG_DATA_HOME is unset."
-type = "path"
+type = "string"
 unset = "optional"
-show = "shown"
+show = "withheld"
 source = "inherited"

@@ -13,8 +13,9 @@
 //!
 //! - `POST /api/session` exchanges the launch code for the token, once.
 //! - `GET /api/deck` says whether the server holds a tool, so the page
-//!   knows whether to load its model, and whether Board answers, so the
-//!   page shows its Workflows entry.
+//!   knows whether to load its model, and whether it reads a board with a
+//!   Board program that flightdeck found, so the page asks for the graphs.
+//!   It starts no process, so it answers at once.
 //! - `GET /api/workspaces` and `GET /api/workspaces/<name>` answer with the
 //!   documents of `flightdeck workspaces list` and `show`, as the
 //!   `workspaces` module describes. They answer 404 when the server reads no
@@ -280,8 +281,9 @@ struct ModelReply<'a> {
 struct DeckReply {
     /// Whether the server holds a tool, whose model `GET /api/model` sends.
     tool: bool,
-    /// Whether the server reads a board whose Board program answers, so
-    /// the page shows its Workflows entry.
+    /// Whether the server reads a board with a Board program that
+    /// flightdeck found, so the page asks for the graphs. The deck starts
+    /// no Board.
     board: bool,
 }
 
@@ -738,11 +740,12 @@ impl Shared {
     }
 
     /// Returns the document of `GET /api/deck`: whether the server holds a
-    /// tool, and whether its Board answers, which it asks Board each time.
+    /// tool, and whether it reads a board with a Board program that
+    /// flightdeck found. It starts no process and waits for no query.
     fn deck(&self) -> Vec<u8> {
         let deck = DeckReply {
             tool: self.model.is_some(),
-            board: self.workflows.as_ref().is_some_and(Workflows::answers),
+            board: self.workflows.as_ref().is_some_and(Workflows::found),
         };
         // serde_json fails only on a map key that is not a string, and the
         // reply has none.

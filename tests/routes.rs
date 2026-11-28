@@ -1307,11 +1307,11 @@ fn with_a_tool_the_deck_says_so() {
     serving(Setup::shelf(), |running| {
         let token = running.token();
 
-        // Windows runs no shell script, so the fake board does not start
-        // there.
+        // The deck asks Board nothing, so it says true on Windows too,
+        // where the fake board's shell script does not start.
         assert_eq!(
             get(running, "/api/deck", &token).json(),
-            json!({"tool": true, "board": cfg!(unix)})
+            json!({"tool": true, "board": true})
         );
         Then::Stop
     });
@@ -1434,15 +1434,18 @@ fn a_slug_with_no_graph_gets_404_and_a_refusing_board_gets_502_with_boards_code(
 }
 
 #[test]
-fn the_deck_reply_says_board_is_false_when_the_board_program_cannot_start() {
+fn the_deck_says_board_without_starting_it_and_the_list_says_when_board_cannot_start() {
     serving(
         Setup::without_tool().board_program(std::path::PathBuf::from("/no/such/dir/board")),
         |running| {
             let token = running.token();
 
+            // The deck starts no Board, so it says only that the server
+            // reads a board; the page's list query finds that Board will
+            // not start.
             assert_eq!(
                 get(running, "/api/deck", &token).json(),
-                json!({"tool": false, "board": false})
+                json!({"tool": false, "board": true})
             );
             let reply = get(running, "/api/workflows", &token);
             assert_eq!(reply.status, 500);
@@ -1451,4 +1454,38 @@ fn the_deck_reply_says_board_is_false_when_the_board_program_cannot_start() {
             Then::Stop
         },
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn the_deck_answers_at_once_while_a_slow_workflows_query_holds_the_turn() {
+    let directory = tempfile::tempdir().unwrap();
+    let log = directory.path().join("runs");
+    let setup = Setup::without_tool()
+        .board_env("FAKE_BOARD_SLEEP", "5")
+        .board_env("FAKE_BOARD_LOG", log.as_os_str());
+    serving(setup, |running| {
+        let token = running.token();
+        std::thread::scope(|scope| {
+            scope.spawn(|| get(running, "/api/workflows", &token));
+            // Board has started and sleeps, so the list holds the turn.
+            while !log.exists() {
+                #[expect(
+                    clippy::disallowed_methods,
+                    reason = "the test waits for a child that it cannot observe otherwise"
+                )]
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            let started = Instant::now();
+
+            let deck = get(running, "/api/deck", &token);
+
+            assert!(started.elapsed() < Duration::from_secs(2));
+            assert_eq!(deck.json(), json!({"tool": false, "board": true}));
+            let runs = std::fs::read_to_string(&log).unwrap_or_default();
+            assert_eq!(runs.lines().count(), 1, "{runs}");
+            running.stop();
+        });
+        Then::Wait
+    });
 }

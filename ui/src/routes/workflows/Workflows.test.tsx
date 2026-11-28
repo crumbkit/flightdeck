@@ -3,11 +3,16 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeQueryClient } from "@/queryClient";
-import { developmentFlow, tangledFlow, workflowsList } from "../../../tests/fixtures/workflows";
+import {
+  developmentFlow,
+  developmentFlowOnOlderFlow,
+  tangledFlow,
+  workflowsList,
+} from "../../../tests/fixtures/workflows";
 import Workflows from "./Workflows";
 
-/** Answers the workflows routes with the fake board's documents. */
-function stubServer() {
+/** Answers the workflows routes with the fake board's documents, or `flow` for the development flow. */
+function stubServer(flow: object = developmentFlow) {
   vi.stubGlobal("fetch", async (path: string) => {
     if (path === "/api/workflows") {
       return Response.json(workflowsList);
@@ -15,8 +20,15 @@ function stubServer() {
     if (path === "/api/workflows/tangled") {
       return Response.json(tangledFlow);
     }
-    return Response.json(developmentFlow);
+    return Response.json(flow);
   });
+}
+
+/** Records what the page copies to the clipboard. */
+function stubClipboard() {
+  const writeText = vi.fn(async (_text: string) => {});
+  vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+  return writeText;
 }
 
 /** Makes the window as narrow as a phone's when `phone`. */
@@ -131,6 +143,50 @@ describe("Workflows on desktop", () => {
     expect(screen.getByRole("button", { name: /^Waits: Owner signs the plan/ })).toBeVisible();
   });
 
+  it("marks every change not on the running version as on an older flow when a newer version runs", async () => {
+    stubServer(developmentFlowOnOlderFlow);
+    stubWidth(false);
+    renderPage("development-flow", "plan");
+
+    const panel = await screen.findByRole("complementary", { name: "Selected" });
+    expect(
+      screen.getByText(/6 changes are open on this flow, 6 of them on an older version/),
+    ).toBeVisible();
+    expect(screen.getByText(/The changes plugin now runs/)).toBeVisible();
+    expect(screen.getByText("Older than the running flow")).toBeVisible();
+    expect(screen.getByText(/open, 3 on an older flow/)).toBeVisible();
+    expect(screen.getAllByText(/open, 1 on an older flow/)).toHaveLength(2);
+    const graph = screen.getByRole("region", { name: "Graph" });
+    const dots = graph.querySelectorAll(".wf-bandlab .wf-dot");
+    expect(dots).toHaveLength(5);
+    expect(graph.querySelectorAll(".wf-bandlab .wf-dot.wf-dot-old")).toHaveLength(5);
+    expect(within(panel).getByText("flow 3029fae5")).toBeVisible();
+    expect(within(panel).getAllByText("flow 23eb709b")).toHaveLength(2);
+    expect(within(panel).queryByText("this version")).toBeNull();
+  });
+
+  it("copies a board get command that quotes a path holding a shell character", async () => {
+    const writeText = stubClipboard();
+    const odd = structuredClone(developmentFlow);
+    const [first] = odd.data.bindings.flatMap((binding) => binding.records);
+    if (first === undefined) {
+      throw new Error("the fixture places no change");
+    }
+    first.path = "/changes/a b;rm -rf ~";
+    stubServer(odd);
+    stubWidth(false);
+    renderPage("development-flow", "plan");
+    const panel = await screen.findByRole("complementary", { name: "Selected" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Open the flow record" }));
+    await userEvent.click(within(panel).getByRole("button", { name: "The page shows a sample" }));
+
+    expect(writeText.mock.calls.map(([text]) => text)).toEqual([
+      "board get /flows/development/3029fae590f5a628",
+      "board get '/changes/a b;rm -rf ~'",
+    ]);
+  });
+
   it("shows the problems and no graph for a record the check rejects", async () => {
     stubServer();
     stubWidth(false);
@@ -144,6 +200,19 @@ describe("Workflows on desktop", () => {
 });
 
 describe("Workflows on a phone", () => {
+  it("shortens each graph's title in the switch", async () => {
+    stubServer();
+    stubWidth(true);
+    renderPage("development-flow");
+
+    const switcher = await screen.findByRole("group", { name: "Workflow" });
+    expect(
+      within(switcher)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["broken", "Development", "Small", "Tangled", "Weekly loop"]);
+  });
+
   it("is a run sheet with lane labels and conditional checks hidden at first", async () => {
     stubServer();
     stubWidth(true);

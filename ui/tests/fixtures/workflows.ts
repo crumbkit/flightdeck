@@ -13,3 +13,14 @@ import tangled from "./workflows-show-tangled.json" with { type: "json" };
 export const workflowsList = list;
 export const developmentFlow = show;
 export const tangledFlow = tangled;
+
+/**
+ * The development flow as the page would get it once Board names the
+ * running version of a flow: a newer version than the one the graph reads.
+ * flightdeck sends `running` as null until then, so only the unit tests
+ * use this document.
+ */
+export const developmentFlowOnOlderFlow = {
+  ...show,
+  data: { ...show.data, running: "/flows/development/7c1e04b29d3a5f60" },
+};

@@ -4,7 +4,8 @@ import { getJson } from "./client";
 
 /**
  * The reply of `GET /api/deck`: whether flightdeck started with a tool,
- * and whether the board program answered, so the rail shows Workflows.
+ * and whether it reads a board with a Board program that it found, so the
+ * rail asks for the graphs. The server starts no Board to answer it.
  */
 const DeckReply = z.object({ tool: z.boolean(), board: z.boolean() });
 export type DeckReply = z.infer<typeof DeckReply>;

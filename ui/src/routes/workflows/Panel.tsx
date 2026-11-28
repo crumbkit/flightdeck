@@ -152,7 +152,9 @@ function GroupPanel({
             {records.length === 0 ? (
               <p className="wf-cap">Nothing is open in this phase.</p>
             ) : (
-              records.map((record) => <Record key={record.path} {...record} open={open} same />)
+              records.map((record) => (
+                <Record key={record.path} {...record} open={open} same={shown.running === null} />
+              ))
             )}
           </div>
           <Counts shown={shown} target={group.id} />

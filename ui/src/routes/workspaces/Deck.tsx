@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
 import { lazy, type ReactNode, Suspense, useState } from "react";
+import { ApiError } from "@/api/client";
 import { workflowsQuery } from "@/api/workflows";
 import { workspacesQuery } from "@/api/workspaces";
 import { hrefOf, type Place } from "@/lib/place";
@@ -63,12 +64,21 @@ function Page({ place, onSignedOut }: { place: Place; onSignedOut: () => void })
   return <Workspaces onSignedOut={onSignedOut} />;
 }
 
+/** Returns whether `error` is the list's answer that the board program will not start. */
+function boardWillNotStart(error: Error | null): boolean {
+  return (
+    error instanceof ApiError &&
+    error.failure.kind === "status" &&
+    error.failure.problem?.code === "flightdeck::board::not_found"
+  );
+}
+
 type Props = {
   /** The place that the address names. The start shows the workspaces list. */
   place: Place;
   /** Whether flightdeck holds a tool, so the rail links to its commands. */
   tool: boolean;
-  /** Whether the board program answered, so the rail links to the Workflows page. */
+  /** Whether the server reads a board, so the rail asks for its graphs and links to the Workflows page. */
   board: boolean;
   /** Called when the server refuses the page's token. */
   onSignedOut: () => void;
@@ -79,13 +89,15 @@ type Props = {
  * views, beside the Workspaces page, the One workspace page or the
  * Workflows page. The rail's workspace counts come from the Workspaces
  * page's last answer, so the One workspace page does not ask mxv about
- * every workspace. The Workflows entry shows only when the board program
- * answered, with the number of graphs. On a phone the Workflows page keeps
- * the rail behind a Views button.
+ * every workspace. The Workflows entry shows, with the number of graphs,
+ * when the server reads a board, until the list says that the board
+ * program will not start. On a phone the Workflows page keeps the rail
+ * behind a Views button.
  */
 export default function Deck({ place, tool, board, onSignedOut }: Props) {
   const list = useQuery({ ...workspacesQuery(), enabled: false });
   const graphs = useQuery({ ...workflowsQuery(), enabled: board });
+  const startsBoard = board && !boardWillNotStart(graphs.error);
   const count = list.data?.summary.workspaces;
   const listHref = hrefOf({ view: "workspaces" });
   const workflows = place.view === "workflows";
@@ -125,7 +137,7 @@ export default function Deck({ place, tool, board, onSignedOut }: Props) {
           <RailLink href={listHref} on={!workflows} count={count}>
             Workspaces
           </RailLink>
-          {board && (
+          {startsBoard && (
             <RailLink
               href={hrefOf({ view: "workflows", slug: null, selected: null })}
               on={workflows}

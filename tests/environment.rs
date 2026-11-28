@@ -64,3 +64,40 @@ fn self_environment_list_prints_flightdecks_variables_with_their_rules_as_json()
         "crumbkit's own variables follow flightdeck's: {document}"
     );
 }
+
+#[test]
+fn self_environment_list_never_prints_the_values_of_home_or_xdg_data_home() {
+    let state = tempfile::tempdir().unwrap();
+    for json in [false, true] {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_flightdeck"));
+        command.args(["self", "environment", "list"]);
+        if json {
+            command.args(["--json", "--full"]);
+        }
+        let output = command
+            .env_clear()
+            .env("PATH", "/flightdeck/bin")
+            .env("XDG_STATE_HOME", state.path())
+            .env("HOME", "/home/a-private-name")
+            .env("XDG_DATA_HOME", "/data/another-private-name")
+            .stdin(Stdio::null())
+            .output()
+            .unwrap();
+
+        assert_eq!(output.status.code(), Some(0));
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(!stdout.contains("private-name"), "{stdout}");
+        if json {
+            let document: Value = serde_json::from_slice(&output.stdout).unwrap();
+            for name in ["HOME", "XDG_DATA_HOME"] {
+                let row = document["data"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|row| row["name"] == name)
+                    .unwrap();
+                assert_eq!(row["state"], "set", "{row}");
+            }
+        }
+    }
+}

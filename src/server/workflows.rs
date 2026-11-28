@@ -55,12 +55,11 @@ impl Workflows {
         reply(workflows::show(&self.board, &slug, &self.stop).map(|shown| shown.to_json()))
     }
 
-    /// Returns whether Board answers, even with a failure, so the page
-    /// shows its Workflows entry. Only a Board that will not start answers
-    /// false.
-    pub(super) fn answers(&self) -> bool {
-        let _turn = lock(&self.turn);
-        workflows::list(&self.board, &self.stop).map_or_else(|error| !error.no_board(), |_| true)
+    /// Returns whether flightdeck found a Board program to run, without
+    /// starting it or waiting for a query in progress, so the deck answers
+    /// at once. The page's list query then says whether Board starts.
+    pub(super) const fn found(&self) -> bool {
+        self.board.found()
     }
 
     /// Cancels the query in progress and every later one, as the server

@@ -3,9 +3,14 @@
 //! writes them where Board finds plugins, and the one capability,
 //! `flightdeck.check`, that Board calls.
 //!
-//! [`install`] writes `<data>/board/plugins/flightdeck/` by writing a
-//! temporary directory beside it, reading back what it wrote, and then
-//! renaming it over the old one, so a failure leaves the old plugin whole.
+//! [`install`] writes `<data>/board/plugins/flightdeck/` in two renames. It
+//! writes a temporary directory beside it and reads back what it wrote. It
+//! then renames the old plugin aside to `.flightdeck-old-<pid>` and renames
+//! the new directory into place. When the second rename fails, it renames
+//! the old plugin back. Between the two renames no plugin is at
+//! `flightdeck/`, so a Board that looks then finds none, and a crash there
+//! leaves the old plugin whole under `.flightdeck-old-<pid>`, where a
+//! person can rename it back.
 //! Enabling the plugin in a board stays a separate `board plugin enable
 //! flightdeck`, so installing changes no board.
 //!
@@ -160,8 +165,9 @@ pub fn plugins_directory(
 /// # Errors
 ///
 /// Returns [`InstallError::Failed`] when a directory cannot be made, a file
-/// cannot be written or read back, or the rename fails. The temporary
-/// directory is removed and the old plugin directory is left whole.
+/// cannot be written or read back, or a rename fails. The temporary
+/// directory is removed and the old plugin directory is renamed back, or,
+/// when that rename fails too, left whole under the name the error gives.
 pub fn install(plugins: &Path) -> Result<Installed, InstallError> {
     let failed = |path: &Path, step: &'static str| {
         let path = path.display().to_string();

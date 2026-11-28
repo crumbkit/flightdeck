@@ -106,6 +106,26 @@ describe("Deck", () => {
     expect(asked).not.toHaveBeenCalledWith("/api/workflows");
   });
 
+  it("hides Workflows when the list says that the board program will not start", async () => {
+    vi.stubGlobal("fetch", async (path: string) =>
+      path === "/api/workflows"
+        ? Response.json(
+            {
+              code: "flightdeck::board::not_found",
+              message: "flightdeck could not start board",
+            },
+            { status: 500 },
+          )
+        : Response.json(workspacesList),
+    );
+    renderDeck({ place: { view: "workspaces" }, tool: false, board: true, onSignedOut: () => {} });
+
+    const views = screen.getByRole("navigation", { name: "Views" });
+    await vi.waitFor(() =>
+      expect(within(views).queryByRole("link", { name: /^Workflows/ })).toBeNull(),
+    );
+  });
+
   it("shows the Workflows page with its rail entry filled", async () => {
     stubServer();
     renderDeck({

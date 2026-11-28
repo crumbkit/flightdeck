@@ -123,14 +123,15 @@ fn workflows_show_skips_and_counts_a_degraded_bound_record() {
     );
 }
 
-#[test]
-fn freshness_is_changed_when_a_commit_after_the_subjects_commit_changed_the_subject() {
+/// Writes a graphs query report that holds the weekly suite loop read at
+/// `commit`, and returns the directory that holds it and the report's path.
+fn weekly_read_at(commit: &str) -> (tempfile::TempDir, PathBuf) {
     let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/board");
     let mut graph: Value = serde_json::from_str(
         &std::fs::read_to_string(fixtures.join("graphs/weekly-suite-loop.json")).unwrap(),
     )
     .unwrap();
-    graph["subject"]["commit"] = json!("3d0e85285b4819d32b04cd569fe57a925558359d");
+    graph["subject"]["commit"] = json!(commit);
     let report = json!({
         "schema": "board/query-report/v2",
         "data": [["/workflow-graphs/weekly-suite-loop", "flightdeck/workflow-graph/v1", "ok", null, graph.to_string()]],
@@ -140,6 +141,12 @@ fn freshness_is_changed_when_a_commit_after_the_subjects_commit_changed_the_subj
     let directory = tempfile::tempdir().unwrap();
     let graphs = directory.path().join("graphs.json");
     std::fs::write(&graphs, report.to_string()).unwrap();
+    (directory, graphs)
+}
+
+#[test]
+fn freshness_is_changed_when_a_commit_after_the_subjects_commit_changed_the_subject() {
+    let (_directory, graphs) = weekly_read_at("3d0e85285b4819d32b04cd569fe57a925558359d");
 
     let earlier = shown(
         &board(&[("FAKE_BOARD_GRAPHS", graphs.to_str().unwrap())]),
@@ -149,6 +156,23 @@ fn freshness_is_changed_when_a_commit_after_the_subjects_commit_changed_the_subj
 
     assert_eq!(earlier.freshness, Freshness::Changed);
     assert_eq!(current.freshness, Freshness::Current);
+}
+
+#[test]
+fn a_reading_whose_commit_is_not_a_full_commit_id_is_unchecked_and_says_why() {
+    let (_directory, graphs) = weekly_read_at("3d0e852");
+
+    let shown = shown(
+        &board(&[("FAKE_BOARD_GRAPHS", graphs.to_str().unwrap())]),
+        "weekly-suite-loop",
+    );
+
+    assert_eq!(
+        shown.freshness,
+        Freshness::Unchecked {
+            reason: "the reading's commit is not a full commit id".to_owned()
+        }
+    );
 }
 
 #[test]

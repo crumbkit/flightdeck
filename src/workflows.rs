@@ -214,6 +214,13 @@ impl Board {
         }
     }
 
+    /// Returns whether flightdeck found a Board program to run. It starts
+    /// nothing, so a program that will not start still counts as found.
+    #[must_use]
+    pub const fn found(&self) -> bool {
+        self.program.is_some()
+    }
+
     /// Returns the queries with `limits` in place of the default ones.
     #[must_use]
     pub const fn limits(mut self, limits: BoardLimits) -> Self {
@@ -827,7 +834,7 @@ pub fn show(board: &Board, slug: &Slug, stop: &Cancel) -> Result<WorkflowShow, W
     } else {
         None
     };
-    let freshness = freshness(&subject.reference, &mut answers);
+    let freshness = freshness(&subject.reference, &subject.commit, &mut answers);
     let bindings = graph
         .graph
         .bindings
@@ -873,10 +880,11 @@ fn freshness_queries(reference: &str, commit: &str) -> Vec<BoardQuery> {
     queries
 }
 
-/// Returns whether the subject at `reference` changed since the reading,
-/// from the answers of [`freshness_queries`].
+/// Returns whether the subject at `reference` changed since the reading at
+/// `commit`, from the answers of [`freshness_queries`].
 fn freshness(
     reference: &str,
+    commit: &str,
     answers: &mut impl Iterator<Item = Result<Finished, SpawnError>>,
 ) -> Freshness {
     if BoardPath::new(reference).is_none() {
@@ -900,6 +908,11 @@ fn freshness(
     if reference.starts_with(FLOWS) {
         return Freshness::Unchecked {
             reason: "Board cannot name the running version of a flow yet".to_owned(),
+        };
+    }
+    if Commit::new(commit).is_none() {
+        return Freshness::Unchecked {
+            reason: "the reading's commit is not a full commit id".to_owned(),
         };
     }
     match newest(answers.next()) {

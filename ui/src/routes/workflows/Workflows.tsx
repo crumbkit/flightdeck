@@ -14,8 +14,16 @@ import { Failure } from "@/components/Failure";
 import { go, hrefOf } from "@/lib/place";
 import { layout } from "@/lib/workflowLayout";
 import "./workflows.css";
+import { shellWord } from "@/lib/shell";
 import { Graph } from "./Graph";
-import { headline, type Selection, selectionOf, stillThere } from "./model";
+import {
+  againstRunning,
+  headline,
+  phoneLabel,
+  type Selection,
+  selectionOf,
+  stillThere,
+} from "./model";
 import { Panel } from "./Panel";
 import { usePhone } from "./phone";
 import { RunSheet } from "./RunSheet";
@@ -69,7 +77,7 @@ function Switch({ rows, slug, phone }: { rows: GraphRow[]; slug: string; phone: 
   const choose = (next: string) => go({ view: "workflows", slug: next, selected: null });
   const name = (row: GraphRow) => {
     const title = row.title ?? row.slug;
-    return phone ? title.replace(/ flow$/, "") : title;
+    return phone ? phoneLabel(title) : title;
   };
   if (rows.length > 6) {
     return (
@@ -396,7 +404,7 @@ export default function Workflows({ slug, selected, onSignedOut }: Props) {
   }, [refused, onSignedOut]);
 
   const open = (path: string) => {
-    const command = `board get ${path}`;
+    const command = `board get ${shellWord(path)}`;
     navigator.clipboard?.writeText(command).then(
       () => setCopied(command),
       () => setCopied(null),
@@ -475,7 +483,7 @@ export default function Workflows({ slug, selected, onSignedOut }: Props) {
           <Drawn
             key={`${shown.data.slug}-${phone}`}
             graph={shown.data.graph}
-            shown={shown.data}
+            shown={againstRunning(shown.data)}
             rows={rows}
             phone={phone}
             initial={slug === shown.data.slug ? selected : null}

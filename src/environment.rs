@@ -38,10 +38,10 @@ pub(crate) struct Environment {
     board_bin: Option<OsString>,
     /// The directory of the person's data files, or `None`.
     #[starmap("XDG_DATA_HOME")]
-    data_home: Option<OsString>,
+    data_home: Option<starmap::Secret>,
     /// The person's home directory, or `None`.
     #[starmap("HOME")]
-    home: Option<OsString>,
+    home: Option<starmap::Secret>,
 }
 
 impl Environment {
@@ -81,12 +81,12 @@ impl Environment {
     }
 
     /// Returns the directory that `XDG_DATA_HOME` names, or `None`.
-    pub(crate) fn data_home(&self) -> Option<&OsStr> {
-        self.data_home.as_deref()
+    pub(crate) fn data_home(&self) -> Option<&str> {
+        self.data_home.as_ref().map(starmap::Secret::expose)
     }
 
     /// Returns the directory that `HOME` names, or `None`.
-    pub(crate) fn home(&self) -> Option<&OsStr> {
-        self.home.as_deref()
+    pub(crate) fn home(&self) -> Option<&str> {
+        self.home.as_ref().map(starmap::Secret::expose)
     }
 }

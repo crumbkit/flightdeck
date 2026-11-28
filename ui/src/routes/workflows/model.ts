@@ -3,7 +3,41 @@ import type { Graph, Placed, WorkflowShow } from "@/api/workflows";
 /** What the page has selected: a node or a group, by its id. */
 export type Selection = { kind: "node" | "group"; id: string } | null;
 
-/** Returns the live records on `target`, those on the graph's version first. */
+/**
+ * Returns `shown` with each change's `current` taken against the running
+ * version of the workflow when the server names one, so every change not
+ * on the running version counts as on an older flow, including those on
+ * the version the graph reads. A change whose binding names no version
+ * stays current. With no running version, `shown` is returned as it is.
+ */
+export function againstRunning(shown: WorkflowShow): WorkflowShow {
+  const running = shown.running;
+  if (running === null) {
+    return shown;
+  }
+  return {
+    ...shown,
+    bindings: shown.bindings.map((binding) => ({
+      ...binding,
+      records: binding.records.map((record) => ({
+        ...record,
+        current: record.version === null || record.version === running,
+      })),
+    })),
+  };
+}
+
+/**
+ * Returns the short label of a graph's title in a phone's switch: the
+ * title without a trailing " flow", and of a longer title only its first
+ * and last words, so "Weekly suite loop" reads "Weekly loop".
+ */
+export function phoneLabel(title: string): string {
+  const words = title.replace(/ flow$/, "").split(" ");
+  return words.length > 2 ? `${words[0]} ${words[words.length - 1]}` : words.join(" ");
+}
+
+/** Returns the live records on `target`, the current ones first. */
 export function liveOf(shown: WorkflowShow, target: string): Placed[] {
   return shown.bindings
     .filter((binding) => binding.target === target)
