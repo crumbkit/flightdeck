@@ -1,0 +1,13 @@
+Read the workflow graphs of a board
+
+Usage: flightdeck workflows [OPTIONS] <COMMAND>
+
+Commands:
+  list  List the workflow graphs with their node counts and whether each is drawn
+  show  Show one workflow graph with its problems, live records and freshness
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Global flags: --json, --fields <FIELD>, --long, --full, --no-input. `flightdeck workflows --help` describes them.
+Next: flightdeck workflows <COMMAND> -h

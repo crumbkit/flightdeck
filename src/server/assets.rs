@@ -87,6 +87,18 @@ pub(super) const ALL: &[Asset] = &[
         content_type: "text/css; charset=utf-8",
         body: include_bytes!("../../ui/dist/assets/Deck.css"),
     },
+    // The Workflows page, which the page loads the first time it shows.
+    Asset {
+        path: "/assets/Workflows.js",
+        content_type: "text/javascript; charset=utf-8",
+        body: include_bytes!("../../ui/dist/assets/Workflows.js"),
+    },
+    // The Workflows page's layout, which loads with its file.
+    Asset {
+        path: "/assets/Workflows.css",
+        content_type: "text/css; charset=utf-8",
+        body: include_bytes!("../../ui/dist/assets/Workflows.css"),
+    },
     // The help-page measurement that the weight and both tabs share.
     Asset {
         path: "/assets/measure.js",

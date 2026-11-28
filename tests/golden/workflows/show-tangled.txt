@@ -1,0 +1,8 @@
+Tangled flow (/workflow-graphs/tangled)
+reads /flows/small/f5df48f0a0456d93 at 07dee526
+4 lanes, 3 groups, 11 nodes, 12 edges
+status: problems
+flightdeck::graph::unknown_end at /edges/2/to: the edge's to is nowhere, which names no node or group
+build: 1 placed, 1 skipped
+review: 0 placed, 1 skipped
+land: 0 placed, 1 skipped

@@ -10,6 +10,8 @@ Start a local web page for a crumbkit tool
 
 - [`flightdeck open`](#flightdeck-open): Open a local web page of the mxv workspaces and a tool's commands
 - [`flightdeck workspaces`](#flightdeck-workspaces): Read the local mxv workspaces
+- [`flightdeck workflows`](#flightdeck-workflows): Read the workflow graphs of a board
+- [`flightdeck plugin`](#flightdeck-plugin): Install the flightdeck Board plugin, or answer Board's call of it
 - [`flightdeck compliance`](#flightdeck-compliance): Fetch the repositories' rules reports and build the compliance document
 - [`flightdeck commands`](#flightdeck-commands): Explore flightdeck's commands
 - [`flightdeck skills`](#flightdeck-skills): Give coding agents flightdeck's skill
@@ -118,6 +120,104 @@ Print the document that the page of the workspace reading-list draws.
 
 ```sh
 flightdeck workspaces show reading-list --json
+```
+
+Effects: read-only, closed-world.
+
+## `flightdeck workflows`
+
+Read the workflow graphs of a board
+
+### Commands
+
+- [`flightdeck workflows list`](#flightdeck-workflows-list): List the workflow graphs with their node counts and whether each is drawn
+- [`flightdeck workflows show`](#flightdeck-workflows-show): Show one workflow graph with its problems, live records and freshness
+
+## `flightdeck workflows list`
+
+List the workflow graphs with their node counts and whether each is drawn
+
+### Examples
+
+List the workflow graphs of the personal board.
+
+```sh
+flightdeck workflows list
+```
+
+Print the document that the Workflows rail and switch read.
+
+```sh
+flightdeck workflows list --json --full
+```
+
+### Columns
+
+- `slug`: The graph's slug, the last part of its path.
+- `title`: The graph's title, or null when flightdeck cannot read the record.
+- `nodes`: The number of nodes, or null.
+- `status`: Whether Flightdeck draws the graph.
+- `problems`: The number of problems that the check finds.
+
+### Columns that `--long` adds
+
+- `subject`: The path of the record or file the graph reads, or null.
+- `made`: When the reading was written, or null.
+- `code`: Board's code, or flightdeck's, of a degraded record, or null.
+
+Effects: read-only, closed-world.
+
+## `flightdeck workflows show`
+
+Show one workflow graph with its problems, live records and freshness
+
+### Arguments
+
+- `<SLUG>`: The graph's slug, as `flightdeck workflows list` prints it. Required.
+
+### Examples
+
+Print the document that the Workflows page draws for the development flow.
+
+```sh
+flightdeck workflows show development-flow --json
+```
+
+Effects: read-only, closed-world.
+
+## `flightdeck plugin`
+
+Install the flightdeck Board plugin, or answer Board's call of it
+
+### Commands
+
+- [`flightdeck plugin install`](#flightdeck-plugin-install): Write the plugin's manifest and schema where Board finds its plugins
+- [`flightdeck plugin call`](#flightdeck-plugin-call): Answer one board/call/v1 request from Board on standard input
+
+## `flightdeck plugin install`
+
+Write the plugin's manifest and schema where Board finds its plugins
+
+### Examples
+
+Write the flightdeck Board plugin where Board finds its plugins.
+
+```sh
+flightdeck plugin install
+```
+
+Effects: additive, idempotent, closed-world.
+
+## `flightdeck plugin call`
+
+Answer one board/call/v1 request from Board on standard input
+
+### Examples
+
+Answer the board/call/v1 request that Board writes on standard input.
+
+```sh
+flightdeck plugin call
 ```
 
 Effects: read-only, closed-world.

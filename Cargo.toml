@@ -15,6 +15,7 @@ categories = ["command-line-utilities"]
 include = [
     "/src/**",
     "/skill/**",
+    "/plugin/**",
     "/ui/dist/**",
     "/starmap.toml",
     "/Cargo.toml",

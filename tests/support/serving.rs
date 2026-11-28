@@ -1,6 +1,7 @@
 //! A page's server for the server and route tests, run in-process on a port
 //! the system picks. It loads one tool's model, or none, gives the server a
-//! runner of the tool and the workspaces of the fake mxv, writes the opener
+//! runner of the tool, the workspaces of the fake mxv and the workflow
+//! graphs of the fake board, writes the opener
 //! page, and reads the launch code back from it.
 //! The server's clock is injected, so no test waits for the idle limit.
 
@@ -15,7 +16,9 @@ use crumbkit_flightdeck::model;
 use crumbkit_flightdeck::opener::Opener;
 use crumbkit_flightdeck::runner::{self, Mode, Runner};
 use crumbkit_flightdeck::server::{Ended, Listener, Server, Session, Settings};
+use crumbkit_flightdeck::spawn::BoardAt;
 use crumbkit_flightdeck::spawn::{Program, TIME_LIMIT};
+use crumbkit_flightdeck::workflows::Board;
 use crumbkit_flightdeck::workspaces::Mxv;
 use tempfile::TempDir;
 
@@ -88,6 +91,11 @@ pub(crate) fn fake_mxv() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mxv/mxv")
 }
 
+/// Returns the path of the fake board of the workflows tests.
+pub(crate) fn fake_board() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/board/fake/board")
+}
+
 /// Returns the path of the fake tool `unruly` of the runner's tests.
 #[cfg(unix)]
 pub(crate) fn unruly() -> PathBuf {
@@ -100,6 +108,8 @@ pub(crate) struct Setup {
     tool: Option<PathBuf>,
     mxv: Vec<(String, OsString)>,
     mxv_program: Option<PathBuf>,
+    board: Vec<(String, OsString)>,
+    board_program: Option<PathBuf>,
     program: Option<PathBuf>,
     env: Vec<(String, OsString)>,
     mode: Mode,
@@ -116,6 +126,8 @@ impl Setup {
             tool: Some(tool),
             mxv: Vec::new(),
             mxv_program: None,
+            board: Vec::new(),
+            board_program: None,
             program: None,
             env: Vec::new(),
             mode: Mode::Full,
@@ -148,6 +160,19 @@ impl Setup {
     /// Asks the mxv at `path` for the workspaces in place of the fake mxv.
     pub(crate) fn mxv_program(mut self, path: PathBuf) -> Self {
         self.mxv_program = Some(path);
+        self
+    }
+
+    /// Gives the fake board the variable `name` with `value`.
+    pub(crate) fn board_env(mut self, name: &str, value: impl Into<OsString>) -> Self {
+        self.board.push((name.to_owned(), value.into()));
+        self
+    }
+
+    /// Asks the Board at `path` for the workflow graphs in place of the
+    /// fake board.
+    pub(crate) fn board_program(mut self, path: PathBuf) -> Self {
+        self.board_program = Some(path);
         self
     }
 
@@ -267,7 +292,13 @@ pub(crate) fn serving(setup: Setup, test: impl FnOnce(&Running<'_>) -> Then) -> 
     for (name, value) in &setup.mxv {
         mxv = mxv.env(name, value);
     }
-    let server = server.workspaces(Mxv::new(mxv));
+    let mut board = Program::new(setup.board_program.clone().unwrap_or_else(fake_board));
+    for (name, value) in &setup.board {
+        board = board.env(name, value);
+    }
+    let server = server
+        .workspaces(Mxv::new(mxv))
+        .workflows(Board::new(board, BoardAt::Personal));
     let stop = AtomicBool::new(false);
     std::thread::scope(|scope| {
         let handle = scope.spawn(|| server.run(&*clock, &stop));

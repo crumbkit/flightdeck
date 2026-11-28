@@ -71,7 +71,15 @@
         "dist/**/*",
         "!dist/compliance.html"
       ],
-      "limit": "265 kB"
+      "limit": "277 kB"
+    },
+    {
+      "name": "workflows page",
+      "path": [
+        "dist/assets/Workflows.js",
+        "dist/assets/Workflows.css"
+      ],
+      "limit": "12 kB"
     },
     {
       "name": "compliance page",

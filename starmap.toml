@@ -32,3 +32,42 @@ unset = "optional"
 effect = "When unset, flightdeck runs mxv from PATH."
 show = "shown"
 source = "setting"
+
+[variables.FLIGHTDECK_BOARD_PROGRAM]
+purpose = "The Board program whose board the Workflows page and `flightdeck workflows` read, by a name on PATH or a path."
+type = "path"
+unset = "optional"
+effect = "When unset, flightdeck runs board from PATH."
+show = "shown"
+source = "setting"
+
+[variables.FLIGHTDECK_BOARD]
+purpose = "The directory of the board that the Workflows page and `flightdeck workflows` read, which flightdeck passes to Board as -C."
+type = "path"
+unset = "optional"
+effect = "When unset, flightdeck reads the person's own board, as `board --personal` does."
+show = "shown"
+source = "setting"
+
+[variables.BOARD_BIN]
+purpose = "The Board program that Board gives a plugin it calls, which `flightdeck plugin call` runs to read the board."
+type = "path"
+unset = "optional"
+effect = "When unset, `flightdeck plugin call` runs board from PATH."
+show = "shown"
+source = "inherited"
+
+[variables.XDG_DATA_HOME]
+purpose = "The directory under which `flightdeck plugin install` writes board/plugins/flightdeck, where Board finds its plugins."
+type = "path"
+unset = "optional"
+effect = "When unset or relative, flightdeck uses .local/share under HOME, as Board does."
+show = "shown"
+source = "inherited"
+
+[variables.HOME]
+purpose = "The home directory, under whose .local/share `flightdeck plugin install` writes the plugin when XDG_DATA_HOME is unset."
+type = "path"
+unset = "optional"
+show = "shown"
+source = "inherited"

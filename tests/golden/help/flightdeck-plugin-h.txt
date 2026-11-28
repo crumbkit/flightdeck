@@ -1,0 +1,13 @@
+Install the flightdeck Board plugin, or answer Board's call of it
+
+Usage: flightdeck plugin [OPTIONS] <COMMAND>
+
+Commands:
+  install  Write the plugin's manifest and schema where Board finds its plugins
+  call     Answer one board/call/v1 request from Board on standard input
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Global flags: --json, --fields <FIELD>, --long, --full, --no-input. `flightdeck plugin --help` describes them.
+Next: flightdeck plugin <COMMAND> -h

@@ -13,11 +13,16 @@
 //!
 //! - `POST /api/session` exchanges the launch code for the token, once.
 //! - `GET /api/deck` says whether the server holds a tool, so the page
-//!   knows whether to load its model.
+//!   knows whether to load its model, and whether Board answers, so the
+//!   page shows its Workflows entry.
 //! - `GET /api/workspaces` and `GET /api/workspaces/<name>` answer with the
 //!   documents of `flightdeck workspaces list` and `show`, as the
 //!   `workspaces` module describes. They answer 404 when the server reads no
 //!   workspaces.
+//! - `GET /api/workflows` and `GET /api/workflows/<slug>` answer with the
+//!   documents of `flightdeck workflows list` and `show`, as the
+//!   `workflows` module describes. They answer 404 when the server reads no
+//!   board.
 //! - `GET /api/model` returns the tool's model, whether the page is
 //!   read-only and the directory that flightdeck started in.
 //! - `GET /api/weight` returns the bytes of each distinct help page of the
@@ -57,6 +62,7 @@ mod request;
 mod secret;
 mod session;
 mod stream;
+mod workflows;
 mod workspaces;
 
 #[cfg(test)]
@@ -81,11 +87,13 @@ use self::reply::{Refusal, Replies, Reply};
 use self::request::{API, Address, Head, Method};
 pub use self::session::{CODE_LIFETIME, Session};
 use self::stream::{Pacing, Stream};
+use self::workflows::Workflows;
 use self::workspaces::Workspaces;
 use crate::clock::Clock;
 use crate::lock::lock;
 use crate::model::Tool;
 use crate::runner::{Choices, ChoicesRequest, MOST_RUNS, Mode, RunFailure, RunRequest, Runner};
+use crate::workflows::Board;
 use crate::workspaces::Mxv;
 
 /// The query of `GET /api/weight` that asks the runner to measure a partial
@@ -272,6 +280,9 @@ struct ModelReply<'a> {
 struct DeckReply {
     /// Whether the server holds a tool, whose model `GET /api/model` sends.
     tool: bool,
+    /// Whether the server reads a board whose Board program answers, so
+    /// the page shows its Workflows entry.
+    board: bool,
 }
 
 /// The document of `POST /api/session`.
@@ -293,12 +304,12 @@ pub struct Server {
 struct Shared {
     address: Address,
     session: Mutex<Session>,
-    deck: Vec<u8>,
     model: Option<Vec<u8>>,
     replies: Replies,
     connections: Connections,
     runner: Option<Runner>,
     workspaces: Option<Workspaces>,
+    workflows: Option<Workflows>,
     settings: Settings,
     wake: SyncSender<Wake>,
     cut_off: OnceLock<Instant>,
@@ -362,6 +373,14 @@ impl Server {
         self
     }
 
+    /// Returns the server with the workflows routes, which read the
+    /// workflow graphs of `board`.
+    #[must_use]
+    pub fn workflows(mut self, board: Board) -> Self {
+        self.shared.workflows = Some(Workflows::new(board));
+        self
+    }
+
     /// Returns the server of `tool`, the model's reply and the runner, or
     /// of no tool.
     fn serving(
@@ -370,10 +389,6 @@ impl Server {
         tool: Option<(Vec<u8>, Runner)>,
         settings: Settings,
     ) -> Result<Self, StartError> {
-        let deck = serde_json::to_vec(&DeckReply {
-            tool: tool.is_some(),
-        })
-        .map_err(StartError::Json)?;
         let (model, runner) = tool.unzip();
         // One waiting wake is enough: the watcher stops at the first.
         let (wake, wakes) = mpsc::sync_channel(1);
@@ -381,12 +396,12 @@ impl Server {
             shared: Shared {
                 address: Address::new(listener.port()),
                 session: Mutex::new(session),
-                deck,
                 model,
                 replies: Replies::new(settings.write_time)?,
                 connections: Connections::default(),
                 runner,
                 workspaces: None,
+                workflows: None,
                 settings,
                 wake,
                 cut_off: OnceLock::new(),
@@ -439,6 +454,9 @@ impl Server {
             acceptor.join().ok();
             if let Some(workspaces) = &shared.workspaces {
                 workspaces.stop();
+            }
+            if let Some(workflows) = &shared.workflows {
+                workflows.stop();
             }
             if let Some(runner) = &shared.runner {
                 runner.shutdown();
@@ -631,9 +649,11 @@ impl Shared {
                 let document = format!(r#"{{"token":"{}"}}"#, token.expose_secret());
                 Ok(Answer::Reply(Reply::Json(document.into_bytes())))
             }
-            Route::Deck => Ok(Answer::Reply(Reply::Json(self.deck.clone()))),
+            Route::Deck => Ok(Answer::Reply(Reply::Json(self.deck()))),
             Route::Workspaces => Ok(Answer::Reply(self.workspaces()?.list())),
             Route::Workspace(name) => Ok(Answer::Reply(self.workspaces()?.show(name))),
+            Route::Workflows => Ok(Answer::Reply(self.workflows()?.list())),
+            Route::Workflow(slug) => Ok(Answer::Reply(self.workflows()?.show(slug))),
             Route::Model => Ok(Answer::Reply(Reply::Json(
                 self.model.clone().ok_or(Refusal::NotFound)?,
             ))),
@@ -709,6 +729,24 @@ impl Shared {
     /// server does not serve when it reads no workspaces.
     fn workspaces(&self) -> Result<&Workspaces, Refusal> {
         self.workspaces.as_ref().ok_or(Refusal::NotFound)
+    }
+
+    /// Returns the workflows routes, or the refusal of a path that the
+    /// server does not serve when it reads no board.
+    fn workflows(&self) -> Result<&Workflows, Refusal> {
+        self.workflows.as_ref().ok_or(Refusal::NotFound)
+    }
+
+    /// Returns the document of `GET /api/deck`: whether the server holds a
+    /// tool, and whether its Board answers, which it asks Board each time.
+    fn deck(&self) -> Vec<u8> {
+        let deck = DeckReply {
+            tool: self.model.is_some(),
+            board: self.workflows.as_ref().is_some_and(Workflows::answers),
+        };
+        // serde_json fails only on a map key that is not a string, and the
+        // reply has none.
+        serde_json::to_vec(&deck).unwrap_or_default()
     }
 
     /// Accepts the request's token. A request that finds the session
@@ -870,6 +908,9 @@ const RUNS: &str = "/api/runs/";
 /// The path prefix of one workspace, which its name follows.
 const WORKSPACE: &str = "/api/workspaces/";
 
+/// The path prefix of one workflow graph, which its slug follows.
+const WORKFLOW: &str = "/api/workflows/";
+
 /// Where a request goes.
 #[derive(Debug)]
 enum Route<'a> {
@@ -881,6 +922,10 @@ enum Route<'a> {
     Workspaces,
     /// `GET /api/workspaces/<name>`, with the name as the page sent it.
     Workspace(&'a str),
+    /// `GET /api/workflows`.
+    Workflows,
+    /// `GET /api/workflows/<slug>`, with the slug as the page sent it.
+    Workflow(&'a str),
     /// `GET /api/model`.
     Model,
     /// `GET /api/weight`.
@@ -922,10 +967,16 @@ impl<'a> Route<'a> {
         {
             return Self::Workspace(name);
         }
+        if method == Method::Get
+            && let Some(slug) = path.strip_prefix(WORKFLOW)
+        {
+            return Self::Workflow(slug);
+        }
         match (method, path) {
             (Method::Post, "/api/session") => Self::Session,
             (Method::Get, "/api/deck") => Self::Deck,
             (Method::Get, "/api/workspaces") => Self::Workspaces,
+            (Method::Get, "/api/workflows") => Self::Workflows,
             (Method::Get, "/api/model") => Self::Model,
             (Method::Get, "/api/weight") => Self::Weight,
             (Method::Post, "/api/runs") => Self::Runs,

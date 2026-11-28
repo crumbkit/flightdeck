@@ -1145,6 +1145,8 @@ fn the_workspaces_routes_refuse_a_request_without_the_token() {
             "/api/deck",
             "/api/workspaces",
             "/api/workspaces/reading-list",
+            "/api/workflows",
+            "/api/workflows/development-flow",
         ] {
             let reply = Call::get(running.port, path).send(running.port);
 
@@ -1279,7 +1281,7 @@ fn without_a_tool_the_deck_says_so_and_every_tool_route_answers_404() {
 
         assert_eq!(
             get(running, "/api/deck", &token).json(),
-            json!({"tool": false})
+            json!({"tool": false, "board": true})
         );
         for path in ["/api/model", "/api/weight"] {
             assert_eq!(get(running, path, &token).status, 404, "{path}");
@@ -1305,9 +1307,11 @@ fn with_a_tool_the_deck_says_so() {
     serving(Setup::shelf(), |running| {
         let token = running.token();
 
+        // Windows runs no shell script, so the fake board does not start
+        // there.
         assert_eq!(
             get(running, "/api/deck", &token).json(),
-            json!({"tool": true})
+            json!({"tool": true, "board": cfg!(unix)})
         );
         Then::Stop
     });
@@ -1345,4 +1349,106 @@ fn stopping_the_server_during_a_workspaces_query_ends_the_query_at_once() {
         Then::Wait
     });
     assert!(started.elapsed() < Duration::from_secs(5));
+}
+
+// The workflows routes, `GET /api/workflows` and `GET /api/workflows/<slug>`,
+// against the fake board in tests/fixtures/board/fake.
+
+/// Returns the golden document `name` of tests/golden/workflows/, which
+/// tests/workflows.rs keeps equal to what the commands print.
+#[cfg(unix)]
+fn workflows_golden(name: &str) -> Value {
+    let golden = std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/golden/workflows")
+            .join(name),
+    )
+    .unwrap();
+    serde_json::from_slice(&golden).unwrap()
+}
+
+#[cfg(unix)]
+#[test]
+fn the_workflows_routes_send_the_documents_that_workflows_list_and_show_print() {
+    serving(Setup::without_tool(), |running| {
+        let token = running.token();
+
+        let list = get(running, "/api/workflows", &token);
+        let show = get(running, "/api/workflows/development-flow", &token);
+
+        assert_eq!((list.status, show.status), (200, 200));
+        assert_eq!(list.json(), workflows_golden("list.json"));
+        assert_eq!(show.json(), workflows_golden("show-development-flow.json"));
+        Then::Stop
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn the_api_refuses_a_slug_that_is_not_lowercase_words_joined_by_hyphens() {
+    let directory = tempfile::tempdir().unwrap();
+    let log = directory.path().join("runs");
+    let setup = Setup::without_tool().board_env("FAKE_BOARD_LOG", log.as_os_str());
+    serving(setup, |running| {
+        let token = running.token();
+
+        for slug in ["Development-Flow", "-rf", "a--b", "a%2Fb", "a_b"] {
+            let reply = get(running, &format!("/api/workflows/{slug}"), &token);
+
+            assert_eq!(reply.status, 422, "{slug}");
+            assert_eq!(reply.code(), "flightdeck::workflows::slug", "{slug}");
+        }
+        Then::Stop
+    });
+    assert!(!log.exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn a_slug_with_no_graph_gets_404_and_a_refusing_board_gets_502_with_boards_code() {
+    serving(
+        Setup::without_tool().board_env("FAKE_BOARD_OPEN", "refuse"),
+        |running| {
+            let token = running.token();
+
+            let reply = get(running, "/api/workflows", &token);
+
+            assert_eq!(reply.status, 502);
+            assert_eq!(reply.code(), "flightdeck::board::failed");
+            assert_eq!(reply.json()["fields"]["board_code"], "board::cli::usage");
+            // A Board that answers with a failure still answers, so the
+            // page shows its Workflows entry and the failure.
+            assert_eq!(get(running, "/api/deck", &token).json()["board"], true);
+            Then::Stop
+        },
+    );
+    serving(Setup::without_tool(), |running| {
+        let token = running.token();
+
+        let reply = get(running, "/api/workflows/no-such-flow", &token);
+
+        assert_eq!(reply.status, 404);
+        assert_eq!(reply.code(), "flightdeck::workflows::not_found");
+        Then::Stop
+    });
+}
+
+#[test]
+fn the_deck_reply_says_board_is_false_when_the_board_program_cannot_start() {
+    serving(
+        Setup::without_tool().board_program(std::path::PathBuf::from("/no/such/dir/board")),
+        |running| {
+            let token = running.token();
+
+            assert_eq!(
+                get(running, "/api/deck", &token).json(),
+                json!({"tool": false, "board": false})
+            );
+            let reply = get(running, "/api/workflows", &token);
+            assert_eq!(reply.status, 500);
+            assert_eq!(reply.code(), "flightdeck::board::not_found");
+            assert!(!reply.json().to_string().contains("/no/such"));
+            Then::Stop
+        },
+    );
 }

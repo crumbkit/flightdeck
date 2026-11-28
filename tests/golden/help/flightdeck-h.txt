@@ -7,6 +7,8 @@ Verbs
 
 Commands
   workspaces  Read the local mxv workspaces
+  workflows   Read the workflow graphs of a board
+  plugin      Install the flightdeck Board plugin, or answer Board's call of it
   compliance  Fetch the repositories' rules reports and build the compliance document
   commands    Explore flightdeck's commands
   skills      Give coding agents flightdeck's skill

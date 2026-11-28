@@ -1,0 +1,600 @@
+{
+  "$defs": {
+    "Actor": {
+      "additionalProperties": false,
+      "description": "Who wrote a record or acted: the session, the program, the person and\nthe agent's name, each when known, and at least one. It is the `by`\nthat other Board types hold.",
+      "minProperties": 1,
+      "properties": {
+        "agent": {
+          "description": "The name the agent was given, such as `nightly scheduler`, as free\ntext.",
+          "type": "string",
+          "x-board-prose": true
+        },
+        "person": {
+          "description": "The person who acted, such as `ana`, or their email address.",
+          "pattern": "^([a-z0-9]+(-[a-z0-9]+)*|[^@\\s]+@[^@\\s]+)$",
+          "type": "string"
+        },
+        "program": {
+          "description": "The program that acted, such as `claude-code` or `codex`.",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "session": {
+          "description": "The Claude Code session's `local_` id.",
+          "pattern": "^local_[0-9a-f-]+$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "ActorKind": {
+      "description": "What kind of actor works in a lane.",
+      "oneOf": [
+        {
+          "const": "owner",
+          "description": "The board's owner.",
+          "type": "string"
+        },
+        {
+          "const": "agent",
+          "description": "A coding agent.",
+          "type": "string"
+        },
+        {
+          "const": "program",
+          "description": "A program, such as Board.",
+          "type": "string"
+        },
+        {
+          "const": "schedule",
+          "description": "A schedule that starts the work.",
+          "type": "string"
+        }
+      ]
+    },
+    "Binding": {
+      "additionalProperties": false,
+      "description": "Live records of one type under one path that sit at a node or a group.",
+      "properties": {
+        "match": {
+          "description": "The conditions, every one of which must hold.",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "target": {
+          "description": "The node or group the records sit at.",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "type": {
+          "description": "The records' type, such as `changes/change/v2`.",
+          "pattern": "^[a-z0-9-]+/[a-z0-9-]+/v[0-9]+$",
+          "type": "string"
+        },
+        "under": {
+          "description": "Where the records live, such as `/changes`.",
+          "format": "board-ref",
+          "type": "string"
+        },
+        "version": {
+          "description": "The field that names the workflow version a record follows, such\nas `/flow`.",
+          "pattern": "^(/[^/]*)*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target",
+        "type",
+        "under",
+        "match"
+      ],
+      "type": "object"
+    },
+    "Cite": {
+      "description": "Where in a source a node or group comes from. `source` 0 is the subject,\nand 1 the first of `sources`.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A JSON pointer into a record source.",
+          "properties": {
+            "at": {
+              "const": "pointer",
+              "type": "string"
+            },
+            "pointer": {
+              "description": "Such as `/phases/0/checks/4`.",
+              "pattern": "^(/[^/]*)*$",
+              "type": "string"
+            },
+            "source": {
+              "description": "The index into the subject and then the sources.",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "at",
+            "source",
+            "pointer"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A line range in a text source.",
+          "properties": {
+            "at": {
+              "const": "lines",
+              "type": "string"
+            },
+            "lines": {
+              "$ref": "#/$defs/Lines",
+              "description": "The inclusive range of lines in the file at its commit."
+            },
+            "source": {
+              "description": "The index into the subject and then the sources.",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "at",
+            "source",
+            "lines"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Condition": {
+      "additionalProperties": false,
+      "description": "One test of a live record's field.",
+      "properties": {
+        "field": {
+          "description": "The JSON pointer of the field, such as `/phase`.",
+          "pattern": "^(/[^/]*)*$",
+          "type": "string"
+        },
+        "op": {
+          "$ref": "#/$defs/Op",
+          "description": "How the field is compared."
+        },
+        "value": {
+          "description": "Such as `plan`, or `/flows/development` for `under`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "op",
+        "value"
+      ],
+      "type": "object"
+    },
+    "Edge": {
+      "additionalProperties": false,
+      "description": "A move from one node or group to another. An edge to a group enters its\nfirst node.",
+      "properties": {
+        "from": {
+          "description": "The node or group the move leaves.",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/EdgeKind",
+          "description": "What the move means."
+        },
+        "label": {
+          "description": "Such as `owner rejects`.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[^\\n]*$",
+          "type": "string"
+        },
+        "to": {
+          "description": "The node or group the move enters.",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "when": {
+          "description": "The condition, for the side panel only.",
+          "type": "string",
+          "x-board-prose": true
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "EdgeKind": {
+      "description": "What a move between nodes means.",
+      "oneOf": [
+        {
+          "const": "next",
+          "description": "The ordinary order.",
+          "type": "string"
+        },
+        {
+          "const": "pass",
+          "description": "A check passes.",
+          "type": "string"
+        },
+        {
+          "const": "fail",
+          "description": "A check fails.",
+          "type": "string"
+        },
+        {
+          "const": "retry",
+          "description": "Back to an earlier node after a fix.",
+          "type": "string"
+        },
+        {
+          "const": "loop",
+          "description": "The end of a loop back to its start.",
+          "type": "string"
+        },
+        {
+          "const": "skip",
+          "description": "Past a node that a condition leaves out.",
+          "type": "string"
+        }
+      ]
+    },
+    "Group": {
+      "additionalProperties": false,
+      "description": "A phase, loop or parallel set that contains nodes.",
+      "properties": {
+        "cite": {
+          "$ref": "#/$defs/Cite",
+          "description": "Where in a source the group comes from."
+        },
+        "id": {
+          "description": "Unique among the record's groups. A node may share it, and an edge\nthat names it then names the node.",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/GroupKind",
+          "description": "How the nodes inside relate."
+        },
+        "label": {
+          "description": "Such as `Plan`.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[^\\n]*$",
+          "type": "string"
+        },
+        "parent": {
+          "description": "The group this one sits in.",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "GroupKind": {
+      "description": "How the nodes inside a group relate.",
+      "oneOf": [
+        {
+          "const": "phase",
+          "description": "A phase of the workflow.",
+          "type": "string"
+        },
+        {
+          "const": "loop",
+          "description": "A loop that runs again from its start.",
+          "type": "string"
+        },
+        {
+          "const": "parallel",
+          "description": "A set of nodes that run together.",
+          "type": "string"
+        }
+      ]
+    },
+    "Lane": {
+      "additionalProperties": false,
+      "description": "One actor, whose nodes sit in its lane.",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/ActorKind",
+          "description": "What kind of actor works in the lane."
+        },
+        "id": {
+          "description": "Unique among the record's lanes.",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "label": {
+          "description": "Such as `Lead` or `Builder`.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[^\\n]*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "actor"
+      ],
+      "type": "object"
+    },
+    "Lines": {
+      "additionalProperties": false,
+      "description": "An inclusive range of lines.",
+      "properties": {
+        "from": {
+          "description": "The first line, counting from 1.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "to": {
+          "description": "The last line, counting from 1.",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "type": "object"
+    },
+    "Node": {
+      "additionalProperties": false,
+      "description": "A step, check, choice, wait, start or end.",
+      "properties": {
+        "blocks": {
+          "default": true,
+          "description": "For a check: whether a failure stops the flow or only warns.",
+          "type": "boolean"
+        },
+        "cite": {
+          "$ref": "#/$defs/Cite",
+          "description": "Where in a source the node comes from."
+        },
+        "conditional": {
+          "default": false,
+          "description": "Whether the node applies only to some instances.",
+          "type": "boolean"
+        },
+        "detail": {
+          "description": "What happens, for the side panel.",
+          "type": "string",
+          "x-board-prose": true
+        },
+        "group": {
+          "description": "The innermost group the node sits in.",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "id": {
+          "description": "Unique among the record's nodes.",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/NodeKind",
+          "description": "What the node is."
+        },
+        "label": {
+          "description": "Short, such as `Owner signs the plan`.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[^\\n]*$",
+          "type": "string"
+        },
+        "lane": {
+          "description": "The id of the lane of whoever acts.",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "refs": {
+          "description": "Records the step reads or writes.",
+          "items": {
+            "format": "board-ref",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "when": {
+          "description": "For a conditional node, the condition, for people only.",
+          "type": "string",
+          "x-board-prose": true
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "kind",
+        "lane"
+      ],
+      "type": "object"
+    },
+    "NodeKind": {
+      "description": "What a node is.",
+      "oneOf": [
+        {
+          "const": "start",
+          "description": "Where an instance begins.",
+          "type": "string"
+        },
+        {
+          "const": "step",
+          "description": "Work an actor does.",
+          "type": "string"
+        },
+        {
+          "const": "gate",
+          "description": "A check that passes or fails.",
+          "type": "string"
+        },
+        {
+          "const": "choice",
+          "description": "The actor picks one of several edges.",
+          "type": "string"
+        },
+        {
+          "const": "wait",
+          "description": "The flow waits on an actor outside it.",
+          "type": "string"
+        },
+        {
+          "const": "end",
+          "description": "Where an instance finishes.",
+          "type": "string"
+        }
+      ]
+    },
+    "Op": {
+      "description": "How a condition compares a field with its value.",
+      "oneOf": [
+        {
+          "const": "equals",
+          "description": "The field is the string `value`.",
+          "type": "string"
+        },
+        {
+          "const": "under",
+          "description": "The field is a board path at or below `value`.",
+          "type": "string"
+        }
+      ]
+    },
+    "Source": {
+      "additionalProperties": false,
+      "description": "A record or file that the agent read, and the commit it read it at.",
+      "properties": {
+        "commit": {
+          "description": "The commit of the board or mount that the agent read it at.",
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "ref": {
+          "description": "The record or file, such as `/flows/development/3029fae590f5a628`.",
+          "format": "board-ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref",
+        "commit"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "An agent's reading of one workflow as a graph, at /workflow-graphs/<slug>: who acts in each lane, the phases and loops, the steps and checks, the moves between them, and how live records sit on them.",
+  "properties": {
+    "$type": {
+      "const": "flightdeck/workflow-graph/v1",
+      "description": "The record's type."
+    },
+    "bindings": {
+      "description": "How live records sit on a node or a group.",
+      "items": {
+        "$ref": "#/$defs/Binding"
+      },
+      "maxItems": 40,
+      "type": "array"
+    },
+    "by": {
+      "$ref": "#/$defs/Actor",
+      "description": "Who wrote this reading."
+    },
+    "edges": {
+      "description": "The moves between nodes.",
+      "items": {
+        "$ref": "#/$defs/Edge"
+      },
+      "maxItems": 400,
+      "type": "array"
+    },
+    "groups": {
+      "description": "The phases, loops and parallel sets that contain nodes.",
+      "items": {
+        "$ref": "#/$defs/Group"
+      },
+      "maxItems": 40,
+      "type": "array"
+    },
+    "lanes": {
+      "description": "Who acts: one lane per actor.",
+      "items": {
+        "$ref": "#/$defs/Lane"
+      },
+      "maxItems": 8,
+      "minItems": 1,
+      "type": "array"
+    },
+    "made": {
+      "description": "When the agent wrote this reading, as RFC 3339 time.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "nodes": {
+      "description": "The steps, checks, waits, starts and ends.",
+      "items": {
+        "$ref": "#/$defs/Node"
+      },
+      "maxItems": 200,
+      "minItems": 1,
+      "type": "array"
+    },
+    "sources": {
+      "description": "Further records or files the agent read, such as a skill a step\nnames.",
+      "items": {
+        "$ref": "#/$defs/Source"
+      },
+      "maxItems": 20,
+      "type": "array"
+    },
+    "subject": {
+      "$ref": "#/$defs/Source",
+      "description": "The record or file the agent read."
+    },
+    "summary": {
+      "description": "What the workflow is for, in one or two sentences.",
+      "type": "string",
+      "x-board-prose": true
+    },
+    "title": {
+      "description": "The workflow's name as people say it.",
+      "maxLength": 120,
+      "minLength": 1,
+      "pattern": "^[^\\n]*$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "$type",
+    "title",
+    "summary",
+    "subject",
+    "sources",
+    "lanes",
+    "groups",
+    "nodes",
+    "edges",
+    "bindings",
+    "made",
+    "by"
+  ],
+  "title": "flightdeck/workflow-graph/v1",
+  "type": "object"
+}

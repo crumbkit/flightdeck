@@ -130,6 +130,21 @@
   --k-usage: light-dark(oklch(76% 0.15 80), oklch(70% 0.14 80));
   --k-fail: light-dark(oklch(50% 0.2 27), oklch(62% 0.19 27));
   --k-repeat: light-dark(oklch(45% 0.14 300), oklch(80% 0.1 300));
+
+  /* The Workflows page's graph: the darker words of each effect's soft
+     fill, a lighter hairline between rows, the fill of every other group's
+     band, and the colour of an edge that moves on. Violet marks a change
+     on another version of a flow than the graph reads, always beside the
+     version's words. */
+  --read-only-ink: light-dark(oklch(32% 0.1 150), oklch(86% 0.1 150));
+  --additive-ink: light-dark(oklch(36% 0.1 75), oklch(88% 0.1 80));
+  --destructive-ink: light-dark(oklch(42% 0.18 27), oklch(84% 0.1 25));
+  --violet: light-dark(oklch(45% 0.14 300), oklch(80% 0.1 300));
+  --violet-soft: light-dark(oklch(93% 0.04 300), oklch(26% 0.06 300));
+  --violet-ink: light-dark(oklch(36% 0.14 300), oklch(86% 0.08 300));
+  --hair: light-dark(oklch(92% 0.006 240), oklch(22% 0.012 240));
+  --band: light-dark(oklch(95.2% 0.006 240), oklch(16.5% 0.01 240));
+  --edge: light-dark(oklch(58% 0.012 240), oklch(55% 0.012 240));
 }
 
 :root[data-theme="light"] {

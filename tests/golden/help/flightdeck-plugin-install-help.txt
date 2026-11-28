@@ -1,0 +1,19 @@
+Write the plugin's manifest and schema where Board finds its plugins
+
+Usage: flightdeck plugin install [OPTIONS]
+
+Options:
+      --json
+          Print the result as a JSON document. The default prints text.
+
+      --no-input
+          Fail instead of asking a question
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Examples:
+  flightdeck plugin install
+          Write the flightdeck Board plugin where Board finds its plugins
+
+Effects: additive, idempotent, closed-world.

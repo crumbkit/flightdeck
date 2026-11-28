@@ -332,3 +332,146 @@ fn the_workspaces_documents_match_the_schemas_that_flightdeck_publishes() {
         );
     }
 }
+
+#[test]
+fn the_workflows_documents_match_the_schemas_that_flightdeck_publishes() {
+    // The documents are the golden output of tests/workflows.rs.
+    for (schema, document) in [
+        ("flightdeck-workflows-list-v1", "list"),
+        ("flightdeck-workflows-show-v1", "show-development-flow"),
+    ] {
+        assert_valid(
+            &checked_in(&format!("tests/golden/schemas/{schema}.json")),
+            &checked_in(&format!("tests/golden/workflows/{document}.json")),
+        );
+    }
+}
+
+/// Runs the pinned Board with `args` in `board`, with every XDG directory
+/// under `home`, and returns what it printed.
+#[cfg(unix)]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the test starts the pinned Board"
+)]
+fn pinned_board(
+    home: &Path,
+    board: &Path,
+    args: &[&str],
+    input: Option<&Path>,
+) -> std::process::Output {
+    let program = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/test-tools/bin/board");
+    assert!(
+        program.is_file(),
+        "{} is missing; run scripts/install-test-tools.sh to install the pinned Board",
+        program.display()
+    );
+    let stdin = input.map_or_else(std::process::Stdio::null, |path| {
+        std::fs::File::open(path).unwrap().into()
+    });
+    Command::new(program)
+        .args(args)
+        .current_dir(board)
+        .env_clear()
+        .env("PATH", "/usr/bin:/bin")
+        .env("HOME", home)
+        .env("XDG_CONFIG_HOME", home.join("config"))
+        .env("XDG_DATA_HOME", home.join("data"))
+        .env("XDG_STATE_HOME", home.join("state"))
+        .env("XDG_CACHE_HOME", home.join("cache"))
+        .stdin(stdin)
+        .output()
+        .unwrap()
+}
+
+#[cfg(unix)]
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the test starts git and the flightdeck binary"
+)]
+fn the_pinned_board_accepts_the_installed_plugin_and_its_type_takes_an_example_graph() {
+    let home = tempfile::tempdir().unwrap();
+    let board = home.path().join("board");
+    std::fs::create_dir_all(board.join(".board")).unwrap();
+    std::fs::write(
+        board.join(".board/board.json"),
+        r#"{"$type": "board/config/v1", "commit_on_put": false}"#,
+    )
+    .unwrap();
+    let git = Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(&board)
+        .output()
+        .unwrap();
+    assert!(git.status.success(), "{git:?}");
+    let installed = Command::new(env!("CARGO_BIN_EXE_flightdeck"))
+        .args(["plugin", "install"])
+        .env_clear()
+        .env("PATH", "/usr/bin:/bin")
+        .env("XDG_DATA_HOME", home.path().join("data"))
+        .env("XDG_STATE_HOME", home.path().join("state"))
+        .output()
+        .unwrap();
+    assert!(installed.status.success(), "{installed:?}");
+
+    let listed = pinned_board(home.path(), &board, &["plugin", "list", "--json"], None);
+    let enabled = pinned_board(
+        home.path(),
+        &board,
+        &["plugin", "enable", "flightdeck"],
+        None,
+    );
+    let example =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/board/graphs/small-flow.json");
+    let put = pinned_board(
+        home.path(),
+        &board,
+        &["put", "/workflow-graphs/small-flow"],
+        Some(&example),
+    );
+    let checked = pinned_board(
+        home.path(),
+        &board,
+        &["check", "--json", "/workflow-graphs/small-flow"],
+        None,
+    );
+
+    let listed: Value = serde_json::from_slice(&listed.stdout).unwrap();
+    let row = listed["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["name"] == "flightdeck")
+        .unwrap();
+    assert_eq!(row["status"], "ok", "{row}");
+    assert_eq!(row["offers"], serde_json::json!(["check"]));
+    assert!(
+        enabled.status.success(),
+        "{}",
+        String::from_utf8_lossy(&enabled.stderr)
+    );
+    let written: Value = serde_json::from_str(
+        &std::fs::read_to_string(
+            board.join(".board/types/flightdeck/workflow-graph/v1.schema.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        written,
+        checked_in("plugin/types/flightdeck/workflow-graph/v1.schema.json")
+    );
+    assert!(
+        put.status.success(),
+        "{}",
+        String::from_utf8_lossy(&put.stderr)
+    );
+    // The example's bindings name /changes and /flows, which this empty
+    // board lacks, so Board reports dangling references and no schema
+    // failure.
+    let checked: Value = serde_json::from_slice(&checked.stdout).unwrap();
+    for row in checked["data"].as_array().unwrap() {
+        assert_eq!(row["code"], "board::ref::dangling", "{row}");
+    }
+}

@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "flightdeck/workflows-list/v1",
+  "description": "Each workflow graph record under /workflow-graphs/ in the board, with its title, subject, node count and whether Flightdeck draws it.",
+  "type": "object",
+  "properties": {
+    "cut": {
+      "description": "Present when the output budget cut the result short, so data holds only its first rows.",
+      "type": "object",
+      "properties": {
+        "budget": {
+          "description": "The most bytes that the run printed on standard output.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "code": {
+          "description": "The over-budget code.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "budget"
+      ]
+    },
+    "data": {
+      "description": "The rows of the page, up to the limit.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/GraphRow"
+      }
+    },
+    "dry_run": {
+      "description": "Present, and true, when the run was a dry run that changed nothing.",
+      "const": true
+    },
+    "next": {
+      "description": "The next steps, in the order the text prints them. It is absent when there are none.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "commands": {
+            "description": "The commands that carry out the step, in order.",
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "call": {
+                      "description": "A command line of this tool.",
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "call"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "run": {
+                      "description": "A command line of another program.",
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "run"
+                  ]
+                }
+              ]
+            }
+          },
+          "text": {
+            "description": "The sentence or phrase that the text prints for the step.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "text",
+          "commands"
+        ]
+      }
+    },
+    "schema": {
+      "description": "The id of this document.",
+      "const": "flightdeck/workflows-list/v1"
+    },
+    "summary": {
+      "$ref": "#/$defs/ListSummary"
+    },
+    "total": {
+      "description": "The number of rows that matched, of which data holds one page. It is absent when the tool did not count the rows.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "truncated": {
+      "description": "True when the document leaves out rows that matched, because of the limit or the output budget, and false when data holds every row.",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema",
+    "data",
+    "truncated",
+    "summary"
+  ],
+  "$defs": {
+    "GraphRow": {
+      "description": "One graph, as the Workflows rail and switch name it.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "description": "Board's code, or flightdeck's, of a degraded record, or null.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "made": {
+          "description": "When the reading was written, or null.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "nodes": {
+          "description": "The number of nodes, or null.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "problems": {
+          "description": "The number of problems that the check finds.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "slug": {
+          "description": "The graph's slug, the last part of its path.",
+          "type": "string"
+        },
+        "status": {
+          "description": "Whether Flightdeck draws the graph.",
+          "$ref": "#/$defs/GraphStatus"
+        },
+        "subject": {
+          "description": "The path of the record or file the graph reads, or null.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "description": "The graph's title, or null when flightdeck cannot read the record.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "slug",
+        "title",
+        "nodes",
+        "status",
+        "problems"
+      ]
+    },
+    "GraphStatus": {
+      "description": "Whether Flightdeck draws a graph.",
+      "oneOf": [
+        {
+          "description": "The record passes its schema and the check, so the page draws it.",
+          "type": "string",
+          "const": "ok"
+        },
+        {
+          "description": "Board marks the record degraded, or flightdeck cannot read it, so\nthe page draws no graph and shows the code.",
+          "type": "string",
+          "const": "degraded"
+        },
+        {
+          "description": "The check finds problems, so the page lists them and draws no graph.",
+          "type": "string",
+          "const": "problems"
+        }
+      ]
+    },
+    "ListSummary": {
+      "description": "What the Workflows rail entry says.",
+      "type": "object",
+      "properties": {
+        "drawn": {
+          "description": "The number of graphs that Flightdeck draws.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "graphs": {
+          "description": "The number of graphs.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "graphs",
+        "drawn"
+      ]
+    }
+  }
+}

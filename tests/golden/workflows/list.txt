@@ -1,0 +1,7 @@
+5 graphs, 3 drawn
+SLUG               TITLE              NODES  STATUS    PROBLEMS
+broken             -                  -      degraded  0
+development-flow   Development flow   34     ok        0
+small-flow         Small flow         11     ok        0
+tangled            Tangled flow       11     problems  1
+weekly-suite-loop  Weekly suite loop  21     ok        0

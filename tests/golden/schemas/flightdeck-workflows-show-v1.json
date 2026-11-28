@@ -1,0 +1,1577 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "flightdeck/workflows-show/v1",
+  "description": "One workflow graph with its problems, the live records each binding places on it, its earlier readings and whether its subject changed since.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "$ref": "#/$defs/WorkflowShow"
+    },
+    "dry_run": {
+      "description": "Present, and true, when the run was a dry run that changed nothing.",
+      "const": true
+    },
+    "failures": {
+      "description": "The failures that the answer leaves out. It is empty when nothing failed.",
+      "type": "array",
+      "items": {
+        "description": "A failure of some of the ids: the fields of the failure document without schema.",
+        "type": "object",
+        "properties": {
+          "alternatives": {
+            "description": "Other repairs the caller can try, in order of preference, each in the shape of recovery. It is present only when the failure offers at least one.",
+            "type": "array",
+            "items": {
+              "description": "A repair the caller can try instead, tagged by kind.",
+              "oneOf": [
+                {
+                  "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                  "type": "object",
+                  "properties": {
+                    "all": {
+                      "type": "string"
+                    },
+                    "call": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "const": "run"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "call"
+                  ]
+                },
+                {
+                  "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                  "type": "object",
+                  "properties": {
+                    "call": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "const": "terminal"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "call"
+                  ]
+                },
+                {
+                  "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                  "type": "object",
+                  "properties": {
+                    "args": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "kind": {
+                      "const": "program"
+                    },
+                    "program": {
+                      "type": "string"
+                    },
+                    "run": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "program",
+                    "args",
+                    "run"
+                  ]
+                },
+                {
+                  "description": "Run the same command again later.",
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "retry"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                {
+                  "description": "Make this repair, then take the step `then`.",
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "after"
+                    },
+                    "repair": {
+                      "type": "string"
+                    },
+                    "then": {
+                      "description": "The step that follows the repair.",
+                      "oneOf": [
+                        {
+                          "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                          "type": "object",
+                          "properties": {
+                            "all": {
+                              "type": "string"
+                            },
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "run"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "call"
+                          ]
+                        },
+                        {
+                          "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                          "type": "object",
+                          "properties": {
+                            "call": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "const": "terminal"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "call"
+                          ]
+                        },
+                        {
+                          "description": "Run the same command again later.",
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "const": "retry"
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "repair",
+                    "then"
+                  ]
+                },
+                {
+                  "description": "Follow this advice.",
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "hint"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "text"
+                  ]
+                },
+                {
+                  "description": "There is no next step, for this reason.",
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "none"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "reason"
+                  ]
+                }
+              ]
+            }
+          },
+          "cause": {
+            "description": "The errors that led to the failure, joined with \": \". It is present only when the failure has a cause.",
+            "type": "string"
+          },
+          "causes": {
+            "description": "The reasons the failure lists side by side, in order, one sentence each. It is present only when the failure lists at least one.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "code": {
+            "description": "The failure's stable code, such as shelf::books::not_found. It is one or more printable ASCII characters without spaces, from ! to ~.",
+            "type": "string",
+            "pattern": "^[!-~]+$"
+          },
+          "fields": {
+            "description": "The values at fault, in the order the failure gives them, each under a name of one or more lowercase ASCII letters, digits and underscores. A value is a string, an integer, a boolean, null, or an array or object of such values, and an object holds each key once. It is present only when the failure names at least one.",
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "string",
+                "integer",
+                "boolean",
+                "null",
+                "array",
+                "object"
+              ],
+              "$anchor": "field_value",
+              "additionalProperties": {
+                "$ref": "#field_value"
+              },
+              "items": {
+                "$ref": "#field_value"
+              }
+            },
+            "propertyNames": {
+              "pattern": "^[a-z0-9_]+$"
+            }
+          },
+          "index": {
+            "description": "The position of key among the keys that the caller gave, counted from 0, so two failures of the same key differ. It is present only with key.",
+            "type": "integer",
+            "minimum": 0
+          },
+          "key": {
+            "description": "The key that the caller gave for the answer that failed, when the failure is one answer of a batch.",
+            "type": "string"
+          },
+          "labels": {
+            "description": "The places in a source, such as a file, that the failure points at, in the order the failure gives them. It is present only when the failure has at least one label.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "column": {
+                  "description": "The 1-based column of the start of the span, counted in characters of its line. It is present only when the span could be read.",
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "excerpt": {
+                  "description": "The lines of the source that the span covers, with one line before and one after where the source has them. It is present only when the span could be read.",
+                  "type": "object",
+                  "properties": {
+                    "line": {
+                      "description": "The 1-based number of the first line of the excerpt.",
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "text": {
+                      "description": "The lines, joined by the line breaks of the source, without a line break at the end.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "line",
+                    "text"
+                  ]
+                },
+                "length": {
+                  "description": "The length of the span in bytes.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "line": {
+                  "description": "The 1-based line that holds the start of the span. It is present only when the span could be read.",
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "name": {
+                  "description": "The name of the source, such as a file name. It is present only when the span could be read and the source has a name.",
+                  "type": "string"
+                },
+                "offset": {
+                  "description": "The byte offset of the start of the span from the start of the source.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "text": {
+                  "description": "What the label says about the span. It is present only when the label has text.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "offset",
+                "length"
+              ]
+            }
+          },
+          "message": {
+            "description": "What went wrong.",
+            "type": "string"
+          },
+          "recovery": {
+            "description": "What the caller can do next, tagged by kind.",
+            "oneOf": [
+              {
+                "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                "type": "object",
+                "properties": {
+                  "all": {
+                    "type": "string"
+                  },
+                  "call": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "run"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "call"
+                ]
+              },
+              {
+                "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                "type": "object",
+                "properties": {
+                  "call": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "terminal"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "call"
+                ]
+              },
+              {
+                "description": "Run this command of another program. `run` is the quoted command line that the text output prints.",
+                "type": "object",
+                "properties": {
+                  "args": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "kind": {
+                    "const": "program"
+                  },
+                  "program": {
+                    "type": "string"
+                  },
+                  "run": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "program",
+                  "args",
+                  "run"
+                ]
+              },
+              {
+                "description": "Run the same command again later.",
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "retry"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              {
+                "description": "Make this repair, then take the step `then`.",
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "after"
+                  },
+                  "repair": {
+                    "type": "string"
+                  },
+                  "then": {
+                    "description": "The step that follows the repair.",
+                    "oneOf": [
+                      {
+                        "description": "Run this command. With `all`, run it once with every value of the failure's field that `all` names in place of the argument's placeholder, such as `<ID>...`.",
+                        "type": "object",
+                        "properties": {
+                          "all": {
+                            "type": "string"
+                          },
+                          "call": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "run"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "call"
+                        ]
+                      },
+                      {
+                        "description": "A person must run this command in a terminal, so a program should hand the step to a person.",
+                        "type": "object",
+                        "properties": {
+                          "call": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "terminal"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "call"
+                        ]
+                      },
+                      {
+                        "description": "Run the same command again later.",
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "const": "retry"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "repair",
+                  "then"
+                ]
+              },
+              {
+                "description": "Follow this advice.",
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "hint"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "text"
+                ]
+              },
+              {
+                "description": "There is no next step, for this reason.",
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "none"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "reason"
+                ]
+              }
+            ]
+          },
+          "related": {
+            "description": "The diagnostics that the failure's diagnostic relates to it, in the order it gives them. It is present only when there is at least one.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "cause": {
+                  "description": "The errors below the related diagnostic, joined with \": \". It is present only when there is one.",
+                  "type": "string"
+                },
+                "code": {
+                  "description": "The related diagnostic's own code, which is free text. It is present only when the diagnostic has one.",
+                  "type": "string"
+                },
+                "help": {
+                  "description": "The related diagnostic's advice. It is present only when it gives some.",
+                  "type": "string"
+                },
+                "labels": {
+                  "description": "The places in a source, such as a file, that the failure points at, in the order the failure gives them. It is present only when the failure has at least one label.",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "column": {
+                        "description": "The 1-based column of the start of the span, counted in characters of its line. It is present only when the span could be read.",
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "excerpt": {
+                        "description": "The lines of the source that the span covers, with one line before and one after where the source has them. It is present only when the span could be read.",
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "description": "The 1-based number of the first line of the excerpt.",
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "text": {
+                            "description": "The lines, joined by the line breaks of the source, without a line break at the end.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "text"
+                        ]
+                      },
+                      "length": {
+                        "description": "The length of the span in bytes.",
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "line": {
+                        "description": "The 1-based line that holds the start of the span. It is present only when the span could be read.",
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "name": {
+                        "description": "The name of the source, such as a file name. It is present only when the span could be read and the source has a name.",
+                        "type": "string"
+                      },
+                      "offset": {
+                        "description": "The byte offset of the start of the span from the start of the source.",
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "text": {
+                        "description": "What the label says about the span. It is present only when the label has text.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "offset",
+                      "length"
+                    ]
+                  }
+                },
+                "message": {
+                  "description": "What the related diagnostic says.",
+                  "type": "string"
+                },
+                "related": {
+                  "description": "The diagnostics related to this one, in the same shape, to at most eight levels below the failure.",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#related"
+                  }
+                },
+                "severity": {
+                  "description": "How severe the related diagnostic is. A diagnostic that gives no severity is an error.",
+                  "enum": [
+                    "error",
+                    "warning",
+                    "advice"
+                  ]
+                },
+                "url": {
+                  "description": "A page that explains the related diagnostic. It is present only when it has one.",
+                  "type": "string"
+                }
+              },
+              "$anchor": "related",
+              "required": [
+                "message",
+                "severity"
+              ]
+            }
+          },
+          "sentence": {
+            "description": "A fixed sentence that a person reviewed, safe to show to anyone. It is present only when the failure has one.",
+            "type": "string"
+          },
+          "url": {
+            "description": "A page that explains the failure. It is present only when the failure has one.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "recovery"
+        ]
+      }
+    },
+    "schema": {
+      "description": "The id of this document.",
+      "const": "flightdeck/workflows-show/v1"
+    }
+  },
+  "required": [
+    "schema",
+    "data",
+    "failures"
+  ],
+  "$defs": {
+    "Actor": {
+      "description": "Who wrote a record or acted: the session, the program, the person and\nthe agent's name, each when known, and at least one. It is the `by`\nthat other Board types hold.",
+      "type": "object",
+      "properties": {
+        "agent": {
+          "description": "The name the agent was given, such as `nightly scheduler`, as free\ntext.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "x-board-prose": true
+        },
+        "person": {
+          "description": "The person who acted, such as `ana`, or their email address.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^([a-z0-9]+(-[a-z0-9]+)*|[^@\\s]+@[^@\\s]+)$"
+        },
+        "program": {
+          "description": "The program that acted, such as `claude-code` or `codex`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "session": {
+          "description": "The Claude Code session's `local_` id.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^local_[0-9a-f-]+$"
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1
+    },
+    "ActorKind": {
+      "description": "What kind of actor works in a lane.",
+      "oneOf": [
+        {
+          "description": "The board's owner.",
+          "type": "string",
+          "const": "owner"
+        },
+        {
+          "description": "A coding agent.",
+          "type": "string",
+          "const": "agent"
+        },
+        {
+          "description": "A program, such as Board.",
+          "type": "string",
+          "const": "program"
+        },
+        {
+          "description": "A schedule that starts the work.",
+          "type": "string",
+          "const": "schedule"
+        }
+      ]
+    },
+    "Binding": {
+      "description": "Live records of one type under one path that sit at a node or a group.",
+      "type": "object",
+      "properties": {
+        "match": {
+          "description": "The conditions, every one of which must hold.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "maxItems": 8
+        },
+        "target": {
+          "description": "The node or group the records sit at.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "type": {
+          "description": "The records' type, such as `changes/change/v2`.",
+          "type": "string",
+          "pattern": "^[a-z0-9-]+/[a-z0-9-]+/v[0-9]+$"
+        },
+        "under": {
+          "description": "Where the records live, such as `/changes`.",
+          "type": "string",
+          "format": "board-ref"
+        },
+        "version": {
+          "description": "The field that names the workflow version a record follows, such\nas `/flow`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^(/[^/]*)*$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "type",
+        "under",
+        "match"
+      ]
+    },
+    "BindingState": {
+      "description": "The live records of one binding.",
+      "type": "object",
+      "properties": {
+        "error": {
+          "description": "Why the records of the binding's type could not be read, or null.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BoardError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "left_out": {
+          "description": "The records that matched past [`PLACED_LIMIT`], which are not placed.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "records": {
+          "description": "The records placed there, by path, at most [`PLACED_LIMIT`].",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Placed"
+          }
+        },
+        "skipped": {
+          "description": "The records left out because Board marks them degraded, or a field\na condition reads is not a string.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "target": {
+          "description": "The node or group the records sit at.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target",
+        "records",
+        "left_out",
+        "skipped",
+        "error"
+      ]
+    },
+    "BoardError": {
+      "description": "A failure that Board reported for one query, or flightdeck's words for\na query that printed no failure document.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "description": "Board's own code, such as `board::path::not_found`, or null when\nBoard printed no failure document.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "description": "What went wrong.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ]
+    },
+    "Cite": {
+      "description": "Where in a source a node or group comes from. `source` 0 is the subject,\nand 1 the first of `sources`.",
+      "oneOf": [
+        {
+          "description": "A JSON pointer into a record source.",
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "string",
+              "const": "pointer"
+            },
+            "pointer": {
+              "description": "Such as `/phases/0/checks/4`.",
+              "type": "string",
+              "pattern": "^(/[^/]*)*$"
+            },
+            "source": {
+              "description": "The index into the subject and then the sources.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "at",
+            "source",
+            "pointer"
+          ]
+        },
+        {
+          "description": "A line range in a text source.",
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "string",
+              "const": "lines"
+            },
+            "lines": {
+              "description": "The inclusive range of lines in the file at its commit.",
+              "$ref": "#/$defs/Lines"
+            },
+            "source": {
+              "description": "The index into the subject and then the sources.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "at",
+            "source",
+            "lines"
+          ]
+        }
+      ]
+    },
+    "Condition": {
+      "description": "One test of a live record's field.",
+      "type": "object",
+      "properties": {
+        "field": {
+          "description": "The JSON pointer of the field, such as `/phase`.",
+          "type": "string",
+          "pattern": "^(/[^/]*)*$"
+        },
+        "op": {
+          "description": "How the field is compared.",
+          "$ref": "#/$defs/Op"
+        },
+        "value": {
+          "description": "Such as `plan`, or `/flows/development` for `under`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "op",
+        "value"
+      ]
+    },
+    "Edge": {
+      "description": "A move from one node or group to another. An edge to a group enters its\nfirst node.",
+      "type": "object",
+      "properties": {
+        "from": {
+          "description": "The node or group the move leaves.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "kind": {
+          "description": "What the move means.",
+          "$ref": "#/$defs/EdgeKind"
+        },
+        "label": {
+          "description": "Such as `owner rejects`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[^\\n]*$"
+        },
+        "to": {
+          "description": "The node or group the move enters.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "when": {
+          "description": "The condition, for the side panel only.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "x-board-prose": true
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to",
+        "kind"
+      ]
+    },
+    "EdgeKind": {
+      "description": "What a move between nodes means.",
+      "oneOf": [
+        {
+          "description": "The ordinary order.",
+          "type": "string",
+          "const": "next"
+        },
+        {
+          "description": "A check passes.",
+          "type": "string",
+          "const": "pass"
+        },
+        {
+          "description": "A check fails.",
+          "type": "string",
+          "const": "fail"
+        },
+        {
+          "description": "Back to an earlier node after a fix.",
+          "type": "string",
+          "const": "retry"
+        },
+        {
+          "description": "The end of a loop back to its start.",
+          "type": "string",
+          "const": "loop"
+        },
+        {
+          "description": "Past a node that a condition leaves out.",
+          "type": "string",
+          "const": "skip"
+        }
+      ]
+    },
+    "Freshness": {
+      "description": "Whether the reading is as new as its subject.",
+      "oneOf": [
+        {
+          "description": "No commit after the reading's commit changed the subject.",
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "current"
+            }
+          },
+          "required": [
+            "state"
+          ]
+        },
+        {
+          "description": "A commit after the reading's commit changed the subject.",
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "changed"
+            }
+          },
+          "required": [
+            "state"
+          ]
+        },
+        {
+          "description": "Nothing is at the subject's path.",
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "gone"
+            }
+          },
+          "required": [
+            "state"
+          ]
+        },
+        {
+          "description": "Flightdeck did not compare the reading with its subject.",
+          "type": "object",
+          "properties": {
+            "reason": {
+              "description": "Why not, such as a flow, whose running version Board cannot\nname yet.",
+              "type": "string"
+            },
+            "state": {
+              "type": "string",
+              "const": "unchecked"
+            }
+          },
+          "required": [
+            "state",
+            "reason"
+          ]
+        }
+      ]
+    },
+    "GraphStatus": {
+      "description": "Whether Flightdeck draws a graph.",
+      "oneOf": [
+        {
+          "description": "The record passes its schema and the check, so the page draws it.",
+          "type": "string",
+          "const": "ok"
+        },
+        {
+          "description": "Board marks the record degraded, or flightdeck cannot read it, so\nthe page draws no graph and shows the code.",
+          "type": "string",
+          "const": "degraded"
+        },
+        {
+          "description": "The check finds problems, so the page lists them and draws no graph.",
+          "type": "string",
+          "const": "problems"
+        }
+      ]
+    },
+    "Group": {
+      "description": "A phase, loop or parallel set that contains nodes.",
+      "type": "object",
+      "properties": {
+        "cite": {
+          "description": "Where in a source the group comes from.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cite"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "description": "Unique among the record's groups. A node may share it, and an edge\nthat names it then names the node.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "kind": {
+          "description": "How the nodes inside relate.",
+          "$ref": "#/$defs/GroupKind"
+        },
+        "label": {
+          "description": "Such as `Plan`.",
+          "type": "string",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[^\\n]*$"
+        },
+        "parent": {
+          "description": "The group this one sits in.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "kind"
+      ]
+    },
+    "GroupKind": {
+      "description": "How the nodes inside a group relate.",
+      "oneOf": [
+        {
+          "description": "A phase of the workflow.",
+          "type": "string",
+          "const": "phase"
+        },
+        {
+          "description": "A loop that runs again from its start.",
+          "type": "string",
+          "const": "loop"
+        },
+        {
+          "description": "A set of nodes that run together.",
+          "type": "string",
+          "const": "parallel"
+        }
+      ]
+    },
+    "Lane": {
+      "description": "One actor, whose nodes sit in its lane.",
+      "type": "object",
+      "properties": {
+        "actor": {
+          "description": "What kind of actor works in the lane.",
+          "$ref": "#/$defs/ActorKind"
+        },
+        "id": {
+          "description": "Unique among the record's lanes.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "label": {
+          "description": "Such as `Lead` or `Builder`.",
+          "type": "string",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[^\\n]*$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "actor"
+      ]
+    },
+    "Lines": {
+      "description": "An inclusive range of lines.",
+      "type": "object",
+      "properties": {
+        "from": {
+          "description": "The first line, counting from 1.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1
+        },
+        "to": {
+          "description": "The last line, counting from 1.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to"
+      ]
+    },
+    "Node": {
+      "description": "A step, check, choice, wait, start or end.",
+      "type": "object",
+      "properties": {
+        "blocks": {
+          "description": "For a check: whether a failure stops the flow or only warns.",
+          "type": "boolean",
+          "default": true
+        },
+        "cite": {
+          "description": "Where in a source the node comes from.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cite"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "conditional": {
+          "description": "Whether the node applies only to some instances.",
+          "type": "boolean",
+          "default": false
+        },
+        "detail": {
+          "description": "What happens, for the side panel.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "x-board-prose": true
+        },
+        "group": {
+          "description": "The innermost group the node sits in.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "id": {
+          "description": "Unique among the record's nodes.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "kind": {
+          "description": "What the node is.",
+          "$ref": "#/$defs/NodeKind"
+        },
+        "label": {
+          "description": "Short, such as `Owner signs the plan`.",
+          "type": "string",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[^\\n]*$"
+        },
+        "lane": {
+          "description": "The id of the lane of whoever acts.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "refs": {
+          "description": "Records the step reads or writes.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "board-ref"
+          }
+        },
+        "when": {
+          "description": "For a conditional node, the condition, for people only.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "x-board-prose": true
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "kind",
+        "lane"
+      ]
+    },
+    "NodeKind": {
+      "description": "What a node is.",
+      "oneOf": [
+        {
+          "description": "Where an instance begins.",
+          "type": "string",
+          "const": "start"
+        },
+        {
+          "description": "Work an actor does.",
+          "type": "string",
+          "const": "step"
+        },
+        {
+          "description": "A check that passes or fails.",
+          "type": "string",
+          "const": "gate"
+        },
+        {
+          "description": "The actor picks one of several edges.",
+          "type": "string",
+          "const": "choice"
+        },
+        {
+          "description": "The flow waits on an actor outside it.",
+          "type": "string",
+          "const": "wait"
+        },
+        {
+          "description": "Where an instance finishes.",
+          "type": "string",
+          "const": "end"
+        }
+      ]
+    },
+    "Op": {
+      "description": "How a condition compares a field with its value.",
+      "oneOf": [
+        {
+          "description": "The field is the string `value`.",
+          "type": "string",
+          "const": "equals"
+        },
+        {
+          "description": "The field is a board path at or below `value`.",
+          "type": "string",
+          "const": "under"
+        }
+      ]
+    },
+    "Placed": {
+      "description": "One live record that a binding places on the graph.",
+      "type": "object",
+      "properties": {
+        "current": {
+          "description": "Whether the record follows the version that the graph reads.",
+          "type": "boolean"
+        },
+        "path": {
+          "description": "The record's path, such as `/changes/add-a-page`.",
+          "type": "string"
+        },
+        "title": {
+          "description": "The record's `title`, or the last part of its path when it has none.",
+          "type": "string"
+        },
+        "version": {
+          "description": "The workflow version the record follows, from the binding's\n`version` field, or null when the binding names none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "title",
+        "version",
+        "current"
+      ]
+    },
+    "Problem": {
+      "description": "One problem that the check found.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "description": "The problem's code, such as `flightdeck::graph::unknown_end`.",
+          "type": "string"
+        },
+        "message": {
+          "description": "What is wrong, as a sentence.",
+          "type": "string"
+        },
+        "pointer": {
+          "description": "The JSON pointer of the field at fault, such as `/edges/2/to`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "pointer",
+        "message"
+      ]
+    },
+    "Source": {
+      "description": "A record or file that the agent read, and the commit it read it at.",
+      "type": "object",
+      "properties": {
+        "commit": {
+          "description": "The commit of the board or mount that the agent read it at.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "ref": {
+          "description": "The record or file, such as `/flows/development/3029fae590f5a628`.",
+          "type": "string",
+          "format": "board-ref"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "commit"
+      ]
+    },
+    "WorkflowGraph": {
+      "title": "flightdeck/workflow-graph/v1",
+      "description": "An agent's reading of one workflow as a graph, at /workflow-graphs/<slug>: who acts in each lane, the phases and loops, the steps and checks, the moves between them, and how live records sit on them.",
+      "type": "object",
+      "properties": {
+        "$type": {
+          "description": "The record's type.",
+          "const": "flightdeck/workflow-graph/v1"
+        },
+        "bindings": {
+          "description": "How live records sit on a node or a group.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Binding"
+          },
+          "maxItems": 40
+        },
+        "by": {
+          "description": "Who wrote this reading.",
+          "$ref": "#/$defs/Actor"
+        },
+        "edges": {
+          "description": "The moves between nodes.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Edge"
+          },
+          "maxItems": 400
+        },
+        "groups": {
+          "description": "The phases, loops and parallel sets that contain nodes.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Group"
+          },
+          "maxItems": 40
+        },
+        "lanes": {
+          "description": "Who acts: one lane per actor.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Lane"
+          },
+          "maxItems": 8,
+          "minItems": 1
+        },
+        "made": {
+          "description": "When the agent wrote this reading, as RFC 3339 time.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "nodes": {
+          "description": "The steps, checks, waits, starts and ends.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "maxItems": 200,
+          "minItems": 1
+        },
+        "sources": {
+          "description": "Further records or files the agent read, such as a skill a step\nnames.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Source"
+          },
+          "maxItems": 20
+        },
+        "subject": {
+          "description": "The record or file the agent read.",
+          "$ref": "#/$defs/Source"
+        },
+        "summary": {
+          "description": "What the workflow is for, in one or two sentences.",
+          "type": "string",
+          "x-board-prose": true
+        },
+        "title": {
+          "description": "The workflow's name as people say it.",
+          "type": "string",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[^\\n]*$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "$type",
+        "title",
+        "summary",
+        "subject",
+        "sources",
+        "lanes",
+        "groups",
+        "nodes",
+        "edges",
+        "bindings",
+        "made",
+        "by"
+      ]
+    },
+    "WorkflowShow": {
+      "description": "The document of the Workflows page for one graph.",
+      "type": "object",
+      "properties": {
+        "bindings": {
+          "description": "The live records of each binding, in the order of the bindings.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BindingState"
+          }
+        },
+        "code": {
+          "description": "Board's code, or flightdeck's, of a degraded record, or null.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "freshness": {
+          "description": "Whether the reading is as new as its subject.",
+          "$ref": "#/$defs/Freshness"
+        },
+        "graph": {
+          "description": "The record, or null when flightdeck cannot read it.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkflowGraph"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limit": {
+          "description": "The first size limit the graph passes, such as `at most 8 lanes`,\nwhen a board without the plugin's schema holds it, or null. The\npage then draws it as a run sheet on every screen.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path": {
+          "description": "The graph's path, `/workflow-graphs/<slug>`.",
+          "type": "string"
+        },
+        "problems": {
+          "description": "Each problem the check finds, which the page lists in place of the\ngraph.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Problem"
+          }
+        },
+        "readings": {
+          "description": "The number of earlier readings that `board log` keeps, or null when\nthe log could not be read.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "running": {
+          "description": "The version of the workflow that runs now, or null while Board\ncannot name it, as it cannot for any flow yet.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "slug": {
+          "description": "The graph's slug.",
+          "type": "string"
+        },
+        "status": {
+          "description": "Whether Flightdeck draws the graph.",
+          "$ref": "#/$defs/GraphStatus"
+        }
+      },
+      "required": [
+        "slug",
+        "path",
+        "status",
+        "code",
+        "graph",
+        "problems",
+        "limit",
+        "bindings",
+        "readings",
+        "freshness",
+        "running"
+      ]
+    }
+  }
+}

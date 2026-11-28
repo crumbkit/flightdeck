@@ -23,12 +23,45 @@ describe("placeOf", () => {
   });
 });
 
+describe("placeOf for the Workflows page", () => {
+  it("reads the page, one graph by its slug, and what is selected", () => {
+    expect(placeOf("#/workflows")).toEqual({ view: "workflows", slug: null, selected: null });
+    expect(placeOf("#/workflows/development-flow")).toEqual({
+      view: "workflows",
+      slug: "development-flow",
+      selected: null,
+    });
+    expect(placeOf("#/workflows/development-flow?selected=%2Fchanges%2Fa-b")).toEqual({
+      view: "workflows",
+      slug: "development-flow",
+      selected: "/changes/a-b",
+    });
+  });
+
+  it("reads a slug that is not lowercase words joined by hyphens as no slug", () => {
+    expect(placeOf("#/workflows/Development")).toEqual({
+      view: "workflows",
+      slug: null,
+      selected: null,
+    });
+    expect(placeOf("#/workflows/a--b?selected=")).toEqual({
+      view: "workflows",
+      slug: null,
+      selected: null,
+    });
+    expect(placeOf("#/workflowsx")).toEqual({ view: "start" });
+  });
+});
+
 describe("hrefOf", () => {
   it("writes each place as the fragment that placeOf reads back", () => {
     for (const place of [
       { view: "start" } as const,
       { view: "workspaces" } as const,
       { view: "workspace", name: "a b/c" } as const,
+      { view: "workflows", slug: null, selected: null } as const,
+      { view: "workflows", slug: "small-flow", selected: null } as const,
+      { view: "workflows", slug: "small-flow", selected: "/changes/a b&c" } as const,
     ]) {
       expect(placeOf(hrefOf(place))).toEqual(place);
     }

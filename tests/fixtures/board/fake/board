@@ -1,0 +1,57 @@
+#!/bin/sh
+# A fake board for the workflows tests. It answers the two queries and the
+# log that flightdeck runs with the documents beside it, as Board prints
+# them with --json. make.py writes them. Every change, commit and title in
+# them is invented.
+#
+# These variables change what it does:
+#
+# - FAKE_BOARD_LOG names a file that each run appends its arguments to, one
+#   line per run.
+# - FAKE_BOARD_OPEN=refuse answers every command as a Board that finds no
+#   board: a usage failure and exit code 2.
+# - FAKE_BOARD_GRAPHS names a query report that answers the graphs query in
+#   place of graphs.json.
+# - FAKE_BOARD_SLEEP=<seconds> waits that long before it answers.
+here=$(dirname "$0")
+
+if [ -n "${FAKE_BOARD_LOG:-}" ]; then
+  echo "$*" >>"$FAKE_BOARD_LOG"
+fi
+if [ -n "${FAKE_BOARD_SLEEP:-}" ]; then
+  sleep "$FAKE_BOARD_SLEEP"
+fi
+case "$1" in
+--personal) shift ;;
+-C) shift 2 ;;
+esac
+if [ "${FAKE_BOARD_OPEN:-}" = refuse ]; then
+  echo '{"schema":"board/failure/v1","code":"board::cli::usage","message":"cannot change to '"'"'/no/board'"'"': /no/board does not exist","recovery":{"kind":"hint","text":"give -C a directory that exists"}}'
+  exit 2
+fi
+
+empty='{"schema":"board/query-report/v2","data":[],"truncated":false,"summary":{"columns":["logical","type","status","code","body"]}}'
+case "$1" in
+query)
+  case "$2" in
+  *"substr(logical"*) cat "${FAKE_BOARD_GRAPHS:-$here/graphs.json}" ;;
+  *"type = 'changes/change/v2'"*) cat "$here/changes.json" ;;
+  *) echo "$empty" ;;
+  esac
+  ;;
+log)
+  key=$(printf '%s' "${2#/}" | tr / _)
+  if [ "$3" = --at ]; then
+    key="$key@$4"
+  fi
+  if [ -f "$here/log/$key.json" ]; then
+    cat "$here/log/$key.json"
+  else
+    echo '{"schema":"board/log-report/v2","data":[],"truncated":false,"summary":{"at":"c0ffee0000000000000000000000000000000000","walked":40,"complete":true,"location":null}}'
+  fi
+  ;;
+*)
+  echo '{"schema":"board/failure/v1","code":"board::cli::usage","message":"the fake board answers query and log only","recovery":{"kind":"hint","text":"run query or log"}}'
+  exit 2
+  ;;
+esac

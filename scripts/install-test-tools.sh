@@ -11,7 +11,8 @@
 # later crumbkit prints, and tests/fixtures/crumbkit/ moves with it.
 # Board is pinned for the contract test in tests/compliance.rs, which
 # compares the copy of Board's rules/report/v1 schema in tests/fixtures/board/
-# with the one this Board installs. The commit is the merge commit of
+# with the one this Board installs, and for the plugin test in
+# tests/schemas.rs, which enables the flightdeck plugin in it. The commit is the merge commit of
 # crumbkit/board#358, which adds `board rules report`. When the pin moves,
 # tests/fixtures/board/make-reports.sh rewrites the fixtures with it. Board builds for macOS and Linux, so Windows
 # skips it, and the contract test runs on Unix alone.

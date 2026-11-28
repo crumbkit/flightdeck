@@ -18,14 +18,14 @@ use crumbkit_test::{
 const PATH_BUDGETS: PathBudgets<'_> =
     PathBudgets::new("tests/golden/examples").nodes(&[Budget::new(
         "skills print",
-        8_200,
+        8_800,
         "Its output is the whole skill, which crumbkit-skills prints, and the root's page lists every resource.",
     )]);
 
 /// flightdeck's built binary and the directory that holds its example
 /// golden files.
 const EXAMPLES: Examples<'_> =
-    Examples::new(env!("CARGO_BIN_EXE_flightdeck"), "tests/golden/examples");
+    Examples::new(env!("CARGO_BIN_EXE_flightdeck"), "tests/golden/examples").allow(ALLOW);
 
 /// The command line that provokes each code which a short run provokes.
 const STARTS: &[Failing<'_>] = &[Failing::new(
@@ -55,6 +55,16 @@ const NEEDS_TEMPLATE: &str = "Only a flightdeck whose embedded page lacks the do
 
 /// The reason that no command line provokes the code of a missing gh.
 const NEEDS_NO_GH: &str = "Only a PATH without gh provokes it, and a command line sets no variable; tests/compliance_fetch.rs provokes it.";
+
+/// The reason that no command line provokes a workflows code in the
+/// convention tests: each needs a board that the test sets up.
+const NEEDS_BOARD: &str = "Only a Board that is missing, fails or lacks the graph provokes it, and a command line sets no variable; tests/workflows.rs provokes it with a fake board.";
+
+/// The reason that no command line provokes the graph slug code.
+const SLUG_FROM_PAGE: &str = "Only the page's route returns it; the command line refuses such a slug as a usage error before flightdeck runs.";
+
+/// The reason that no command line provokes a plugin install code.
+const NEEDS_DATA_HOME: &str = "Only an environment with no data directory, or a plugins directory that cannot be written, provokes it; tests/plugin.rs and src/plugin/tests.rs provoke them.";
 
 /// The codes that the recovery check provokes with no command line.
 const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
@@ -88,6 +98,12 @@ const UNPROVOKED_RECOVERIES: &[Unprovoked<'_>] = &[
         crumbkit_flightdeck::workspaces::WORKSPACE_NAME,
         NAME_FROM_PAGE,
     ),
+    Unprovoked::new(crumbkit_flightdeck::workflows::BOARD_NOT_FOUND, NEEDS_BOARD),
+    Unprovoked::new(crumbkit_flightdeck::workflows::BOARD_FAILED, NEEDS_BOARD),
+    Unprovoked::new(crumbkit_flightdeck::workflows::GRAPH_NOT_FOUND, NEEDS_BOARD),
+    Unprovoked::new(crumbkit_flightdeck::workflows::GRAPH_SLUG, SLUG_FROM_PAGE),
+    Unprovoked::new(crumbkit_flightdeck::plugin::NO_DATA_HOME, NEEDS_DATA_HOME),
+    Unprovoked::new(crumbkit_flightdeck::plugin::INSTALL_FAILED, NEEDS_DATA_HOME),
     Unprovoked::area("flightdeck", "run", NO_RUN),
     Unprovoked::area("flightdeck", "choices", NO_RUN),
 ];
@@ -130,6 +146,12 @@ const UNTWINNED: &[Unprovoked<'_>] = &[
         crumbkit_flightdeck::workspaces::WORKSPACE_NAME,
         NAME_FROM_PAGE,
     ),
+    Unprovoked::new(crumbkit_flightdeck::workflows::BOARD_NOT_FOUND, NEEDS_BOARD),
+    Unprovoked::new(crumbkit_flightdeck::workflows::BOARD_FAILED, NEEDS_BOARD),
+    Unprovoked::new(crumbkit_flightdeck::workflows::GRAPH_NOT_FOUND, NEEDS_BOARD),
+    Unprovoked::new(crumbkit_flightdeck::workflows::GRAPH_SLUG, SLUG_FROM_PAGE),
+    Unprovoked::new(crumbkit_flightdeck::plugin::NO_DATA_HOME, NEEDS_DATA_HOME),
+    Unprovoked::new(crumbkit_flightdeck::plugin::INSTALL_FAILED, NEEDS_DATA_HOME),
     Unprovoked::area("flightdeck", "run", NO_RUN),
     Unprovoked::area("flightdeck", "choices", NO_RUN),
 ];
@@ -151,6 +173,21 @@ const ALLOW: &[Allow] = &[
         "workspaces show",
         "It prints the One workspace page's document, which is about one workspace.",
     ),
+    Allow::example(
+        "self environment list",
+        &[],
+        "Its table pads the value column to the run's XDG_DATA_HOME, a temporary directory whose name holds the test's process id, so its width changes from run to run; the --json example runs, and tests/environment.rs reads its rows.",
+    ),
+    Allow::new(
+        Rule::ListPages,
+        "workflows list",
+        "It prints the Workflows rail's document, which holds every workflow graph and counts them all.",
+    ),
+    Allow::new(
+        Rule::ShowIds,
+        "workflows show",
+        "It prints the Workflows page's document, which is about one graph.",
+    ),
 ];
 
 /// The settings of flightdeck's recovery check.
@@ -164,10 +201,11 @@ const TWINS: Twins<'_> = Twins::lists(EXAMPLES, CODES).unprovoked(UNTWINNED);
 /// Everything the checks read, which `conventions!` expands to one test for
 /// each check. The grammar check needs no verb besides crumbkit's own,
 /// because `open` is a root verb of the tool record, and it accepts the
-/// verbs of the `completion` commands and `compliance build` and `fetch`.
+/// verbs of the `completion` commands `compliance build` and `fetch`, and `plugin call`, which answers
+/// Board's call of the plugin.
 const SUITE: Suite<'_> = Suite::new(|| (Cli::command(), TOOL))
     .allow(ALLOW)
-    .verbs(&["install", "check", "print", "build", "fetch"])
+    .verbs(&["install", "check", "print", "build", "fetch", "call"])
     .path_budgets(PATH_BUDGETS)
     .examples(EXAMPLES)
     .recoveries(RECOVERIES)

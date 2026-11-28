@@ -1,0 +1,20 @@
+Answer one board/call/v1 request from Board on standard input
+
+Usage: flightdeck plugin call [OPTIONS]
+
+Options:
+      --json
+          Print the result as a JSON document. The default prints text.
+
+      --no-input
+          Fail instead of asking a question
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Examples:
+  flightdeck plugin call
+          Answer the board/call/v1 request that Board writes on standard input
+
+Effects: read-only, closed-world.
+Output: no result on standard output, and --json prints a failure as JSON.

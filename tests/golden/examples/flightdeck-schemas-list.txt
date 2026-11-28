@@ -2,6 +2,9 @@ ID                                   KIND    FORM      DESCRIPTION
 flightdeck/failure/v1                output  document  The document that a command prints on standard output when it fails with --json.
 flightdeck/workspaces-list/v1        output  document  Each local mxv workspace with its checkouts, ports, routes and units, and how many have a unit running.
 flightdeck/workspaces-show/v1        output  document  One local mxv workspace with each checkout's branch, commit and changes, and each unit's state, ports and routes.
+flightdeck/workflows-list/v1         output  document  Each workflow graph record under /workflow-graphs/ in the board, with its title, subject, node count and whether Flightdeck draws it.
+flightdeck/workflows-show/v1         output  document  One workflow graph with its problems, the live records each binding places on it, its earlier readings and whether its subject changed since.
+flightdeck/plugin-install/v1         output  document  Where the flightdeck Board plugin was written, and whether it replaced an earlier one.
 flightdeck/compliance/v1             output  document  Each repository's report as a column and each rule and suite as a row, with each cell's state, each group's roll-up and where each repository differs from the imposed rule set.
 flightdeck/compliance-fetched/v1     output  document  Each repository the config names, failed ones first, with what the fetch wrote for it: its newest run, the run its report came from and the commits since, or why it failed.
 flightdeck/commands-list/v1          output  document  One branch of the tool's commands with their arguments, examples and columns.

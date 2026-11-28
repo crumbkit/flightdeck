@@ -1,0 +1,54 @@
+{
+  "$type": "board/plugin-manifest/v1",
+  "name": "flightdeck",
+  "version": "0.4.0",
+  "description": "Flightdeck draws each flightdeck/workflow-graph/v1 record, an agent's reading of a workflow at /workflow-graphs/<slug>, as a graph. Run `board flightdeck check --path /workflow-graphs/<slug>` after each write; it lists what the page would refuse, such as an edge to an id that names nothing. `flightdeck open` shows the graphs on its Workflows page.",
+  "run": ["flightdeck", "plugin", "call"],
+  "metadata": { "area": "workflows" },
+  "types": ["flightdeck/workflow-graph/v1"],
+  "capabilities": [
+    {
+      "name": "check",
+      "title": "Check a workflow graph",
+      "description": "Read the flightdeck/workflow-graph/v1 record at a path and list the problems its schema cannot see, each with a code, the JSON pointer of the field at fault and a sentence. No problems means Flightdeck draws the graph.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "format": "board-path",
+            "description": "The graph record, such as /workflow-graphs/development-flow."
+          }
+        },
+        "required": ["path"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "The graph record that was checked."
+          },
+          "problems": {
+            "type": "array",
+            "description": "Each problem the check found, in the order of the record's fields; empty when there are none.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "code": { "type": "string" },
+                "pointer": { "type": "string" },
+                "message": { "type": "string" }
+              },
+              "required": ["code", "pointer", "message"]
+            }
+          }
+        },
+        "required": ["path", "problems"]
+      },
+      "annotations": { "readOnlyHint": true, "openWorldHint": false }
+    }
+  ]
+}

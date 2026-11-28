@@ -17,6 +17,8 @@ use crumbkit_skills::{Skill, skills_command};
 
 use crate::compliance::fetch::{COMPLIANCE_FETCH, COMPLIANCE_FETCH_RECORD};
 use crate::compliance::{COMPLIANCE_BUILD, COMPLIANCE_CONFIG};
+use crate::plugin::PLUGIN_INSTALL;
+use crate::workflows::{Slug, WORKFLOWS_LIST, WORKFLOWS_SHOW};
 use crate::workspaces::{WORKSPACES_LIST, WORKSPACES_SHOW, WorkspaceName};
 
 /// Start a local web page for a crumbkit tool.
@@ -81,6 +83,42 @@ pub const TOOL: Tool = Tool::new()
                 .needs(&["mxv"])])
                 .effects(Effects::read_only())
                 .document(WORKSPACES_SHOW),
+            Leaf::new(&["workflows", "list"])
+                .examples(&[
+                    Example::new(&[], "List the workflow graphs of the personal board")
+                        .needs(&["board"]),
+                    Example::new(
+                        &["--json", "--full"],
+                        "Print the document that the Workflows rail and switch read",
+                    )
+                    .needs(&["board"]),
+                ])
+                .effects(Effects::read_only())
+                .document(WORKFLOWS_LIST),
+            Leaf::new(&["workflows", "show"])
+                .examples(&[Example::new(
+                    &["development-flow", "--json"],
+                    "Print the document that the Workflows page draws for the development flow",
+                )
+                .needs(&["board"])])
+                .effects(Effects::read_only())
+                .document(WORKFLOWS_SHOW),
+            Leaf::new(&["plugin", "install"])
+                .examples(&[Example::new(
+                    &[],
+                    "Write the flightdeck Board plugin where Board finds its plugins",
+                )
+                .needs(&["board"])])
+                .effects(Effects::additive().idempotent())
+                .document(PLUGIN_INSTALL),
+            Leaf::new(&["plugin", "call"])
+                .examples(&[Example::new(
+                    &[],
+                    "Answer the board/call/v1 request that Board writes on standard input",
+                )
+                .needs(&["board"])])
+                .effects(Effects::read_only())
+                .prints_no_result(),
             Leaf::new(&["compliance", "build"])
                 .examples(&[
                     Example::new(
@@ -194,6 +232,18 @@ pub(crate) enum Resource {
         #[command(subcommand)]
         command: WorkspacesCommand,
     },
+    /// Read the workflow graphs of a board.
+    Workflows {
+        /// What to do with the graphs.
+        #[command(subcommand)]
+        command: WorkflowsCommand,
+    },
+    /// Install the flightdeck Board plugin, or answer Board's call of it.
+    Plugin {
+        /// What to do with the plugin.
+        #[command(subcommand)]
+        command: PluginCommand,
+    },
     /// Fetch the repositories' rules reports and build the compliance document.
     Compliance {
         /// What to do with the reports.
@@ -266,6 +316,32 @@ pub(crate) struct WorkspacesShowArgs {
     /// The workspace's name, as `flightdeck workspaces list` prints it.
     #[arg(value_name = "NAME")]
     pub(crate) name: WorkspaceName,
+}
+
+/// The commands that read a board's workflow graphs.
+#[derive(Debug, Subcommand)]
+pub(crate) enum WorkflowsCommand {
+    /// List the workflow graphs with their node counts and whether each is drawn.
+    List,
+    /// Show one workflow graph with its problems, live records and freshness.
+    Show(WorkflowsShowArgs),
+}
+
+/// The arguments of `flightdeck workflows show`.
+#[derive(Debug, Args)]
+pub(crate) struct WorkflowsShowArgs {
+    /// The graph's slug, as `flightdeck workflows list` prints it.
+    #[arg(value_name = "SLUG")]
+    pub(crate) slug: Slug,
+}
+
+/// The commands of the flightdeck Board plugin.
+#[derive(Debug, Subcommand)]
+pub(crate) enum PluginCommand {
+    /// Write the plugin's manifest and schema where Board finds its plugins.
+    Install,
+    /// Answer one board/call/v1 request from Board on standard input.
+    Call,
 }
 
 /// The commands that read the repositories' rules reports.

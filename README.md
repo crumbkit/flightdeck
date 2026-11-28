@@ -85,6 +85,29 @@ What works today:
   most four at a time and within 10 seconds, with the program that
   `FLIGHTDECK_MXV` names or `mxv` on PATH. The pages leave out what mxv
   does not supply.
+- When Board answers, the rail also shows Workflows, with the number of
+  workflow graphs in the board. A workflow graph is a
+  `flightdeck/workflow-graph/v1` record at `/workflow-graphs/<slug>`: an
+  agent's reading of one workflow, with its lanes, groups, steps, checks
+  and edges. The Workflows page draws one graph as a swimlane, one column
+  per lane and one band per phase or loop, beside a panel that says who
+  acts at the selected step, where it comes from and where it goes next.
+  Each open change that the graph's bindings match shows as a dot on its
+  step or phase, ringed in violet when it follows another version of the
+  flow. On a phone the graph is a run sheet. `flightdeck workflows list`
+  and `flightdeck workflows show SLUG` print the same facts, and
+  `GET /api/workflows` and `GET /api/workflows/<slug>` send them.
+  flightdeck runs `board query` and `board log`, at most two at a time and
+  within 10 seconds, with the program that `FLIGHTDECK_BOARD_PROGRAM`
+  names or `board` on PATH, in the board that `FLIGHTDECK_BOARD` names or
+  the person's own board.
+- `flightdeck plugin install` writes the `flightdeck` Board plugin, which
+  ships the schema of `flightdeck/workflow-graph/v1` and the read-only
+  capability `flightdeck.check`, into Board's plugin directory. Then
+  `board plugin enable flightdeck` adds the schema to a board, and
+  `board flightdeck check --path /workflow-graphs/<slug>` lists what the
+  page would refuse in a graph, such as an edge to an id that names
+  nothing.
 - `flightdeck commands list`, `flightdeck schemas list` and
   `flightdeck schemas show`, crumbkit's own commands, describe flightdeck
   itself. [docs/commands.md](docs/commands.md) is the reference.

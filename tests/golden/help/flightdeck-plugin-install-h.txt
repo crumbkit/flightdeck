@@ -1,0 +1,12 @@
+Write the plugin's manifest and schema where Board finds its plugins
+
+Usage: flightdeck plugin install [OPTIONS]
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Examples:
+  flightdeck plugin install
+
+Effects: additive, idempotent, closed-world.
+Global flags: --json, --no-input. `flightdeck plugin install --help` describes them.

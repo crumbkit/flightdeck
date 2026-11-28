@@ -1,0 +1,1 @@
+{"schema": "board/log-report/v2", "data": [{"commit": "bb11111111111111111111111111111111111111", "time": "2026-11-22T04:45:00Z", "subject": "board put --batch (1 records)", "blob": "4444444444444444444444444444444444444444"}], "truncated": false, "summary": {"at": "c0ffee0000000000000000000000000000000000", "walked": 40, "complete": true, "location": null}}

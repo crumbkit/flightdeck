@@ -31,17 +31,46 @@
       "budget": null
     },
     {
+      "rule": "examples/run",
+      "applies_to": "flightdeck self environment list",
+      "reason": "Its table pads the value column to the run's XDG_DATA_HOME, a temporary directory whose name holds the test's process id, so its width changes from run to run; the --json example runs, and tests/environment.rs reads its rows.",
+      "costs": [
+        "The example is not run, so help can show an example that fails.",
+        "The example's output is not counted, so the command's output weight is too low when this example prints the most."
+      ],
+      "budget": null
+    },
+    {
+      "rule": "listings/list-pages",
+      "applies_to": "flightdeck workflows list",
+      "reason": "It prints the Workflows rail's document, which holds every workflow graph and counts them all.",
+      "costs": [
+        "An agent cannot bound the rows that the command prints, so one run can fill its context.",
+        "An agent that passes `--limit` or `--all`, as other listings take them, gets a refusal."
+      ],
+      "budget": null
+    },
+    {
+      "rule": "listings/show-ids",
+      "applies_to": "flightdeck workflows show",
+      "reason": "It prints the Workflows page's document, which is about one graph.",
+      "costs": [
+        "An agent runs the command once for each id."
+      ],
+      "budget": null
+    },
+    {
       "rule": "path-budget/command",
       "applies_to": "flightdeck skills print",
       "reason": "Its output is the whole skill, which crumbkit-skills prints, and the root's page lists every resource.",
       "costs": [
-        "An agent that finds and runs the command can read 200 bytes more than the default, about 50 tokens."
+        "An agent that finds and runs the command can read 800 bytes more than the default, about 200 tokens."
       ],
       "budget": {
-        "bytes": 8200,
+        "bytes": 8800,
         "default": 8000,
-        "extra_bytes": 200,
-        "extra_tokens": 50
+        "extra_bytes": 800,
+        "extra_tokens": 200
       }
     }
   ],
@@ -81,6 +110,31 @@
       "declaration": "example-precondition",
       "applies_to": "flightdeck workspaces show reading-list --json",
       "declares": "The example runs only in a test run that provides mxv."
+    },
+    {
+      "declaration": "example-precondition",
+      "applies_to": "flightdeck workflows list",
+      "declares": "The example runs only in a test run that provides board."
+    },
+    {
+      "declaration": "example-precondition",
+      "applies_to": "flightdeck workflows list --json --full",
+      "declares": "The example runs only in a test run that provides board."
+    },
+    {
+      "declaration": "example-precondition",
+      "applies_to": "flightdeck workflows show development-flow --json",
+      "declares": "The example runs only in a test run that provides board."
+    },
+    {
+      "declaration": "example-precondition",
+      "applies_to": "flightdeck plugin install",
+      "declares": "The example runs only in a test run that provides board."
+    },
+    {
+      "declaration": "example-precondition",
+      "applies_to": "flightdeck plugin call",
+      "declares": "The example runs only in a test run that provides board."
     },
     {
       "declaration": "document-name",

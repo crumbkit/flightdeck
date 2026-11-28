@@ -9,6 +9,24 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The record type `flightdeck/workflow-graph/v1`, an agent's reading of a
+  workflow as lanes, groups, nodes, edges and bindings to live records,
+  with at most 8 lanes, 40 groups, 200 nodes, 400 edges, 40 bindings and
+  20 sources. `flightdeck plugin install` writes the `flightdeck` Board
+  plugin, which ships the type's schema and the read-only capability
+  `flightdeck.check`, into `$XDG_DATA_HOME/board/plugins/flightdeck`.
+  `flightdeck plugin call` answers Board's call of it.
+- `flightdeck workflows list` and `flightdeck workflows show SLUG` read the
+  graphs under `/workflow-graphs/` through `board query` and `board log`,
+  check each one, and place the records that each binding matches.
+  `FLIGHTDECK_BOARD_PROGRAM` names the Board program and `FLIGHTDECK_BOARD`
+  the board's directory.
+- The page's rail shows Workflows when Board answers, and the Workflows
+  page draws a graph as a swimlane with a panel on desktop and as a run
+  sheet on a phone. `GET /api/deck` says whether Board answered, and
+  `GET /api/workflows` and `GET /api/workflows/<slug>` send the commands'
+  documents.
+
 - `flightdeck compliance fetch --config FILE --reports DIR` downloads each
   repository's newest rules report from its GitHub workflow runs through
   `gh`, and writes `<owner>/<repo>.fetch.json` beside it, a

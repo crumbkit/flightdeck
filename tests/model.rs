@@ -1096,5 +1096,17 @@ fn flightdeck_loads_itself_with_the_environment_its_starmap_toml_declares() {
         .filter(|variable| variable.owner().is_none())
         .map(|variable| variable.name())
         .collect();
-    assert_eq!(own, ["PATH", "FLIGHTDECK_PORT", "FLIGHTDECK_MXV"]);
+    assert_eq!(
+        own,
+        [
+            "PATH",
+            "FLIGHTDECK_PORT",
+            "FLIGHTDECK_MXV",
+            "FLIGHTDECK_BOARD_PROGRAM",
+            "FLIGHTDECK_BOARD",
+            "BOARD_BIN",
+            "XDG_DATA_HOME",
+            "HOME",
+        ]
+    );
 }

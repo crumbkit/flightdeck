@@ -1,5 +1,5 @@
 //! `flightdeck open [TOOL]`: load the tool's model when the command names
-//! one, start the page's server with the workspaces routes and the one
+//! one, start the page's server with the workspaces and workflows routes and the one
 //! runner of the process, write the opener page, print two lines, open the
 //! browser, and serve until Ctrl-C, SIGTERM or the idle limit. Without a
 //! tool, the page shows only the workspaces.
@@ -30,6 +30,7 @@ use crate::opener::Opener;
 use crate::runner::{self, Mode, Runner};
 use crate::server::{Ended, IDLE_LIMIT, Listener, Server, Session, Settings, StartError};
 use crate::spawn::{self, Exit, Program};
+use crate::workflows::Board;
 use crate::workspaces::Mxv;
 
 #[cfg(test)]
@@ -166,6 +167,12 @@ fn open(
     let environment =
         Environment::from_vars(vars.iter().cloned()).map_err(OpenError::Environment)?;
     let mxv = Mxv::at_launch(environment.mxv(), launch.as_deref(), environment.path());
+    let board = Board::at_launch(
+        environment.board_program(),
+        environment.board(),
+        launch.as_deref(),
+        environment.path(),
+    );
     let loaded = match &args.tool {
         Some(tool) => {
             let program = Program::at_launch(tool, launch.as_deref(), environment.path())
@@ -225,7 +232,7 @@ fn open(
             "workspaces".to_owned(),
         ),
     };
-    let server = server.workspaces(mxv);
+    let server = server.workspaces(mxv).workflows(board);
 
     // The origin comes first, so a tool's name cannot push it out of view.
     let _ = writeln!(lines, "{origin} · {about}");

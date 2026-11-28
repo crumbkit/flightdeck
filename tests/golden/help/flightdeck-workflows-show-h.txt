@@ -1,0 +1,15 @@
+Show one workflow graph with its problems, live records and freshness
+
+Usage: flightdeck workflows show [OPTIONS] <SLUG>
+
+Arguments:
+  <SLUG>  The graph's slug, as `flightdeck workflows list` prints it
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Examples:
+  flightdeck workflows show development-flow --json
+
+Effects: read-only, closed-world.
+Global flags: --json, --no-input. `flightdeck workflows show --help` describes them.

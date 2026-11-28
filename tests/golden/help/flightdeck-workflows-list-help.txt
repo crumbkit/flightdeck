@@ -1,0 +1,43 @@
+List the workflow graphs with their node counts and whether each is drawn
+
+Usage: flightdeck workflows list [OPTIONS]
+
+Options:
+      --json
+          Print the result as a JSON document. The default prints text.
+
+      --fields <FIELD>
+          Print only these comma-separated fields, in this order. The default prints the compact columns.
+
+      --long
+          Add the long columns after the compact ones. The default prints only the compact columns.
+
+      --full
+          With --json, print every field of every row. The default prints only the fields of the columns.
+
+      --no-input
+          Fail instead of asking a question
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Examples:
+  flightdeck workflows list
+          List the workflow graphs of the personal board
+
+  flightdeck workflows list --json --full
+          Print the document that the Workflows rail and switch read
+
+Columns:
+  slug      The graph's slug, the last part of its path.
+  title     The graph's title, or null when flightdeck cannot read the record.
+  nodes     The number of nodes, or null.
+  status    Whether Flightdeck draws the graph.
+  problems  The number of problems that the check finds.
+
+Columns that --long adds:
+  subject  The path of the record or file the graph reads, or null.
+  made     When the reading was written, or null.
+  code     Board's code, or flightdeck's, of a degraded record, or null.
+
+Effects: read-only, closed-world.

@@ -1,4 +1,4 @@
-flightdeck has 3 opt-outs from the conventions and sets 1 budget.
+flightdeck has 6 opt-outs from the conventions and sets 1 budget.
 
 listings/list-pages: flightdeck self environment list
   Reason: crumbkit-starmap's built-in prints every declared variable at once and takes no arguments.
@@ -14,12 +14,26 @@ listings/show-ids: flightdeck workspaces show
   Reason: It prints the One workspace page's document, which is about one workspace.
   Cost: An agent runs the command once for each id.
 
-path-budget/command: flightdeck skills print
-  Budget: 8200 bytes, where the default is 8000 bytes.
-  Reason: Its output is the whole skill, which crumbkit-skills prints, and the root's page lists every resource.
-  Cost: An agent that finds and runs the command can read 200 bytes more than the default, about 50 tokens.
+examples/run: flightdeck self environment list
+  Reason: Its table pads the value column to the run's XDG_DATA_HOME, a temporary directory whose name holds the test's process id, so its width changes from run to run; the --json example runs, and tests/environment.rs reads its rows.
+  Cost: The example is not run, so help can show an example that fails.
+  Cost: The example's output is not counted, so the command's output weight is too low when this example prints the most.
 
-flightdeck has 12 declarations.
+listings/list-pages: flightdeck workflows list
+  Reason: It prints the Workflows rail's document, which holds every workflow graph and counts them all.
+  Cost: An agent cannot bound the rows that the command prints, so one run can fill its context.
+  Cost: An agent that passes `--limit` or `--all`, as other listings take them, gets a refusal.
+
+listings/show-ids: flightdeck workflows show
+  Reason: It prints the Workflows page's document, which is about one graph.
+  Cost: An agent runs the command once for each id.
+
+path-budget/command: flightdeck skills print
+  Budget: 8800 bytes, where the default is 8000 bytes.
+  Reason: Its output is the whole skill, which crumbkit-skills prints, and the root's page lists every resource.
+  Cost: An agent that finds and runs the command can read 800 bytes more than the default, about 200 tokens.
+
+flightdeck has 17 declarations.
 
 root-verbs: flightdeck open
   Declares: Each command sits directly under the root as a verb, and root help lists it under the heading Verbs.
@@ -42,6 +56,21 @@ example-precondition: flightdeck workspaces list --json --full
 
 example-precondition: flightdeck workspaces show reading-list --json
   Declares: The example runs only in a test run that provides mxv.
+
+example-precondition: flightdeck workflows list
+  Declares: The example runs only in a test run that provides board.
+
+example-precondition: flightdeck workflows list --json --full
+  Declares: The example runs only in a test run that provides board.
+
+example-precondition: flightdeck workflows show development-flow --json
+  Declares: The example runs only in a test run that provides board.
+
+example-precondition: flightdeck plugin install
+  Declares: The example runs only in a test run that provides board.
+
+example-precondition: flightdeck plugin call
+  Declares: The example runs only in a test run that provides board.
 
 document-name: flightdeck compliance build
   Declares: The command prints flightdeck/compliance/v1, where its path gives the name compliance-build.
