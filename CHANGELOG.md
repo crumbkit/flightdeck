@@ -21,9 +21,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   check each one, and place the records that each binding matches.
   `FLIGHTDECK_BOARD_PROGRAM` names the Board program and `FLIGHTDECK_BOARD`
   the board's directory.
-- The page's rail shows Workflows when Board answers, and the Workflows
+- The page's rail shows Workflows when flightdeck found a Board program,
+  and hides it when the list says Board will not start. The Workflows
   page draws a graph as a swimlane with a panel on desktop and as a run
-  sheet on a phone. `GET /api/deck` says whether Board answered, and
+  sheet on a phone. `GET /api/deck` says only whether flightdeck found a
+  Board program, and starts no Board, and
   `GET /api/workflows` and `GET /api/workflows/<slug>` send the commands'
   documents.
 

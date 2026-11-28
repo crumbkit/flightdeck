@@ -37,6 +37,17 @@ export function phoneLabel(title: string): string {
   return words.length > 2 ? `${words[0]} ${words[words.length - 1]}` : words.join(" ");
 }
 
+/**
+ * Returns the phone switch's label of each title in `titles`: its short
+ * label, or the full title when another title has the same short label.
+ */
+export function phoneLabels(titles: string[]): string[] {
+  const labels = titles.map(phoneLabel);
+  return labels.map((label, index) =>
+    labels.indexOf(label) === labels.lastIndexOf(label) ? label : (titles[index] ?? label),
+  );
+}
+
 /** Returns the live records on `target`, the current ones first. */
 export function liveOf(shown: WorkflowShow, target: string): Placed[] {
   return shown.bindings

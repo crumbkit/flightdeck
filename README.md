@@ -85,8 +85,9 @@ What works today:
   most four at a time and within 10 seconds, with the program that
   `FLIGHTDECK_MXV` names or `mxv` on PATH. The pages leave out what mxv
   does not supply.
-- When Board answers, the rail also shows Workflows, with the number of
-  workflow graphs in the board. A workflow graph is a
+- When flightdeck finds a Board program, the rail also shows Workflows,
+  with the number of workflow graphs in the board. The rail hides it
+  again when the list says Board will not start. A workflow graph is a
   `flightdeck/workflow-graph/v1` record at `/workflow-graphs/<slug>`: an
   agent's reading of one workflow, with its lanes, groups, steps, checks
   and edges. The Workflows page draws one graph as a swimlane, one column

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Placed, WorkflowShow } from "@/api/workflows";
-import { againstRunning, phoneLabel } from "./model";
+import { againstRunning, phoneLabel, phoneLabels } from "./model";
 
 const graphVersion = "/flows/development/3029fae590f5a628";
 const olderVersion = "/flows/development/23eb709b901bc3e3";
@@ -64,5 +64,23 @@ describe("phoneLabel", () => {
     expect(phoneLabel("Small flow")).toBe("Small");
     expect(phoneLabel("Weekly suite loop")).toBe("Weekly loop");
     expect(phoneLabel("broken")).toBe("broken");
+  });
+});
+
+describe("phoneLabels", () => {
+  it("shortens each title when the short labels differ", () => {
+    expect(phoneLabels(["Development flow", "Small flow", "Weekly suite loop"])).toEqual([
+      "Development",
+      "Small",
+      "Weekly loop",
+    ]);
+  });
+
+  it("keeps the full titles of the graphs whose short labels are equal", () => {
+    expect(phoneLabels(["Small flow", "Weekly suite loop", "Weekly review loop"])).toEqual([
+      "Small",
+      "Weekly suite loop",
+      "Weekly review loop",
+    ]);
   });
 });

@@ -187,6 +187,29 @@ describe("Workflows on desktop", () => {
     ]);
   });
 
+  it("copies nothing for a path holding a control character and says why", async () => {
+    const writeText = stubClipboard();
+    const odd = structuredClone(developmentFlow);
+    const [first] = odd.data.bindings.flatMap((binding) => binding.records);
+    if (first === undefined) {
+      throw new Error("the fixture places no change");
+    }
+    first.path = "/changes/a\u001b[201~b";
+    stubServer(odd);
+    stubWidth(false);
+    renderPage("development-flow", "plan");
+    const panel = await screen.findByRole("complementary", { name: "Selected" });
+
+    await userEvent.click(within(panel).getByRole("button", { name: "The page shows a sample" }));
+
+    expect(writeText).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(/holds a control character, so flightdeck does not copy it/, {
+        selector: ".wf-cap",
+      }),
+    ).toBeVisible();
+  });
+
   it("shows the problems and no graph for a record the check rejects", async () => {
     stubServer();
     stubWidth(false);

@@ -31,6 +31,26 @@
       "budget": null
     },
     {
+      "rule": "examples/run",
+      "applies_to": "flightdeck self environment list",
+      "reason": "Its table pads the value column to the run's XDG_DATA_HOME, a temporary directory whose name holds the test's process id, so its width changes from run to run; tests/environment.rs reads its rows.",
+      "costs": [
+        "The example is not run, so help can show an example that fails.",
+        "The example's output is not counted, so the command's output weight is too low when this example prints the most."
+      ],
+      "budget": null
+    },
+    {
+      "rule": "examples/run",
+      "applies_to": "flightdeck self environment list --json",
+      "reason": "It prints the run's XDG_DATA_HOME, and on Windows the JSON escapes the path's backslashes, so the check's placeholder does not replace it; tests/environment.rs reads its rows.",
+      "costs": [
+        "The example is not run, so help can show an example that fails.",
+        "The example's output is not counted, so the command's output weight is too low when this example prints the most."
+      ],
+      "budget": null
+    },
+    {
       "rule": "listings/list-pages",
       "applies_to": "flightdeck workflows list",
       "reason": "It prints the Workflows rail's document, which holds every workflow graph and counts them all.",

@@ -14,12 +14,12 @@ import { Failure } from "@/components/Failure";
 import { go, hrefOf } from "@/lib/place";
 import { layout } from "@/lib/workflowLayout";
 import "./workflows.css";
-import { shellWord } from "@/lib/shell";
+import { boardGet } from "@/lib/shell";
 import { Graph } from "./Graph";
 import {
   againstRunning,
   headline,
-  phoneLabel,
+  phoneLabels,
   type Selection,
   selectionOf,
   stillThere,
@@ -72,13 +72,16 @@ function dayOf(made: string): string {
   return `${date.getUTCDate()} ${date.toLocaleString("en-GB", { month: "long", timeZone: "UTC" })}`;
 }
 
+/** What the page says in place of copying a path that holds a control character. */
+const uncopyableText =
+  "This record's path holds a control character, so flightdeck does not copy it.";
+
 /** One segment per graph, or a select menu past six graphs. */
 function Switch({ rows, slug, phone }: { rows: GraphRow[]; slug: string; phone: boolean }) {
   const choose = (next: string) => go({ view: "workflows", slug: next, selected: null });
-  const name = (row: GraphRow) => {
-    const title = row.title ?? row.slug;
-    return phone ? phoneLabel(title) : title;
-  };
+  const titles = rows.map((row) => row.title ?? row.slug);
+  const labels = phone ? phoneLabels(titles) : titles;
+  const name = (row: GraphRow) => labels[rows.indexOf(row)] ?? row.slug;
   if (rows.length > 6) {
     return (
       <select
@@ -396,6 +399,7 @@ export default function Workflows({ slug, selected, onSignedOut }: Props) {
   const shown = useQuery({ ...workflowQuery(chosen ?? ""), enabled: chosen !== null });
   const refused = isSignedOut(list.error) || isSignedOut(shown.error);
   const [copied, setCopied] = useState<string | null>(null);
+  const [uncopyable, setUncopyable] = useState(false);
 
   useEffect(() => {
     if (refused) {
@@ -404,7 +408,12 @@ export default function Workflows({ slug, selected, onSignedOut }: Props) {
   }, [refused, onSignedOut]);
 
   const open = (path: string) => {
-    const command = `board get ${shellWord(path)}`;
+    const command = boardGet(path);
+    setUncopyable(command === null);
+    if (command === null) {
+      setCopied(null);
+      return;
+    }
     navigator.clipboard?.writeText(command).then(
       () => setCopied(command),
       () => setCopied(null),
@@ -420,7 +429,9 @@ export default function Workflows({ slug, selected, onSignedOut }: Props) {
     <>
       <p className="sr-only" aria-live="polite">
         {copied === null ? "" : `Copied ${copied} to the clipboard.`}
+        {uncopyable ? uncopyableText : ""}
       </p>
+      {uncopyable && <p className="wf-cap m-0 mb-2">{uncopyableText}</p>}
       {copied !== null && (
         <p className="wf-cap m-0 mb-2">
           Copied <code>{copied}</code> to the clipboard. Flightdeck has no record viewer yet.
