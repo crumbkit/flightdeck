@@ -28,6 +28,7 @@ export function App({ code }: { code: string | null }) {
   const signedIn = session.data === "signed-in";
   const deck = useQuery({ ...deckQuery(), enabled: signedIn });
   const tool = deck.data?.tool === true;
+  const board = deck.data?.board === true;
   const model = useQuery({ ...modelQuery(), enabled: signedIn && tool });
   const [refused, setRefused] = useState(false);
   const signedOut = refused || isSignedOut(deck.error) || isSignedOut(model.error);
@@ -67,7 +68,7 @@ export function App({ code }: { code: string | null }) {
     <>
       {away && (
         <Suspense fallback={<Loading />}>
-          <Deck place={place} tool={tool} onSignedOut={signOut} />
+          <Deck place={place} tool={tool} board={board} onSignedOut={signOut} />
         </Suspense>
       )}
       {model.data !== undefined && (

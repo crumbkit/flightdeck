@@ -1,0 +1,9 @@
+Development flow (/workflow-graphs/development-flow)
+reads /flows/development/3029fae590f5a628 at 9a84281a
+5 lanes, 4 groups, 34 nodes, 38 edges
+status: ok
+plan: 3 placed, 2 on another version, 2 skipped
+build: 1 placed, 2 skipped
+review: 1 placed, 1 on another version, 2 skipped
+land: 0 placed, 2 skipped
+paused: 1 placed, 2 skipped

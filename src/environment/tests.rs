@@ -68,3 +68,27 @@ fn a_set_mxv_is_its_program_and_an_absent_one_is_none() {
     );
     assert_eq!(absent.mxv(), None);
 }
+
+#[cfg(unix)]
+#[test]
+fn a_home_or_data_home_that_is_not_unicode_is_read_as_it_is_and_refuses_nothing() {
+    use std::os::unix::ffi::OsStringExt as _;
+
+    let home = OsString::from_vec(b"/home/caf\xe9".to_vec());
+    let data = OsString::from_vec(b"/data/caf\xe9".to_vec());
+
+    let environment = Environment::from_vars([
+        (OsString::from("HOME"), home.clone()),
+        (OsString::from("XDG_DATA_HOME"), data.clone()),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        environment.home().map(std::path::Path::new),
+        Some(std::path::Path::new(&home))
+    );
+    assert_eq!(
+        environment.data_home().map(std::path::Path::new),
+        Some(std::path::Path::new(&data))
+    );
+}

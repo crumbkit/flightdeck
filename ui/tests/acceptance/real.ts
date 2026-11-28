@@ -73,7 +73,8 @@ async function openerOf(child: ChildProcess): Promise<string> {
  * "environment shelf" is tests/fixtures/environment/shelf, which mounts
  * `self environment list` as crumbkit-starmap does. "no tool" starts
  * flightdeck without a tool, so the page shows the workspaces. Every
- * flightdeck asks tests/fixtures/mxv/mxv, the fake mxv, for the workspaces.
+ * flightdeck asks tests/fixtures/mxv/mxv, the fake mxv, for the workspaces,
+ * and tests/fixtures/board/fake/board, the fake board, for the workflows.
  * Each test starts its own flightdeck, because a launch code
  * works once, and stops it when the test ends. The `page` job builds
  * target/debug/flightdeck and installs the test tools before `acceptance`.
@@ -113,6 +114,7 @@ export const test = checked.extend<{
       XDG_STATE_HOME: path.join(home, "state"),
       XDG_CACHE_HOME: path.join(home, "cache"),
       FLIGHTDECK_MXV: path.join(root, "tests/fixtures/mxv/mxv"),
+      FLIGHTDECK_BOARD_PROGRAM: path.join(root, "tests/fixtures/board/fake/board"),
     };
     for (const words of ranBefore.runs) {
       if (program !== null) {

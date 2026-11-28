@@ -1,0 +1,14 @@
+List the workflow graphs with their node counts and whether each is drawn
+
+Usage: flightdeck workflows list [OPTIONS]
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Examples:
+  flightdeck workflows list
+  flightdeck workflows list --json --full
+
+Effects: read-only, closed-world.
+Global flags: --json, --fields <FIELD>, --long, --full, --no-input. `flightdeck workflows list --help` describes them.
+Next: flightdeck workflows list --help explains each column.

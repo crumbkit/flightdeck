@@ -1,0 +1,13 @@
+Answer one board/call/v1 request from Board on standard input
+
+Usage: flightdeck plugin call [OPTIONS]
+
+Options:
+  -h, --help  Print help (see more with '--help')
+
+Examples:
+  flightdeck plugin call
+
+Effects: read-only, closed-world.
+Output: no result on standard output, and --json prints a failure as JSON.
+Global flags: --json, --no-input. `flightdeck plugin call --help` describes them.

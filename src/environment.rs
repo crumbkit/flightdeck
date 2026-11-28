@@ -25,6 +25,23 @@ pub(crate) struct Environment {
     /// flightdeck runs `mxv` from `PATH`.
     #[starmap("FLIGHTDECK_MXV")]
     mxv: Option<OsString>,
+    /// The Board program that the workflows queries run, or `None` when
+    /// flightdeck runs `board` from `PATH`.
+    #[starmap("FLIGHTDECK_BOARD_PROGRAM")]
+    board_program: Option<OsString>,
+    /// The directory of the board that the workflows queries read, or
+    /// `None` for the person's own board.
+    #[starmap("FLIGHTDECK_BOARD")]
+    board: Option<OsString>,
+    /// The Board that Board gives a plugin it calls, or `None`.
+    #[starmap("BOARD_BIN")]
+    board_bin: Option<OsString>,
+    /// The directory of the person's data files, or `None`.
+    #[starmap("XDG_DATA_HOME")]
+    data_home: Option<OsString>,
+    /// The person's home directory, or `None`.
+    #[starmap("HOME")]
+    home: Option<OsString>,
 }
 
 impl Environment {
@@ -43,5 +60,33 @@ impl Environment {
     /// it is absent.
     pub(crate) fn mxv(&self) -> Option<&OsStr> {
         self.mxv.as_deref()
+    }
+
+    /// Returns the Board program that `FLIGHTDECK_BOARD_PROGRAM` names, or
+    /// `None` when it is absent.
+    pub(crate) fn board_program(&self) -> Option<&OsStr> {
+        self.board_program.as_deref()
+    }
+
+    /// Returns the board directory that `FLIGHTDECK_BOARD` names, or `None`
+    /// when it is absent.
+    pub(crate) fn board(&self) -> Option<&OsStr> {
+        self.board.as_deref()
+    }
+
+    /// Returns the Board that `BOARD_BIN` names, or `None` when it is
+    /// absent.
+    pub(crate) fn board_bin(&self) -> Option<&OsStr> {
+        self.board_bin.as_deref()
+    }
+
+    /// Returns the directory that `XDG_DATA_HOME` names, or `None`.
+    pub(crate) fn data_home(&self) -> Option<&OsStr> {
+        self.data_home.as_deref()
+    }
+
+    /// Returns the directory that `HOME` names, or `None`.
+    pub(crate) fn home(&self) -> Option<&OsStr> {
+        self.home.as_deref()
     }
 }

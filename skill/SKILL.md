@@ -25,6 +25,16 @@ such as `./target/debug/shelf`. flightdeck runs the tool's `--version`,
 must be built on crumbkit.
 Without TOOL, the page shows this machine's mxv workspaces.
 
+When flightdeck can start Board, the page also shows the board's workflow
+graphs, each a `flightdeck/workflow-graph/v1` record at
+`/workflow-graphs/<slug>`. After you write or rewrite one with `board put`, run
+`board flightdeck check --path /workflow-graphs/<slug>`, which lists what
+the page would refuse, such as an edge to an id that names nothing, and fix
+each problem it names. `flightdeck plugin install`, then
+`board plugin enable flightdeck`, makes the check and the type's schema
+available. `flightdeck workflows show SLUG --json` prints what the page
+draws.
+
 ## Start it where the person can see it
 
 `flightdeck open` does not return while the page is open. It serves the page

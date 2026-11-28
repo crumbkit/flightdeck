@@ -1,0 +1,58 @@
+{
+  "schema": "flightdeck/workflows-list/v1",
+  "data": [
+    {
+      "slug": "broken",
+      "title": null,
+      "subject": null,
+      "made": null,
+      "nodes": null,
+      "status": "degraded",
+      "code": "board::schema::invalid",
+      "problems": 0
+    },
+    {
+      "slug": "development-flow",
+      "title": "Development flow",
+      "subject": "/flows/development/3029fae590f5a628",
+      "made": "2026-11-22T04:45:00Z",
+      "nodes": 34,
+      "status": "ok",
+      "code": null,
+      "problems": 0
+    },
+    {
+      "slug": "small-flow",
+      "title": "Small flow",
+      "subject": "/flows/small/f5df48f0a0456d93",
+      "made": "2026-11-22T04:45:00Z",
+      "nodes": 11,
+      "status": "ok",
+      "code": null,
+      "problems": 0
+    },
+    {
+      "slug": "tangled",
+      "title": "Tangled flow",
+      "subject": "/flows/small/f5df48f0a0456d93",
+      "made": "2026-11-22T04:45:00Z",
+      "nodes": 11,
+      "status": "problems",
+      "code": null,
+      "problems": 1
+    },
+    {
+      "slug": "weekly-suite-loop",
+      "title": "Weekly suite loop",
+      "subject": "/changes/sample-weekly-suite-loop/plans/20261122T012641103210Z.md",
+      "made": "2026-11-22T04:45:00Z",
+      "nodes": 21,
+      "status": "ok",
+      "code": null,
+      "problems": 0
+    }
+  ],
+  "total": 5,
+  "truncated": false,
+  "summary": { "graphs": 5, "drawn": 3 }
+}

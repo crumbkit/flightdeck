@@ -3,13 +3,14 @@
 //! This module and its children are the only places that start a process
 //! (PROC-1). Every thread of flightdeck starts here, where the owner of each
 //! run joins it, or in a `std::thread::scope` that joins it, as the
-//! server's do (SVC-1). The module has six operations. [`open_browser`]
+//! server's do (SVC-1). The module has seven operations. [`open_browser`]
 //! opens the opener page in the default browser, and its module states its
 //! five items of PROC-2. `stream` runs one command that the runner checked
 //! against the tool's model, `mxv` runs the read-only queries of mxv that
-//! the workspaces pages read, and `gh` runs the queries of GitHub that
-//! `compliance fetch` makes; each module states its own five items of
-//! PROC-2. `measure_help` measures a tool's help pages, as its module says.
+//! the workspaces pages read, `gh` runs the queries of GitHub that
+//! `compliance fetch` makes, and `board` runs the read-only queries of
+//! Board that the workflows pages and the plugin's check read; each module
+//! states its own five items of PROC-2. `measure_help` measures a tool's help pages, as its module says.
 //! `describe` runs one of the fixed queries that read a tool's
 //! description of itself. Each query of `describe` states these five items
 //! of PROC-2:
@@ -58,6 +59,7 @@ use std::time::{Duration, Instant};
 use crumbkit::queries;
 use crumbkit_process::{Capture, Outcome, OverLimit, RunError, RunOptions, Status};
 
+mod board;
 mod browser;
 mod gh;
 mod help;
@@ -68,6 +70,11 @@ mod stream;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use self::board::run_all as run_board;
+pub use self::board::{
+    BOARD_AT_ONCE, BOARD_STDOUT_LIMIT, BOARD_TIME_LIMIT, BoardAt, BoardBudget, BoardLimits,
+    BoardPath, BoardQuery, Commit, GRAPHS_UNDER, RecordType,
+};
 pub use self::browser::{BROWSER_TIME_LIMIT, open_browser};
 pub use self::gh::{GH_DOWNLOAD_LIMIT, GH_TIME_LIMIT, RUNS_LISTED};
 pub(crate) use self::gh::{GhQuery, branch_name, gh, plain_name, run_gh};

@@ -1,0 +1,805 @@
+{
+  "$type": "flightdeck/workflow-graph/v1",
+  "title": "Development flow",
+  "summary": "Plan with the owner, build test-first, review with clean context, land through a pull request.",
+  "subject": {
+    "ref": "/flows/development/3029fae590f5a628",
+    "commit": "9a84281ac0df6d68d5223deba53da18d4a780945"
+  },
+  "sources": [
+    {
+      "ref": "/repos/board/plugins/changes/README.md",
+      "commit": "b2c3fb5b8bb1d454d7b0afd2058949c9256df5db"
+    }
+  ],
+  "lanes": [
+    {
+      "id": "lead",
+      "label": "Lead",
+      "actor": "agent"
+    },
+    {
+      "id": "owner",
+      "label": "Owner",
+      "actor": "owner"
+    },
+    {
+      "id": "builder",
+      "label": "Builder",
+      "actor": "agent"
+    },
+    {
+      "id": "reviewer",
+      "label": "Reviewer",
+      "actor": "agent"
+    },
+    {
+      "id": "board",
+      "label": "Board",
+      "actor": "program"
+    }
+  ],
+  "groups": [
+    {
+      "id": "plan",
+      "label": "Plan",
+      "kind": "phase",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/0"
+      }
+    },
+    {
+      "id": "build",
+      "label": "Build",
+      "kind": "phase",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/1"
+      }
+    },
+    {
+      "id": "review",
+      "label": "Review",
+      "kind": "phase",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/2"
+      }
+    },
+    {
+      "id": "land",
+      "label": "Land",
+      "kind": "phase",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/3"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "label": "changes start",
+      "kind": "start",
+      "lane": "lead",
+      "detail": "The lead starts a change on a mounted repository; Board surfaces the open records on that mount."
+    },
+    {
+      "id": "write-plan",
+      "label": "Interview the owner and write the plan",
+      "kind": "step",
+      "lane": "lead",
+      "group": "plan",
+      "detail": "Read each surfaced record, cite or consider it, and fill in Problem, Outcome, Out of scope, UX and Data.",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/0/instruction"
+      },
+      "refs": ["/repos/board/plugins/changes/README.md"]
+    },
+    {
+      "id": "plan-sections",
+      "label": "Plan has its five sections",
+      "kind": "gate",
+      "lane": "board",
+      "group": "plan",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/0/checks/0"
+      }
+    },
+    {
+      "id": "considered",
+      "label": "Every surfaced record is cited or considered",
+      "kind": "gate",
+      "lane": "board",
+      "group": "plan",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/0/checks/1"
+      }
+    },
+    {
+      "id": "task",
+      "label": "Plan names its task",
+      "kind": "gate",
+      "lane": "board",
+      "group": "plan",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/0/checks/2"
+      }
+    },
+    {
+      "id": "route",
+      "label": "Plan names its route",
+      "kind": "gate",
+      "lane": "board",
+      "group": "plan",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/0/checks/3"
+      }
+    },
+    {
+      "id": "mockups",
+      "label": "Owner signs the mockups",
+      "kind": "wait",
+      "lane": "owner",
+      "group": "plan",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/0/checks/5"
+      },
+      "conditional": true,
+      "when": "The plan's UX section lists mockups."
+    },
+    {
+      "id": "mockup-versions",
+      "label": "Mockups pinned at their signed versions",
+      "kind": "gate",
+      "lane": "board",
+      "group": "plan",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/0/checks/6"
+      },
+      "conditional": true,
+      "when": "The plan's UX section lists mockups."
+    },
+    {
+      "id": "data-signed",
+      "label": "Owner passes the understanding check",
+      "kind": "wait",
+      "lane": "owner",
+      "group": "plan",
+      "detail": "The understanding-check skill quizzes the owner on what is stored, where and who sees it.",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/0/checks/7"
+      },
+      "conditional": true,
+      "when": "The plan's Data section says data is stored.",
+      "refs": ["/repos/board/plugins/changes/skills/understanding-check/SKILL.md"]
+    },
+    {
+      "id": "lifecycle-declared",
+      "label": "Lifecycle paths declared",
+      "kind": "gate",
+      "lane": "board",
+      "group": "plan",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/0/checks/8"
+      },
+      "conditional": true,
+      "when": "The plan says the change touches no lifecycle path."
+    },
+    {
+      "id": "lifecycle-record",
+      "label": "Lifecycle record exists",
+      "kind": "gate",
+      "lane": "board",
+      "group": "plan",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/0/checks/9"
+      },
+      "conditional": true,
+      "when": "The plan says the change keeps a lifecycle record."
+    },
+    {
+      "id": "owner-approval",
+      "label": "Owner signs the plan",
+      "kind": "wait",
+      "lane": "owner",
+      "group": "plan",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/0/checks/4"
+      },
+      "refs": ["/repos/board/crates/board-plugin-plans/types/plans/decision/v1.schema"]
+    },
+    {
+      "id": "obligations",
+      "label": "Open obligations listed",
+      "kind": "gate",
+      "lane": "board",
+      "group": "plan",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/0/checks/10"
+      },
+      "blocks": false
+    },
+    {
+      "id": "stop",
+      "label": "Owner says go past plan",
+      "kind": "wait",
+      "lane": "owner",
+      "detail": "The flow stops through plan; changes run continues only when the owner asks.",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/stop"
+      }
+    },
+    {
+      "id": "build-work",
+      "label": "Build test-first",
+      "kind": "step",
+      "lane": "builder",
+      "group": "build",
+      "detail": "The builder starts from changes.brief and works in its own workspace.",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/1"
+      }
+    },
+    {
+      "id": "head",
+      "label": "Head commit recorded",
+      "kind": "gate",
+      "lane": "board",
+      "group": "build",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/1/checks/0"
+      }
+    },
+    {
+      "id": "suite-run",
+      "label": "Suite run passes at head",
+      "kind": "gate",
+      "lane": "board",
+      "group": "build",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/1/checks/1"
+      }
+    },
+    {
+      "id": "tasks",
+      "label": "Build tasks closed",
+      "kind": "gate",
+      "lane": "board",
+      "group": "build",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/1/checks/2"
+      }
+    },
+    {
+      "id": "rechecks",
+      "label": "Owner rechecks the stored data",
+      "kind": "wait",
+      "lane": "owner",
+      "group": "build",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/1/checks/3"
+      },
+      "conditional": true,
+      "when": "The plan's Data section says data is stored."
+    },
+    {
+      "id": "paused",
+      "label": "Paused",
+      "kind": "wait",
+      "lane": "lead",
+      "detail": "A change taken out of build to free its place. It returns to build when resumed."
+    },
+    {
+      "id": "review-run",
+      "label": "Clean-context review",
+      "kind": "step",
+      "lane": "reviewer",
+      "group": "review",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/2/checks/0"
+      }
+    },
+    {
+      "id": "design-conformance",
+      "label": "Built UI matches the signed mockups",
+      "kind": "gate",
+      "lane": "reviewer",
+      "group": "review",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/2/checks/1"
+      },
+      "conditional": true,
+      "when": "The plan's UX section lists mockups."
+    },
+    {
+      "id": "paths",
+      "label": "Diff stays inside the planned paths",
+      "kind": "gate",
+      "lane": "board",
+      "group": "review",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/2/checks/2"
+      }
+    },
+    {
+      "id": "ui-paths",
+      "label": "No UI path touched",
+      "kind": "gate",
+      "lane": "board",
+      "group": "review",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/2/checks/3"
+      },
+      "conditional": true,
+      "when": "The plan says No UI change."
+    },
+    {
+      "id": "data-paths",
+      "label": "No data path touched",
+      "kind": "gate",
+      "lane": "board",
+      "group": "review",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/2/checks/4"
+      },
+      "conditional": true,
+      "when": "The plan says Data: None."
+    },
+    {
+      "id": "lifecycle-paths",
+      "label": "No lifecycle path touched",
+      "kind": "gate",
+      "lane": "board",
+      "group": "review",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/2/checks/5"
+      },
+      "conditional": true,
+      "when": "The change has no lifecycle record."
+    },
+    {
+      "id": "lifecycle-none-paths",
+      "label": "Declared lifecycle paths untouched",
+      "kind": "gate",
+      "lane": "board",
+      "group": "review",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/2/checks/6"
+      },
+      "conditional": true,
+      "when": "The plan says the change touches no lifecycle path."
+    },
+    {
+      "id": "obligations-settled",
+      "label": "Obligations settled",
+      "kind": "gate",
+      "lane": "board",
+      "group": "review",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/2/checks/7"
+      }
+    },
+    {
+      "id": "test-sections",
+      "label": "PR body has its test sections",
+      "kind": "gate",
+      "lane": "board",
+      "group": "land",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/3/checks/0"
+      }
+    },
+    {
+      "id": "pull-request",
+      "label": "Pull request recorded",
+      "kind": "gate",
+      "lane": "board",
+      "group": "land",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/3/checks/1"
+      },
+      "refs": ["/repos/board/plugins/github/SKILL.md"]
+    },
+    {
+      "id": "lifecycle-paths-at-land",
+      "label": "No lifecycle path touched at land",
+      "kind": "gate",
+      "lane": "board",
+      "group": "land",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/3/checks/2"
+      },
+      "conditional": true,
+      "when": "The change has no lifecycle record."
+    },
+    {
+      "id": "lifecycle-none-paths-at-land",
+      "label": "Declared lifecycle paths untouched at land",
+      "kind": "gate",
+      "lane": "board",
+      "group": "land",
+      "cite": {
+        "source": 0,
+        "at": "pointer",
+        "pointer": "/phases/3/checks/3"
+      },
+      "conditional": true,
+      "when": "The plan says the change touches no lifecycle path."
+    },
+    {
+      "id": "done",
+      "label": "Merged",
+      "kind": "end",
+      "lane": "lead"
+    },
+    {
+      "id": "dropped",
+      "label": "Dropped",
+      "kind": "end",
+      "lane": "lead",
+      "detail": "A change ended early with phase dropped."
+    }
+  ],
+  "edges": [
+    {
+      "from": "start",
+      "to": "write-plan",
+      "kind": "next"
+    },
+    {
+      "from": "write-plan",
+      "to": "plan-sections",
+      "kind": "next"
+    },
+    {
+      "from": "plan-sections",
+      "to": "considered",
+      "kind": "next"
+    },
+    {
+      "from": "considered",
+      "to": "task",
+      "kind": "next"
+    },
+    {
+      "from": "task",
+      "to": "route",
+      "kind": "next"
+    },
+    {
+      "from": "route",
+      "to": "mockups",
+      "kind": "next"
+    },
+    {
+      "from": "mockups",
+      "to": "mockup-versions",
+      "kind": "next"
+    },
+    {
+      "from": "mockup-versions",
+      "to": "data-signed",
+      "kind": "next"
+    },
+    {
+      "from": "data-signed",
+      "to": "lifecycle-declared",
+      "kind": "next"
+    },
+    {
+      "from": "lifecycle-declared",
+      "to": "lifecycle-record",
+      "kind": "next"
+    },
+    {
+      "from": "lifecycle-record",
+      "to": "owner-approval",
+      "kind": "next"
+    },
+    {
+      "from": "owner-approval",
+      "to": "obligations",
+      "kind": "next"
+    },
+    {
+      "from": "obligations",
+      "to": "stop",
+      "kind": "next"
+    },
+    {
+      "from": "stop",
+      "to": "build-work",
+      "kind": "next",
+      "label": "go"
+    },
+    {
+      "from": "build-work",
+      "to": "head",
+      "kind": "next"
+    },
+    {
+      "from": "head",
+      "to": "suite-run",
+      "kind": "next"
+    },
+    {
+      "from": "suite-run",
+      "to": "tasks",
+      "kind": "next"
+    },
+    {
+      "from": "tasks",
+      "to": "rechecks",
+      "kind": "next"
+    },
+    {
+      "from": "rechecks",
+      "to": "review-run",
+      "kind": "next"
+    },
+    {
+      "from": "review-run",
+      "to": "design-conformance",
+      "kind": "next"
+    },
+    {
+      "from": "design-conformance",
+      "to": "paths",
+      "kind": "next"
+    },
+    {
+      "from": "paths",
+      "to": "ui-paths",
+      "kind": "next"
+    },
+    {
+      "from": "ui-paths",
+      "to": "data-paths",
+      "kind": "next"
+    },
+    {
+      "from": "data-paths",
+      "to": "lifecycle-paths",
+      "kind": "next"
+    },
+    {
+      "from": "lifecycle-paths",
+      "to": "lifecycle-none-paths",
+      "kind": "next"
+    },
+    {
+      "from": "lifecycle-none-paths",
+      "to": "obligations-settled",
+      "kind": "next"
+    },
+    {
+      "from": "obligations-settled",
+      "to": "test-sections",
+      "kind": "next"
+    },
+    {
+      "from": "test-sections",
+      "to": "pull-request",
+      "kind": "next"
+    },
+    {
+      "from": "pull-request",
+      "to": "lifecycle-paths-at-land",
+      "kind": "next"
+    },
+    {
+      "from": "lifecycle-paths-at-land",
+      "to": "lifecycle-none-paths-at-land",
+      "kind": "next"
+    },
+    {
+      "from": "lifecycle-none-paths-at-land",
+      "to": "done",
+      "kind": "next"
+    },
+    {
+      "from": "owner-approval",
+      "to": "write-plan",
+      "kind": "fail",
+      "label": "Owner asks for changes"
+    },
+    {
+      "from": "suite-run",
+      "to": "build-work",
+      "kind": "fail",
+      "label": "suite fails"
+    },
+    {
+      "from": "review-run",
+      "to": "build-work",
+      "kind": "retry",
+      "label": "findings to fix"
+    },
+    {
+      "from": "paths",
+      "to": "write-plan",
+      "kind": "retry",
+      "label": "diff left the plan",
+      "when": "The diff edits a path the plan did not name, so the plan is rewritten and signed again."
+    },
+    {
+      "from": "build-work",
+      "to": "paused",
+      "kind": "next",
+      "label": "pause"
+    },
+    {
+      "from": "paused",
+      "to": "build-work",
+      "kind": "next",
+      "label": "resume"
+    },
+    {
+      "from": "write-plan",
+      "to": "dropped",
+      "kind": "next",
+      "label": "drop"
+    }
+  ],
+  "bindings": [
+    {
+      "target": "plan",
+      "type": "changes/change/v2",
+      "under": "/changes",
+      "match": [
+        {
+          "field": "/flow",
+          "op": "under",
+          "value": "/flows/development"
+        },
+        {
+          "field": "/phase",
+          "op": "equals",
+          "value": "plan"
+        }
+      ],
+      "version": "/flow"
+    },
+    {
+      "target": "build",
+      "type": "changes/change/v2",
+      "under": "/changes",
+      "match": [
+        {
+          "field": "/flow",
+          "op": "under",
+          "value": "/flows/development"
+        },
+        {
+          "field": "/phase",
+          "op": "equals",
+          "value": "build"
+        }
+      ],
+      "version": "/flow"
+    },
+    {
+      "target": "review",
+      "type": "changes/change/v2",
+      "under": "/changes",
+      "match": [
+        {
+          "field": "/flow",
+          "op": "under",
+          "value": "/flows/development"
+        },
+        {
+          "field": "/phase",
+          "op": "equals",
+          "value": "review"
+        }
+      ],
+      "version": "/flow"
+    },
+    {
+      "target": "land",
+      "type": "changes/change/v2",
+      "under": "/changes",
+      "match": [
+        {
+          "field": "/flow",
+          "op": "under",
+          "value": "/flows/development"
+        },
+        {
+          "field": "/phase",
+          "op": "equals",
+          "value": "land"
+        }
+      ],
+      "version": "/flow"
+    },
+    {
+      "target": "paused",
+      "type": "changes/change/v2",
+      "under": "/changes",
+      "match": [
+        {
+          "field": "/flow",
+          "op": "under",
+          "value": "/flows/development"
+        },
+        {
+          "field": "/phase",
+          "op": "equals",
+          "value": "paused"
+        }
+      ],
+      "version": "/flow"
+    }
+  ],
+  "made": "2026-11-22T04:45:00Z",
+  "by": {
+    "agent": "workflow graph designer",
+    "program": "claude-code"
+  }
+}

@@ -26,7 +26,16 @@
   golden files, run it and commit the result; never edit the files by hand.
 - `pnpm run acceptance` starts `target/debug/flightdeck` with the shelf
   under `target/test-tools/bin`, so build flightdeck and install the test
-  tools first.
+  tools first. It reads workflow graphs from the fake board in
+  `tests/fixtures/board/fake`.
+- `plugin/` holds the `flightdeck` Board plugin's manifest and the
+  generated schema of `flightdeck/workflow-graph/v1`, which the binary
+  embeds. `SNAPSHOTS=overwrite cargo test` rewrites the schema from the
+  structs in `src/workflow_graph.rs`. `tests/fixtures/board/fake/make.py`
+  rewrites the fake board's documents from the graphs beside it.
+- The Workflows page's layout lives in `ui/src/lib/workflowLayout.ts`, a
+  port of the signed mockup's script. A new built file under `ui/dist`
+  needs its entry in `src/server/assets.rs`.
 - `ui/tests/fixtures/shelf-model.json` is the server's `/api/model` reply
   for shelf, and an acceptance test fails when they differ. Rewrite it with
   `FIXTURES=overwrite pnpm run acceptance`, then `pnpm run fix`.

@@ -34,7 +34,7 @@ function stubServer(
         : Response.json({ title: "refused" }, { status: 401 });
     }
     if (path === "/api/deck") {
-      return Response.json({ tool: true });
+      return Response.json({ tool: true, board: false });
     }
     if (path === "/api/model") {
       return Response.json(shelfReply);
@@ -140,7 +140,7 @@ function stubToolless(): string[] {
       return Response.json({ token: "token-for-test" });
     }
     if (path === "/api/deck") {
-      return Response.json({ tool: false });
+      return Response.json({ tool: false, board: false });
     }
     if (path === "/api/workspaces") {
       return Response.json(workspacesList);

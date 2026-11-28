@@ -191,6 +191,10 @@ fn open_without_a_tool_serves_the_workspaces_of_the_mxv_that_flightdeck_mxv_name
         "FLIGHTDECK_MXV",
         Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mxv/mxv"),
     );
+    command.env(
+        "FLIGHTDECK_BOARD_PROGRAM",
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/board/fake/board"),
+    );
     let open = Open::start_with(command, dirs);
     let port = open.port;
     let token = exchange(
@@ -206,7 +210,7 @@ fn open_without_a_tool_serves_the_workspaces_of_the_mxv_that_flightdeck_mxv_name
         open.lines[0],
         format!("http://127.0.0.1:{port} · workspaces")
     );
-    assert_eq!(deck.json(), json!({"tool": false}));
+    assert_eq!(deck.json(), json!({"tool": false, "board": true}));
     assert_eq!(workspaces.status, 200);
     assert_eq!(workspaces.json()["summary"]["workspaces"], 4);
     assert_eq!(model.status, 404);

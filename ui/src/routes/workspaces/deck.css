@@ -28,6 +28,38 @@
   padding: 24px 32px;
 }
 
+/* The Workflows page on a phone: a top bar that holds the rail behind its
+   Views button, and 44 px controls. */
+.deck-main-phone {
+  padding: 16px;
+}
+
+.deck-ptop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--rail);
+}
+
+.deck-views {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--input);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--foreground);
+  font: 400 13px var(--sans);
+  cursor: pointer;
+}
+
+.deck-views:hover {
+  background: var(--muted);
+}
+
 @media (min-width: 48rem) {
   .deck {
     flex-direction: row;

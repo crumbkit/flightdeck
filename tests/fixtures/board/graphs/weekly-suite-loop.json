@@ -1,0 +1,465 @@
+{
+  "$type": "flightdeck/workflow-graph/v1",
+  "title": "Weekly suite loop",
+  "summary": "A Claude Code scheduled task runs a suite each week, records the run and turns each failure into a task.",
+  "subject": {
+    "ref": "/changes/sample-weekly-suite-loop/plans/20261122T012641103210Z.md",
+    "commit": "4e0e85285b4819d32b04cd569fe57a925558359d"
+  },
+  "sources": [],
+  "lanes": [
+    {
+      "id": "person",
+      "label": "Person",
+      "actor": "owner"
+    },
+    {
+      "id": "schedule",
+      "label": "Schedule",
+      "actor": "schedule"
+    },
+    {
+      "id": "agent",
+      "label": "Scheduled session",
+      "actor": "agent"
+    },
+    {
+      "id": "board",
+      "label": "Board",
+      "actor": "program"
+    }
+  ],
+  "groups": [
+    {
+      "id": "setup",
+      "label": "Set up once",
+      "kind": "phase",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 21,
+          "to": 26
+        }
+      }
+    },
+    {
+      "id": "week",
+      "label": "Each week",
+      "kind": "loop",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 28,
+          "to": 41
+        }
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "setup",
+      "label": "Person asks for a weekly loop",
+      "kind": "start",
+      "lane": "person"
+    },
+    {
+      "id": "read-suite",
+      "label": "Read the suite; propose a runner",
+      "kind": "step",
+      "lane": "agent",
+      "group": "setup",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 23,
+          "to": 23
+        }
+      }
+    },
+    {
+      "id": "agree-runner",
+      "label": "Person agrees the runner",
+      "kind": "wait",
+      "lane": "person",
+      "group": "setup",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 23,
+          "to": 23
+        }
+      },
+      "conditional": true,
+      "when": "The suite has no runner."
+    },
+    {
+      "id": "fill-prompt",
+      "label": "Fill the weekly prompt",
+      "kind": "step",
+      "lane": "agent",
+      "group": "setup",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 24,
+          "to": 24
+        }
+      }
+    },
+    {
+      "id": "create-task",
+      "label": "Create the scheduled task",
+      "kind": "step",
+      "lane": "person",
+      "group": "setup",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 25,
+          "to": 25
+        }
+      }
+    },
+    {
+      "id": "run-now",
+      "label": "Run now once and allow commands",
+      "kind": "step",
+      "lane": "person",
+      "group": "setup",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 26,
+          "to": 26
+        }
+      }
+    },
+    {
+      "id": "tick",
+      "label": "Weekly, at the chosen time",
+      "kind": "wait",
+      "lane": "schedule",
+      "group": "week",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 25,
+          "to": 25
+        }
+      }
+    },
+    {
+      "id": "recent",
+      "label": "Ran in the last six days?",
+      "kind": "choice",
+      "lane": "agent",
+      "group": "week",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 30,
+          "to": 30
+        }
+      }
+    },
+    {
+      "id": "commit",
+      "label": "Record the commit",
+      "kind": "step",
+      "lane": "agent",
+      "group": "week",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 31,
+          "to": 31
+        }
+      }
+    },
+    {
+      "id": "runner",
+      "label": "Suite has a runner",
+      "kind": "gate",
+      "lane": "agent",
+      "group": "week",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 32,
+          "to": 32
+        }
+      }
+    },
+    {
+      "id": "run",
+      "label": "Run the suite",
+      "kind": "step",
+      "lane": "agent",
+      "group": "week",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 33,
+          "to": 33
+        }
+      }
+    },
+    {
+      "id": "results",
+      "label": "Build one result per case",
+      "kind": "step",
+      "lane": "agent",
+      "group": "week",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 34,
+          "to": 34
+        }
+      }
+    },
+    {
+      "id": "new-tasks",
+      "label": "Open a task per new failure",
+      "kind": "step",
+      "lane": "agent",
+      "group": "week",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 35,
+          "to": 35
+        }
+      }
+    },
+    {
+      "id": "put",
+      "label": "Write run and tasks in one batch",
+      "kind": "gate",
+      "lane": "board",
+      "group": "week",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 36,
+          "to": 36
+        }
+      },
+      "refs": [
+        "/repos/board/crates/board-plugin-runs/types/runs/run/v1.schema"
+      ]
+    },
+    {
+      "id": "close",
+      "label": "Close tasks whose case passed",
+      "kind": "step",
+      "lane": "board",
+      "group": "week",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 37,
+          "to": 37
+        }
+      }
+    },
+    {
+      "id": "drop",
+      "label": "Drop tasks whose case was removed",
+      "kind": "step",
+      "lane": "board",
+      "group": "week",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 38,
+          "to": 38
+        }
+      }
+    },
+    {
+      "id": "sync",
+      "label": "Sync the board",
+      "kind": "step",
+      "lane": "board",
+      "group": "week",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 40,
+          "to": 40
+        }
+      },
+      "conditional": true,
+      "when": "The board has a git remote."
+    },
+    {
+      "id": "report",
+      "label": "Report one line",
+      "kind": "step",
+      "lane": "agent",
+      "group": "week",
+      "cite": {
+        "source": 0,
+        "at": "lines",
+        "lines": {
+          "from": 41,
+          "to": 41
+        }
+      }
+    },
+    {
+      "id": "skip-week",
+      "label": "Stop: already ran this week",
+      "kind": "end",
+      "lane": "agent"
+    },
+    {
+      "id": "no-runner",
+      "label": "Stop: suite has no runner",
+      "kind": "end",
+      "lane": "agent"
+    },
+    {
+      "id": "nothing-written",
+      "label": "Stop: nothing written",
+      "kind": "end",
+      "lane": "agent",
+      "detail": "board put refused; no run and no task exist. The next week runs again."
+    }
+  ],
+  "edges": [
+    {
+      "from": "setup",
+      "to": "read-suite",
+      "kind": "next"
+    },
+    {
+      "from": "read-suite",
+      "to": "agree-runner",
+      "kind": "next"
+    },
+    {
+      "from": "agree-runner",
+      "to": "fill-prompt",
+      "kind": "next"
+    },
+    {
+      "from": "fill-prompt",
+      "to": "create-task",
+      "kind": "next"
+    },
+    {
+      "from": "create-task",
+      "to": "run-now",
+      "kind": "next"
+    },
+    {
+      "from": "run-now",
+      "to": "tick",
+      "kind": "next"
+    },
+    {
+      "from": "tick",
+      "to": "recent",
+      "kind": "next"
+    },
+    {
+      "from": "recent",
+      "to": "commit",
+      "kind": "next",
+      "label": "no"
+    },
+    {
+      "from": "recent",
+      "to": "skip-week",
+      "kind": "next",
+      "label": "yes"
+    },
+    {
+      "from": "commit",
+      "to": "runner",
+      "kind": "next"
+    },
+    {
+      "from": "runner",
+      "to": "run",
+      "kind": "next"
+    },
+    {
+      "from": "run",
+      "to": "results",
+      "kind": "next"
+    },
+    {
+      "from": "results",
+      "to": "new-tasks",
+      "kind": "next"
+    },
+    {
+      "from": "new-tasks",
+      "to": "put",
+      "kind": "next"
+    },
+    {
+      "from": "put",
+      "to": "close",
+      "kind": "next"
+    },
+    {
+      "from": "close",
+      "to": "drop",
+      "kind": "next"
+    },
+    {
+      "from": "drop",
+      "to": "sync",
+      "kind": "next"
+    },
+    {
+      "from": "sync",
+      "to": "report",
+      "kind": "next"
+    },
+    {
+      "from": "runner",
+      "to": "no-runner",
+      "kind": "fail"
+    },
+    {
+      "from": "put",
+      "to": "nothing-written",
+      "kind": "fail"
+    },
+    {
+      "from": "report",
+      "to": "tick",
+      "kind": "loop",
+      "label": "next week"
+    }
+  ],
+  "bindings": [],
+  "made": "2026-11-22T04:45:00Z",
+  "by": {
+    "agent": "workflow graph designer",
+    "program": "claude-code"
+  }
+}

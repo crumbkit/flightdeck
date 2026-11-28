@@ -16,9 +16,12 @@ mod lock;
 pub mod model;
 mod open;
 pub mod opener;
+pub mod plugin;
 pub mod runner;
 pub mod server;
 pub mod spawn;
+pub mod workflow_graph;
+pub mod workflows;
 pub mod workspaces;
 
 use std::ffi::OsString;
@@ -30,8 +33,8 @@ use starmap::Env as _;
 pub use crate::cli::{Cli, TOOL};
 use crate::cli::{
     CommandsCommand, CompletionCommand, ComplianceBuildArgs, ComplianceCommand,
-    ComplianceFetchArgs, EnvironmentVerb, Resource, SKILL, SchemasCommand, SelfCommand,
-    WorkspacesCommand,
+    ComplianceFetchArgs, EnvironmentVerb, PluginCommand, Resource, SKILL, SchemasCommand,
+    SelfCommand, WorkflowsCommand, WorkspacesCommand,
 };
 use crate::environment::Environment;
 pub use crate::open::{ENVIRONMENT_INVALID, OpenError, SERVER_FAILED, TOOL_SEARCH_PATH};
@@ -42,8 +45,10 @@ pub const CODES: &[&[crumbkit::Code<'static>]] = &[
     compliance::ComplianceError::CODES,
     model::LoadError::CODES,
     OpenError::CODES,
+    plugin::InstallError::CODES,
     runner::RunFailure::CODES,
     runner::EndFailure::CODES,
+    workflows::WorkflowsError::CODES,
     workspaces::WorkspacesError::CODES,
 ];
 
@@ -70,6 +75,8 @@ where
     match cli.resource {
         Resource::Open(args) => open::run(&mut run, &args, vars),
         Resource::Workspaces { command } => workspaces_command(run, &command, vars),
+        Resource::Workflows { command } => workflows_command(run, &command, vars),
+        Resource::Plugin { command } => plugin_command(run, &command, vars),
         Resource::Compliance {
             command: ComplianceCommand::Build(args),
         } => {
@@ -204,6 +211,91 @@ fn workspaces_command(
         WorkspacesCommand::Show(args) => {
             let result = workspaces::show(&mxv, &args.name, &stop).map(crumbkit::Prose::new);
             crumbkit::finish(run, workspaces::WORKSPACES_SHOW, result)
+        }
+    }
+}
+
+/// Runs `flightdeck workflows list` or `show` against the Board that
+/// `FLIGHTDECK_BOARD_PROGRAM` names, or `board` on `PATH`, on the board
+/// that `FLIGHTDECK_BOARD` names, or the personal board, and prints its
+/// document.
+fn workflows_command(
+    mut run: crumbkit::Run,
+    command: &WorkflowsCommand,
+    vars: &[(OsString, OsString)],
+) -> ExitCode {
+    let environment = match Environment::from_vars(vars.iter().cloned()) {
+        Ok(environment) => environment,
+        Err(error) => {
+            return run.fail(
+                &mut crumbkit::Sink::standard(),
+                &OpenError::Environment(error),
+            );
+        }
+    };
+    let launch = open::launch_directory();
+    let board = workflows::Board::at_launch(
+        environment.board_program(),
+        environment.board(),
+        launch.as_deref(),
+        environment.path(),
+    );
+    let stop = crumbkit_process::Cancel::new();
+    match command {
+        WorkflowsCommand::List => {
+            let result = workflows::list(&board, &stop).map(workflows::WorkflowsList::listing);
+            crumbkit::finish(run, workflows::WORKFLOWS_LIST, result)
+        }
+        WorkflowsCommand::Show(args) => {
+            let result = workflows::show(&board, &args.slug, &stop).map(crumbkit::Prose::new);
+            crumbkit::finish(run, workflows::WORKFLOWS_SHOW, result)
+        }
+    }
+}
+
+/// Runs `flightdeck plugin install`, which writes the plugin where Board
+/// finds it, or `flightdeck plugin call`, which answers Board's one
+/// request on standard input with one document on standard output.
+fn plugin_command(
+    mut run: crumbkit::Run,
+    command: &PluginCommand,
+    vars: &[(OsString, OsString)],
+) -> ExitCode {
+    let environment = match Environment::from_vars(vars.iter().cloned()) {
+        Ok(environment) => environment,
+        Err(error) => {
+            return run.fail(
+                &mut crumbkit::Sink::standard(),
+                &OpenError::Environment(error),
+            );
+        }
+    };
+    match command {
+        PluginCommand::Install => {
+            let result = plugin::plugins_directory(
+                environment.data_home().map(std::path::Path::new),
+                environment.home().map(std::path::Path::new),
+            )
+            .and_then(|plugins| plugin::install(&plugins))
+            .map(crumbkit::Prose::new);
+            crumbkit::finish(run, plugin::PLUGIN_INSTALL, result)
+        }
+        PluginCommand::Call => {
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "a plugin call reads the one board/call/v1 request that Board writes on standard input, which is no question for a person"
+            )]
+            let input = std::io::stdin().lock();
+            let answer = plugin::call(input, environment.board_bin());
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "a plugin call answers Board with one board/call-result/v1 or board/error/v1, which is no crumbkit document"
+            )]
+            let mut out = std::io::stdout().lock();
+            let written = std::io::Write::write_all(&mut out, &answer.document)
+                .and_then(|()| std::io::Write::flush(&mut out));
+            let bytes = u64::try_from(answer.document.len()).ok();
+            crumbkit::events::ended(u8::from(answer.failed || written.is_err()), bytes)
         }
     }
 }
