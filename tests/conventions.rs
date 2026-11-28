@@ -176,7 +176,12 @@ const ALLOW: &[Allow] = &[
     Allow::example(
         "self environment list",
         &[],
-        "Its table pads the value column to the run's XDG_DATA_HOME, a temporary directory whose name holds the test's process id, so its width changes from run to run; the --json example runs, and tests/environment.rs reads its rows.",
+        "Its table pads the value column to the run's XDG_DATA_HOME, a temporary directory whose name holds the test's process id, so its width changes from run to run; tests/environment.rs reads its rows.",
+    ),
+    Allow::example(
+        "self environment list",
+        &["--json"],
+        "It prints the run's XDG_DATA_HOME, and on Windows the JSON escapes the path's backslashes, so the check's placeholder does not replace it; tests/environment.rs reads its rows.",
     ),
     Allow::new(
         Rule::ListPages,
